@@ -74,7 +74,7 @@ public class MarkerSettingsScreen extends Screen {
 
     /** Zeigt das Banner mit Beispieldaten, damit man Farbe und Groesse beurteilen kann */
     private static void previewShiny() {
-        AlertBanner.show("SHINY!", "Timil", "-87 42 156",
+        AlertBanner.show("SHINY!", "Sparkling Rockmite", "-87 42 156",
                 ModConfig.INSTANCE.customize.shinyColorRGB(), 7000L);
     }
 

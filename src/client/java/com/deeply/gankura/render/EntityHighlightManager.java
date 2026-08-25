@@ -965,7 +965,7 @@ public class EntityHighlightManager {
                 }
             }
 
-            // Sparkling(レア個体)。種類を問わず接頭辞だけで判定できる
+            // Sparkling(レア個体)。接頭辞と、その後ろの種名の両方で判定する
             if (scanSparkling && SparklingTarget.isSparkling(nameStr)) {
                 SparklingTarget target = SparklingTarget.INSTANCE;
                 Entity visualTarget = customVisual(client, entity);
