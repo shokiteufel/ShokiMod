@@ -19,6 +19,24 @@ import java.util.regex.PatternSyntaxException;
 public class ChatRule {
 
     /** Ersetzt {@code &a} durch echte Formatierungszeichen */
+    /**
+     * Wahr, wenn die Regel noch genau so aussieht wie frisch angelegt.
+     *
+     * Nur solche Regeln darf die Liste stillschweigend wegwerfen. Eine Regel, in der schon etwas
+     * steht, bleibt erhalten - auch ohne Filter, sonst waere die Arbeit beim Schliessen weg.
+     */
+    public boolean isUntouched() {
+        return (filter == null || filter.isBlank())
+                && (replacement == null || replacement.isBlank())
+                && (actionBar == null || actionBar.isBlank())
+                && (announcement == null || announcement.isBlank())
+                && (toast == null || toast.isBlank())
+                && (soundId == null || soundId.isBlank())
+                && (soundFile == null || soundFile.isBlank())
+                && (areas == null || areas.isEmpty())
+                && !hideMessage;
+    }
+
     public static String colorize(String text) {
         return text == null ? "" : text.replace('&', '§');
     }

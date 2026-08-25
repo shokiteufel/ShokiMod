@@ -57,10 +57,15 @@ public class ChatRuleScreen extends Screen {
                 button.setMessage(onOff(rule.enabled));
             }).bounds(left, y, 40, WIDGET_HEIGHT).build());
 
-            Button edit = Button.builder(Component.literal(rule.label() + "  §8" + summary(rule)),
+            boolean needsFilter = rule.filter == null || rule.filter.isBlank();
+            Button edit = Button.builder(Component.literal(
+                    (needsFilter ? "§c⚠ §r" : "") + rule.label() + "  §8" + summary(rule)),
                     button -> minecraft.setScreen(new ChatRuleEditScreen(this, rule)))
                     .bounds(left + 44, y, 252, WIDGET_HEIGHT).build();
-            edit.setTooltip(Tooltip.create(Component.literal("Filter: " + rule.filter)));
+            edit.setTooltip(Tooltip.create(needsFilter
+                    ? Component.literal("No filter yet - the rule never triggers")
+                            .withStyle(ChatFormatting.RED)
+                    : Component.literal("Filter: " + rule.filter)));
             addRenderableWidget(edit);
 
             addRenderableWidget(Button.builder(
@@ -134,14 +139,15 @@ public class ChatRuleScreen extends Screen {
         }
     }
 
+    /**
+     * Hier wird gespeichert, nicht in removed(): removed() laeuft bei jedem Bildschirmwechsel,
+     * also auch beim Sprung in den Editor - eine gerade angelegte Regel waere damit weg, bevor
+     * man das erste Zeichen tippen kann.
+     */
     @Override
     public void onClose() {
-        if (minecraft != null) minecraft.setScreen(parent);
-    }
-
-    @Override
-    public void removed() {
-        rules().removeIf(rule -> rule.filter == null || rule.filter.isBlank());
+        rules().removeIf(ChatRule::isUntouched);
         ModConfig.INSTANCE.saveNow();
+        if (minecraft != null) minecraft.setScreen(parent);
     }
 }
