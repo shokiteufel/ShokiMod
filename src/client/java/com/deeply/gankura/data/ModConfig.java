@@ -2,6 +2,10 @@ package com.deeply.gankura.data;
 
 import com.deeply.gankura.render.HudEditorScreen;
 import com.deeply.gankura.gui.WaypointScreen;
+import com.deeply.gankura.gui.ColorPickerScreen;
+import com.deeply.gankura.gui.ChatRuleScreen;
+import com.deeply.gankura.gui.CustomMobScreen;
+import com.deeply.gankura.gui.MarkerSettingsScreen;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.annotations.Expose;
@@ -88,6 +92,20 @@ public class ModConfig extends Config {
         };
         INSTANCE.mobVisuals.resetNameplateScale =
                 () -> INSTANCE.mobVisuals.nameplateScale = MobVisualsCategory.DEFAULT_NAMEPLATE_SCALE;
+
+        // ユーザー定義モブの2画面。設定画面から開く形は Waypoint / HUD エディタと同じ
+        INSTANCE.customize.openNearbyPicker = () -> Minecraft.getInstance().execute(() ->
+                Minecraft.getInstance().setScreen(
+                        new CustomMobScreen(Minecraft.getInstance().screen, true)));
+        INSTANCE.customize.openChatRules = () -> Minecraft.getInstance().execute(() ->
+                Minecraft.getInstance().setScreen(
+                        new ChatRuleScreen(Minecraft.getInstance().screen)));
+        INSTANCE.customize.openMarkerSettings = () -> Minecraft.getInstance().execute(() ->
+                Minecraft.getInstance().setScreen(
+                        new MarkerSettingsScreen(Minecraft.getInstance().screen)));
+        INSTANCE.customize.openCustomManager = () -> Minecraft.getInstance().execute(() ->
+                Minecraft.getInstance().setScreen(
+                        new CustomMobScreen(Minecraft.getInstance().screen, false)));
         INSTANCE.misc.resetHeldItemScale = () -> INSTANCE.misc.heldItemScale = 1.0f;
         INSTANCE.misc.resetHeldItemOffsetX = () -> INSTANCE.misc.heldItemOffsetX = 0.0f;
         INSTANCE.misc.resetHeldItemOffsetY = () -> INSTANCE.misc.heldItemOffsetY = 0.0f;
@@ -111,6 +129,46 @@ public class ModConfig extends Config {
         INSTANCE.mobVisuals.targetsSafariIcy = normalizeEnumList(INSTANCE.mobVisuals.targetsSafariIcy, List.of());
         INSTANCE.mobVisuals.targetsMoongladeMarsh = normalizeEnumList(INSTANCE.mobVisuals.targetsMoongladeMarsh, List.of());
         INSTANCE.mobVisuals.targetsTorrhusCanyon = normalizeEnumList(INSTANCE.mobVisuals.targetsTorrhusCanyon, List.of());
+
+        // 6.4.0 までは Customize unter Mob Visuals. Alte Configs hierher uebernehmen
+        MobVisualsCategory legacy = INSTANCE.mobVisuals;
+        if (legacy.customTargets != null) {
+            if (INSTANCE.customize.customTargets.isEmpty()) {
+                INSTANCE.customize.customTargets.addAll(legacy.customTargets);
+            }
+            legacy.customTargets = null;
+        }
+        if (legacy.pickRadius != null) {
+            INSTANCE.customize.pickRadius = legacy.pickRadius;
+            legacy.pickRadius = null;
+        }
+        if (legacy.sparklingColor != null) {
+            INSTANCE.customize.sparklingColor = legacy.sparklingColor;
+            legacy.sparklingColor = null;
+        }
+        if (legacy.sparklingEnabled != null) {
+            INSTANCE.customize.sparklingEnabled = legacy.sparklingEnabled;
+            legacy.sparklingEnabled = null;
+        }
+        if (legacy.debugLogging != null) {
+            INSTANCE.customize.debugLogging = legacy.debugLogging;
+            legacy.debugLogging = null;
+        }
+
+        if (INSTANCE.customize.customTargets == null) INSTANCE.customize.customTargets = new ArrayList<>();
+        if (INSTANCE.customize.chatRules == null) INSTANCE.customize.chatRules = new ArrayList<>();
+        if (INSTANCE.customize.discoveredAreas == null) INSTANCE.customize.discoveredAreas = new ArrayList<>();
+        INSTANCE.customize.customTargets.removeIf(m -> m == null);
+        INSTANCE.customize.customTargets.forEach(m -> {
+            m.pattern = CustomMob.normalize(m.pattern);
+            // 後から足したフィールドは旧設定に無いので、読み込み後に補う
+            if (m.mode == null) m.mode = CustomMob.Mode.NAME;
+            if (m.typeId == null) m.typeId = "";
+            if (m.variant == null) m.variant = "";
+            if (m.label == null || m.label.isEmpty()) m.label = m.pattern;
+            if (m.defaultLabel == null || m.defaultLabel.isEmpty()) m.defaultLabel = m.label;
+        });
+        INSTANCE.customize.customTargets.removeIf(m -> m.pattern.isEmpty() && m.typeId.isEmpty());
 
         INSTANCE.saveNow();
     }
@@ -188,6 +246,10 @@ public class ModConfig extends Config {
     @Expose
     @Category(name = "Misc", desc = "Miscellaneous features.")
     public MiscCategory misc = new MiscCategory();
+
+    @Expose
+    @Category(name = "ShokiTeufel", desc = "Your own mobs: add them by name or by entity type, anywhere in SkyBlock.")
+    public CustomizeCategory customize = new CustomizeCategory();
 
 
     // ==========================================
@@ -691,10 +753,12 @@ public class ModConfig extends Config {
         @ConfigAccordionId(id = 71)
         public boolean enableSafariFishHighlight = false;
 
+        /**
+         * Nicht mehr in der GUI: Rockmite Mounds werden jetzt zentral unter
+         * ShokiTeufel -> Safari -> Marker Settings geschaltet, damit es nur
+         * eine Einstellung und eine Farbe gibt. Feld bleibt fuer alte Configs.
+         */
         @Expose
-        @ConfigOption(name = "Rockmite Mound Highlight", desc = "Highlights the Rockmite Mounds hiding around the Cavern Biome.")
-        @ConfigEditorBoolean
-        @ConfigAccordionId(id = 71)
         public boolean enableRockmiteMoundHighlight = true;
 
         @Expose
@@ -1050,6 +1114,18 @@ public class ModConfig extends Config {
         @ConfigEditorButton(buttonText = "None")
         @ConfigAccordionId(id = 91)
         public transient Runnable disableAllSafariIcy = () -> targetsSafariIcy.clear();
+
+        // --- 6.4.0 までは Customize hier drin. Nur zum Uebernehmen alter Configs. ---
+        @Expose
+        public List<CustomMob> customTargets = null;
+        @Expose
+        public String pickRadius = null;
+        @Expose
+        public String sparklingColor = null;
+        @Expose
+        public Boolean sparklingEnabled = null;
+        @Expose
+        public Boolean debugLogging = null;
 
         /** Tracer をどのモブに出すか。表示名はそのまま設定画面の選択肢になる */
         public enum TracerMode {
@@ -1511,4 +1587,180 @@ public class ModConfig extends Config {
         @ConfigEditorBoolean
         public boolean enableCursorRestoreOnRapidReopen = true;
     }
+
+    /**
+     * 自分で追加したモブの設定。もともと Mob Visuals の中の Accordion だったが、
+     * 項目が増えたので独立したカテゴリにした。
+     */
+    public static class CustomizeCategory {
+
+        @Expose
+        public List<CustomMob> customTargets = new ArrayList<>();
+
+        @Expose
+        public List<ChatRule> chatRules = new ArrayList<>();
+
+        /** Beim Spielen entdeckte Gebietsnamen. Ergaenzt den festen Grundstock in KnownAreas */
+        @Expose
+        public List<String> discoveredAreas = new ArrayList<>();
+
+        // ==========================================
+        // Mob Visuals: eigene Mobs nach Name oder Typ
+        // ==========================================
+
+        @Expose
+        @ConfigOption(name = "Mob Visuals", desc = "Your own mobs, matched by name or by entity type.")
+        @ConfigEditorAccordion(id = 95)
+        @ConfigEditorBoolean
+        public boolean mobVisualsFolder = true;
+
+        @Expose
+        @ConfigOption(name = "Mob Name", desc = "Part of the mob name, for example Graveyard Zombie. Level and health in the nametag are ignored automatically.")
+        @ConfigEditorText
+        @ConfigAccordionId(id = 95)
+        public String customInput = "";
+
+        // ボタンは保存対象外なので @Expose を付けず transient にする
+        @ConfigOption(name = "Add", desc = "Adds the name above to your own list.")
+        @ConfigEditorButton(buttonText = "Add")
+        @ConfigAccordionId(id = 95)
+        public transient Runnable addCustomInput = () -> {
+            String cleaned = CustomMob.cleanPattern(customInput);
+            if (cleaned.isEmpty()) return;
+            boolean exists = customTargets.stream()
+                    .anyMatch(m -> m.pattern.equalsIgnoreCase(cleaned));
+            if (!exists) customTargets.add(CustomMob.byName(cleaned, CustomMob.DEFAULT_COLOR));
+            customInput = "";
+        };
+
+        @ConfigOption(name = "Add Nearby", desc = "Pick from what is around you and keep it permanently.")
+        @ConfigEditorButton(buttonText = "Nearby")
+        @ConfigAccordionId(id = 95)
+        public transient Runnable openNearbyPicker = () -> {
+        };
+
+        @ConfigOption(name = "Your Mobs", desc = "Shows your own list. Change name, colour, toggle or remove entries.")
+        @ConfigEditorButton(buttonText = "Manage")
+        @ConfigAccordionId(id = 95)
+        public transient Runnable openCustomManager = () -> {
+        };
+
+        @ConfigOption(name = "Remove All", desc = "Empties your own list.")
+        @ConfigEditorButton(buttonText = "None")
+        @ConfigAccordionId(id = 95)
+        public transient Runnable clearCustomTargets = () -> customTargets.clear();
+
+        // MoulConfig のスライダーは数値欄の幅が 55px 固定で 4 桁が入らないため、テキスト入力にする
+        @Expose
+        @ConfigOption(name = "Search Radius", desc = "How far the pickers look, in blocks (16 - 1024). The server only sends entities inside its own tracking range, so beyond roughly 128 blocks there is usually nothing left to find.")
+        @ConfigEditorText
+        @ConfigAccordionId(id = 95)
+        public String pickRadius = "48";
+
+        @Expose
+        @ConfigOption(name = "Debug Logging", desc = "Writes into the log why a custom mob does or does not glow. Only for troubleshooting.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 95)
+        public boolean debugLogging = false;
+
+        // ==========================================
+        // Safari: von crittermod (MIT, Rok) uebernommen
+        // ==========================================
+
+        // ==========================================
+        // Chat Sounds: eigene Dateien bei Stichwoertern
+        // ==========================================
+
+        @Expose
+        @ConfigOption(name = "Chat Rules", desc = "React to words in chat: hide, replace, action bar, banner, toast and sound.")
+        @ConfigEditorAccordion(id = 97)
+        @ConfigEditorBoolean
+        public boolean chatSoundFolder = true;
+
+        @ConfigOption(name = "Your Rules", desc = "Add words and choose what happens. Sound files go into config/gankura/sounds.")
+        @ConfigEditorButton(buttonText = "Manage")
+        @ConfigAccordionId(id = 97)
+        public transient Runnable openChatRules = () -> {
+        };
+
+        @Expose
+        @ConfigOption(name = "Safari", desc = "Markers for the Critter Safari.")
+        @ConfigEditorAccordion(id = 96)
+        @ConfigEditorBoolean
+        public boolean safariFolder = true;
+
+        @ConfigOption(name = "Marker Settings", desc = "Switch, name and colour side by side, one row per marker.")
+        @ConfigEditorButton(buttonText = "Open")
+        @ConfigAccordionId(id = 96)
+        public transient Runnable openMarkerSettings = () -> {
+        };
+
+        // ==========================================
+        // Werte ohne eigene Zeile. Gesetzt wird alles ueber MarkerSettingsScreen
+        // ==========================================
+
+        @Expose
+        public boolean shinyAlertEnabled = true;
+        @Expose
+        public String shinyColor = "FFD700";
+
+        @Expose
+        public boolean sparklingEnabled = true;
+        @Expose
+        public String sparklingColor = "FFFF55";
+
+        @Expose
+        public boolean highlightSafariWalls = true;
+        /**
+         * Safari-Marker nur zeigen, wenn man im passenden Biom steht.
+         * Betrifft Waende (Cavern / Icy) und Rockmite Mounds (Cavern). Abschaltbar.
+         */
+        @Expose
+        public boolean safariBiomeOnly = true;
+        @Expose
+        public String wallColor = "55FFFF";
+
+        @Expose
+        public boolean highlightMounds = true;
+        @Expose
+        public String moundColor = "3AB3DA";
+
+        public static final double MIN_RADIUS = 16.0;
+        public static final double MAX_RADIUS = 1024.0;
+
+        /** Eingaben sind frei, deshalb beim Lesen abfangen */
+        public double pickRadiusBlocks() {
+            try {
+                double v = Double.parseDouble(pickRadius.trim());
+                return Math.max(MIN_RADIUS, Math.min(MAX_RADIUS, v));
+            } catch (RuntimeException e) {
+                return 48.0;
+            }
+        }
+
+        public int shinyColorRGB() {
+            return parseColor(shinyColor, 0xFFD700);
+        }
+
+        public int sparklingColorRGB() {
+            return parseColor(sparklingColor, 0xFFFF55);
+        }
+
+        public int wallColorRGB() {
+            return parseColor(wallColor, 0x55FFFF);
+        }
+
+        public int moundColorRGB() {
+            return parseColor(moundColor, 0x3AB3DA);
+        }
+
+        private static int parseColor(String text, int fallback) {
+            try {
+                return Integer.parseInt(text.trim().replace("#", ""), 16) & 0xFFFFFF;
+            } catch (RuntimeException e) {
+                return fallback;
+            }
+        }
+    }
+
 }

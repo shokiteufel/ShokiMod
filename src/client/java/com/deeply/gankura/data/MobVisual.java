@@ -48,6 +48,8 @@ public interface MobVisual {
         if (target instanceof TorrhusCanyon) {
             return GameState.Server.isTorrhusCanyon() || GameState.Server.isTorrhusHeights();
         }
+        // ユーザー定義のモブはエリアを限定しない。どこで見つけても対象にする
+        if (target instanceof CustomMob) return true;
         // 残りは Critter Safari の4バイオーム。バイオームの区別は座標で行う
         return GameState.Server.isSafari();
     }
@@ -61,7 +63,8 @@ public interface MobVisual {
         if (!ModConfig.INSTANCE.mobVisuals.hideCapturedCritters) return false;
         if (target instanceof TheEnd || target instanceof SpidersDen
                 || target instanceof CrimsonIsle || target instanceof CrystalHollows
-                || target instanceof MoongladeMarsh || target instanceof TorrhusCanyon) {
+                || target instanceof MoongladeMarsh || target instanceof TorrhusCanyon
+                || target instanceof CustomMob) {
             return false;
         }
         return GameState.CritterSafari.isCaptured(target.plainLabel());

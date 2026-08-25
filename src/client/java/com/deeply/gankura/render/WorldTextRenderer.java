@@ -5,6 +5,8 @@ import com.deeply.gankura.data.ModConfig;
 import com.deeply.gankura.data.ModConstants;
 import com.deeply.gankura.handler.FloorDropHandler;
 import com.deeply.gankura.scanner.BeeNestScanner;
+import com.deeply.gankura.render.EntityHighlightManager;
+import com.deeply.gankura.scanner.SafariExtras;
 import com.deeply.gankura.util.DevHooks;
 import com.deeply.gankura.waypoint.Waypoint;
 import com.deeply.gankura.waypoint.WaypointData;
@@ -39,6 +41,8 @@ public class WorldTextRenderer {
         renderTikiWaypoints(client);
         renderFloorDrops();
         renderBeeNests();
+        renderSafariWalls();
+        renderMounds();
         renderCustomWaypoints(client);
         // 開発中の一時的な機能。配布ビルドでは何も登録されていない
         DevHooks.renderWorld(client);
@@ -105,6 +109,35 @@ public class WorldTextRenderer {
             GizmoProperties box = Gizmos.cuboid(pos, GizmoStyle.fill(BEE_NEST_COLOR));
             box.setAlwaysOnTop();
             renderGizmoLabel("§eBee Nest", pos, BEE_NEST_LABEL_COLOR);
+        }
+    }
+
+
+    // 壊せる壁。まだ立っているものだけを出す
+    private static void renderSafariWalls() {
+        if (!SafariExtras.wallsActive()) return;
+
+        Minecraft client = Minecraft.getInstance();
+        int rgb = ModConfig.INSTANCE.customize.wallColorRGB();
+        for (BlockPos pos : SafariExtras.intactWalls(client)) {
+            GizmoProperties box = Gizmos.cuboid(pos, GizmoStyle.fill(0x80000000 | rgb));
+            box.setAlwaysOnTop();
+            renderGizmoLabel("§bWall", pos, 0xFF000000 | rgb);
+        }
+    }
+
+    // Rockmite Mound。当たり判定から見つけるので、テクスチャ判定とは独立して効く
+    private static void renderMounds() {
+        if (!SafariExtras.moundsActive()) return;
+
+        Minecraft client = Minecraft.getInstance();
+        int rgb = ModConfig.INSTANCE.customize.moundColorRGB();
+        for (BlockPos pos : SafariExtras.mounds(client)) {
+            // Leuchtet dort schon das ItemDisplay, reicht das als Markierung
+            if (EntityHighlightManager.moundGlowPositions.contains(pos)) continue;
+            GizmoProperties box = Gizmos.cuboid(pos, GizmoStyle.fill(0x80000000 | rgb));
+            box.setAlwaysOnTop();
+            renderGizmoLabel("§bMound", pos, 0xFF000000 | rgb);
         }
     }
 

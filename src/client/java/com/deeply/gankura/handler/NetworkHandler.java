@@ -3,6 +3,7 @@ package com.deeply.gankura.handler;
 import com.deeply.gankura.data.EquipmentState;
 import com.deeply.gankura.data.GameState;
 import com.deeply.gankura.render.EntityHighlightManager;
+import com.deeply.gankura.render.ShinyAlert;
 import com.deeply.gankura.scanner.BeeNestScanner;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
@@ -25,6 +26,7 @@ public class NetworkHandler {
             // 見つけていた Floor Drop はワールドが変わると意味を成さないので捨てる
             FloorDropHandler.reset();
             BeeNestScanner.reset();
+            ShinyAlert.reset();
             // 保存されていたSkyblock Equipmentを、レジストリアクセスが手に入ったこのタイミングで復元する
             EquipmentState.hydrate(handler.registryAccess());
         });
@@ -44,6 +46,11 @@ public class NetworkHandler {
 
             // 2. 各ドメイン(機能)への純粋な委譲
             // NetworkHandler自身は、メッセージの中身が何なのか一切気にせず担当者に投げるだけ！
+            // Eigene Chatregeln zuerst: sie sollen auch bei Nachrichten greifen,
+            // die ein spaeterer Handler unterdrueckt. Ein "false" blendet die Zeile aus.
+            if (!ChatRuleHandler.handleMessage(message, msg, unformattedMsg)) {
+                return false;
+            }
             ServerRestartHandler.handleChat(unformattedMsg, client);
             PetHandler.handleMessage(message);
             CrimsonDropHandler.handleMessage(unformattedMsg);

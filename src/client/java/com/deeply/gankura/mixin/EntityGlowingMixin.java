@@ -22,6 +22,7 @@ public class EntityGlowingMixin {
     private void forceBossGlowing(CallbackInfoReturnable<Boolean> cir) {
         if (EntityHighlightManager.highlightedEntities.contains((Entity) (Object) this)) {
             cir.setReturnValue(true);
+            com.deeply.gankura.util.CustomMobDebug.mixinHit((net.minecraft.world.entity.Entity) (Object) this);
         }
     }
 

@@ -1,6 +1,8 @@
 package com.deeply.gankura.render;
 
 import com.deeply.gankura.data.CrimsonBossEntry;
+import com.deeply.gankura.data.CustomMob;
+import com.deeply.gankura.util.CustomMobDebug;
 import com.deeply.gankura.data.GameState;
 import com.deeply.gankura.data.ModConfig;
 import com.deeply.gankura.data.MobVisual;
@@ -17,11 +19,13 @@ import com.deeply.gankura.data.MobVisual.SpidersDen;
 import com.deeply.gankura.data.MobVisual.TheEnd;
 import com.deeply.gankura.data.MobVisual.TorrhusCanyon;
 import com.deeply.gankura.data.ModConstants;
+import com.deeply.gankura.data.SparklingTarget;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.Display;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.entity.monster.MagmaCube;
@@ -250,6 +254,12 @@ public class EntityHighlightManager {
     // 基準座標(ASHFANG_POS)に近い方の1体を描画対象として保持する
     public static Entity ashfangTracerTarget = null;
 
+
+    // Diagnose: im Tick gezaehlt, im naechsten Tick ausgegeben
+    /** Positionen, an denen dieser Tick bereits ein Mound-Entity leuchtet */
+    public static final Set<BlockPos> moundGlowPositions = new HashSet<>();
+    private static int debugNamedCount;
+    private static int debugMatchCount;
     // 「スポーン地点のチャンクは読み込まれているのに未検出」という状態が始まった時刻(ボス名 → epoch ms)
     private static final Map<String, Long> absenceSince = new HashMap<>();
     // 未検出がこの時間続いた場合のみ「いない」と確定する(4tick)。
@@ -578,6 +588,7 @@ public class EntityHighlightManager {
         // 型で消せない見た目エンティティは毎 tick 作り直す
         highlightedEntities.removeAll(rebuiltVisuals);
         rebuiltVisuals.clear();
+        moundGlowPositions.clear();
         nametagClaimedEntities.clear();
         shulkerClaimedEntities.clear();
         renderAnchors.clear();
@@ -595,6 +606,18 @@ public class EntityHighlightManager {
             resetCrimsonBossTracking();
             return;
         }
+
+        if (CustomMobDebug.enabled()) {
+            List<CustomMob> customs = ModConfig.INSTANCE.customize.customTargets;
+            CustomMobDebug.summary(customs.size(), debugNamedCount, debugMatchCount,
+                    highlightedEntities.size(), ModConfig.INSTANCE.mobVisuals.enableHighlight);
+            for (CustomMob c : customs) {
+                CustomMobDebug.rule(c.pattern, c.enabled, c.anyEnabled(), c.highlight(),
+                        customs.contains(c));
+            }
+        }
+        debugNamedCount = 0;
+        debugMatchCount = 0;
 
         ModConfig.TheEndCategory theEnd = ModConfig.INSTANCE.theEnd;
         ModConfig.SpidersDenCategory spidersDen = ModConfig.INSTANCE.spidersDen;
@@ -707,7 +730,17 @@ public class EntityHighlightManager {
 
         if (!isCrystalHollows) CorleoneHandler.reset();
 
-        if (!scanGolem && !scanBroodmother && !scanArachne && !scanDragon && !scanCrimsonBosses && !scanMagmaGlare && !scanAshfangFollowers && !scanWumpa && !scanDoomspiral && !scanShulker && !scanAreaAnimals && !scanCanyonBees && !scanInvisibug && !scanCanyonHeads && !scanCanyonNamed && !scanMarshNamed && !scanCrimsonNamed && !scanCrystalNamed && !scanSafariTypes && !scanSafariNamed) return;
+        // ユーザー定義モブはエリアに紐づかないため、GanKura 側の対象が1つも無い場所でも
+        // 探索が必要になる。これを見落とすと下のループごと打ち切られ、Customize が効かない
+        boolean scanCustom = ModConfig.INSTANCE.customize.customTargets.stream()
+                .anyMatch(m -> m.isUsable() && m.anyEnabled());
+        // レア個体は接頭辞つきの名前を持つので、名前ループの中で拾える
+        boolean scanSparkling = SparklingTarget.INSTANCE.anyEnabled();
+        // 型ベースの規則は名前を持たないモブが対象なので、名前フィルタの外で回す必要がある
+        boolean scanCustomType = ModConfig.INSTANCE.customize.customTargets.stream()
+                .anyMatch(m -> !m.isNameMode() && m.isUsable() && m.anyEnabled());
+
+        if (!scanGolem && !scanBroodmother && !scanArachne && !scanDragon && !scanCrimsonBosses && !scanMagmaGlare && !scanAshfangFollowers && !scanWumpa && !scanDoomspiral && !scanShulker && !scanAreaAnimals && !scanCanyonBees && !scanInvisibug && !scanCanyonHeads && !scanCanyonNamed && !scanMarshNamed && !scanCrimsonNamed && !scanCrystalNamed && !scanSafariTypes && !scanSafariNamed && !scanCustom && !scanSparkling) return;
 
         boolean[] bossFound = new boolean[CRIMSON_BOSSES.size()];
         // Boss Corleone を見つけたか。ネームタグ経由とプレイヤー名照合のどちらで見つけても立てる
@@ -757,10 +790,43 @@ public class EntityHighlightManager {
         }
 
 
+        // ユーザーが型で指定したモブ。Critter Safari のように名前を持たない相手を拾う。
+        // 下の名前ループは customName が無い時点で continue するため、ここで別に回す
+        if (scanCustomType) {
+            for (Entity entity : client.level.entitiesForRendering()) {
+                for (CustomMob custom : ModConfig.INSTANCE.customize.customTargets) {
+                    if (custom.isNameMode() || !custom.isUsable() || !custom.anyEnabled()) continue;
+                    if (!custom.matchesType(entity)) continue;
+
+                    // 透明な個体は当たり判定。見た目を担うスタンドや Display に付け替える
+                    Entity visual = entity;
+                    if (entity.isInvisible()) {
+                        Entity companion = nametagVisual(client, entity);
+                        if (companion != null) visual = companion;
+                    }
+                    CustomMobDebug.typeMatched(custom.label(), entity, visual);
+
+                    // 透明なものを光らせても何も見えないので、その場合だけ Glow を見送る
+                    if (custom.highlight() && !visual.isInvisible()) {
+                        registerHighlight(visual, custom);
+                        CustomMobDebug.registered(custom.label(), visual, custom.glowColorRGB());
+                    }
+                    registerTracer(visual, custom);
+                    if (custom.nameplate()) {
+                        String label = BossNameplateRenderer.colorCode(custom.tracerColorARGB())
+                                + "§l" + custom.plainLabel();
+                        nameplateEntities.put(visual, BossNameplateRenderer.buildLabel(label, null));
+                    }
+                    break;
+                }
+            }
+        }
+
         for (Entity entity : client.level.entitiesForRendering()) {
             Component customName = entity.getCustomName();
             if (customName == null) continue;
             String nameStr = customName.getString();
+            debugNamedCount++;
 
             if (scanBroodmother && ModConstants.containsIgnoreCase(nameStr, "Broodmother")) {
                 AABB searchBox = entity.getBoundingBox().inflate(8.0);
@@ -897,6 +963,56 @@ public class EntityHighlightManager {
                     }
                     break;
                 }
+            }
+
+            // Sparkling(レア個体)。種類を問わず接頭辞だけで判定できる
+            if (scanSparkling && SparklingTarget.isSparkling(nameStr)) {
+                SparklingTarget target = SparklingTarget.INSTANCE;
+                Entity visualTarget = customVisual(client, entity);
+                Entity visual = visualTarget != null ? visualTarget : entity;
+                if (visualTarget != null) {
+                    nametagClaimedEntities.add(visualTarget);
+                    if (target.highlight()) registerHighlight(visualTarget, target);
+                }
+                registerTracer(visual, target);
+                if (target.nameplate()) {
+                    String label = BossNameplateRenderer.colorCode(target.tracerColorARGB())
+                            + "§l" + SparklingTarget.displayName(nameStr);
+                    nameplateEntities.put(visual, BossNameplateRenderer.buildLabel(label, null));
+                }
+                // Einmalige Einblendung. Die Entprellung steckt in ShinyAlert
+                ShinyAlert.onSighting(entity, SparklingTarget.displayName(nameStr), visualTarget);
+            }
+
+            // ユーザーが Customize で追加したモブ。エリアを限定しないので毎回見る。
+            // 体力表示が変わり続けるため、判定は保存時に整えた名前の部分一致で行う
+            for (CustomMob custom : ModConfig.INSTANCE.customize.customTargets) {
+                if (!custom.isUsable()) continue;
+                if (!custom.anyEnabled()) continue;
+                if (!custom.isNameMode()) continue;
+                if (!custom.matches(nameStr)) continue;
+                debugMatchCount++;
+                CustomMobDebug.matched(CustomMob.normalize(custom.pattern), CustomMob.normalize(nameStr), entity);
+
+                // Hypixel はネームタグを別のアーマースタンドで持つので、その下の本体を探す
+                Entity visualTarget = customVisual(client, entity);
+                CustomMobDebug.resolved(custom.pattern, entity, visualTarget);
+                // 本体が見つからない場合はネームタグ自体を対象にして、
+                // 座標さえあれば描ける Tracer とネームプレートは出す
+                Entity visual = visualTarget != null ? visualTarget : entity;
+                if (visualTarget != null) {
+                    nametagClaimedEntities.add(visualTarget);
+                    if (custom.highlight()) {
+                        registerHighlight(visualTarget, custom);
+                        CustomMobDebug.registered(custom.pattern, visualTarget, custom.glowColorRGB());
+                    }
+                }
+                registerTracer(visual, custom);
+                if (custom.nameplate()) {
+                    String label = BossNameplateRenderer.colorCode(custom.tracerColorARGB()) + "§l" + custom.plainLabel();
+                    nameplateEntities.put(visual, BossNameplateRenderer.buildLabel(label, null));
+                }
+                break;
             }
 
             // Moonglade Marsh のネームタグ判定モブ
@@ -1440,14 +1556,20 @@ public class EntityHighlightManager {
                 if (safariTarget(client, entity) != null) continue;
 
                 highlightedEntities.add(entity);
+                // 型では消せないので、毎 tick 作り直す集合に入れる。
+                // これが無いと機能を切った後も設定色を失ったまま白く光り続ける
+                rebuiltVisuals.add(entity);
                 customGlowColors.put(entity, SAFARI_FISH_GLOW_COLOR);
             }
         }
 
         // Rockmite Mound: Cavern Biome に隠れている Rockmite の巣。
         // Mob Visuals とは別の機能なので、ここもハイライトだけにする
-        if (isSafari && ModConfig.INSTANCE.foraging.enableRockmiteMoundHighlight
+        // Rockmite Mound: 見た目は ItemDisplay、当たり判定は Interaction の2体で出来ている。
+        // 設定と色は ShokiTeufel 側に一本化したので、そちらから読む
+        if (isSafari && ModConfig.INSTANCE.customize.highlightMounds
                 && inSafariCavern(client.player)) {
+            int moundColor = ModConfig.INSTANCE.customize.moundColorRGB();
             for (Entity entity : client.level.entitiesForRendering()) {
                 if (!(entity instanceof Display.ItemDisplay display)) continue;
                 if (!inSafariCavern(entity)) continue;
@@ -1456,7 +1578,12 @@ public class EntityHighlightManager {
                 if (state == null || !isRockmiteMound(state.itemStack())) continue;
 
                 highlightedEntities.add(entity);
-                customGlowColors.put(entity, ROCKMITE_MOUND_GLOW_COLOR);
+                // 型では消せないので、毎 tick 作り直す集合に入れる。
+                // これが無いと機能を切った後や Cavern を出た後も白く光り続ける
+                rebuiltVisuals.add(entity);
+                customGlowColors.put(entity, moundColor);
+                // 同じ場所に Gizmo の枠を重ねないよう、光らせた位置を控えておく
+                moundGlowPositions.add(entity.blockPosition());
             }
         }
 
@@ -1665,6 +1792,27 @@ public class EntityHighlightManager {
 
     // Critter Safari のモブ。4つのバイオームに分かれているが、エリア名はどこも "Safari" なので
     // バイオームでは絞れない。幸い型はエリア全体で重複しないため、型だけで呼び名が決まる
+    /**
+     * GanKura 自身の判定に「この個体は何か」を尋ねる。
+     *
+     * Timil のような名前を持たないモブは、サーバーからは素の TropicalFish としか届かない。
+     * 呼び名は GanKura が色などから割り当てた手書きの対応表にしか存在しないので、
+     * Customize の初期値もそこから借りる。判別できなければ null。
+     */
+    public static MobVisual identify(Minecraft client, Entity entity) {
+        if (entity instanceof TropicalFish fish) {
+            MobVisual byFish = tropicalFishTarget(fish);
+            if (byFish != null) return byFish;
+        }
+        MobVisual byArea = areaAnimalTarget(entity);
+        if (byArea != null) return byArea;
+        try {
+            return safariTarget(client, entity);
+        } catch (RuntimeException e) {
+            return null;   // 判定は周囲のエンティティに依存するので、取れなくても致命的ではない
+        }
+    }
+
     private static MobVisual safariTarget(Minecraft client, Entity entity) {
         // Hypixel は「見た目のエンティティ」と「当たり判定のモブ」を重ねて1体のモブを作る。
         // 当たり判定側は必ず透明にされているので、透明なものは見た目の主役ではないと判断できる。
@@ -2063,6 +2211,15 @@ public class EntityHighlightManager {
                 && (pos.getZ() > SAFARI_CENTER_Z) == (originZ > SAFARI_CENTER_Z);
     }
 
+    // ブロック座標でも同じ区分けを使えるようにしておく(壁マーカー用)
+    public static boolean inSafariCavern(BlockPos pos) {
+        return pos.getX() < SAFARI_CENTER_X && pos.getZ() > SAFARI_CENTER_Z;
+    }
+
+    public static boolean inSafariIcy(BlockPos pos) {
+        return pos.getX() < SAFARI_CENTER_X && pos.getZ() < SAFARI_CENTER_Z;
+    }
+
     private static boolean inSafariHaunted(Entity entity) {
         return entity.getX() > SAFARI_CENTER_X && entity.getZ() < SAFARI_CENTER_Z;
     }
@@ -2179,6 +2336,24 @@ public class EntityHighlightManager {
 
         // ネームタグ自身が見た目を兼ねている場合もある
         return nameTag instanceof ArmorStand named && hasAnyEquipment(named) ? nameTag : null;
+    }
+
+    /**
+     * ユーザー定義モブの本体を探す。
+     *
+     * nametagVisual は Hypixel が独自モデルで作ったモブ(装備付きアーマースタンド / Display)
+     * だけを返す。Graveyard Zombie のように通常のモブでそのまま作られている相手は
+     * null になるため、その場合は近くの実体を拾い直す。
+     * 当たり判定用の見えない個体を光らせても意味がないので、不可視の個体は除く。
+     */
+    private static Entity customVisual(Minecraft client, Entity nameTag) {
+        Entity modelled = nametagVisual(client, nameTag);
+        if (modelled != null) return modelled;
+
+        AABB box = nameTag.getBoundingBox().inflate(NAMETAG_SEARCH_RADIUS);
+        List<LivingEntity> mobs = client.level.getEntitiesOfClass(LivingEntity.class, box,
+                e -> !(e instanceof ArmorStand) && e != client.player && !e.isInvisible());
+        return getClosestEntity(mobs, nameTag);
     }
 
     // アーマースタンドが何かを装備しているか。装備が無いものはネームタグ用の透明なスタンド

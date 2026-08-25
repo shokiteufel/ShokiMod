@@ -12,6 +12,7 @@ public class HudRenderer {
 
     // 引数の型を GuiGraphicsExtractor に変更
     public static void render(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
+        AlertBanner.render(graphics);
         Minecraft client = Minecraft.getInstance();
 
         // 基本的なガード句

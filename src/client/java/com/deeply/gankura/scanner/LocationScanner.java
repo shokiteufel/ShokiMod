@@ -51,7 +51,11 @@ public class LocationScanner {
 
         // 行が揃っていないタイミングでは更新しない。空で上書きすると、
         // 遷移中の数tickだけ全機能が「エリア外」と判定されて表示が明滅する
-        if (area != null && !area.isEmpty()) GameState.Server.map = area;
+        if (area != null && !area.isEmpty()) {
+            GameState.Server.map = area;
+            // Unbekannte Gebiete in die Auswahlliste der Chatregeln aufnehmen
+            com.deeply.gankura.data.KnownAreas.observe(area);
+        }
         if (serverId != null && !serverId.isEmpty()) applyServerId(serverId);
     }
 
