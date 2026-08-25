@@ -24,7 +24,7 @@ public class WaypointScreen extends Screen {
     private static final int ROW_HEIGHT = 24;
     private static final int ROW_WIDTH = 380;
     private static final int WIDGET_HEIGHT = 20;
-    private static final int INVALID_COLOR = 0xFF5555;
+    private static final int INVALID_COLOR = 0xFFFF5555;
     private static final int LABEL_COLOR = 0xFFA0A0A0;
 
     // 縦の配置。見出しは説明する行の10ピクセル上に置く

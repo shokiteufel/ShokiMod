@@ -47,7 +47,28 @@ public final class CustomSoundPlayer {
 		return thread;
 	});
 
+	/** The sound currently playing, so a new one can cut it off instead of piling up. */
+	private static volatile Clip activeClip;
+
 	private CustomSoundPlayer() {
+	}
+
+	/**
+	 * Stops whatever is playing right now.
+	 *
+	 * <p>Every file gets its own mixer line, so without this a second press would layer on top of
+	 * the first instead of restarting it - and enough presses exhaust the mixer's lines.
+	 */
+	public static void stop() {
+		Clip clip = activeClip;
+		activeClip = null;
+		if (clip == null) return;
+		try {
+			clip.stop();
+			clip.close();
+		} catch (Exception e) {
+			LOGGER.debug("[GanKura Custom Sound] Could not stop the running clip", e);
+		}
 	}
 
 	/** File names in the sound folder, sorted, for the config screen. */
@@ -100,6 +121,10 @@ public final class CustomSoundPlayer {
 	}
 
 	private static void playBlocking(File file, float volume) {
+		// Restart rather than overlap: a rule that fires twice, or a second press of the preview
+		// button, should be heard from the top
+		stop();
+
 		try (AudioInputStream encoded = openStream(file);
 			 AudioInputStream decoded = toPcm(encoded, extensionOf(file.getName()))) {
 
@@ -109,8 +134,12 @@ public final class CustomSoundPlayer {
 
 			// Release the line as soon as playback ends, otherwise the mixer runs out of lines
 			clip.addLineListener(event -> {
-				if (event.getType() == LineEvent.Type.STOP) clip.close();
+				if (event.getType() == LineEvent.Type.STOP) {
+					clip.close();
+					if (activeClip == clip) activeClip = null;
+				}
 			});
+			activeClip = clip;
 			clip.start();
 		} catch (Exception e) {
 			LOGGER.error("[GanKura Custom Sound] Failed to play {}", file.getName(), e);

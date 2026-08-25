@@ -28,7 +28,7 @@ public class ColorPickerScreen extends Screen {
     private static final int SWATCH_GAP = 2;
     private static final int WIDGET_HEIGHT = 20;
     private static final int LABEL_COLOR = 0xFFA0A0A0;
-    private static final int INVALID_COLOR = 0xFF5555;
+    private static final int INVALID_COLOR = 0xFFFF5555;
     private static final int MARKER_COLOR = 0xFFFFFFFF;
     private static final int MARKER_SHADOW = 0xFF000000;
 

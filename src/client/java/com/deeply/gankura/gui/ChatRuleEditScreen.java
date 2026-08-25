@@ -25,6 +25,9 @@ public class ChatRuleEditScreen extends Screen {
     private static final int COLUMN_WIDTH = 220;
 
     private final ChatRuleScreen parent;
+    /** Voll deckendes Rot - 26.1 liest die Textfarbe als ARGB, ohne Alpha bleibt nichts uebrig */
+    private static final int INVALID_COLOR = 0xFFFF5555;
+
     private final ChatRule rule;
 
     public ChatRuleEditScreen(ChatRuleScreen parent, ChatRule rule) {
@@ -49,7 +52,7 @@ public class ChatRuleEditScreen extends Screen {
                 value -> rule.filter = value, "The text or pattern to look for");
         filterBox.setResponder(value -> {
             rule.filter = value;
-            filterBox.setTextColor(rule.filterIsValid() ? 0xE0E0E0 : 0xFF5555);
+            filterBox.setTextColor(rule.filterIsValid() ? EditBox.DEFAULT_TEXT_COLOR : INVALID_COLOR);
         });
         addRenderableWidget(filterBox);
         y += ROW;
@@ -153,9 +156,9 @@ public class ChatRuleEditScreen extends Screen {
         editBox.setResponder(text -> {
             try {
                 setter.accept(Math.max(200, Integer.parseInt(text.trim())));
-                editBox.setTextColor(0xE0E0E0);
+                editBox.setTextColor(EditBox.DEFAULT_TEXT_COLOR);
             } catch (NumberFormatException e) {
-                editBox.setTextColor(0xFF5555);
+                editBox.setTextColor(INVALID_COLOR);
             }
         });
         return editBox;
@@ -181,14 +184,14 @@ public class ChatRuleEditScreen extends Screen {
             try {
                 int value = Integer.parseInt(text.trim());
                 if (value < 1 || value > 100) {
-                    box.setTextColor(0xFF5555);
+                    box.setTextColor(INVALID_COLOR);
                     return;
                 }
                 rule.volume = value / 100f;
-                box.setTextColor(0xE0E0E0);
+                box.setTextColor(EditBox.DEFAULT_TEXT_COLOR);
                 slider.syncFromRule();
             } catch (NumberFormatException e) {
-                box.setTextColor(0xFF5555);
+                box.setTextColor(INVALID_COLOR);
             }
         });
 
@@ -227,7 +230,7 @@ public class ChatRuleEditScreen extends Screen {
             // Nur den Text setzen, nicht den Responder ausloesen - sonst schieben
             // sich Regler und Feld gegenseitig hin und her
             box.setValue(String.valueOf(percent));
-            box.setTextColor(0xE0E0E0);
+            box.setTextColor(EditBox.DEFAULT_TEXT_COLOR);
         }
     }
 
