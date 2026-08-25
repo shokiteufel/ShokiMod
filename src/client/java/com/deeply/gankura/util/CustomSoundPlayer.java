@@ -17,6 +17,8 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -47,27 +49,36 @@ public final class CustomSoundPlayer {
 		return thread;
 	});
 
-	/** The sound currently playing, so a new one can cut it off instead of piling up. */
-	private static volatile Clip activeClip;
+	/**
+	 * What is playing right now, one entry per channel.
+	 *
+	 * <p>A channel is whoever asked for the sound - a single chat rule, or the preview button. Two
+	 * different rules firing right after one another are meant to be heard on top of each other,
+	 * otherwise the second alert would swallow the first. The same rule firing twice restarts
+	 * instead, so it does not layer on itself.
+	 *
+	 * <p>Keeping one entry per channel also bounds how many mixer lines can be open at once.
+	 */
+	private static final Map<Object, Clip> ACTIVE_CLIPS = new ConcurrentHashMap<>();
+
+	/** Channel for the preview in the sound picker, so trying files out never stacks up. */
+	public static final Object PREVIEW_CHANNEL = new Object();
 
 	private CustomSoundPlayer() {
 	}
 
-	/**
-	 * Stops whatever is playing right now.
-	 *
-	 * <p>Every file gets its own mixer line, so without this a second press would layer on top of
-	 * the first instead of restarting it - and enough presses exhaust the mixer's lines.
-	 */
-	public static void stop() {
-		Clip clip = activeClip;
-		activeClip = null;
+	/** Stops what this channel is playing, if anything. Other channels keep going. */
+	public static void stop(Object channel) {
+		close(ACTIVE_CLIPS.remove(channel));
+	}
+
+	private static void close(Clip clip) {
 		if (clip == null) return;
 		try {
 			clip.stop();
 			clip.close();
 		} catch (Exception e) {
-			LOGGER.debug("[GanKura Custom Sound] Could not stop the running clip", e);
+			LOGGER.debug("[GanKura Custom Sound] Could not stop a running clip", e);
 		}
 	}
 
@@ -108,8 +119,9 @@ public final class CustomSoundPlayer {
 	 *
 	 * @param fileName name inside {@link #SOUND_DIRECTORY}
 	 * @param volume   0.0 to 1.0
+	 * @param channel  who is asking - a sound replaces only what the same channel is playing
 	 */
-	public static void play(String fileName, float volume) {
+	public static void play(String fileName, float volume, Object channel) {
 		if (fileName == null || fileName.isBlank()) return;
 
 		File file = SOUND_DIRECTORY.resolve(fileName).toFile();
@@ -117,13 +129,12 @@ public final class CustomSoundPlayer {
 			LOGGER.warn("[GanKura Custom Sound] {} does not exist", file);
 			return;
 		}
-		AUDIO_EXECUTOR.execute(() -> playBlocking(file, volume));
+		AUDIO_EXECUTOR.execute(() -> playBlocking(file, volume, channel));
 	}
 
-	private static void playBlocking(File file, float volume) {
-		// Restart rather than overlap: a rule that fires twice, or a second press of the preview
-		// button, should be heard from the top
-		stop();
+	private static void playBlocking(File file, float volume, Object channel) {
+		// The same source firing twice restarts rather than layering on itself
+		stop(channel);
 
 		try (AudioInputStream encoded = openStream(file);
 			 AudioInputStream decoded = toPcm(encoded, extensionOf(file.getName()))) {
@@ -136,10 +147,10 @@ public final class CustomSoundPlayer {
 			clip.addLineListener(event -> {
 				if (event.getType() == LineEvent.Type.STOP) {
 					clip.close();
-					if (activeClip == clip) activeClip = null;
+					ACTIVE_CLIPS.remove(channel, clip);
 				}
 			});
-			activeClip = clip;
+			ACTIVE_CLIPS.put(channel, clip);
 			clip.start();
 		} catch (Exception e) {
 			LOGGER.error("[GanKura Custom Sound] Failed to play {}", file.getName(), e);

@@ -63,7 +63,7 @@ public class SoundPickerScreen extends Screen {
 
             Button button = Button.builder(fileLabel(file), b -> {
                 rule.soundFile = file;
-                CustomSoundPlayer.play(file, rule.volume);
+                CustomSoundPlayer.play(file, rule.volume, CustomSoundPlayer.PREVIEW_CHANNEL);
                 rebuild();
             }).bounds(x, y, COLUMN_WIDTH, 20).build();
             button.setTooltip(Tooltip.create(Component.literal("Click to pick and hear it")));

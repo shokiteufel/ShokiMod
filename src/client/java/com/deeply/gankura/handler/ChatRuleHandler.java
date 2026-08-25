@@ -82,7 +82,8 @@ public final class ChatRuleHandler {
         }
 
         if (!rule.soundFile.isBlank()) {
-            CustomSoundPlayer.play(rule.soundFile, rule.volume);
+            // Jede Regel ist ein eigener Kanal - zwei Treffer kurz nacheinander sollen beide hoerbar sein
+            CustomSoundPlayer.play(rule.soundFile, rule.volume, rule);
         }
     }
 
