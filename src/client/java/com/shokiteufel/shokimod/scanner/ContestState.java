@@ -21,6 +21,8 @@ public final class ContestState {
     private static final long WARN_SECONDS = 60;
     /** Die halbe Minute Pause zwischen zwei Contests */
     private static final long PAUSE_SECONDS = 30;
+    /** Ein SkyBlock-Tag in echten Millisekunden */
+    private static final long DAY_MILLIS = 20 * 60 * 1000L;
 
     private ContestState() {
     }
@@ -126,8 +128,16 @@ public final class ContestState {
         if (date.isEmpty()) return;
 
         // Stimmt das gemerkte Datum nicht mehr, ist ein Tag vergangen - egal ob wir
-        // dabei zugesehen haben oder Minecraft tagelang zu war
-        if (!date.equals(cfg().contestDate)) {
+        // dabei zugesehen haben oder Minecraft zu war.
+        //
+        // Der Datumsvergleich allein reicht aber nicht: die Namen wiederholen sich alle
+        // 372 SkyBlock-Tage, also alle 5,2 echten Tage. Waere Minecraft so lange zu,
+        // passte "Winter 7th" wieder und der alte Stand ueberlebte. Deshalb gilt ein
+        // Stand, der aelter als ein SkyBlock-Tag ist, ohnehin als abgelaufen.
+        boolean stale = cfg().contestSecondsAt > 0
+                && System.currentTimeMillis() - cfg().contestSecondsAt > DAY_MILLIS;
+
+        if (stale || !date.equals(cfg().contestDate)) {
             startNewDay(date);
             return;
         }
