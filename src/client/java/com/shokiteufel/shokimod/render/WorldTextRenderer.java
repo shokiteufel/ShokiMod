@@ -13,6 +13,12 @@ import net.minecraft.world.phys.Vec3;
 /** Kästen und Beschriftungen, die in der Welt stehen statt auf dem Bildschirm. */
 public class WorldTextRenderer {
 
+    /**
+     * Nur der Rahmen, keine Füllung - wie in crittermod.
+     * Eine gefüllte Box verdeckt genau das, was man sehen will.
+     */
+    private static final float MARKER_LINE_WIDTH = 2.0F;
+
     public static void render(Minecraft client) {
         if (client.player == null) return;
         renderSafariWalls();
@@ -24,11 +30,11 @@ public class WorldTextRenderer {
         if (!SafariExtras.wallsActive()) return;
 
         Minecraft client = Minecraft.getInstance();
-        int rgb = ModConfig.INSTANCE.safari.wallColorRGB();
+        int argb = 0xFF000000 | ModConfig.INSTANCE.safari.wallColorRGB();
         for (BlockPos pos : SafariExtras.intactWalls(client)) {
-            GizmoProperties box = Gizmos.cuboid(pos, GizmoStyle.fill(0x80000000 | rgb));
+            GizmoProperties box = Gizmos.cuboid(pos, GizmoStyle.stroke(argb, MARKER_LINE_WIDTH));
             box.setAlwaysOnTop();
-            renderGizmoLabel("§bWall", pos, 0xFF000000 | rgb);
+            renderGizmoLabel("Wall", pos, argb);
         }
     }
 
@@ -37,11 +43,11 @@ public class WorldTextRenderer {
         if (!SafariExtras.moundsActive()) return;
 
         Minecraft client = Minecraft.getInstance();
-        int rgb = ModConfig.INSTANCE.safari.moundColorRGB();
+        int argb = 0xFF000000 | ModConfig.INSTANCE.safari.moundColorRGB();
         for (BlockPos pos : SafariExtras.mounds(client)) {
-            GizmoProperties box = Gizmos.cuboid(pos, GizmoStyle.fill(0x80000000 | rgb));
+            GizmoProperties box = Gizmos.cuboid(pos, GizmoStyle.stroke(argb, MARKER_LINE_WIDTH));
             box.setAlwaysOnTop();
-            renderGizmoLabel("§bMound", pos, 0xFF000000 | rgb);
+            renderGizmoLabel("Mound", pos, argb);
         }
     }
 
