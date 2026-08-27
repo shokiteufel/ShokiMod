@@ -24,6 +24,8 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
+
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -79,6 +81,19 @@ public class ShokiMod implements ClientModInitializer {
                         }))
                         .then(ClientCommands.literal("hub").executes(context -> {
                             openHudNextTick = true;
+                            return 1;
+                        }))
+                        // /shoki tab -> die Tab-Liste ins Log schreiben.
+                        // Hypixels Zeilen aendern sich mit jedem Update; ohne den Blick
+                        // auf die echten Zeilen ist jede Auswertung geraten
+                        .then(ClientCommands.literal("tab").executes(context -> {
+                            List<String> lines = TabListScanner.lastLines();
+                            LOGGER.info("[ShokiMod] Tab list, {} lines:", lines.size());
+                            for (int i = 0; i < lines.size(); i++) {
+                                LOGGER.info("[ShokiMod]   {}: {}", i, lines.get(i));
+                            }
+                            context.getSource().sendFeedback(Component.literal(
+                                    "Wrote " + lines.size() + " tab lines to the log."));
                             return 1;
                         }))));
 

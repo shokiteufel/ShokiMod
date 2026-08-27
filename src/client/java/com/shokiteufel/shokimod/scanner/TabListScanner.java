@@ -20,6 +20,16 @@ public class TabListScanner {
     private static List<String> previousUnformattedLines = null;
     private static List<String> previousFormattedLines = null;
 
+    /**
+     * Die zuletzt gelesene Tab-Liste, ohne Farbcodes.
+     *
+     * Fuer die Fehlersuche: was Hypixel dort tatsaechlich schreibt, laesst sich sonst
+     * nur raten - und die Zeilen aendern sich mit jedem Update.
+     */
+    public static List<String> lastLines() {
+        return previousUnformattedLines == null ? List.of() : previousUnformattedLines;
+    }
+
     public static void register() {
         ClientTickEvents.END_CLIENT_TICK.register(client -> scanTabList(client));
     }
