@@ -3,6 +3,7 @@ package com.shokiteufel.shokimod.data;
 import com.shokiteufel.shokimod.util.ModPaths;
 import com.shokiteufel.shokimod.gui.ColorPickerScreen;
 import com.shokiteufel.shokimod.gui.ChatRuleScreen;
+import com.shokiteufel.shokimod.gui.HudEditorScreen;
 import com.shokiteufel.shokimod.gui.CustomMobScreen;
 import com.shokiteufel.shokimod.gui.MarkerSettingsScreen;
 import com.google.gson.Gson;
@@ -82,6 +83,9 @@ public class ModConfig extends Config {
         INSTANCE.safari.openMarkerSettings = () -> Minecraft.getInstance().execute(() ->
                 Minecraft.getInstance().setScreen(
                         new MarkerSettingsScreen(Minecraft.getInstance().screen)));
+        INSTANCE.safari.openHudEditor = () -> Minecraft.getInstance().execute(() ->
+                Minecraft.getInstance().setScreen(
+                        new HudEditorScreen(Minecraft.getInstance().screen)));
 
         if (INSTANCE.mobVisuals.customTargets == null) INSTANCE.mobVisuals.customTargets = new ArrayList<>();
         if (INSTANCE.chat.chatRules == null) INSTANCE.chat.chatRules = new ArrayList<>();
@@ -345,6 +349,70 @@ public class ModConfig extends Config {
         @ConfigEditorButton(buttonText = "Open")
         public transient Runnable openMarkerSettings = () -> {
         };
+
+        // ==========================================
+        // Lauf-Mitschrift und die beiden Anzeigen
+        // ==========================================
+
+        @Expose
+        @ConfigOption(name = "Track runs", desc = "Read the chat to follow a Safari run: what the party caught, and how long it took.\nNothing is sent anywhere; the lines are only read.")
+        @ConfigEditorBoolean
+        public boolean trackRuns = true;
+
+        @Expose
+        @ConfigOption(name = "Progress panel", desc = "Run timer, Critterdex for the party and for you, and a bar per biome.")
+        @ConfigEditorBoolean
+        public boolean showProgressHud = true;
+
+        @Expose
+        @ConfigOption(name = "Missing panel", desc = "What is still uncaught in the biome you are standing in.")
+        @ConfigEditorBoolean
+        public boolean showMissingHud = true;
+
+        @ConfigOption(name = "Move Panels", desc = "Drag the panels where you want them, scroll over one to resize it.")
+        @ConfigEditorButton(buttonText = "Open")
+        public transient Runnable openHudEditor = () -> {
+        };
+
+        @Expose
+        @ConfigOption(name = "First catch is enough", desc = "Treat a species as done at the first catch.\nOff: species that spawn a fixed number of times per run stay listed until every one is caught.\nQuotas: Gazer 4, Gemzie 3, Troodon 3, Hideyho 1, Wumpa 1, Doomspiral 1")
+        @ConfigEditorBoolean
+        public boolean firstCatchIsEnough = false;
+
+        @Expose
+        @ConfigOption(name = "Per player", desc = "Show who caught how many, under the biome bars. Only with more than one player.")
+        @ConfigEditorBoolean
+        public boolean showPerPlayer = true;
+
+        @Expose
+        @ConfigOption(name = "Count mounds", desc = "How many Rockmite mounds are standing near you, under the missing list.\nIt counts what is in range, not what is left in the Cavern.")
+        @ConfigEditorBoolean
+        public boolean showMoundCount = true;
+
+        @Expose
+        @ConfigOption(name = "Count walls", desc = "How many breakable walls are still standing, under the missing list.")
+        @ConfigEditorBoolean
+        public boolean showWallCount = true;
+
+        @Expose
+        @ConfigOption(name = "Count nests", desc = "How many bee nests are still to punch, under the missing list.\nOnly nests you have come across, not every nest on the map.")
+        @ConfigEditorBoolean
+        public boolean showNestCount = true;
+
+        // Lage als Anteil der Bildschirmgroesse, damit sie jede Aufloesung ueberlebt
+        @Expose
+        public float progressHudX = 0.01f;
+        @Expose
+        public float progressHudY = 0.02f;
+        @Expose
+        public float progressHudScale = 1.0f;
+
+        @Expose
+        public float missingHudX = 0.75f;
+        @Expose
+        public float missingHudY = 0.02f;
+        @Expose
+        public float missingHudScale = 1.0f;
 
         // ==========================================
         // Werte ohne eigene Zeile. Gesetzt wird alles ueber MarkerSettingsScreen

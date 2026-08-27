@@ -1,6 +1,7 @@
 package com.shokiteufel.shokimod.render;
 
 import com.shokiteufel.shokimod.data.GameState;
+import com.shokiteufel.shokimod.render.hud.SafariHud;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -21,5 +22,7 @@ public class HudRenderer {
         // Namensschilder werden als HUD gezeichnet, nicht als Text in der Welt:
         // so liegen sie sicher vor dem Glow-Nacheffekt
         BossNameplateRenderer.render(graphics, client, deltaTracker.getGameTimeDeltaPartialTick(true));
+
+        SafariHud.render(graphics);
     }
 }

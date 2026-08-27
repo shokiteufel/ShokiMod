@@ -1,0 +1,128 @@
+package com.shokiteufel.shokimod.render.hud;
+
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Ein Kasten mit Zeilen, wie ihn crittermod fuer seine beiden Anzeigen benutzt.
+ *
+ * Vier Zeilenarten reichen aus: Ueberschrift, freier Text, Beschriftung mit Wert
+ * rechtsbuendig, und ein Fortschrittsbalken. Der Kasten misst seine Breite selbst
+ * am laengsten Inhalt, damit nichts abgeschnitten wird und nichts flattert.
+ */
+public class HudPanel {
+
+    private static final int PADDING = 4;
+    /** Abstand zwischen Beschriftung und Wert in einer Paar-Zeile */
+    private static final int GUTTER = 8;
+    private static final int LINE_HEIGHT = 10;
+    private static final int BAR_WIDTH = 60;
+    private static final int BACKGROUND = 0x90000000;
+
+    private enum Kind { TITLE, TEXT, PAIR, BAR, BLANK }
+
+    private record Row(Kind kind, String label, String value,
+                       int labelColour, int valueColour, int current, int max) {
+    }
+
+    private final List<Row> rows = new ArrayList<>();
+
+    public HudPanel title(String text, int colour) {
+        rows.add(new Row(Kind.TITLE, text, "", colour, colour, 0, 0));
+        return this;
+    }
+
+    public HudPanel line(String text, int colour) {
+        rows.add(new Row(Kind.TEXT, text, "", colour, colour, 0, 0));
+        return this;
+    }
+
+    public HudPanel pair(String label, String value, int labelColour, int valueColour) {
+        rows.add(new Row(Kind.PAIR, label, value, labelColour, valueColour, 0, 0));
+        return this;
+    }
+
+    public HudPanel bar(String label, int current, int max, int labelColour, int barColour) {
+        rows.add(new Row(Kind.BAR, label, current + "/" + max, labelColour, barColour, current, max));
+        return this;
+    }
+
+    public HudPanel blank() {
+        rows.add(new Row(Kind.BLANK, "", "", 0, 0, 0, 0));
+        return this;
+    }
+
+    public boolean isEmpty() {
+        return rows.isEmpty();
+    }
+
+    public int width(Font font) {
+        return contentWidth(font) + PADDING * 2;
+    }
+
+    public int height() {
+        return rows.size() * LINE_HEIGHT + PADDING * 2;
+    }
+
+    private int contentWidth(Font font) {
+        int widest = 0;
+        for (Row row : rows) {
+            int width = switch (row.kind()) {
+                case TITLE, TEXT -> font.width(row.label());
+                case PAIR -> font.width(row.label()) + GUTTER + font.width(row.value());
+                case BAR -> font.width(row.label()) + GUTTER + BAR_WIDTH + GUTTER
+                        + font.width(row.value());
+                case BLANK -> 0;
+            };
+            widest = Math.max(widest, width);
+        }
+        return widest;
+    }
+
+    public void render(GuiGraphicsExtractor graphics, Font font, int left, int top) {
+        if (rows.isEmpty()) return;
+
+        int content = contentWidth(font);
+        graphics.fill(left, top, left + content + PADDING * 2, top + height(), BACKGROUND);
+
+        int x = left + PADDING;
+        int y = top + PADDING;
+        for (Row row : rows) {
+            draw(graphics, font, row, x, y, content);
+            y += LINE_HEIGHT;
+        }
+    }
+
+    private void draw(GuiGraphicsExtractor graphics, Font font, Row row, int x, int y, int content) {
+        switch (row.kind()) {
+            case BLANK -> {
+            }
+            case TITLE, TEXT -> graphics.text(font, row.label(), x, y, row.labelColour(), true);
+            case PAIR -> {
+                graphics.text(font, row.label(), x, y, row.labelColour(), true);
+                int valueX = x + content - font.width(row.value());
+                graphics.text(font, row.value(), valueX, y, row.valueColour(), true);
+            }
+            case BAR -> {
+                graphics.text(font, row.label(), x, y, row.labelColour(), true);
+
+                // Der Balken sitzt rechts, direkt vor der Zahl - so stehen alle Balken
+                // untereinander auf gleicher Hoehe, egal wie lang die Beschriftung ist
+                int valueWidth = font.width(row.value());
+                int barLeft = x + content - valueWidth - GUTTER - BAR_WIDTH;
+                int barY = y + 2;
+                graphics.fill(barLeft, barY, barLeft + BAR_WIDTH, barY + 5, 0xFF303030);
+                if (row.max() > 0 && row.current() > 0) {
+                    int filled = Math.max(1, BAR_WIDTH * Math.min(row.current(), row.max()) / row.max());
+                    graphics.fill(barLeft, barY, barLeft + filled, barY + 5,
+                            0xFF000000 | row.valueColour());
+                }
+
+                graphics.text(font, row.value(), x + content - valueWidth, y, 0xFFFFFFFF, true);
+            }
+        }
+    }
+}

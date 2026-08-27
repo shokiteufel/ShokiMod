@@ -3,6 +3,7 @@ package com.shokiteufel.shokimod.handler;
 import com.shokiteufel.shokimod.data.GameState;
 import com.shokiteufel.shokimod.render.ShinyAlert;
 import com.shokiteufel.shokimod.scanner.NestTracker;
+import com.shokiteufel.shokimod.session.SessionManager;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 
@@ -16,6 +17,7 @@ public class NetworkHandler {
             ShinyAlert.reset();
             FloorDropHandler.reset();
             NestTracker.reset();
+            SessionManager.onWorldChange();
         });
 
         ClientReceiveMessageEvents.ALLOW_GAME.register((message, overlay) -> {
@@ -24,6 +26,9 @@ public class NetworkHandler {
 
             String msg = message.getString();
             String unformattedMsg = msg.replaceAll("§[0-9a-fk-or]", "");
+
+            // Die Lauf-Mitschrift liest nur mit und aendert an der Zeile nichts
+            SessionManager.onChatMessage(msg);
 
             // Ein "false" blendet die Originalzeile aus
             return ChatRuleHandler.handleMessage(message, msg, unformattedMsg);
