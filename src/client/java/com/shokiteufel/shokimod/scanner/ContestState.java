@@ -55,24 +55,30 @@ public final class ContestState {
     }
 
     /**
-     * Restsekunden des Contests.
+     * Restsekunden des Contests, sekundengenau.
      *
-     * Erste Wahl ist Hypixels eigene Angabe, solange die Seitenleiste den Contest
-     * fuehrt. Sonst wird sie aus der SkyBlock-Uhr gerechnet: der Contest endet eine
-     * halbe Minute vor dem Tageswechsel, und die Uhrzeit steht ueberall in der
-     * Seitenleiste - auch im Hub, wo der Contest selbst nicht mehr auftaucht.
+     * Beide Quellen springen: die SkyBlock-Uhr in 10-Minuten-Schritten, was 8,3 echten
+     * Sekunden entspricht. Wuerde man sie direkt anzeigen, stuende die Zahl 8 Sekunden
+     * still und fiele dann um 8. Deshalb wird der zuletzt gelesene Wert festgehalten
+     * und mit der echten Uhr heruntergezaehlt; bei jedem Sprung der Quelle wird neu
+     * aufgesetzt. Die Anzeige laeuft dadurch gleichmaessig und bleibt trotzdem am
+     * Server ausgerichtet.
      */
     public static long secondsRemaining() {
+        if (cfg().contestSecondsLeft < 0) return -1;
+
+        long elapsed = (System.currentTimeMillis() - cfg().contestSecondsAt) / 1000L;
+        return Math.max(0, cfg().contestSecondsLeft - elapsed);
+    }
+
+    /** Was die Quellen gerade sagen, ohne Glaettung. -1 wenn keine etwas hergibt */
+    private static long sourceSeconds() {
         long stated = ContestTimer.statedSeconds();
         if (stated >= 0) return stated;
 
         long toDayEnd = SkyblockClock.secondsToDayEnd();
-        if (toDayEnd >= 0) return Math.max(0, toDayEnd - PAUSE_SECONDS);
-
-        // Ohne Seitenleiste bleibt nur die zuletzt gehoerte Zeit, die hier weiterlaeuft
-        if (cfg().contestSecondsLeft < 0) return -1;
-        long elapsed = (System.currentTimeMillis() - cfg().contestSecondsAt) / 1000L;
-        return Math.max(0, cfg().contestSecondsLeft - elapsed);
+        // Der Contest endet eine halbe Minute vor dem Tageswechsel
+        return toDayEnd < 0 ? -1 : Math.max(0, toDayEnd - PAUSE_SECONDS);
     }
 
     /** Laeuft gerade einer, oder ist die Pause dazwischen? */
@@ -116,12 +122,13 @@ public final class ContestState {
         String date = SkyblockClock.date();
         if (date.isEmpty()) return;
 
+        anchorTime();
+
         if (!date.equals(cfg().contestDate)) {
             startNewDay(date);
             return;
         }
 
-        anchorTime();
         warnIfDue(date);
     }
 
@@ -138,12 +145,18 @@ public final class ContestState {
         ModConfig.INSTANCE.saveNow();
     }
 
-    /** Merkt sich jede gehoerte Restzeit samt Zeitpunkt, damit sie ohne Quelle weiterlaufen kann */
+    /**
+     * Setzt die Uhr neu auf, sobald die Quelle einen anderen Wert nennt.
+     *
+     * Nur beim Sprung, nicht bei jedem Tick: sonst wuerde der Zeitpunkt staendig
+     * nachgezogen und die Zahl bliebe stehen, statt herunterzuzaehlen.
+     */
     private static void anchorTime() {
-        long stated = ContestTimer.statedSeconds();
-        if (stated < 0) return;
+        long source = sourceSeconds();
+        if (source < 0) return;
+        if (source == cfg().contestSecondsLeft) return;
 
-        cfg().contestSecondsLeft = (int) stated;
+        cfg().contestSecondsLeft = (int) source;
         cfg().contestSecondsAt = System.currentTimeMillis();
     }
 
