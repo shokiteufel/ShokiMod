@@ -39,13 +39,19 @@ public final class SafariExtras {
 
     // Mound 判定のしきい値。すべて crittermod の実測値に合わせている
     private static final double MOUND_RANGE_SQR = 4096.0;   // 64 ブロック
-    private static final double MOUND_MIN_Y = 65.0;
+    /** Der Cavern liegt unter Tage. Alles darueber ist kein Huegel */
+    private static final double MOUND_MAX_Y = 65.0;
     private static final double MOUND_MIN_WIDTH = 0.35;
     private static final double MOUND_MAX_WIDTH = 1.1;
     private static final double MOUND_MIN_HEIGHT = 0.25;
     private static final double MOUND_MAX_HEIGHT = 0.95;
     private static final double MOUND_HEIGHT_SLACK = 0.1;
     private static final double BLOCK_CENTRE_TOLERANCE = 0.05;
+    // Ein Mob gilt als "in dieser Box", wenn er fast genau darin steht
+    private static final double INSIDE_RADIUS = 0.35;
+    private static final double INSIDE_HEIGHT = 1.0;
+    /** Jeden Frame alle Entities durchzugehen waere Verschwendung */
+    private static final long MOUND_CACHE_MILLIS = 500L;
 
     private SafariExtras() {
     }
@@ -96,7 +102,19 @@ public final class SafariExtras {
      * Ein Hügel ist eine solche Box, in der kein Mob steckt. Dadurch braucht es
      * weder einen Namen noch eine bestimmte Textur.
      */
+    private static List<BlockPos> cachedMounds = new ArrayList<>();
+    private static long cachedMoundsAt = 0L;
+
+    /** Ergebnis aus dem Zwischenspeicher, hoechstens alle halbe Sekunde neu gesucht */
     public static List<BlockPos> mounds(Minecraft client) {
+        long now = System.currentTimeMillis();
+        if (now - cachedMoundsAt < MOUND_CACHE_MILLIS) return cachedMounds;
+        cachedMoundsAt = now;
+        cachedMounds = scanMounds(client);
+        return cachedMounds;
+    }
+
+    private static List<BlockPos> scanMounds(Minecraft client) {
         List<BlockPos> out = new ArrayList<>();
         if (client.level == null || client.player == null) return out;
 
@@ -113,7 +131,7 @@ public final class SafariExtras {
             if (entity.position().distanceToSqr(client.player.position()) > MOUND_RANGE_SQR) continue;
 
             if (entity.getType() == EntityType.INTERACTION) {
-                if (entity.getY() <= MOUND_MIN_Y) continue;
+                if (entity.getY() > MOUND_MAX_Y) continue;
                 AABB box = entity.getBoundingBox();
                 if (!inBand(box.getXsize(), box.getYsize())) continue;
                 if (!isBlockCentred(entity)) continue;
@@ -159,10 +177,18 @@ public final class SafariExtras {
                 && type != EntityType.INTERACTION;
     }
 
+    /**
+     * Steckt in dieser Box ein Mob? Dann ist es dessen Trefferbox und kein Huegel.
+     *
+     * Verglichen wird der Standpunkt, nicht die Ueberschneidung der Boxen - ein Mob, der
+     * nur zufaellig neben einem Huegel steht, soll ihn nicht verschwinden lassen.
+     */
     private static boolean wrapsACreature(Entity box, List<Entity> creatures) {
-        AABB bounds = box.getBoundingBox();
         for (Entity creature : creatures) {
-            if (bounds.intersects(creature.getBoundingBox())) return true;
+            if (Math.abs(creature.getX() - box.getX()) > INSIDE_RADIUS) continue;
+            if (Math.abs(creature.getZ() - box.getZ()) > INSIDE_RADIUS) continue;
+            if (Math.abs(creature.getY() - box.getY()) > INSIDE_HEIGHT) continue;
+            return true;
         }
         return false;
     }
