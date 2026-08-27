@@ -20,7 +20,16 @@ public class HudPanel {
     private static final int GUTTER = 8;
     private static final int LINE_HEIGHT = 10;
     private static final int BAR_WIDTH = 60;
-    private static final int BACKGROUND = 0x90000000;
+    /**
+     * Kraeftig deckend, nicht bloss angedeutet.
+     *
+     * Bei halbdurchsichtigem Grund scheint die Welt durch und frisst den Kontrast -
+     * ueber hellem Gelaende wirkt derselbe Kasten dann matt. Der Wert liegt bewusst
+     * in der Groessenordnung, die Minecraft fuer seine eigenen Bildschirme nimmt.
+     */
+    private static final int BACKGROUND = 0xD0101010;
+    /** Feine helle Kante oben, damit der Kasten eine Form hat statt zu verlaufen */
+    private static final int TOP_EDGE = 0x50FFFFFF;
 
     private enum Kind { TITLE, TEXT, PAIR, BAR, BLANK }
 
@@ -97,7 +106,9 @@ public class HudPanel {
         if (rows.isEmpty()) return;
 
         int content = contentWidth(font);
-        graphics.fill(left, top, left + content + PADDING * 2, top + height(), BACKGROUND);
+        int right = left + content + PADDING * 2;
+        graphics.fill(left, top, right, top + height(), BACKGROUND);
+        graphics.fill(left, top, right, top + 1, TOP_EDGE);
 
         int x = left + PADDING;
         int y = top + PADDING;
