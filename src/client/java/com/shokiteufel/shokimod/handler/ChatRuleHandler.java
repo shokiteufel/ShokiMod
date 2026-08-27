@@ -32,7 +32,7 @@ public final class ChatRuleHandler {
      * @return false, wenn die Originalnachricht unterdrueckt werden soll
      */
     public static boolean handleMessage(Component message, String formatted, String plain) {
-        var rules = ModConfig.INSTANCE.customize.chatRules;
+        var rules = ModConfig.INSTANCE.chat.chatRules;
         if (rules == null || rules.isEmpty()) return true;
 
         Minecraft client = Minecraft.getInstance();

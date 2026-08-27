@@ -29,8 +29,8 @@ public final class SparklingTarget implements MobVisual {
         return ModConfig.INSTANCE.mobVisuals;   // 全体トグル
     }
 
-    private static ModConfig.CustomizeCategory cfg() {
-        return ModConfig.INSTANCE.customize;    // Sparkling 固有の設定
+    private static ModConfig.SafariCategory cfg() {
+        return ModConfig.INSTANCE.safari;    // Sparkling 固有の設定
     }
 
     /**

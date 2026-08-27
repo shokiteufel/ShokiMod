@@ -51,11 +51,11 @@ public final class SafariExtras {
     }
 
     public static boolean wallsActive() {
-        return ModConfig.INSTANCE.customize.highlightSafariWalls && GameState.Server.isSafari();
+        return ModConfig.INSTANCE.safari.highlightSafariWalls && GameState.Server.isSafari();
     }
 
     public static boolean moundsActive() {
-        return ModConfig.INSTANCE.customize.highlightMounds && GameState.Server.isSafari();
+        return ModConfig.INSTANCE.safari.highlightMounds && GameState.Server.isSafari();
     }
 
     /**
@@ -68,7 +68,7 @@ public final class SafariExtras {
 
         // Standardmaessig nur die Waende des Bioms zeigen, in dem man gerade steht.
         // Ohne das leuchten die Icy-Waende auch im Cavern durch die Wand hindurch.
-        boolean lock = ModConfig.INSTANCE.customize.safariBiomeOnly;
+        boolean lock = ModConfig.INSTANCE.safari.safariBiomeOnly;
         BlockPos player = client.player.blockPosition();
 
         if (!lock || EntityHighlightManager.inSafariCavern(player)) {
@@ -101,7 +101,7 @@ public final class SafariExtras {
         if (client.level == null || client.player == null) return out;
 
         // Hügel gibt es nur im Cavern. Mit aktiver Sperre auch nur dort zeigen
-        if (ModConfig.INSTANCE.customize.safariBiomeOnly
+        if (ModConfig.INSTANCE.safari.safariBiomeOnly
                 && !EntityHighlightManager.inSafariCavern(client.player.blockPosition())) {
             return out;
         }

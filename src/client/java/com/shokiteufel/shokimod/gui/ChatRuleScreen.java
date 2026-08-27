@@ -28,7 +28,7 @@ public class ChatRuleScreen extends Screen {
     }
 
     private List<ChatRule> rules() {
-        return ModConfig.INSTANCE.customize.chatRules;
+        return ModConfig.INSTANCE.chat.chatRules;
     }
 
     private int rowsPerPage() {

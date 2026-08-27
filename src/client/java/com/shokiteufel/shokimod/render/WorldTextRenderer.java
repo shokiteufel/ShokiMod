@@ -24,7 +24,7 @@ public class WorldTextRenderer {
         if (!SafariExtras.wallsActive()) return;
 
         Minecraft client = Minecraft.getInstance();
-        int rgb = ModConfig.INSTANCE.customize.wallColorRGB();
+        int rgb = ModConfig.INSTANCE.safari.wallColorRGB();
         for (BlockPos pos : SafariExtras.intactWalls(client)) {
             GizmoProperties box = Gizmos.cuboid(pos, GizmoStyle.fill(0x80000000 | rgb));
             box.setAlwaysOnTop();
@@ -37,7 +37,7 @@ public class WorldTextRenderer {
         if (!SafariExtras.moundsActive()) return;
 
         Minecraft client = Minecraft.getInstance();
-        int rgb = ModConfig.INSTANCE.customize.moundColorRGB();
+        int rgb = ModConfig.INSTANCE.safari.moundColorRGB();
         for (BlockPos pos : SafariExtras.mounds(client)) {
             GizmoProperties box = Gizmos.cuboid(pos, GizmoStyle.fill(0x80000000 | rgb));
             box.setAlwaysOnTop();

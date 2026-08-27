@@ -35,12 +35,12 @@ public final class ShinyAlert {
     }
 
     public static void onSighting(Entity nameTag, String plainName, Entity body) {
-        if (!ModConfig.INSTANCE.customize.shinyAlertEnabled) return;
+        if (!ModConfig.INSTANCE.safari.shinyAlertEnabled) return;
         if (!announced.add(nameTag.getUUID())) return;
 
         BlockPos pos = body != null ? body.blockPosition() : nameTag.blockPosition();
         AlertBanner.show(HEADLINE, plainName,
                 pos.getX() + " " + pos.getY() + " " + pos.getZ(),
-                ModConfig.INSTANCE.customize.shinyColorRGB(), DISPLAY_MILLIS);
+                ModConfig.INSTANCE.safari.shinyColorRGB(), DISPLAY_MILLIS);
     }
 }

@@ -78,11 +78,11 @@ public class CustomMobScreen extends Screen {
     }
 
     private List<CustomMob> targets() {
-        return ModConfig.INSTANCE.customize.customTargets;
+        return ModConfig.INSTANCE.mobVisuals.customTargets;
     }
 
     private double radius() {
-        return ModConfig.INSTANCE.customize.pickRadiusBlocks();
+        return ModConfig.INSTANCE.mobVisuals.pickRadiusBlocks();
     }
 
     private int rowsPerPage() {

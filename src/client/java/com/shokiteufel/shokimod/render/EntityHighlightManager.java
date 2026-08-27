@@ -108,7 +108,7 @@ public class EntityHighlightManager {
         }
 
         if (CustomMobDebug.enabled()) {
-            List<CustomMob> customs = ModConfig.INSTANCE.customize.customTargets;
+            List<CustomMob> customs = ModConfig.INSTANCE.mobVisuals.customTargets;
             CustomMobDebug.summary(customs.size(), debugNamedCount, debugMatchCount,
                     highlightedEntities.size(), ModConfig.INSTANCE.mobVisuals.enableHighlight);
             for (CustomMob c : customs) {
@@ -119,10 +119,10 @@ public class EntityHighlightManager {
         debugNamedCount = 0;
         debugMatchCount = 0;
 
-        boolean scanCustom = ModConfig.INSTANCE.customize.customTargets.stream()
+        boolean scanCustom = ModConfig.INSTANCE.mobVisuals.customTargets.stream()
                 .anyMatch(m -> m.isUsable() && m.anyEnabled());
         // 型ベースの規則は名前を持たないモブが対象なので、名前フィルタの外で回す必要がある
-        boolean scanCustomType = ModConfig.INSTANCE.customize.customTargets.stream()
+        boolean scanCustomType = ModConfig.INSTANCE.mobVisuals.customTargets.stream()
                 .anyMatch(m -> !m.isNameMode() && m.isUsable() && m.anyEnabled());
         // レア個体は接頭辞つきの名前を持つので、名前ループの中で拾える
         boolean scanSparkling = SparklingTarget.INSTANCE.anyEnabled();
@@ -131,7 +131,7 @@ public class EntityHighlightManager {
 
         if (scanCustomType) {
             for (Entity entity : client.level.entitiesForRendering()) {
-                for (CustomMob custom : ModConfig.INSTANCE.customize.customTargets) {
+                for (CustomMob custom : ModConfig.INSTANCE.mobVisuals.customTargets) {
                     if (custom.isNameMode() || !custom.isUsable() || !custom.anyEnabled()) continue;
                     if (!custom.matchesType(entity)) continue;
 
@@ -183,7 +183,7 @@ public class EntityHighlightManager {
 
             // ユーザーが Customize で追加したモブ。エリアを限定しないので毎回見る。
             // 体力表示が変わり続けるため、判定は保存時に整えた名前の部分一致で行う
-            for (CustomMob custom : ModConfig.INSTANCE.customize.customTargets) {
+            for (CustomMob custom : ModConfig.INSTANCE.mobVisuals.customTargets) {
                 if (!custom.isUsable()) continue;
                 if (!custom.anyEnabled()) continue;
                 if (!custom.isNameMode()) continue;

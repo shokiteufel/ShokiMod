@@ -35,7 +35,7 @@ public final class KnownAreas {
     public static void observe(String area) {
         if (!isUsable(area)) return;
 
-        List<String> discovered = ModConfig.INSTANCE.customize.discoveredAreas;
+        List<String> discovered = ModConfig.INSTANCE.chat.discoveredAreas;
         if (discovered == null) return;
         if (SEED.contains(area) || discovered.contains(area)) return;
 
@@ -46,7 +46,7 @@ public final class KnownAreas {
     /** Grundstock und selbst entdeckte Gebiete, ohne Dubletten, in stabiler Reihenfolge */
     public static List<String> all() {
         Set<String> merged = new LinkedHashSet<>(SEED);
-        List<String> discovered = ModConfig.INSTANCE.customize.discoveredAreas;
+        List<String> discovered = ModConfig.INSTANCE.chat.discoveredAreas;
         if (discovered != null) {
             for (String area : discovered) {
                 if (isUsable(area)) merged.add(area);
@@ -57,7 +57,7 @@ public final class KnownAreas {
 
     /** Nur die selbst entdeckten - für die Anzeige, wie viele dazugekommen sind */
     public static int discoveredCount() {
-        List<String> discovered = ModConfig.INSTANCE.customize.discoveredAreas;
+        List<String> discovered = ModConfig.INSTANCE.chat.discoveredAreas;
         return discovered == null ? 0 : discovered.size();
     }
 

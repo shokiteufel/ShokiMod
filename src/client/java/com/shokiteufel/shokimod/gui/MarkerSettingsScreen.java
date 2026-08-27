@@ -50,7 +50,7 @@ public class MarkerSettingsScreen extends Screen {
     }
 
     private static List<Row> rows() {
-        ModConfig.CustomizeCategory c = ModConfig.INSTANCE.customize;
+        ModConfig.SafariCategory c = ModConfig.INSTANCE.safari;
         return List.of(
                 new Row("Sparkling critters", "Rare critters, found by their name prefix",
                         () -> c.sparklingEnabled, v -> c.sparklingEnabled = v,
@@ -75,7 +75,7 @@ public class MarkerSettingsScreen extends Screen {
     /** Zeigt das Banner mit Beispieldaten, damit man Farbe und Groesse beurteilen kann */
     private static void previewShiny() {
         AlertBanner.show("SHINY!", "Sparkling Rockmite", "-87 42 156",
-                ModConfig.INSTANCE.customize.shinyColorRGB(), 7000L);
+                ModConfig.INSTANCE.safari.shinyColorRGB(), 7000L);
     }
 
     private static String hex(int rgb) {
