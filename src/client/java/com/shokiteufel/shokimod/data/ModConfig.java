@@ -131,7 +131,7 @@ public class ModConfig extends Config {
         INSTANCE.mobVisuals.targetsMoongladeMarsh = normalizeEnumList(INSTANCE.mobVisuals.targetsMoongladeMarsh, List.of());
         INSTANCE.mobVisuals.targetsTorrhusCanyon = normalizeEnumList(INSTANCE.mobVisuals.targetsTorrhusCanyon, List.of());
 
-        // 6.4.0 までは Customize unter Mob Visuals. Alte Configs hierher uebernehmen
+        // GanKura 6.4.0 までは Customize unter Mob Visuals. Alte Configs hierher uebernehmen
         MobVisualsCategory legacy = INSTANCE.mobVisuals;
         if (legacy.customTargets != null) {
             if (INSTANCE.customize.customTargets.isEmpty()) {
@@ -1116,7 +1116,7 @@ public class ModConfig extends Config {
         @ConfigAccordionId(id = 91)
         public transient Runnable disableAllSafariIcy = () -> targetsSafariIcy.clear();
 
-        // --- 6.4.0 までは Customize hier drin. Nur zum Uebernehmen alter Configs. ---
+        // --- GanKura 6.4.0 までは Customize hier drin. Nur zum Uebernehmen alter Configs. ---
         @Expose
         public List<CustomMob> customTargets = null;
         @Expose

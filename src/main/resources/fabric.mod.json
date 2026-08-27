@@ -28,6 +28,9 @@
 			"environment": "client"
 		}
 	],
+	"custom": {
+		"shokimod:upstream": "GanKura 6.4.0+26.1.x"
+	},
 	"depends": {
 		"fabricloader": ">=0.19.2",
 		"minecraft": "~26.1.2",
