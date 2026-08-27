@@ -7,7 +7,8 @@ import java.util.regex.Pattern;
 /**
  * Das laufende Event aus der Tab-Liste.
  *
- * Hypixel stellt es dort in zwei Zeilen: "Event: <Name>" und darunter "Ends In: <Zeit>".
+ * Hypixel stellt es in zwei Zeilen: "Event: <Name>" und "Ends In: <Zeit>". Beieinander
+ * stehen sie nicht - die Tab-Liste kommt ungeordnet an, siehe processTabList.
  * Gelesen wird, was der TabListScanner ohnehin schon einsammelt - ein eigener Durchlauf
  * durch die Spielerliste ist dafuer nicht noetig.
  */
@@ -50,31 +51,34 @@ public final class TabEvents {
     }
 
     /**
-     * @param lines die Tab-Liste ohne Farbcodes, in der Reihenfolge der Eintraege
+     * @param lines die Tab-Liste ohne Farbcodes
      */
     public static void processTabList(List<String> lines) {
-        for (int i = 0; i < lines.size(); i++) {
-            String line = lines.get(i).trim();
-            if (!line.startsWith(EVENT_PREFIX)) continue;
+        String foundName = "";
+        String foundTime = "";
 
-            String found = line.substring(EVENT_PREFIX.length()).trim();
-            if (found.isEmpty() || isEndless(found)) continue;
+        // Beide Zeilen werden unabhaengig voneinander gesucht.
+        // Die Tab-Liste kommt aus einer ungeordneten Sammlung: gemessen stand
+        // "Ends In: 2m 38s" auf Platz 28, "Event: Starlyn Contests" auf Platz 50.
+        // Wer die Zeit unter dem Namen erwartet, findet sie nie.
+        for (String raw : lines) {
+            String line = raw.trim();
 
-            // Die Restzeit steht direkt darunter. Weiter unten zu suchen waere riskant:
-            // spaeter folgen weitere Abschnitte, die ebenfalls eine Zeit nennen koennen
-            String time = "";
-            if (i + 1 < lines.size()) {
-                Matcher matcher = ENDS_IN.matcher(lines.get(i + 1));
-                if (matcher.matches()) time = matcher.group("time").trim();
+            if (foundName.isEmpty() && line.startsWith(EVENT_PREFIX)) {
+                String name = line.substring(EVENT_PREFIX.length()).trim();
+                if (!name.isEmpty() && !isEndless(name)) foundName = name;
+                continue;
             }
 
-            name = found;
-            remaining = time;
-            return;
+            if (foundTime.isEmpty()) {
+                Matcher matcher = ENDS_IN.matcher(line);
+                if (matcher.matches()) foundTime = matcher.group("time").trim();
+            }
         }
 
-        // Kein Event in der Liste heisst: gerade laeuft keins
-        reset();
+        name = foundName;
+        // Ohne Event ist auch die Zeit gegenstandslos
+        remaining = foundName.isEmpty() ? "" : foundTime;
     }
 
     private static boolean isEndless(String eventName) {
