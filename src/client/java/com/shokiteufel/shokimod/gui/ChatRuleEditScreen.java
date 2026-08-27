@@ -109,7 +109,7 @@ public class ChatRuleEditScreen extends Screen {
         y += ROW;
 
         Button fileButton = Button.builder(fileLabel(), button -> {
-            if (minecraft != null) minecraft.setScreen(new SoundPickerScreen(this, rule));
+            if (minecraft != null) minecraft.setScreen(new SoundPickerScreen(this, () -> rule.soundFile, file -> rule.soundFile = file, rule.volume));
         }).bounds(rightColumn, y, COLUMN_WIDTH, WIDGET_HEIGHT).build();
         fileButton.setTooltip(Tooltip.create(Component.literal(
                 "Opens the list of your own files in config/shokimod/sounds.")));

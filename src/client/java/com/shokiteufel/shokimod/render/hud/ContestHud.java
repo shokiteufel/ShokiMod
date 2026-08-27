@@ -1,14 +1,14 @@
 package com.shokiteufel.shokimod.render.hud;
 
+import com.shokiteufel.shokimod.scanner.ContestState;
 import com.shokiteufel.shokimod.scanner.ContestTimer;
-import com.shokiteufel.shokimod.scanner.TabContest;
 
 /**
  * Der laufende Contest mit Punktestand und Restzeit.
  *
- * Die Uhr kommt aus dem Tageszyklus, nicht aus der Tab-Liste - deshalb steht sie
- * ueberall zur Verfuegung, auch weit weg vom Ort des Contests. Der Punktestand
- * dagegen steht nur in der Tab-Liste und faellt weg, sobald sie ihn nicht mehr fuehrt.
+ * Beides steht ueberall zur Verfuegung: die Uhr rechnet sich aus dem Tageszyklus, der
+ * Punktestand kommt aus dem gemerkten Stand. Die Tab-Liste fuehrt ihn nur am Ort des
+ * Contests - waere sie die einzige Quelle, wuerde die Anzeige beim Weggehen verschwinden.
  */
 public final class ContestHud {
 
@@ -24,26 +24,20 @@ public final class ContestHud {
         HudPanel panel = new HudPanel();
         if (!ContestTimer.known()) return panel;
 
-        // Ohne Tab-Eintrag ist der Ausrichter unbekannt; die Uhr laeuft trotzdem
-        String host = TabContest.isActive() ? TabContest.host() + "'s Contest" : "Contest";
-        panel.title(host, TITLE_COLOUR);
+        String host = ContestState.host();
+        panel.title(host.isEmpty() ? "Contest" : host + "'s Contest", TITLE_COLOUR);
 
-        if (ContestTimer.running()) {
-            panel.pair("Ends In:", ContestTimer.remaining(), LABEL_COLOUR, TIME_COLOUR);
-        } else {
-            // Die halbe Minute zwischen zwei Contests
-            panel.pair("Starts In:", ContestTimer.remaining(), LABEL_COLOUR, TIME_COLOUR);
-        }
+        // Waehrend der halben Minute dazwischen zaehlt die Uhr zum naechsten Start
+        panel.pair(ContestTimer.running() ? "Ends In:" : "Starts In:",
+                ContestTimer.remaining(), LABEL_COLOUR, TIME_COLOUR);
 
-        if (!TabContest.isActive()) return panel;
+        // Ohne Bracket ist man noch unter der ersten Schwelle; die Menge steht trotzdem da
+        String bracket = ContestState.bracket();
+        panel.pair(bracket.isEmpty() ? "Collected:" : bracket + ":",
+                String.valueOf(ContestState.amount()), LABEL_COLOUR, AMOUNT_COLOUR);
 
-        // Vor dem ersten Bracket kennt Hypixel nur die Menge
-        String label = TabContest.bracket().isEmpty() ? "Collected:" : TabContest.bracket() + ":";
-        if (!TabContest.amount().isEmpty()) {
-            panel.pair(label, TabContest.amount(), LABEL_COLOUR, AMOUNT_COLOUR);
-        }
-        if (!TabContest.next().isEmpty()) {
-            panel.pair(TabContest.next() + " in:", "+" + TabContest.needed(),
+        if (!ContestState.next().isEmpty()) {
+            panel.pair(ContestState.next() + " in:", "+" + ContestState.needed(),
                     LABEL_COLOUR, TIME_COLOUR);
         }
         return panel;

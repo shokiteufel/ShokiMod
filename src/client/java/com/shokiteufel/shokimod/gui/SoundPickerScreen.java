@@ -1,6 +1,5 @@
 package com.shokiteufel.shokimod.gui;
 
-import com.shokiteufel.shokimod.data.ChatRule;
 import com.shokiteufel.shokimod.util.CustomSoundPlayer;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -10,6 +9,8 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 import java.util.List;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * Auswahl einer eigenen Sounddatei.
@@ -26,13 +27,19 @@ public class SoundPickerScreen extends Screen {
     private static final int LIST_TOP = 52;
 
     private final Screen parent;
-    private final ChatRule rule;
+    /** Woher der aktuelle Dateiname kommt und wohin die Wahl geht */
+    private final Supplier<String> current;
+    private final Consumer<String> apply;
+    private final float volume;
     private int page;
 
-    public SoundPickerScreen(Screen parent, ChatRule rule) {
+    public SoundPickerScreen(Screen parent, Supplier<String> current, Consumer<String> apply,
+                             float volume) {
         super(Component.literal("Sound file"));
         this.parent = parent;
-        this.rule = rule;
+        this.current = current;
+        this.apply = apply;
+        this.volume = volume;
     }
 
     private int rowsPerPage() {
@@ -62,8 +69,8 @@ public class SoundPickerScreen extends Screen {
             int y = LIST_TOP + (i / COLUMNS) * ROW_HEIGHT;
 
             Button button = Button.builder(fileLabel(file), b -> {
-                rule.soundFile = file;
-                CustomSoundPlayer.play(file, rule.volume, CustomSoundPlayer.PREVIEW_CHANNEL);
+                apply.accept(file);
+                CustomSoundPlayer.play(file, volume, CustomSoundPlayer.PREVIEW_CHANNEL);
                 rebuild();
             }).bounds(x, y, COLUMN_WIDTH, 20).build();
             button.setTooltip(Tooltip.create(Component.literal("Click to pick and hear it")));
@@ -72,7 +79,7 @@ public class SoundPickerScreen extends Screen {
 
         int y = height - 30;
         addRenderableWidget(Button.builder(Component.literal("No sound"), button -> {
-            rule.soundFile = "";
+            apply.accept("");
             rebuild();
         }).bounds(left, y, 90, 20).build());
 
@@ -99,7 +106,7 @@ public class SoundPickerScreen extends Screen {
     }
 
     private Component fileLabel(String file) {
-        boolean selected = file.equalsIgnoreCase(rule.soundFile);
+        boolean selected = file.equalsIgnoreCase(current.get());
         Component name = Component.literal(file)
                 .withStyle(selected ? ChatFormatting.GREEN : ChatFormatting.GRAY);
         return selected ? Component.literal("✔ ").withStyle(ChatFormatting.GREEN).append(name) : name;

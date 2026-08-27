@@ -6,6 +6,7 @@ import com.shokiteufel.shokimod.handler.FloorDropHandler;
 import com.shokiteufel.shokimod.handler.NetworkHandler;
 import com.shokiteufel.shokimod.render.EntityHighlightManager;
 import com.shokiteufel.shokimod.scanner.LocationScanner;
+import com.shokiteufel.shokimod.scanner.ContestState;
 import com.shokiteufel.shokimod.scanner.NestTracker;
 import com.shokiteufel.shokimod.session.SessionManager;
 import com.shokiteufel.shokimod.scanner.TabListScanner;
@@ -47,6 +48,7 @@ public class ShokiMod implements ClientModInitializer {
         EntityHighlightManager.register();
         FloorDropHandler.register();
         NestTracker.register();
+        ContestState.register();
         SessionManager.register();
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {

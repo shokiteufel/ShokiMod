@@ -31,6 +31,21 @@ public final class ContestTimer {
         return Math.floorMod(client.level.getDefaultClockTime(), DAY_TICKS);
     }
 
+    /** Fortlaufende Tagesnummer. Wechselt sie, faengt ein neuer Contest an */
+    public static long day() {
+        Minecraft client = Minecraft.getInstance();
+        if (client.level == null) return -1;
+        return Math.floorDiv(client.level.getDefaultClockTime(), DAY_TICKS);
+    }
+
+    /** Restsekunden bis zum Ende, waehrend der Pause bis zum naechsten Start */
+    public static long secondsRemaining() {
+        long time = timeOfDay();
+        if (time < 0) return -1;
+        long ticks = running() ? RUN_TICKS - time : DAY_TICKS - time;
+        return ticks / TICKS_PER_SECOND;
+    }
+
     public static boolean known() {
         return timeOfDay() >= 0;
     }
@@ -49,8 +64,7 @@ public final class ContestTimer {
         long time = timeOfDay();
         if (time < 0) return "";
 
-        long ticks = running() ? RUN_TICKS - time : DAY_TICKS - time;
-        long seconds = ticks / TICKS_PER_SECOND;
+        long seconds = secondsRemaining();
         return String.format("%d:%02d", seconds / 60, seconds % 60);
     }
 }

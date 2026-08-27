@@ -6,6 +6,7 @@ import com.shokiteufel.shokimod.gui.ChatRuleScreen;
 import com.shokiteufel.shokimod.gui.HudEditorScreen;
 import com.shokiteufel.shokimod.gui.CustomMobScreen;
 import com.shokiteufel.shokimod.gui.MarkerSettingsScreen;
+import com.shokiteufel.shokimod.gui.SoundPickerScreen;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.annotations.Expose;
@@ -86,6 +87,12 @@ public class ModConfig extends Config {
         INSTANCE.safari.openHudEditor = () -> Minecraft.getInstance().execute(() ->
                 Minecraft.getInstance().setScreen(
                         new HudEditorScreen(Minecraft.getInstance().screen)));
+        INSTANCE.safari.openContestSound = () -> Minecraft.getInstance().execute(() ->
+                Minecraft.getInstance().setScreen(new SoundPickerScreen(
+                        Minecraft.getInstance().screen,
+                        () -> INSTANCE.safari.contestWarningSound,
+                        picked -> INSTANCE.safari.contestWarningSound = picked,
+                        1.0f)));
 
         if (INSTANCE.mobVisuals.customTargets == null) INSTANCE.mobVisuals.customTargets = new ArrayList<>();
         if (INSTANCE.chat.chatRules == null) INSTANCE.chat.chatRules = new ArrayList<>();
@@ -385,6 +392,18 @@ public class ModConfig extends Config {
         @ConfigAccordionId(id = 10)
         public boolean showContestHud = true;
 
+        @Expose
+        @ConfigOption(name = "Warn before the end", desc = "Plays a sound 60 seconds before the contest ends.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 10)
+        public boolean contestWarning = true;
+
+        @ConfigOption(name = "Warning Sound", desc = "Your own file from config/shokimod/sounds.")
+        @ConfigEditorButton(buttonText = "Pick")
+        @ConfigAccordionId(id = 10)
+        public transient Runnable openContestSound = () -> {
+        };
+
         @ConfigOption(name = "Move Panels", desc = "Drag the panels where you want them, scroll over one to resize it.")
         @ConfigEditorButton(buttonText = "Open")
         @ConfigAccordionId(id = 10)
@@ -420,6 +439,30 @@ public class ModConfig extends Config {
         @ConfigEditorBoolean
         @ConfigAccordionId(id = 10)
         public boolean showNestCount = true;
+
+        // ==========================================
+        // Gemerkter Contest-Stand. Die Tab-Liste fuehrt ihn nur am Ort des Contests,
+        // angezeigt werden soll er ueberall - also hier ablegen und fortschreiben
+        // ==========================================
+        @Expose
+        public String contestHost = "";
+        @Expose
+        public String contestBracket = "";
+        @Expose
+        public int contestAmount = 0;
+        @Expose
+        public String contestNext = "";
+        /** Die gelernte Schwelle des naechsten Brackets, nicht der Abstand dorthin */
+        @Expose
+        public int contestNextThreshold = 0;
+        /** Tagesnummer, zu der dieser Stand gehoert */
+        @Expose
+        public long contestDay = -1;
+        /** Tag, an dem schon gewarnt wurde - damit der Ton einmal kommt und nicht dauernd */
+        @Expose
+        public long contestWarnedDay = -1;
+        @Expose
+        public String contestWarningSound = "";
 
         // Lage als Anteil der Bildschirmgroesse, damit sie jede Aufloesung ueberlebt
         @Expose
