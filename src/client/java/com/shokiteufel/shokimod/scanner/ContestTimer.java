@@ -40,6 +40,9 @@ public final class ContestTimer {
 
     /** Restsekunden bis zum Ende, waehrend der Pause bis zum naechsten Start */
     public static long secondsRemaining() {
+        long stated = statedSeconds();
+        if (stated >= 0) return stated;
+
         long time = timeOfDay();
         if (time < 0) return -1;
         long ticks = running() ? RUN_TICKS - time : DAY_TICKS - time;
@@ -50,17 +53,48 @@ public final class ContestTimer {
         return timeOfDay() >= 0;
     }
 
+    /** Hypixels "0m35s" in Sekunden, oder -1 wenn nichts dasteht */
+    private static long statedSeconds() {
+        String stated = TabContest.time();
+        if (stated.isEmpty()) return -1;
+
+        long seconds = 0;
+        java.util.regex.Matcher matcher =
+                java.util.regex.Pattern.compile("(\\d+)([hms])").matcher(stated);
+        boolean any = false;
+        while (matcher.find()) {
+            long value = Long.parseLong(matcher.group(1));
+            seconds += switch (matcher.group(2)) {
+                case "h" -> value * 3600;
+                case "m" -> value * 60;
+                default -> value;
+            };
+            any = true;
+        }
+        return any ? seconds : -1;
+    }
+
     /** Laeuft gerade einer, oder ist die halbe Minute Pause dazwischen? */
     public static boolean running() {
+        // Steht in der Seitenleiste eine Restzeit, laeuft er
+        if (!TabContest.time().isEmpty()) return true;
+
         long time = timeOfDay();
         return time >= 0 && time < RUN_TICKS;
     }
 
     /**
      * Restzeit als "m:ss" - bis zum Ende, waehrend der Pause bis zum naechsten Start.
-     * Leer, solange keine Welt geladen ist.
+     *
+     * Hypixels eigene Angabe aus der Seitenleiste hat Vorrang. Die Rechnung aus dem
+     * Tageszyklus ist nur der Ersatz fuer den Fall, dass die Seitenleiste sie nicht
+     * fuehrt - sie unterstellt, dass der Contest am Tageswechsel beginnt, und das
+     * stimmt nicht immer.
      */
     public static String remaining() {
+        String stated = TabContest.time();
+        if (!stated.isEmpty()) return stated;
+
         long time = timeOfDay();
         if (time < 0) return "";
 

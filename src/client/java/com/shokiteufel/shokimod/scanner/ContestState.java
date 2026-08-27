@@ -2,6 +2,8 @@ package com.shokiteufel.shokimod.scanner;
 
 import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.util.CustomSoundPlayer;
+import com.shokiteufel.shokimod.util.ScoreboardUtils;
+import net.minecraft.client.Minecraft;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 
 /**
@@ -70,6 +72,10 @@ public final class ContestState {
     // ---- Fortschreibung ----
 
     private static void tick() {
+        // Die Seitenleiste fuehrt die Restzeit; die Tab-Liste tut das nicht
+        TabContest.processSidebar(ScoreboardUtils.getSidebarLines(Minecraft.getInstance()));
+        observe();
+
         if (!ContestTimer.known()) return;
 
         long day = ContestTimer.day();

@@ -14,6 +14,12 @@ import java.util.regex.Pattern;
 public final class TabContest {
 
     private static final Pattern HEADER = Pattern.compile("(?<who>[A-Za-z]+)'s Contest:");
+    /**
+     * Dieselbe Ueberschrift in der Seitenleiste - dort mit der Restzeit dahinter.
+     * Das ist Hypixels eigene Angabe und damit die einzige verlaessliche Quelle dafuer.
+     */
+    private static final Pattern SIDEBAR_HEADER =
+            Pattern.compile("(?<who>[A-Za-z]+)'s Contest\\s+(?<time>[\\dhms ]+)");
     /** Vor dem ersten Bracket zeigt Hypixel nur die gesammelte Menge */
     private static final Pattern COLLECTED = Pattern.compile("Collected (?<amount>[\\d,.]+)");
     /** Sobald man in einem Bracket ist: "UNCOMMON with 362" */
@@ -26,6 +32,7 @@ public final class TabContest {
     private static String amount = "";
     private static String next = "";
     private static String needed = "";
+    private static String time = "";
 
     private TabContest() {
     }
@@ -57,12 +64,35 @@ public final class TabContest {
         return needed;
     }
 
+    /** Restzeit, wie Hypixel sie in der Seitenleiste schreibt ("0m35s"). Leer wenn unbekannt */
+    public static String time() {
+        return time;
+    }
+
     public static void reset() {
         host = "";
         bracket = "";
         amount = "";
         next = "";
         needed = "";
+        time = "";
+    }
+
+    /**
+     * Die Seitenleiste fuehrt denselben Contest, aber mit Restzeit - und in
+     * Anzeigereihenfolge, anders als die Tab-Liste.
+     */
+    public static void processSidebar(List<String> lines) {
+        for (String raw : lines) {
+            String line = raw.replaceAll("§.", "").trim();
+            Matcher header = SIDEBAR_HEADER.matcher(line);
+            if (header.matches()) {
+                time = header.group("time").trim();
+                if (host.isEmpty()) host = header.group("who");
+                return;
+            }
+        }
+        time = "";
     }
 
     public static void processTabList(List<String> lines) {
