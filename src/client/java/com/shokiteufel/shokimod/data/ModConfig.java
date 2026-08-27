@@ -380,10 +380,10 @@ public class ModConfig extends Config {
         public boolean showMissingHud = true;
 
         @Expose
-        @ConfigOption(name = "Event panel", desc = "The running SkyBlock event and its remaining time, read from the tab list.\nShown everywhere, not only at the Safari.")
+        @ConfigOption(name = "Contest panel", desc = "The running contest with its score and remaining time.\nThe clock comes from the day cycle, so it works everywhere - the score only where the tab list carries it.")
         @ConfigEditorBoolean
         @ConfigAccordionId(id = 10)
-        public boolean showEventHud = true;
+        public boolean showContestHud = true;
 
         @ConfigOption(name = "Move Panels", desc = "Drag the panels where you want them, scroll over one to resize it.")
         @ConfigEditorButton(buttonText = "Open")
@@ -437,11 +437,11 @@ public class ModConfig extends Config {
         public float missingHudScale = 1.0f;
 
         @Expose
-        public float eventHudX = 0.4f;
+        public float contestHudX = 0.4f;
         @Expose
-        public float eventHudY = 0.02f;
+        public float contestHudY = 0.02f;
         @Expose
-        public float eventHudScale = 1.0f;
+        public float contestHudScale = 1.0f;
 
         // ==========================================
         // Werte ohne eigene Zeile. Gesetzt wird alles ueber MarkerSettingsScreen

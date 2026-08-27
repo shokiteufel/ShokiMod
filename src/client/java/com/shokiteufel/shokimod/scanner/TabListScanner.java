@@ -73,7 +73,6 @@ public class TabListScanner {
 
         // Gebiet und Server-ID stehen in der Tab-Liste
         LocationScanner.processTabList(unformattedLines);
-        TabEvents.processTabList(unformattedLines);
         TabContest.processTabList(unformattedLines);
     }
 

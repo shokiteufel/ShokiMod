@@ -16,25 +16,25 @@ public final class SafariHud {
 
     /** Ein Kasten auf dem Bildschirm. Traegt seine eigene Lage und Groesse in der Config */
     public enum Panel {
-        PROGRESS, MISSING, EVENT;
+        PROGRESS, MISSING, CONTEST;
 
         public boolean visible() {
             ModConfig.SafariCategory c = ModConfig.INSTANCE.safari;
             return switch (this) {
                 case PROGRESS -> c.showProgressHud;
                 case MISSING -> c.showMissingHud;
-                case EVENT -> c.showEventHud;
+                case CONTEST -> c.showContestHud;
             };
         }
 
         /**
          * Gehoert der Kasten hierher?
          *
-         * Die beiden Safari-Kaesten haben ausserhalb nichts zu sagen. Das Event laeuft
+         * Die beiden Safari-Kaesten haben ausserhalb nichts zu sagen. Der Contest laeuft
          * dagegen ueberall in SkyBlock und soll auch ueberall zu sehen sein.
          */
         public boolean showsHere() {
-            return this == EVENT || GameState.Server.isSafari();
+            return this == CONTEST || GameState.Server.isSafari();
         }
 
         public float x() {
@@ -42,7 +42,7 @@ public final class SafariHud {
             return switch (this) {
                 case PROGRESS -> c.progressHudX;
                 case MISSING -> c.missingHudX;
-                case EVENT -> c.eventHudX;
+                case CONTEST -> c.contestHudX;
             };
         }
 
@@ -51,7 +51,7 @@ public final class SafariHud {
             return switch (this) {
                 case PROGRESS -> c.progressHudY;
                 case MISSING -> c.missingHudY;
-                case EVENT -> c.eventHudY;
+                case CONTEST -> c.contestHudY;
             };
         }
 
@@ -60,7 +60,7 @@ public final class SafariHud {
             return switch (this) {
                 case PROGRESS -> c.progressHudScale;
                 case MISSING -> c.missingHudScale;
-                case EVENT -> c.eventHudScale;
+                case CONTEST -> c.contestHudScale;
             };
         }
 
@@ -75,9 +75,9 @@ public final class SafariHud {
                     c.missingHudX = x;
                     c.missingHudY = y;
                 }
-                case EVENT -> {
-                    c.eventHudX = x;
-                    c.eventHudY = y;
+                case CONTEST -> {
+                    c.contestHudX = x;
+                    c.contestHudY = y;
                 }
             }
         }
@@ -88,7 +88,7 @@ public final class SafariHud {
             switch (this) {
                 case PROGRESS -> c.progressHudScale = clamped;
                 case MISSING -> c.missingHudScale = clamped;
-                case EVENT -> c.eventHudScale = clamped;
+                case CONTEST -> c.contestHudScale = clamped;
             }
         }
 
@@ -96,7 +96,7 @@ public final class SafariHud {
             return switch (this) {
                 case PROGRESS -> ProgressHud.build();
                 case MISSING -> MissingHud.build();
-                case EVENT -> EventHud.build();
+                case CONTEST -> ContestHud.build();
             };
         }
     }
