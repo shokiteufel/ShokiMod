@@ -105,6 +105,17 @@ public class HudEditorScreen extends Screen {
         return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
     }
 
+    /**
+     * Kein Abdunkeln, kein Weichzeichner.
+     *
+     * Beides wuerde hinter die halbdurchsichtigen Kaesten geraten und sie blasser
+     * wirken lassen, als sie im Spiel aussehen - man wuerde also etwas einrichten,
+     * das man so nie zu sehen bekommt.
+     */
+    @Override
+    public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+    }
+
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
