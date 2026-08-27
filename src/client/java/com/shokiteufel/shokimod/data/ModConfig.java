@@ -369,6 +369,11 @@ public class ModConfig extends Config {
         @ConfigEditorBoolean
         public boolean showMissingHud = true;
 
+        @Expose
+        @ConfigOption(name = "Event panel", desc = "The running SkyBlock event and its remaining time, read from the tab list.\nShown everywhere, not only at the Safari.")
+        @ConfigEditorBoolean
+        public boolean showEventHud = true;
+
         @ConfigOption(name = "Move Panels", desc = "Drag the panels where you want them, scroll over one to resize it.")
         @ConfigEditorButton(buttonText = "Open")
         public transient Runnable openHudEditor = () -> {
@@ -413,6 +418,13 @@ public class ModConfig extends Config {
         public float missingHudY = 0.02f;
         @Expose
         public float missingHudScale = 1.0f;
+
+        @Expose
+        public float eventHudX = 0.4f;
+        @Expose
+        public float eventHudY = 0.02f;
+        @Expose
+        public float eventHudScale = 1.0f;
 
         // ==========================================
         // Werte ohne eigene Zeile. Gesetzt wird alles ueber MarkerSettingsScreen
