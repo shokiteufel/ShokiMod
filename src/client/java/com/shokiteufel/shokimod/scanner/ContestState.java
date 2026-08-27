@@ -19,6 +19,8 @@ public final class ContestState {
 
     /** So lange vor Schluss wird gewarnt */
     private static final long WARN_SECONDS = 60;
+    /** Die halbe Minute Pause zwischen zwei Contests */
+    private static final long PAUSE_SECONDS = 30;
 
     private ContestState() {
     }
@@ -52,6 +54,38 @@ public final class ContestState {
         return cfg().contestNext == null ? "" : cfg().contestNext;
     }
 
+    /**
+     * Restsekunden des Contests.
+     *
+     * Erste Wahl ist Hypixels eigene Angabe, solange die Seitenleiste den Contest
+     * fuehrt. Sonst wird sie aus der SkyBlock-Uhr gerechnet: der Contest endet eine
+     * halbe Minute vor dem Tageswechsel, und die Uhrzeit steht ueberall in der
+     * Seitenleiste - auch im Hub, wo der Contest selbst nicht mehr auftaucht.
+     */
+    public static long secondsRemaining() {
+        long stated = ContestTimer.statedSeconds();
+        if (stated >= 0) return stated;
+
+        long toDayEnd = SkyblockClock.secondsToDayEnd();
+        if (toDayEnd >= 0) return Math.max(0, toDayEnd - PAUSE_SECONDS);
+
+        // Ohne Seitenleiste bleibt nur die zuletzt gehoerte Zeit, die hier weiterlaeuft
+        if (cfg().contestSecondsLeft < 0) return -1;
+        long elapsed = (System.currentTimeMillis() - cfg().contestSecondsAt) / 1000L;
+        return Math.max(0, cfg().contestSecondsLeft - elapsed);
+    }
+
+    /** Laeuft gerade einer, oder ist die Pause dazwischen? */
+    public static boolean running() {
+        return secondsRemaining() > 0;
+    }
+
+    /** Restzeit als "m:ss" */
+    public static String remaining() {
+        long seconds = Math.max(0, secondsRemaining());
+        return String.format("%d:%02d", seconds / 60, seconds % 60);
+    }
+
     /** Wie viel bis zum naechsten Bracket fehlt, aus der Schwelle abzueglich der Menge */
     public static int needed() {
         int threshold = nextThreshold();
@@ -72,39 +106,54 @@ public final class ContestState {
     // ---- Fortschreibung ----
 
     private static void tick() {
+        SkyblockClock.tick();
         // Die Seitenleiste fuehrt die Restzeit; die Tab-Liste tut das nicht
         TabContest.processSidebar(ScoreboardUtils.getSidebarLines(Minecraft.getInstance()));
         observe();
 
-        if (!ContestTimer.known()) return;
+        // Der Tageswechsel haengt am SkyBlock-Datum, nicht an der Uhr der Minecraft-Welt:
+        // die beiden laufen nicht synchron
+        String date = SkyblockClock.date();
+        if (date.isEmpty()) return;
 
-        long day = ContestTimer.day();
-        if (day != cfg().contestDay) {
-            startNewDay(day);
+        if (!date.equals(cfg().contestDate)) {
+            startNewDay(date);
             return;
         }
 
-        warnIfDue(day);
+        anchorTime();
+        warnIfDue(date);
     }
 
     /** Neuer Tag heisst neuer Contest: die Zahlen von gestern gelten nicht mehr */
-    private static void startNewDay(long day) {
-        cfg().contestDay = day;
+    private static void startNewDay(String date) {
+        cfg().contestDate = date;
         cfg().contestAmount = 0;
         cfg().contestBracket = "";
         cfg().contestNext = "";
         cfg().contestNextThreshold = 0;
-        cfg().contestWarnedDay = -1;
+        cfg().contestWarnedDate = "";
+        cfg().contestSecondsLeft = -1;
+        cfg().contestSecondsAt = 0L;
         ModConfig.INSTANCE.saveNow();
     }
 
-    private static void warnIfDue(long day) {
-        if (!cfg().contestWarning) return;
-        if (cfg().contestWarnedDay == day) return;
-        if (!ContestTimer.running()) return;
-        if (ContestTimer.secondsRemaining() > WARN_SECONDS) return;
+    /** Merkt sich jede gehoerte Restzeit samt Zeitpunkt, damit sie ohne Quelle weiterlaufen kann */
+    private static void anchorTime() {
+        long stated = ContestTimer.statedSeconds();
+        if (stated < 0) return;
 
-        cfg().contestWarnedDay = day;
+        cfg().contestSecondsLeft = (int) stated;
+        cfg().contestSecondsAt = System.currentTimeMillis();
+    }
+
+    private static void warnIfDue(String date) {
+        if (!cfg().contestWarning) return;
+        if (date.equals(cfg().contestWarnedDate)) return;
+        long left = secondsRemaining();
+        if (left <= 0 || left > WARN_SECONDS) return;
+
+        cfg().contestWarnedDate = date;
         ModConfig.INSTANCE.saveNow();
 
         String file = cfg().contestWarningSound;

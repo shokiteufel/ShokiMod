@@ -455,14 +455,20 @@ public class ModConfig extends Config {
         /** Die gelernte Schwelle des naechsten Brackets, nicht der Abstand dorthin */
         @Expose
         public int contestNextThreshold = 0;
-        /** Tagesnummer, zu der dieser Stand gehoert */
+        /** SkyBlock-Datum, zu dem dieser Stand gehoert, etwa "Winter 7th" */
         @Expose
-        public long contestDay = -1;
+        public String contestDate = "";
         /** Tag, an dem schon gewarnt wurde - damit der Ton einmal kommt und nicht dauernd */
         @Expose
-        public long contestWarnedDay = -1;
+        public String contestWarnedDate = "";
         @Expose
         public String contestWarningSound = "";
+        /** Zuletzt aus der Seitenleiste gehoerte Restzeit in Sekunden, -1 wenn keine */
+        @Expose
+        public int contestSecondsLeft = -1;
+        /** Wann das war. Von hier aus laeuft die Uhr weiter, wenn die Seitenleiste schweigt */
+        @Expose
+        public long contestSecondsAt = 0L;
 
         // Lage als Anteil der Bildschirmgroesse, damit sie jede Aufloesung ueberlebt
         @Expose

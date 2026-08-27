@@ -1,7 +1,7 @@
 package com.shokiteufel.shokimod.render.hud;
 
 import com.shokiteufel.shokimod.scanner.ContestState;
-import com.shokiteufel.shokimod.scanner.ContestTimer;
+import com.shokiteufel.shokimod.scanner.SkyblockClock;
 
 /**
  * Der laufende Contest mit Punktestand und Restzeit.
@@ -22,14 +22,14 @@ public final class ContestHud {
 
     public static HudPanel build() {
         HudPanel panel = new HudPanel();
-        if (!ContestTimer.known()) return panel;
+        if (!SkyblockClock.known() && ContestState.secondsRemaining() < 0) return panel;
 
         String host = ContestState.host();
         panel.title(host.isEmpty() ? "Contest" : host + "'s Contest", TITLE_COLOUR);
 
         // Waehrend der halben Minute dazwischen zaehlt die Uhr zum naechsten Start
-        panel.pair(ContestTimer.running() ? "Ends In:" : "Starts In:",
-                ContestTimer.remaining(), LABEL_COLOUR, TIME_COLOUR);
+        panel.pair(ContestState.running() ? "Ends In:" : "Starts In:",
+                ContestState.remaining(), LABEL_COLOUR, TIME_COLOUR);
 
         // Ohne Bracket ist man noch unter der ersten Schwelle; die Menge steht trotzdem da
         String bracket = ContestState.bracket();
