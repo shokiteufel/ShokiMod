@@ -1,6 +1,5 @@
 package com.shokiteufel.shokimod.mixin;
 
-import com.shokiteufel.shokimod.data.CrimsonBossEntry;
 import com.shokiteufel.shokimod.render.EntityHighlightManager;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
@@ -9,11 +8,15 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+/**
+ * Hypixel baut manche Mobs aus Spieler-Entities (NPCs). Player überschreibt beide Methoden
+ * selbst, deshalb greift der Mixin auf Entity dort nicht.
+ */
 @Mixin(Player.class)
 public class PlayerGlowingMixin {
 
     @Inject(method = "isCurrentlyGlowing", at = @At("HEAD"), cancellable = true, require = 0)
-    private void forceBossGlowing(CallbackInfoReturnable<Boolean> cir) {
+    private void forceHighlightGlowing(CallbackInfoReturnable<Boolean> cir) {
         if (EntityHighlightManager.highlightedEntities.contains((Entity) (Object) this)) {
             cir.setReturnValue(true);
         }
@@ -21,8 +24,7 @@ public class PlayerGlowingMixin {
 
     @Inject(method = "getTeamColor", at = @At("HEAD"), cancellable = true, require = 0)
     private void overrideGlowColor(CallbackInfoReturnable<Integer> cir) {
-        Entity entity = (Entity) (Object) this;
-        CrimsonBossEntry boss = EntityHighlightManager.crimsonBossEntities.get(entity);
-        if (boss != null) cir.setReturnValue(boss.glowColorRGB());
+        Integer color = EntityHighlightManager.customGlowColors.get((Entity) (Object) this);
+        if (color != null) cir.setReturnValue(color);
     }
 }

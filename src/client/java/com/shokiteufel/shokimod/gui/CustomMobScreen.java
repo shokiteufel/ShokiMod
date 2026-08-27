@@ -323,18 +323,13 @@ public class CustomMobScreen extends Screen {
 
                 // ShokiMod kennt viele dieser Mobs bereits beim Namen. Dann uebernehmen wir
                 // dessen Bezeichnung und Farbe als Vorgabe, statt "Tropical Fish" anzuzeigen.
-                MobVisual known = EntityHighlightManager.identify(minecraft, entity);
-                String display;
-                int color;
-                if (known != null) {
-                    display = known.plainLabel();
-                    color = known.glowColorRGB();
-                } else {
-                    display = entity.getType().getDescription().getString()
-                            + (variant.isEmpty() ? "" : " §7(" + variant.toLowerCase() + ")")
-                            + (invisible ? " §8[invisible]" : "");
-                    color = CustomMob.DEFAULT_COLOR;
-                }
+                String known = EntityHighlightManager.describe(entity);
+                String display = known != null
+                        ? known
+                        : entity.getType().getDescription().getString()
+                                + (variant.isEmpty() ? "" : " §7(" + variant.toLowerCase() + ")")
+                                + (invisible ? " §8[invisible]" : "");
+                int color = CustomMob.DEFAULT_COLOR;
                 String key = typeId + "|" + invisible + "|" + variant;
                 merge(merged, key, new Candidate(display, null, typeId, invisible, variant,
                         color, 1, distance));

@@ -1,71 +1,29 @@
 package com.shokiteufel.shokimod.handler;
 
-import com.shokiteufel.shokimod.data.EquipmentState;
 import com.shokiteufel.shokimod.data.GameState;
-import com.shokiteufel.shokimod.render.EntityHighlightManager;
 import com.shokiteufel.shokimod.render.ShinyAlert;
-import com.shokiteufel.shokimod.scanner.BeeNestScanner;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
-import net.minecraft.client.Minecraft;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+/** Serverwechsel und eingehende Chatnachrichten. */
 public class NetworkHandler {
-    private static final Logger LOGGER = LoggerFactory.getLogger("NetworkHandler");
 
     public static void init() {
-        // サーバー参加・移動時の処理
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
             GameState.resetAll();
-            PetHandler.reset();
-            // Nether ボスの不在計測・ラッチは GameState の外にあるため個別にリセットする。
-            // これを消さないとエリアを入り直しても前回のスキャン結果が残り、
-            // Unknown ではなく Spawned/Killed から始まってしまう
-            EntityHighlightManager.resetCrimsonBossTracking();
-            // 見つけていた Floor Drop はワールドが変わると意味を成さないので捨てる
-            FloorDropHandler.reset();
-            BeeNestScanner.reset();
+            // Gemeldete Funde gelten nur für die Welt, in der sie gesehen wurden
             ShinyAlert.reset();
-            // 保存されていたSkyblock Equipmentを、レジストリアクセスが手に入ったこのタイミングで復元する
-            EquipmentState.hydrate(handler.registryAccess());
         });
 
-        // チャット受信時の処理 (純粋なルーター/ディスパッチャー)
         ClientReceiveMessageEvents.ALLOW_GAME.register((message, overlay) -> {
-            // 1. アクションバーのメッセージは専用ハンドラーへ
-            if (overlay) {
-                ArmorStackHandler.handleActionBar(message);
-                return true;
-            }
+            // Die Action Bar ist keine Chatzeile, dort greifen keine Regeln
+            if (overlay) return true;
 
-            // messageはMojang環境ではComponentクラスとなりますが、getString()はそのまま使用可能です
             String msg = message.getString();
             String unformattedMsg = msg.replaceAll("§[0-9a-fk-or]", "");
-            Minecraft client = Minecraft.getInstance();
 
-            // 2. 各ドメイン(機能)への純粋な委譲
-            // NetworkHandler自身は、メッセージの中身が何なのか一切気にせず担当者に投げるだけ！
-            // Eigene Chatregeln zuerst: sie sollen auch bei Nachrichten greifen,
-            // die ein spaeterer Handler unterdrueckt. Ein "false" blendet die Zeile aus.
-            if (!ChatRuleHandler.handleMessage(message, msg, unformattedMsg)) {
-                return false;
-            }
-            ServerRestartHandler.handleChat(unformattedMsg, client);
-            PetHandler.handleMessage(message);
-            CrimsonDropHandler.handleMessage(unformattedMsg);
-            WarpCooldownHandler.handleMessage(unformattedMsg);
-            ArachneHandler.handleMessage(unformattedMsg, client);
-            ForagingHandler.handleMessage(unformattedMsg, client);
-
-            if (DragonHandler.handleMessage(msg, client)) {
-                return true;
-            }
-
-            // Golemに関する全てのチャット処理を委譲
-            GolemHandler.handleMessage(msg, client);
-
-            return true;
+            // Ein "false" blendet die Originalzeile aus
+            return ChatRuleHandler.handleMessage(message, msg, unformattedMsg);
         });
     }
 }

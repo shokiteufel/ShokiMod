@@ -1,9 +1,5 @@
 package com.shokiteufel.shokimod.scanner;
 
-import com.shokiteufel.shokimod.handler.BroodmotherHandler;
-import com.shokiteufel.shokimod.handler.DragonHandler;
-import com.shokiteufel.shokimod.handler.GolemHandler;
-import com.shokiteufel.shokimod.handler.PetHandler;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
@@ -65,13 +61,8 @@ public class TabListScanner {
         previousUnformattedLines = new ArrayList<>(unformattedLines);
         previousFormattedLines = new ArrayList<>(formattedLines);
 
-        // エリア/サーバーIDは他のハンドラーの判定条件になるため、必ず先に更新する
+        // Gebiet und Server-ID stehen in der Tab-Liste
         LocationScanner.processTabList(unformattedLines);
-        FerocityScanner.processTabList(unformattedLines);
-        GolemHandler.processTabList(unformattedLines, client);
-        BroodmotherHandler.processTabList(unformattedLines);
-        DragonHandler.processTabList(unformattedLines, client);
-        PetHandler.processTabList(formattedLines, unformattedLines, client);
     }
 
     private static String toLegacyString(Component text) {

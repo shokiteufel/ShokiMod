@@ -81,13 +81,6 @@ public class BossNameplateRenderer {
         return withSecondLine(coloredName, rawHealth);
     }
 
-    // Critter Capsule を当てた回数を2行目に置く。HPと同じ位置に出すが、
-    // 出し分けの設定は別なので入口を分けている
-    public static String buildCapsuleLabel(String coloredName, String rawCapsule) {
-        if (!ModConfig.INSTANCE.mobVisuals.showNameplateCapsule) return coloredName;
-        return withSecondLine(coloredName, rawCapsule);
-    }
-
     private static String withSecondLine(String coloredName, String raw) {
         String line = formatHealth(raw);
         return line.isEmpty() ? coloredName : coloredName + LINE_SEPARATOR + line;
@@ -113,7 +106,7 @@ public class BossNameplateRenderer {
         };
     }
 
-    // HP HUD (CrimsonBossHealthHud) と同じ配色ルールで残量に応じて色分けする
+    // 残量に応じて色分けする
     private static String formatHealth(String raw) {
         if (raw == null || raw.isEmpty()) return "";
         // Magma Boss のみ、サイドバー由来の色コード込み文字列がそのまま入る

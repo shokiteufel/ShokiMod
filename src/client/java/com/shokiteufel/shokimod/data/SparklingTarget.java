@@ -1,7 +1,5 @@
 package com.shokiteufel.shokimod.data;
 
-import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
@@ -36,24 +34,20 @@ public final class SparklingTarget implements MobVisual {
     }
 
     /**
-     * Critter Safari の 37 種。Critterdex の分母と同じ顔ぶれで、
-     * crittermod の Critters と一致することを確認済み。
+     * Die 37 Arten des Critterdex.
+     *
+     * Hypixel benennt seltene Exemplare "Sparkling <Art>". Ohne diese Liste würde auch die
+     * Fortschrittsanzeige "SPARKLING ... Critterdex Progress:" als Fund durchgehen, denn die
+     * beginnt genauso. Abgeglichen mit crittermods Artenliste - beide Sätze sind deckungsgleich.
      */
-    private static final Set<String> SPECIES = buildSpecies();
-
-    private static Set<String> buildSpecies() {
-        Set<String> names = new LinkedHashSet<>();
-        MobVisual[][] groups = {
-                SafariCavern.values(), SafariForest.values(),
-                SafariHaunted.values(), SafariIcy.values()
-        };
-        for (MobVisual[] group : groups) {
-            for (MobVisual critter : group) {
-                names.add(critter.plainLabel().toLowerCase(Locale.ROOT));
-            }
-        }
-        return names;
-    }
+    private static final Set<String> SPECIES = Set.of(
+            "areita", "billygoat", "bloodbat", "bluebird", "cavernfish", "chuckwalla",
+            "doomspiral", "driftling", "duplico", "flitter", "fluffling", "foxtrot",
+            "gazer", "gemzie", "gimmiegold", "hideonfloor", "hideonwall", "hideyho",
+            "honeybug", "litterbug", "macaw", "mantis shrimp", "nozzlenose", "parakeet",
+            "polaris", "rockmite", "scrappy", "shuddersquid", "shyworm", "snoozle",
+            "solsnatcher", "strongarm", "tepid", "treefrog", "troodon", "woodchucker",
+            "wumpa");
 
     /**
      * 接頭辞の後ろに続く種名。Sparkling でなければ null。
@@ -92,11 +86,6 @@ public final class SparklingTarget implements MobVisual {
     @Override
     public int glowColorRGB() {
         return cfg().sparklingColorRGB();
-    }
-
-    @Override
-    public List<? extends MobVisual> targets() {
-        return List.of(this);
     }
 
     // エリア判定や捕獲済み判定は使わないので、shown() を通さず設定だけで決める

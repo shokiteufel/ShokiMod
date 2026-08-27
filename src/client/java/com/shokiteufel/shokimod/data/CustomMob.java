@@ -123,11 +123,6 @@ public class CustomMob implements MobVisual {
         return color;
     }
 
-    @Override
-    public List<? extends MobVisual> targets() {
-        return ModConfig.INSTANCE.customize.customTargets;
-    }
-
     // 個別のオン・オフはリストから外さずに切り替えたいので、機能側の判定に条件を足す
     @Override
     public boolean highlight() {

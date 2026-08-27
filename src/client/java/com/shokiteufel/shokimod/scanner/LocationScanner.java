@@ -64,16 +64,6 @@ public class LocationScanner {
         if (newId.equals(GameState.Server.id)) return;
 
         GameState.Server.id = newId;
-        GameState.Golem.reset();
-        GameState.BarbarianDukeX.reset();
-        GameState.Bladesoul.reset();
-        GameState.MageOutlaw.reset();
-        GameState.Ashfang.reset();
-        GameState.MagmaBoss.reset();
         // Critter のキャプチャ進捗も Safari のインスタンス単位なので引き継がない
-        GameState.CritterSafari.reset();
-        GameState.Doomspiral.reset();
-        // 不在計測とラッチはGameStateの外にあるため個別に消す
-        EntityHighlightManager.resetCrimsonBossTracking();
     }
 }

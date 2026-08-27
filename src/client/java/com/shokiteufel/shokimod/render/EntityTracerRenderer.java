@@ -20,12 +20,7 @@ public class EntityTracerRenderer {
         if (client.player == null) return;
         if (!GameState.Server.isSkyblock()) return;
 
-        // Stage 4/5 の End Stone Protector は、まだ湧いていないので指す相手のエンティティが無い。
-        // 代わりにワールド上へ出しているテキストと同じ位置・同じ色で線を引く
-        WorldTextRenderer.GolemAnchor golem = ModConfig.INSTANCE.theEnd.showGolemWorldLocation_Tracer
-                ? WorldTextRenderer.golemAnchor()
-                : null;
-        if (EntityHighlightManager.tracerEntities.isEmpty() && golem == null) return;
+        if (EntityHighlightManager.tracerEntities.isEmpty()) return;
 
         // 三人称ではカメラがプレイヤーの後方へ離れるため、カメラ位置を始点にすると
         // 線が背後から伸びているように見えるので、その場合だけプレイヤーの目の位置を使う。
@@ -38,13 +33,6 @@ public class EntityTracerRenderer {
         Camera camera = client.gameRenderer.getMainCamera();
         Vec3 basePos = camera.isDetached() ? client.player.getEyePosition(partialTicks) : camera.position();
         Vec3 startPos = basePos.add(client.player.getViewVector(partialTicks).scale(0.2));
-
-        if (golem != null) {
-            GizmoProperties golemProps = Gizmos.addGizmo(
-                new LineGizmo(startPos, WorldTextRenderer.labelPos(golem.pos()), golem.argb(), 4.0f)
-            );
-            golemProps.setAlwaysOnTop();
-        }
 
         for (Map.Entry<Entity, Integer> entry : EntityHighlightManager.tracerEntities.entrySet()) {
             Entity entity = entry.getKey();
