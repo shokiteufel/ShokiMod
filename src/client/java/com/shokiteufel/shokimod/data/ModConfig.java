@@ -469,6 +469,9 @@ public class ModConfig extends Config {
         /** Wann das war. Von hier aus laeuft die Uhr weiter, wenn die Seitenleiste schweigt */
         @Expose
         public long contestSecondsAt = 0L;
+        /** Ob zu diesem Zeitpunkt der Contest lief oder die Pause dazwischen */
+        @Expose
+        public boolean contestRunning = true;
 
         // Lage als Anteil der Bildschirmgroesse, damit sie jede Aufloesung ueberlebt
         @Expose

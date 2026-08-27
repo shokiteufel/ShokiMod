@@ -55,41 +55,44 @@ public final class ContestState {
     }
 
     /**
-     * Restsekunden des Contests, sekundengenau.
+     * Restsekunden bis zum naechsten Wechsel, sekundengenau.
      *
-     * Beide Quellen springen: die SkyBlock-Uhr in 10-Minuten-Schritten, was 8,3 echten
-     * Sekunden entspricht. Wuerde man sie direkt anzeigen, stuende die Zahl 8 Sekunden
-     * still und fiele dann um 8. Deshalb wird der zuletzt gelesene Wert festgehalten
-     * und mit der echten Uhr heruntergezaehlt; bei jedem Sprung der Quelle wird neu
-     * aufgesetzt. Die Anzeige laeuft dadurch gleichmaessig und bleibt trotzdem am
-     * Server ausgerichtet.
+     * Waehrend der Laufzeit bis zum Ende, waehrend der Pause bis zum naechsten Start.
+     * Beide Quellen springen - die SkyBlock-Uhr in 10-Minuten-Schritten, was 8,3 echten
+     * Sekunden entspricht. Angezeigt wird deshalb nicht die Quelle, sondern der zuletzt
+     * gelesene Wert, mit der echten Uhr heruntergezaehlt; bei jedem Sprung wird neu
+     * aufgesetzt.
+     *
+     * Laeuft die Zeit ab, bevor die Quelle nachzieht, wird hier selbst auf die Pause
+     * umgeschaltet. Sonst stuende die Anzeige bis zu acht Sekunden auf 0:00.
      */
     public static long secondsRemaining() {
         if (cfg().contestSecondsLeft < 0) return -1;
 
-        long elapsed = (System.currentTimeMillis() - cfg().contestSecondsAt) / 1000L;
-        return Math.max(0, cfg().contestSecondsLeft - elapsed);
-    }
+        long elapsed = elapsed();
+        long left = cfg().contestSecondsLeft - elapsed;
+        if (!cfg().contestRunning) return Math.max(0, left);
+        if (left > 0) return left;
 
-    /** Was die Quellen gerade sagen, ohne Glaettung. -1 wenn keine etwas hergibt */
-    private static long sourceSeconds() {
-        long stated = ContestTimer.statedSeconds();
-        if (stated >= 0) return stated;
-
-        long toDayEnd = SkyblockClock.secondsToDayEnd();
-        // Der Contest endet eine halbe Minute vor dem Tageswechsel
-        return toDayEnd < 0 ? -1 : Math.max(0, toDayEnd - PAUSE_SECONDS);
+        // Der Contest ist gerade abgelaufen, jetzt kommt die halbe Minute Pause
+        return Math.max(0, cfg().contestSecondsLeft + PAUSE_SECONDS - elapsed);
     }
 
     /** Laeuft gerade einer, oder ist die Pause dazwischen? */
     public static boolean running() {
-        return secondsRemaining() > 0;
+        if (cfg().contestSecondsLeft < 0) return false;
+        if (!cfg().contestRunning) return false;
+        return cfg().contestSecondsLeft - elapsed() > 0;
     }
 
     /** Restzeit als "m:ss" */
     public static String remaining() {
         long seconds = Math.max(0, secondsRemaining());
         return String.format("%d:%02d", seconds / 60, seconds % 60);
+    }
+
+    private static long elapsed() {
+        return (System.currentTimeMillis() - cfg().contestSecondsAt) / 1000L;
     }
 
     /** Wie viel bis zum naechsten Bracket fehlt, aus der Schwelle abzueglich der Menge */
@@ -122,12 +125,14 @@ public final class ContestState {
         String date = SkyblockClock.date();
         if (date.isEmpty()) return;
 
-        anchorTime();
-
+        // Stimmt das gemerkte Datum nicht mehr, ist ein Tag vergangen - egal ob wir
+        // dabei zugesehen haben oder Minecraft tagelang zu war
         if (!date.equals(cfg().contestDate)) {
             startNewDay(date);
             return;
         }
+
+        anchorTime();
 
         warnIfDue(date);
     }
@@ -142,27 +147,53 @@ public final class ContestState {
         cfg().contestWarnedDate = "";
         cfg().contestSecondsLeft = -1;
         cfg().contestSecondsAt = 0L;
+        cfg().contestRunning = true;
         ModConfig.INSTANCE.saveNow();
     }
 
     /**
-     * Setzt die Uhr neu auf, sobald die Quelle einen anderen Wert nennt.
+     * Setzt die Uhr neu auf, sobald die Quelle etwas anderes sagt.
      *
      * Nur beim Sprung, nicht bei jedem Tick: sonst wuerde der Zeitpunkt staendig
      * nachgezogen und die Zahl bliebe stehen, statt herunterzuzaehlen.
      */
     private static void anchorTime() {
-        long source = sourceSeconds();
-        if (source < 0) return;
-        if (source == cfg().contestSecondsLeft) return;
+        long stated = ContestTimer.statedSeconds();
+        long value;
+        boolean isRunning;
 
-        cfg().contestSecondsLeft = (int) source;
+        if (stated >= 0) {
+            // Steht der Contest in der Seitenleiste, laeuft er auch
+            value = stated;
+            isRunning = true;
+        } else {
+            long toDayEnd = SkyblockClock.secondsToDayEnd();
+            if (toDayEnd < 0) return;
+
+            // Der Contest endet eine halbe Minute vor dem Tageswechsel. Darunter
+            // laeuft die Pause, und dann zaehlt die Uhr bis zum Tagesende selbst
+            isRunning = toDayEnd > PAUSE_SECONDS;
+            value = isRunning ? toDayEnd - PAUSE_SECONDS : toDayEnd;
+        }
+
+        if (value == cfg().contestSecondsLeft && isRunning == cfg().contestRunning) return;
+
+        cfg().contestSecondsLeft = (int) value;
+        cfg().contestRunning = isRunning;
         cfg().contestSecondsAt = System.currentTimeMillis();
     }
 
+    /**
+     * Der Ton eine Minute vor Schluss.
+     *
+     * Einmal je Contest: das Datum, an dem gewarnt wurde, wird vermerkt - sonst kaeme
+     * der Ton in jedem Tick der letzten Minute.
+     */
     private static void warnIfDue(String date) {
         if (!cfg().contestWarning) return;
         if (date.equals(cfg().contestWarnedDate)) return;
+        if (!running()) return;
+
         long left = secondsRemaining();
         if (left <= 0 || left > WARN_SECONDS) return;
 
@@ -175,7 +206,13 @@ public final class ContestState {
         }
     }
 
-    /** Uebernimmt, was die Tab-Liste gerade hergibt. Fehlendes bleibt stehen */
+    /**
+     * Uebernimmt, was die Tab-Liste gerade hergibt. Fehlendes bleibt stehen.
+     *
+     * Die Punkte stehen nur im Canyon in der Liste. Ausserhalb greift diese Methode
+     * nicht, der gemerkte Stand bleibt also unveraendert stehen - er soll ja nur dort
+     * steigen, wo man auch sammelt.
+     */
     public static void observe() {
         if (!TabContest.isActive()) return;
 
