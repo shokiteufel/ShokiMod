@@ -5,6 +5,7 @@ import com.shokiteufel.shokimod.handler.FloorDropHandler;
 import com.shokiteufel.shokimod.handler.NetworkHandler;
 import com.shokiteufel.shokimod.render.EntityHighlightManager;
 import com.shokiteufel.shokimod.scanner.LocationScanner;
+import com.shokiteufel.shokimod.scanner.NestTracker;
 import com.shokiteufel.shokimod.scanner.TabListScanner;
 
 import io.github.notenoughupdates.moulconfig.gui.GuiContext;
@@ -40,6 +41,7 @@ public class ShokiMod implements ClientModInitializer {
         TabListScanner.register();
         EntityHighlightManager.register();
         FloorDropHandler.register();
+        NestTracker.register();
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (openConfigNextTick) {

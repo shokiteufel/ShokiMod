@@ -379,7 +379,12 @@ public class ModConfig extends Config {
         @Expose
         public boolean enableFloorDrops = true;
         @Expose
-        public String floorDropColor = "55FF55";
+        public String floorDropColor = "55FFAA";
+
+        @Expose
+        public boolean highlightNests = true;
+        @Expose
+        public String nestColor = "55FF55";
 
         public int shinyColorRGB() {
             return parseColor(shinyColor, 0xFFD700);
@@ -398,7 +403,11 @@ public class ModConfig extends Config {
         }
 
         public int floorDropColorRGB() {
-            return parseColor(floorDropColor, 0x55FF55);
+            return parseColor(floorDropColor, 0x55FFAA);
+        }
+
+        public int nestColorRGB() {
+            return parseColor(nestColor, 0x55FF55);
         }
 
         private static int parseColor(String text, int fallback) {

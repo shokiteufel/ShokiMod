@@ -2,6 +2,7 @@ package com.shokiteufel.shokimod.render;
 
 import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.handler.FloorDropHandler;
+import com.shokiteufel.shokimod.scanner.NestTracker;
 import com.shokiteufel.shokimod.scanner.SafariExtras;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -25,6 +26,20 @@ public class WorldTextRenderer {
         renderSafariWalls();
         renderMounds();
         renderFloorDrops();
+        renderNests();
+    }
+
+    // Bienenstoecke im Forest. Abgeerntete bleiben stehen, die zeigen wir nicht mehr
+    private static void renderNests() {
+        if (!NestTracker.isActive()) return;
+
+        int argb = 0xFF000000 | ModConfig.INSTANCE.safari.nestColorRGB();
+        for (NestTracker.Nest nest : NestTracker.nests()) {
+            if (!nest.unpunched()) continue;
+            GizmoProperties box = Gizmos.cuboid(nest.pos(), GizmoStyle.stroke(argb, MARKER_LINE_WIDTH));
+            box.setAlwaysOnTop();
+            renderGizmoLabel("Nest", nest.pos(), argb);
+        }
     }
 
     // 地面に落ちている採取物。ブロックは置かれておらず、見た目は ItemDisplay の重なり
