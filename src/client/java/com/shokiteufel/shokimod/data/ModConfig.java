@@ -351,57 +351,74 @@ public class ModConfig extends Config {
         };
 
         // ==========================================
-        // Lauf-Mitschrift und die beiden Anzeigen
+        // Lauf-Mitschrift und die Anzeigen
         // ==========================================
+
+        @Expose
+        @ConfigOption(name = "Progress HUD", desc = "The panels that show a Safari run,"
+                + " and what feeds them.")
+        @ConfigEditorAccordion(id = 10)
+        @ConfigEditorBoolean
+        public boolean progressHudFolder = true;
 
         @Expose
         @ConfigOption(name = "Track runs", desc = "Read the chat to follow a Safari run: what the party caught, and how long it took.\nNothing is sent anywhere; the lines are only read.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 10)
         public boolean trackRuns = true;
 
         @Expose
         @ConfigOption(name = "Progress panel", desc = "Run timer, Critterdex for the party and for you, and a bar per biome.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 10)
         public boolean showProgressHud = true;
 
         @Expose
         @ConfigOption(name = "Missing panel", desc = "What is still uncaught in the biome you are standing in.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 10)
         public boolean showMissingHud = true;
 
         @Expose
         @ConfigOption(name = "Event panel", desc = "The running SkyBlock event and its remaining time, read from the tab list.\nShown everywhere, not only at the Safari.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 10)
         public boolean showEventHud = true;
 
         @ConfigOption(name = "Move Panels", desc = "Drag the panels where you want them, scroll over one to resize it.")
         @ConfigEditorButton(buttonText = "Open")
+        @ConfigAccordionId(id = 10)
         public transient Runnable openHudEditor = () -> {
         };
 
         @Expose
         @ConfigOption(name = "First catch is enough", desc = "Treat a species as done at the first catch.\nOff: species that spawn a fixed number of times per run stay listed until every one is caught.\nQuotas: Gazer 4, Gemzie 3, Troodon 3, Hideyho 1, Wumpa 1, Doomspiral 1")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 10)
         public boolean firstCatchIsEnough = false;
 
         @Expose
         @ConfigOption(name = "Per player", desc = "Show who caught how many, under the biome bars. Only with more than one player.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 10)
         public boolean showPerPlayer = true;
 
         @Expose
         @ConfigOption(name = "Count mounds", desc = "How many Rockmite mounds are standing near you, under the missing list.\nIt counts what is in range, not what is left in the Cavern.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 10)
         public boolean showMoundCount = true;
 
         @Expose
         @ConfigOption(name = "Count walls", desc = "How many breakable walls are still standing, under the missing list.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 10)
         public boolean showWallCount = true;
 
         @Expose
         @ConfigOption(name = "Count nests", desc = "How many bee nests are still to punch, under the missing list.\nOnly nests you have come across, not every nest on the map.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 10)
         public boolean showNestCount = true;
 
         // Lage als Anteil der Bildschirmgroesse, damit sie jede Aufloesung ueberlebt
