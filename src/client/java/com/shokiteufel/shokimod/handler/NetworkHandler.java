@@ -13,6 +13,7 @@ public class NetworkHandler {
             GameState.resetAll();
             // Gemeldete Funde gelten nur für die Welt, in der sie gesehen wurden
             ShinyAlert.reset();
+            FloorDropHandler.reset();
         });
 
         ClientReceiveMessageEvents.ALLOW_GAME.register((message, overlay) -> {

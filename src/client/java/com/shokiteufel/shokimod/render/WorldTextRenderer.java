@@ -1,6 +1,7 @@
 package com.shokiteufel.shokimod.render;
 
 import com.shokiteufel.shokimod.data.ModConfig;
+import com.shokiteufel.shokimod.handler.FloorDropHandler;
 import com.shokiteufel.shokimod.scanner.SafariExtras;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -23,6 +24,19 @@ public class WorldTextRenderer {
         if (client.player == null) return;
         renderSafariWalls();
         renderMounds();
+        renderFloorDrops();
+    }
+
+    // 地面に落ちている採取物。ブロックは置かれておらず、見た目は ItemDisplay の重なり
+    private static void renderFloorDrops() {
+        if (!FloorDropHandler.isActive()) return;
+
+        int argb = 0xFF000000 | ModConfig.INSTANCE.safari.floorDropColorRGB();
+        for (BlockPos pos : FloorDropHandler.positions()) {
+            GizmoProperties box = Gizmos.cuboid(pos, GizmoStyle.stroke(argb, MARKER_LINE_WIDTH));
+            box.setAlwaysOnTop();
+            renderGizmoLabel("Floor Drop", pos, argb);
+        }
     }
 
     // 壊せる壁。まだ立っているものだけを出す

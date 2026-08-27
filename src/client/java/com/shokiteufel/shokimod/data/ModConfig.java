@@ -376,6 +376,11 @@ public class ModConfig extends Config {
         @Expose
         public String moundColor = "3AB3DA";
 
+        @Expose
+        public boolean enableFloorDrops = true;
+        @Expose
+        public String floorDropColor = "55FF55";
+
         public int shinyColorRGB() {
             return parseColor(shinyColor, 0xFFD700);
         }
@@ -390,6 +395,10 @@ public class ModConfig extends Config {
 
         public int moundColorRGB() {
             return parseColor(moundColor, 0x3AB3DA);
+        }
+
+        public int floorDropColorRGB() {
+            return parseColor(floorDropColor, 0x55FF55);
         }
 
         private static int parseColor(String text, int fallback) {

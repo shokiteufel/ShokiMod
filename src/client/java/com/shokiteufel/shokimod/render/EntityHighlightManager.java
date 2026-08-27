@@ -406,6 +406,12 @@ public class EntityHighlightManager {
         };
     }
 
+    /** Liegen Punkt und Standort im selben der vier Biome? */
+    public static boolean inSameSafariBiome(BlockPos pos, double originX, double originZ) {
+        return (pos.getX() > SAFARI_CENTER_X) == (originX > SAFARI_CENTER_X)
+                && (pos.getZ() > SAFARI_CENTER_Z) == (originZ > SAFARI_CENTER_Z);
+    }
+
     // Die vier Safari-Biome liegen kreuzförmig um den Mittelpunkt
     public static boolean inSafariCavern(BlockPos pos) {
         return pos.getX() < SAFARI_CENTER_X && pos.getZ() > SAFARI_CENTER_Z;

@@ -1,6 +1,7 @@
 package com.shokiteufel.shokimod;
 
 import com.shokiteufel.shokimod.data.ModConfig;
+import com.shokiteufel.shokimod.handler.FloorDropHandler;
 import com.shokiteufel.shokimod.handler.NetworkHandler;
 import com.shokiteufel.shokimod.render.EntityHighlightManager;
 import com.shokiteufel.shokimod.scanner.LocationScanner;
@@ -38,6 +39,7 @@ public class ShokiMod implements ClientModInitializer {
         LocationScanner.register();
         TabListScanner.register();
         EntityHighlightManager.register();
+        FloorDropHandler.register();
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (openConfigNextTick) {
