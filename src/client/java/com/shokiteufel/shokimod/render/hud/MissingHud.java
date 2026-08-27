@@ -21,8 +21,8 @@ import java.util.List;
  */
 public final class MissingHud {
 
-    private static final int LABEL_COLOUR = 0xFFBBBBBB;
-    private static final int DONE_COLOUR = 0xFF55FF55;
+    private static final int LABEL_COLOUR = 0xFFE6E6E6;
+    private static final int DONE_COLOUR = 0xFF7CFF7C;
 
     private MissingHud() {
     }
@@ -54,7 +54,7 @@ public final class MissingHud {
         if (missing.isEmpty()) {
             panel.title(biome.displayName() + " Biome - all caught", DONE_COLOUR);
         } else {
-            panel.title(biome.displayName() + " Biome - " + missing.size() + " left", opaqueBiome(biome));
+            panel.title(biome.displayName() + " Biome - " + missing.size() + " left", biomeText(biome));
             for (Critter critter : missing) {
                 // Bei Arten mit Stueckzahl steht dahinter, wie viele noch fehlen
                 int left = session == null
@@ -116,7 +116,7 @@ public final class MissingHud {
     }
 
     /** Die Biomfarben liegen als reines RGB vor; fuer Text muss das Alpha-Byte dazu */
-    private static int opaqueBiome(com.shokiteufel.shokimod.data.SafariBiome biome) {
-        return 0xFF000000 | biome.colour();
+    private static int biomeText(SafariBiome biome) {
+        return 0xFF000000 | biome.textColour();
     }
 }

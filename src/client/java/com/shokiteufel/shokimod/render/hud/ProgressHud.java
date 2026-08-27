@@ -17,10 +17,10 @@ import java.util.Map;
  */
 public final class ProgressHud {
 
-    private static final int TITLE_COLOUR = 0xFF00AA00;
-    private static final int LABEL_COLOUR = 0xFFBBBBBB;
-    private static final int DONE_COLOUR = 0xFF55FF55;
-    private static final int OWN_COLOUR = 0xFF55FFFF;
+    private static final int TITLE_COLOUR = 0xFF6EFF6E;
+    private static final int LABEL_COLOUR = 0xFFE6E6E6;
+    private static final int DONE_COLOUR = 0xFF7CFF7C;
+    private static final int OWN_COLOUR = 0xFF6EF0FF;
 
     private ProgressHud() {
     }
@@ -49,7 +49,7 @@ public final class ProgressHud {
 
         int total = Critters.total();
         panel.bar("Party", session.partyUnique(), total, LABEL_COLOUR,
-                session.dexComplete(firstCatchIsEnough) ? DONE_COLOUR : 0xFFAAAAAA);
+                session.dexComplete(firstCatchIsEnough) ? DONE_COLOUR : 0xFFD0D0D0);
         panel.bar("You", session.ownUnique(), total, LABEL_COLOUR, OWN_COLOUR);
 
         panel.blank();
@@ -57,7 +57,7 @@ public final class ProgressHud {
             boolean complete = session.biomeComplete(biome, firstCatchIsEnough);
             String label = complete ? biome.displayName() + " *" : biome.displayName();
             panel.bar(label, session.partyUnique(biome), Critters.totalIn(biome),
-                    opaqueBiome(biome), complete ? DONE_COLOUR : opaqueBiome(biome));
+                    biomeText(biome), complete ? DONE_COLOUR : biomeText(biome));
         }
 
         if (ModConfig.INSTANCE.safari.showPerPlayer) {
@@ -79,7 +79,7 @@ public final class ProgressHud {
     }
 
     /** Die Biomfarben liegen als reines RGB vor; fuer Text muss das Alpha-Byte dazu */
-    private static int opaqueBiome(com.shokiteufel.shokimod.data.SafariBiome biome) {
-        return 0xFF000000 | biome.colour();
+    private static int biomeText(SafariBiome biome) {
+        return 0xFF000000 | biome.textColour();
     }
 }

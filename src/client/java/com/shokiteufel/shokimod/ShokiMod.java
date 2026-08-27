@@ -1,6 +1,7 @@
 package com.shokiteufel.shokimod;
 
 import com.shokiteufel.shokimod.data.ModConfig;
+import com.shokiteufel.shokimod.gui.HudEditorScreen;
 import com.shokiteufel.shokimod.handler.FloorDropHandler;
 import com.shokiteufel.shokimod.handler.NetworkHandler;
 import com.shokiteufel.shokimod.render.EntityHighlightManager;
@@ -32,6 +33,7 @@ public class ShokiMod implements ClientModInitializer {
     // Das Einstellungsfenster darf nicht aus der Chateingabe heraus aufgehen,
     // sonst schliesst der Chat es sofort wieder. Deshalb erst im naechsten Tick
     private static boolean openConfigNextTick = false;
+    private static boolean openHudNextTick = false;
 
     @Override
     public void onInitializeClient() {
@@ -50,6 +52,10 @@ public class ShokiMod implements ClientModInitializer {
                 openConfigNextTick = false;
                 openConfigScreen();
             }
+            if (openHudNextTick) {
+                openHudNextTick = false;
+                client.setScreen(new HudEditorScreen(null));
+            }
         });
 
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
@@ -59,10 +65,22 @@ public class ShokiMod implements ClientModInitializer {
 
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, buildContext) ->
                 dispatcher.register(ClientCommands.literal("shoki")
+                        // /shoki -> Einstellungen
                         .executes(context -> {
                             openConfigNextTick = true;
                             return 1;
-                        })));
+                        })
+                        // /shoki hud -> die Kaesten verschieben.
+                        // "hub" liegt auf derselben Taste daneben und ist als Schreibweise
+                        // mit angemeldet, damit der Vertipper nicht ins Leere laeuft
+                        .then(ClientCommands.literal("hud").executes(context -> {
+                            openHudNextTick = true;
+                            return 1;
+                        }))
+                        .then(ClientCommands.literal("hub").executes(context -> {
+                            openHudNextTick = true;
+                            return 1;
+                        }))));
 
         LOGGER.info("ShokiMod initialized (Mojang Mapping).");
     }
