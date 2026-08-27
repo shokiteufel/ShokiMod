@@ -82,6 +82,17 @@ public class HudPanel {
         return widest;
     }
 
+    /**
+     * Deckend machen, falls das Alpha-Byte fehlt.
+     *
+     * 26.1 verwirft Text mit Alpha 0 ersatzlos - aus 0xBBBBBB wird nicht etwa graue
+     * Schrift, sondern gar keine. Damit das nicht bei jedem neuen Aufrufer wieder
+     * passiert, wird es hier einmal zentral abgefangen.
+     */
+    private static int opaque(int colour) {
+        return (colour >>> 24) == 0 ? 0xFF000000 | colour : colour;
+    }
+
     public void render(GuiGraphicsExtractor graphics, Font font, int left, int top) {
         if (rows.isEmpty()) return;
 
@@ -100,14 +111,14 @@ public class HudPanel {
         switch (row.kind()) {
             case BLANK -> {
             }
-            case TITLE, TEXT -> graphics.text(font, row.label(), x, y, row.labelColour(), true);
+            case TITLE, TEXT -> graphics.text(font, row.label(), x, y, opaque(row.labelColour()), true);
             case PAIR -> {
-                graphics.text(font, row.label(), x, y, row.labelColour(), true);
+                graphics.text(font, row.label(), x, y, opaque(row.labelColour()), true);
                 int valueX = x + content - font.width(row.value());
-                graphics.text(font, row.value(), valueX, y, row.valueColour(), true);
+                graphics.text(font, row.value(), valueX, y, opaque(row.valueColour()), true);
             }
             case BAR -> {
-                graphics.text(font, row.label(), x, y, row.labelColour(), true);
+                graphics.text(font, row.label(), x, y, opaque(row.labelColour()), true);
 
                 // Der Balken sitzt rechts, direkt vor der Zahl - so stehen alle Balken
                 // untereinander auf gleicher Hoehe, egal wie lang die Beschriftung ist
@@ -118,7 +129,7 @@ public class HudPanel {
                 if (row.max() > 0 && row.current() > 0) {
                     int filled = Math.max(1, BAR_WIDTH * Math.min(row.current(), row.max()) / row.max());
                     graphics.fill(barLeft, barY, barLeft + filled, barY + 5,
-                            0xFF000000 | row.valueColour());
+                            opaque(row.valueColour()));
                 }
 
                 graphics.text(font, row.value(), x + content - valueWidth, y, 0xFFFFFFFF, true);

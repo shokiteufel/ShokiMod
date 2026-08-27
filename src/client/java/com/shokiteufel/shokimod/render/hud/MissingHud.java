@@ -21,8 +21,8 @@ import java.util.List;
  */
 public final class MissingHud {
 
-    private static final int LABEL_COLOUR = 0xBBBBBB;
-    private static final int DONE_COLOUR = 0x55FF55;
+    private static final int LABEL_COLOUR = 0xFFBBBBBB;
+    private static final int DONE_COLOUR = 0xFF55FF55;
 
     private MissingHud() {
     }
@@ -54,14 +54,14 @@ public final class MissingHud {
         if (missing.isEmpty()) {
             panel.title(biome.displayName() + " Biome - all caught", DONE_COLOUR);
         } else {
-            panel.title(biome.displayName() + " Biome - " + missing.size() + " left", biome.colour());
+            panel.title(biome.displayName() + " Biome - " + missing.size() + " left", opaqueBiome(biome));
             for (Critter critter : missing) {
                 // Bei Arten mit Stueckzahl steht dahinter, wie viele noch fehlen
                 int left = session == null
                         ? critter.required(firstCatchIsEnough)
                         : session.remaining(critter, firstCatchIsEnough);
                 String suffix = left > 1 ? "  x" + left : "";
-                panel.line(critter.rarity().colourCode() + critter.name() + suffix, 0xFFFFFF);
+                panel.line(critter.rarity().colourCode() + critter.name() + suffix, 0xFFFFFFFF);
             }
         }
 
@@ -81,7 +81,7 @@ public final class MissingHud {
         if (standing == 0) return;
 
         panel.blank();
-        panel.pair("Mounds nearby", String.valueOf(standing), LABEL_COLOUR, 0xFFFFFF);
+        panel.pair("Mounds nearby", String.valueOf(standing), LABEL_COLOUR, 0xFFFFFFFF);
     }
 
     private static void appendWalls(HudPanel panel, SafariBiome biome) {
@@ -95,7 +95,7 @@ public final class MissingHud {
         if (standing == 0) {
             panel.line("Walls all broken", DONE_COLOUR);
         } else {
-            panel.pair("Walls to break", String.valueOf(standing), LABEL_COLOUR, 0xFFFFFF);
+            panel.pair("Walls to break", String.valueOf(standing), LABEL_COLOUR, 0xFFFFFFFF);
         }
     }
 
@@ -111,7 +111,12 @@ public final class MissingHud {
         if (open == 0) {
             panel.line("All " + nests.size() + " nests punched", DONE_COLOUR);
         } else {
-            panel.pair("Nests to punch", String.valueOf(open), LABEL_COLOUR, 0xFFFFFF);
+            panel.pair("Nests to punch", String.valueOf(open), LABEL_COLOUR, 0xFFFFFFFF);
         }
+    }
+
+    /** Die Biomfarben liegen als reines RGB vor; fuer Text muss das Alpha-Byte dazu */
+    private static int opaqueBiome(com.shokiteufel.shokimod.data.SafariBiome biome) {
+        return 0xFF000000 | biome.colour();
     }
 }

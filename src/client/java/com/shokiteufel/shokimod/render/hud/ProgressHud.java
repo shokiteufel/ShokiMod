@@ -17,10 +17,10 @@ import java.util.Map;
  */
 public final class ProgressHud {
 
-    private static final int TITLE_COLOUR = 0x00AA00;
-    private static final int LABEL_COLOUR = 0xBBBBBB;
-    private static final int DONE_COLOUR = 0x55FF55;
-    private static final int OWN_COLOUR = 0x55FFFF;
+    private static final int TITLE_COLOUR = 0xFF00AA00;
+    private static final int LABEL_COLOUR = 0xFFBBBBBB;
+    private static final int DONE_COLOUR = 0xFF55FF55;
+    private static final int OWN_COLOUR = 0xFF55FFFF;
 
     private ProgressHud() {
     }
@@ -49,7 +49,7 @@ public final class ProgressHud {
 
         int total = Critters.total();
         panel.bar("Party", session.partyUnique(), total, LABEL_COLOUR,
-                session.dexComplete(firstCatchIsEnough) ? DONE_COLOUR : 0xAAAAAA);
+                session.dexComplete(firstCatchIsEnough) ? DONE_COLOUR : 0xFFAAAAAA);
         panel.bar("You", session.ownUnique(), total, LABEL_COLOUR, OWN_COLOUR);
 
         panel.blank();
@@ -57,7 +57,7 @@ public final class ProgressHud {
             boolean complete = session.biomeComplete(biome, firstCatchIsEnough);
             String label = complete ? biome.displayName() + " *" : biome.displayName();
             panel.bar(label, session.partyUnique(biome), Critters.totalIn(biome),
-                    biome.colour(), complete ? DONE_COLOUR : biome.colour());
+                    opaqueBiome(biome), complete ? DONE_COLOUR : opaqueBiome(biome));
         }
 
         if (ModConfig.INSTANCE.safari.showPerPlayer) {
@@ -66,7 +66,7 @@ public final class ProgressHud {
             if (perPlayer.size() > 1) {
                 panel.blank();
                 perPlayer.forEach((player, count) ->
-                        panel.pair(player, String.valueOf(count), LABEL_COLOUR, 0xFFFFFF));
+                        panel.pair(player, String.valueOf(count), LABEL_COLOUR, 0xFFFFFFFF));
             }
         }
 
@@ -76,5 +76,10 @@ public final class ProgressHud {
     private static String formatDuration(long millis) {
         long seconds = Math.max(0, millis / 1000);
         return String.format("%d:%02d", seconds / 60, seconds % 60);
+    }
+
+    /** Die Biomfarben liegen als reines RGB vor; fuer Text muss das Alpha-Byte dazu */
+    private static int opaqueBiome(com.shokiteufel.shokimod.data.SafariBiome biome) {
+        return 0xFF000000 | biome.colour();
     }
 }
