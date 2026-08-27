@@ -1,0 +1,35 @@
+{
+	"required": true,
+	"package": "com.shokiteufel.shokimod.mixin",
+	"compatibilityLevel": "JAVA_25",
+	"client": [
+      	"EntityGlowingMixin",
+      	"BossSectionVisibilityMixin",
+		"PlayerGlowingMixin",
+		"HotbarItemMixin",
+		"HudRenderMixin",
+		"WorldBeaconRenderMixin",
+		"WorldTimeMixin",
+		"WorldTextRenderMixin",
+		"GizmoTextFogMixin",
+		"MouseCursorRestoreMixin",
+		"MouseHandlerAccessor",
+		"ArachneCrystalParticleMixin",
+		"InvisibugParticleMixin",
+		"FloorDropParticleMixin",
+		"ArmorStandHeadOnlyGlowMixin",
+		"HideDamageSplashMixin",
+		"PetsMenuClickMixin",
+		"LoadoutsClickMixin",
+		"LoadoutsContentSyncMixin",
+		"EquipmentSetsClickMixin",
+		"MenuSetKeybindMixin",
+		"HeldItemScaleMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	},
+	"overwrites": {
+		"requireAnnotations": true
+	}
+}

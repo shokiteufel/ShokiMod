@@ -1,29 +1,30 @@
 {
 	"schemaVersion": 1,
-	"id": "gankura",
+	"id": "shokimod",
 	"version": "${version}",
-	"name": "GanKura",
-	"description": "A Hypixel Skyblock Mod focused on Area Mini-bosses.",
+	"name": "ShokiTeufel",
+	"description": "Hypixel Skyblock mod for area mini-bosses, own mob markers, critter safari extras and chat rules with custom sounds. Fork of GanKura by GanKuraDee.",
 	"authors": [
+		"ShokiTeufel",
 		"GanKuraDee"
 	],
 	"contact": {
 		"sources": "https://github.com/GanKuraDee/GanKura"
 	},
 	"license": "LGPL-3.0-or-later",
-	"icon": "assets/gankura/icon.png",
+	"icon": "assets/shokimod/icon.png",
 	"environment": "*",
 	"entrypoints": {
 		"client": [
-			"com.deeply.gankura.GanKura"
+			"com.shokiteufel.shokimod.ShokiMod"
 		],
 		"modmenu": [
-			"com.deeply.gankura.compat.ModMenuIntegration"
+			"com.shokiteufel.shokimod.compat.ModMenuIntegration"
 		]
 	},
 	"mixins": [
 		{
-			"config": "gankura.mixins.json",
+			"config": "shokimod.mixins.json",
 			"environment": "client"
 		}
 	],
