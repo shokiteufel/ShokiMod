@@ -102,6 +102,7 @@ public class ModConfig extends Config {
             // Regeln aus aelteren Fassungen haben noch keine Kennung und keine Sperrliste
             if (r.id == null || r.id.isBlank()) r.id = java.util.UUID.randomUUID().toString();
             if (r.blocks == null) r.blocks = new ArrayList<>();
+            if (r.except == null) r.except = "";
         });
         INSTANCE.mobVisuals.customTargets.removeIf(m -> m == null);
         INSTANCE.mobVisuals.customTargets.forEach(m -> {

@@ -27,6 +27,7 @@ public class ChatRule {
      */
     public boolean isUntouched() {
         return (filter == null || filter.isBlank())
+                && (except == null || except.isBlank())
                 && (replacement == null || replacement.isBlank())
                 && (actionBar == null || actionBar.isBlank())
                 && (announcement == null || announcement.isBlank())
@@ -61,6 +62,16 @@ public class ChatRule {
     /** Suchtext oder regulaerer Ausdruck */
     @Expose
     public String filter = "";
+
+    /**
+     * Ausnahme: steht das in der Zeile, bleibt die Regel stumm.
+     *
+     * Gedacht fuer Filter, die absichtlich weit gefasst sind und deshalb hin und wieder
+     * auf eine Zeile passen, die nicht gemeint war. Gelesen wird das Feld nach denselben
+     * Regeln wie der Filter - mit Regex also als Muster, sonst als einfacher Suchtext.
+     */
+    @Expose
+    public String except = "";
 
     @Expose
     public boolean regex = false;
@@ -142,6 +153,10 @@ public class ChatRule {
     private transient String compiledFor;
     private transient boolean compiledIgnoreCase;
 
+    private transient Pattern compiledExcept;
+    private transient String compiledExceptFor;
+    private transient boolean compiledExceptIgnoreCase;
+
     public String label() {
         return label == null || label.isBlank() ? filter : label;
     }
@@ -159,6 +174,8 @@ public class ChatRule {
         if (!areaMatches(currentArea)) return null;
 
         String subject = includeFormatting ? formatted : plain;
+        // Die Ausnahme zuerst: was ausgeschlossen ist, braucht gar nicht erst geprueft zu werden
+        if (isExcluded(subject)) return null;
 
         if (regex) {
             Pattern pattern = compiled();
@@ -188,6 +205,22 @@ public class ChatRule {
                 : subject.contains(needle);
     }
 
+    /**
+     * Traegt die Zeile die Ausnahme?
+     *
+     * Mit Regex zaehlt jeder Fund im Text, auch bei ausgeschaltetem "Partial match":
+     * die Ausnahme beschreibt einen Bestandteil der Zeile, nicht die ganze Zeile.
+     */
+    private boolean isExcluded(String subject) {
+        if (except == null || except.isBlank()) return false;
+
+        if (regex) {
+            Pattern pattern = compiledExcept();
+            return pattern != null && pattern.matcher(subject).find();
+        }
+        return containsWith(subject, except);
+    }
+
     private boolean areaMatches(String currentArea) {
         if (areas == null || areas.isEmpty()) return true;
         if (currentArea == null || currentArea.isBlank()) return false;
@@ -209,6 +242,21 @@ public class ChatRule {
             }
         }
         return compiled;
+    }
+
+    /** Wie compiled(), nur fuer die Ausnahme. Ungueltiges Muster heisst: keine Ausnahme */
+    private Pattern compiledExcept() {
+        if (compiledExcept == null || !except.equals(compiledExceptFor)
+                || compiledExceptIgnoreCase != ignoreCase) {
+            compiledExceptFor = except;
+            compiledExceptIgnoreCase = ignoreCase;
+            try {
+                compiledExcept = Pattern.compile(except, ignoreCase ? Pattern.CASE_INSENSITIVE : 0);
+            } catch (PatternSyntaxException e) {
+                compiledExcept = null;
+            }
+        }
+        return compiledExcept;
     }
 
     /** Zahlen wie "1,2M", "340k" oder "12.500" - die groesste in der Zeile zaehlt */
@@ -258,6 +306,10 @@ public class ChatRule {
 
     public boolean filterIsValid() {
         return !regex || filter == null || filter.isEmpty() || compiled() != null;
+    }
+
+    public boolean exceptIsValid() {
+        return !regex || except == null || except.isEmpty() || compiledExcept() != null;
     }
 
     /**

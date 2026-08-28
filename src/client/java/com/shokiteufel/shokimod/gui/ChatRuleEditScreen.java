@@ -57,6 +57,17 @@ public class ChatRuleEditScreen extends Screen {
         addRenderableWidget(filterBox);
         y += ROW;
 
+        EditBox exceptBox = box(leftColumn, y, "Except", rule.except, 256,
+                value -> rule.except = value,
+                "The rule stays silent when the line contains this. Handy for a filter that is "
+                        + "deliberately broad. Uses the same regex and case settings as the filter.");
+        exceptBox.setResponder(value -> {
+            rule.except = value;
+            exceptBox.setTextColor(rule.exceptIsValid() ? EditBox.DEFAULT_TEXT_COLOR : INVALID_COLOR);
+        });
+        addRenderableWidget(exceptBox);
+        y += ROW;
+
         addRenderableWidget(toggle(leftColumn, y, "Regex", rule.regex,
                 value -> rule.regex = value,
                 "Off: plain text.  On: the filter is a regular expression, and $1, $2 can be used in the outputs."));
@@ -298,6 +309,10 @@ public class ChatRuleEditScreen extends Screen {
 
         if (!rule.filterIsValid()) {
             graphics.centeredText(font, Component.literal("Invalid regex - the rule will not fire")
+                    .withStyle(ChatFormatting.RED), centerX, height - 44, 0xFFFF5555);
+        } else if (!rule.exceptIsValid()) {
+            // Eine kaputte Ausnahme haelt nichts auf - die Regel feuert dann wieder ueberall
+            graphics.centeredText(font, Component.literal("Invalid regex in Except - nothing is excluded")
                     .withStyle(ChatFormatting.RED), centerX, height - 44, 0xFFFF5555);
         }
     }
