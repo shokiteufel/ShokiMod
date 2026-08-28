@@ -25,14 +25,6 @@ public final class NearbyMobs {
 
     /** Neu gesucht wird hoechstens zweimal je Sekunde; jeder Frame waere Verschwendung */
     private static final long SCAN_INTERVAL_MILLIS = 500L;
-    /**
-     * Weiter als das schaut diese Liste nicht.
-     *
-     * Der eingestellte Suchradius geht bis 1024, das ist fuer die Auswahlfenster
-     * gedacht. Hier waeren hunderte Eintraege die Folge, von denen acht zu sehen sind -
-     * und der Server sendet jenseits von etwa 128 Bloecken ohnehin nichts mehr.
-     */
-    private static final double MAX_REACH = 128.0;
 
     /**
      * Ein gefundener Mob samt allem, was zum Aufnehmen in die eigene Liste noetig ist.
@@ -93,7 +85,9 @@ public final class NearbyMobs {
         Minecraft client = Minecraft.getInstance();
         if (client.level == null || client.player == null) return List.of();
 
-        double reach = Math.min(MAX_REACH, ModConfig.INSTANCE.mobVisuals.pickRadiusBlocks());
+        // Der unter /shoki eingestellte Radius, ungekuerzt. Bezahlbar ist das, weil der
+        // Kasten gepuffert wird - gesucht wird zweimal je Sekunde, nicht in jedem Bild
+        double reach = ModConfig.INSTANCE.mobVisuals.pickRadiusBlocks();
         double reachSqr = reach * reach;
         Map<String, Entry> merged = new LinkedHashMap<>();
 
