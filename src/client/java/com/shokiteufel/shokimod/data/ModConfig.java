@@ -70,6 +70,13 @@ public class ModConfig extends Config {
 
         adoptLegacyCategory();
 
+        // Das Leuchten stand bis 1.1.0 in der Safari. Wer es dort ausgeschaltet hatte,
+        // soll es nach dem Umzug nicht wieder angehen sehen
+        if (INSTANCE.safari.glowingHudText != null) {
+            INSTANCE.hud.glowingHudText = INSTANCE.safari.glowingHudText;
+            INSTANCE.safari.glowingHudText = null;
+        }
+
         INSTANCE.mobVisuals.resetNameplateScale =
                 () -> INSTANCE.mobVisuals.nameplateScale = MobVisualsCategory.DEFAULT_NAMEPLATE_SCALE;
         INSTANCE.mobVisuals.openNearbyPicker = () -> Minecraft.getInstance().execute(() ->
@@ -84,7 +91,7 @@ public class ModConfig extends Config {
         INSTANCE.safari.openMarkerSettings = () -> Minecraft.getInstance().execute(() ->
                 Minecraft.getInstance().setScreen(
                         new MarkerSettingsScreen(Minecraft.getInstance().screen)));
-        INSTANCE.safari.openHudEditor = () -> Minecraft.getInstance().execute(() ->
+        INSTANCE.hud.openHudEditor = () -> Minecraft.getInstance().execute(() ->
                 Minecraft.getInstance().setScreen(
                         new HudEditorScreen(Minecraft.getInstance().screen)));
         INSTANCE.safari.openContestSound = () -> Minecraft.getInstance().execute(() ->
@@ -190,6 +197,10 @@ public class ModConfig extends Config {
     // カテゴリの定義
     // ==========================================
     @Expose
+    @Category(name = "HUD", desc = "The panels on screen: where they sit, how big they are and how they look.")
+    public HudCategory hud = new HudCategory();
+
+    @Expose
     @Category(name = "Mob Visuals", desc = "Your own mobs and how every marker looks.")
     public MobVisualsCategory mobVisuals = new MobVisualsCategory();
 
@@ -223,6 +234,26 @@ public class ModConfig extends Config {
         @Expose public String wallColor = null;
         @Expose public Boolean highlightMounds = null;
         @Expose public String moundColor = null;
+    }
+
+    /**
+     * Was fuer alle Kaesten gilt, unabhaengig davon, was in ihnen steht.
+     *
+     * Lage, Groesse und Aussehen sind keine Eigenschaft der Safari oder der Mobs -
+     * dieselbe Einstellung wirkt auf jeden Kasten. In einem Reiter neben den Inhalten
+     * suchte man sie vergeblich, sobald man den falschen Inhalt im Kopf hat.
+     */
+    public static class HudCategory {
+
+        @ConfigOption(name = "Move Panels", desc = "Drag the panels where you want them.\nScroll over one to resize it. Click a panel and the slider at the bottom sets how transparent its background is.")
+        @ConfigEditorButton(buttonText = "Open")
+        public transient Runnable openHudEditor = () -> {
+        };
+
+        @Expose
+        @ConfigOption(name = "Glowing text", desc = "Draws the panel text with a dark outline in its own colour, the way Minecraft draws signs written with glow ink.\nOff: plain text with a drop shadow.")
+        @ConfigEditorBoolean
+        public boolean glowingHudText = true;
     }
 
     public static class MobVisualsCategory {
@@ -402,15 +433,14 @@ public class ModConfig extends Config {
         public transient Runnable openContestSound = () -> {
         };
 
-        @ConfigOption(name = "Move Panels", desc = "Drag the panels where you want them.\nScroll over one to resize it. Click a panel and the slider at the bottom sets how transparent its background is.")
-        @ConfigEditorButton(buttonText = "Open")
-        public transient Runnable openHudEditor = () -> {
-        };
-
+        /**
+         * Lag bis 1.1.0 hier und steht jetzt im Reiter HUD.
+         *
+         * Bleibt als leeres Fach stehen, damit ein ausgeschaltetes Leuchten beim
+         * Umzug nicht wieder angeht. Ohne Anzeige, nur zum Uebernehmen.
+         */
         @Expose
-        @ConfigOption(name = "Glowing text", desc = "Draws the panel text with a dark outline in its own colour, the way Minecraft draws signs written with glow ink.\nOff: plain text with a drop shadow.")
-        @ConfigEditorBoolean
-        public boolean glowingHudText = true;
+        public Boolean glowingHudText = null;
 
         @Expose
         @ConfigOption(name = "Progress HUD", desc = "The two Safari panels and what feeds them.")

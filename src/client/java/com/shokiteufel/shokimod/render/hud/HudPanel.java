@@ -194,7 +194,7 @@ public class HudPanel {
     private static void text(GuiGraphicsExtractor graphics, Font font, String text, String plain,
                              int x, int y, int colour) {
         int fill = opaque(colour);
-        if (!ModConfig.INSTANCE.safari.glowingHudText) {
+        if (!ModConfig.INSTANCE.hud.glowingHudText) {
             graphics.text(font, text, x, y, fill, true);
             return;
         }
