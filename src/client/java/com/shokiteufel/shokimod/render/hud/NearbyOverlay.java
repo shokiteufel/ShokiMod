@@ -6,7 +6,12 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 /**
- * Der Nearby-Kasten ueber einem offenen Fenster.
+ * Die Kaesten ueber einem offenen Fenster.
+ *
+ * Sobald ein Fenster offen ist, legt Minecraft einen dunklen Schleier ueber alles,
+ * was vorher gezeichnet wurde - Welt und HUD gleichermassen. Ein Kasten aus dem
+ * normalen HUD-Durchgang liegt darunter und wirkt dann grau, obwohl seine Schrift
+ * weiss ist. Deshalb werden hier alle Kaesten noch einmal darueber gezeichnet.
  *
  * Bewusst eine gewoehnliche Klasse und kein Mixin: die beiden Mixins - einer fuers
  * Zeichnen, einer fuer den Klick - rufen von hier aus auf. Mixin-Klassen sollten
@@ -24,9 +29,11 @@ public final class NearbyOverlay {
     }
 
     public static void draw(GuiGraphicsExtractor graphics) {
-        if (!shown()) return;
-        SafariHud.draw(graphics, Minecraft.getInstance().font,
-                SafariHud.Panel.NEARBY, NearbyHud.build());
+        // Im Einrichtungsfenster nicht: dort werden die Kaesten schon selbst gezeichnet,
+        // an der Stelle, an die man sie gerade zieht
+        if (Minecraft.getInstance().screen instanceof HudEditorScreen) return;
+        // Dieselbe Auswahl wie beim Spielen - was eingeschaltet ist und hierher gehoert
+        SafariHud.render(graphics);
     }
 
     /** Sitzt der Zeiger auf einer Zeile? Dann handeln und den Klick schlucken */
