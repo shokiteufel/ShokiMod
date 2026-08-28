@@ -17,12 +17,12 @@ import java.util.List;
  */
 public final class NearbyHud {
 
-    private static final int TITLE_COLOUR = 0xFFFFC93C;
-    private static final int LABEL_COLOUR = 0xFFE6E6E6;
-    private static final int DISTANCE_COLOUR = 0xFF6EF0FF;
-    private static final int HINT_COLOUR = 0xFF9A9A9A;
-    private static final int ACTIVE_COLOUR = 0xFF7CFF7C;
-    private static final int ADDED_COLOUR = 0xFF7CFF7C;
+    private static final int TITLE_COLOUR = HudColours.GOLD;
+    private static final int LABEL_COLOUR = HudColours.WHITE;
+    private static final int DISTANCE_COLOUR = HudColours.AQUA;
+    private static final int HINT_COLOUR = HudColours.GRAY;
+    private static final int ACTIVE_COLOUR = HudColours.GREEN;
+    private static final int ADDED_COLOUR = HudColours.GREEN;
 
     /** Mehr Zeilen verdecken mehr Bild, als sie nuetzen */
     private static final int MAX_ROWS = 8;

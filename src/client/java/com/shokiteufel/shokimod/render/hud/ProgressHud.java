@@ -17,10 +17,10 @@ import java.util.Map;
  */
 public final class ProgressHud {
 
-    private static final int TITLE_COLOUR = 0xFF6EFF6E;
-    private static final int LABEL_COLOUR = 0xFFE6E6E6;
-    private static final int DONE_COLOUR = 0xFF7CFF7C;
-    private static final int OWN_COLOUR = 0xFF6EF0FF;
+    private static final int TITLE_COLOUR = HudColours.GREEN;
+    private static final int LABEL_COLOUR = HudColours.WHITE;
+    private static final int DONE_COLOUR = HudColours.GREEN;
+    private static final int OWN_COLOUR = HudColours.AQUA;
 
     private ProgressHud() {
     }
@@ -49,7 +49,7 @@ public final class ProgressHud {
 
         int total = Critters.total();
         panel.bar("Party", session.partyUnique(), total, LABEL_COLOUR,
-                session.dexComplete(firstCatchIsEnough) ? DONE_COLOUR : 0xFFD0D0D0);
+                session.dexComplete(firstCatchIsEnough) ? DONE_COLOUR : HudColours.GRAY);
         panel.bar("You", session.ownUnique(), total, LABEL_COLOUR, OWN_COLOUR);
 
         panel.blank();
@@ -66,7 +66,7 @@ public final class ProgressHud {
             if (perPlayer.size() > 1) {
                 panel.blank();
                 perPlayer.forEach((player, count) ->
-                        panel.pair(player, String.valueOf(count), LABEL_COLOUR, 0xFFFFFFFF));
+                        panel.pair(player, String.valueOf(count), LABEL_COLOUR, HudColours.WHITE));
             }
         }
 

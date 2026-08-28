@@ -21,8 +21,8 @@ import java.util.List;
  */
 public final class MissingHud {
 
-    private static final int LABEL_COLOUR = 0xFFE6E6E6;
-    private static final int DONE_COLOUR = 0xFF7CFF7C;
+    private static final int LABEL_COLOUR = HudColours.WHITE;
+    private static final int DONE_COLOUR = HudColours.GREEN;
 
     private MissingHud() {
     }
@@ -61,7 +61,7 @@ public final class MissingHud {
                         ? critter.required(firstCatchIsEnough)
                         : session.remaining(critter, firstCatchIsEnough);
                 String suffix = left > 1 ? "  x" + left : "";
-                panel.line(critter.rarity().colourCode() + critter.name() + suffix, 0xFFFFFFFF);
+                panel.line(critter.rarity().colourCode() + critter.name() + suffix, HudColours.WHITE);
             }
         }
 
@@ -81,7 +81,7 @@ public final class MissingHud {
         if (standing == 0) return;
 
         panel.blank();
-        panel.pair("Mounds nearby", String.valueOf(standing), LABEL_COLOUR, 0xFFFFFFFF);
+        panel.pair("Mounds nearby", String.valueOf(standing), LABEL_COLOUR, HudColours.WHITE);
     }
 
     private static void appendWalls(HudPanel panel, SafariBiome biome) {
@@ -95,7 +95,7 @@ public final class MissingHud {
         if (standing == 0) {
             panel.line("Walls all broken", DONE_COLOUR);
         } else {
-            panel.pair("Walls to break", String.valueOf(standing), LABEL_COLOUR, 0xFFFFFFFF);
+            panel.pair("Walls to break", String.valueOf(standing), LABEL_COLOUR, HudColours.WHITE);
         }
     }
 
@@ -111,7 +111,7 @@ public final class MissingHud {
         if (open == 0) {
             panel.line("All " + nests.size() + " nests punched", DONE_COLOUR);
         } else {
-            panel.pair("Nests to punch", String.valueOf(open), LABEL_COLOUR, 0xFFFFFFFF);
+            panel.pair("Nests to punch", String.valueOf(open), LABEL_COLOUR, HudColours.WHITE);
         }
     }
 

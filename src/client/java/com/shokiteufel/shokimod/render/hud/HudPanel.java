@@ -180,7 +180,7 @@ public class HudPanel {
                             opaque(row.valueColour()));
                 }
 
-                graphics.text(font, row.value(), x + content - valueWidth, y, 0xFFFFFFFF, true);
+                graphics.text(font, row.value(), x + content - valueWidth, y, HudColours.WHITE, true);
             }
         }
     }

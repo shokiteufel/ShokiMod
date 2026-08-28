@@ -7,12 +7,12 @@ package com.shokiteufel.shokimod.data;
  */
 public enum SafariBiome {
 
-    FOREST("Forest", 0x55FF55, 0x7CFF7C),
-    CAVERN("Cavern", 0xFFAA00, 0xFFC93C),
-    ICY("Icy", 0x55FFFF, 0x7CF5FF),
-    // Das Dunkelviolett von crittermod verschwindet auf dem dunklen Kasten fast -
-    // fuer die Schrift daher eine deutlich hellere Fassung
-    HAUNTED("Haunted", 0xAA00AA, 0xE45FFF);
+    FOREST("Forest", 0x55FF55, 0x55FF55),
+    CAVERN("Cavern", 0xFFAA00, 0xFFAA00),
+    ICY("Icy", 0x55FFFF, 0x55FFFF),
+    // Das Dunkelviolett von crittermod verschwindet auf dem dunklen Kasten fast.
+    // Fuer die Schrift daher Minecrafts helles Violett, der Balken behaelt den Originalton
+    HAUNTED("Haunted", 0xAA00AA, 0xFF55FF);
 
     private final String displayName;
     private final int colour;

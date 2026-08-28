@@ -12,10 +12,10 @@ import com.shokiteufel.shokimod.scanner.SkyblockClock;
  */
 public final class ContestHud {
 
-    private static final int TITLE_COLOUR = 0xFFFFC93C;
-    private static final int LABEL_COLOUR = 0xFFE6E6E6;
-    private static final int TIME_COLOUR = 0xFF6EF0FF;
-    private static final int AMOUNT_COLOUR = 0xFF7CFF7C;
+    private static final int TITLE_COLOUR = HudColours.GOLD;
+    private static final int LABEL_COLOUR = HudColours.WHITE;
+    private static final int TIME_COLOUR = HudColours.AQUA;
+    private static final int AMOUNT_COLOUR = HudColours.GREEN;
 
     private ContestHud() {
     }
