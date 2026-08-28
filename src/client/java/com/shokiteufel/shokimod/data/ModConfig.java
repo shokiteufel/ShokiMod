@@ -303,6 +303,23 @@ public class ModConfig extends Config {
         public boolean showNameplateHealth = true;
 
         @Expose
+        @ConfigOption(name = "Nearby panel", desc = "Lists the mobs around you while you play.\nA HUD cannot take clicks - press the key to open the same list and add from there.")
+        @ConfigEditorBoolean
+        public boolean showNearbyHud = false;
+
+        @Expose
+        @ConfigOption(name = "Nearby key hint", desc = "Shows which key opens the list, at the bottom of the panel.")
+        @ConfigEditorBoolean
+        public boolean showNearbyHint = true;
+
+        @Expose
+        public float nearbyHudX = 0.01f;
+        @Expose
+        public float nearbyHudY = 0.35f;
+        @Expose
+        public float nearbyHudScale = 1.0f;
+
+        @Expose
         @ConfigOption(name = "Debug Logging", desc = "Writes into the log why a custom mob does or does not glow. Only for troubleshooting.")
         @ConfigEditorBoolean
         public boolean debugLogging = false;

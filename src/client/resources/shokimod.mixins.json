@@ -9,6 +9,7 @@
 		"HudRenderMixin",
 		"WorldTextRenderMixin",
 		"GizmoTextFogMixin",
+		"NearbyOverlayMixin",
 		"FloorDropParticleMixin"
 	],
 	"injectors": {

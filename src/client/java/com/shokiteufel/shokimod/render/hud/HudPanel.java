@@ -102,6 +102,23 @@ public class HudPanel {
         return (colour >>> 24) == 0 ? 0xFF000000 | colour : colour;
     }
 
+    /**
+     * Welche Zeile liegt unter dem Zeiger? -1, wenn keine.
+     *
+     * Gerechnet wird in den Massen des Kastens, deshalb wird die Skalierung
+     * herausgerechnet - gezeichnet wird er ja vergroessert.
+     */
+    public int rowAt(Font font, int left, int top, float scale, double mouseX, double mouseY) {
+        if (rows.isEmpty() || scale <= 0) return -1;
+
+        double localX = (mouseX - left) / scale;
+        double localY = (mouseY - top) / scale;
+        if (localX < 0 || localX > width(font)) return -1;
+
+        int index = (int) Math.floor((localY - PADDING) / LINE_HEIGHT);
+        return index >= 0 && index < rows.size() ? index : -1;
+    }
+
     public void render(GuiGraphicsExtractor graphics, Font font, int left, int top) {
         if (rows.isEmpty()) return;
 

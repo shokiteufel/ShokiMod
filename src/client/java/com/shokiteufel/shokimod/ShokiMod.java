@@ -38,6 +38,7 @@ public class ShokiMod implements ClientModInitializer {
     private static boolean openConfigNextTick = false;
     private static boolean openHudNextTick = false;
 
+
     @Override
     public void onInitializeClient() {
         ModConfig.load();

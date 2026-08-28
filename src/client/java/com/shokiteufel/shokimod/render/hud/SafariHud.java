@@ -16,7 +16,7 @@ public final class SafariHud {
 
     /** Ein Kasten auf dem Bildschirm. Traegt seine eigene Lage und Groesse in der Config */
     public enum Panel {
-        PROGRESS, MISSING, CONTEST;
+        PROGRESS, MISSING, CONTEST, NEARBY;
 
         public boolean visible() {
             ModConfig.SafariCategory c = ModConfig.INSTANCE.safari;
@@ -24,6 +24,7 @@ public final class SafariHud {
                 case PROGRESS -> c.showProgressHud;
                 case MISSING -> c.showMissingHud;
                 case CONTEST -> c.showContestHud;
+                case NEARBY -> ModConfig.INSTANCE.mobVisuals.showNearbyHud;
             };
         }
 
@@ -34,7 +35,7 @@ public final class SafariHud {
          * dagegen ueberall in SkyBlock und soll auch ueberall zu sehen sein.
          */
         public boolean showsHere() {
-            return this == CONTEST || GameState.Server.isSafari();
+            return this != PROGRESS && this != MISSING || GameState.Server.isSafari();
         }
 
         public float x() {
@@ -43,6 +44,7 @@ public final class SafariHud {
                 case PROGRESS -> c.progressHudX;
                 case MISSING -> c.missingHudX;
                 case CONTEST -> c.contestHudX;
+                case NEARBY -> ModConfig.INSTANCE.mobVisuals.nearbyHudX;
             };
         }
 
@@ -52,6 +54,7 @@ public final class SafariHud {
                 case PROGRESS -> c.progressHudY;
                 case MISSING -> c.missingHudY;
                 case CONTEST -> c.contestHudY;
+                case NEARBY -> ModConfig.INSTANCE.mobVisuals.nearbyHudY;
             };
         }
 
@@ -61,6 +64,7 @@ public final class SafariHud {
                 case PROGRESS -> c.progressHudScale;
                 case MISSING -> c.missingHudScale;
                 case CONTEST -> c.contestHudScale;
+                case NEARBY -> ModConfig.INSTANCE.mobVisuals.nearbyHudScale;
             };
         }
 
@@ -79,6 +83,10 @@ public final class SafariHud {
                     c.contestHudX = x;
                     c.contestHudY = y;
                 }
+                case NEARBY -> {
+                    ModConfig.INSTANCE.mobVisuals.nearbyHudX = x;
+                    ModConfig.INSTANCE.mobVisuals.nearbyHudY = y;
+                }
             }
         }
 
@@ -89,6 +97,7 @@ public final class SafariHud {
                 case PROGRESS -> c.progressHudScale = clamped;
                 case MISSING -> c.missingHudScale = clamped;
                 case CONTEST -> c.contestHudScale = clamped;
+                case NEARBY -> ModConfig.INSTANCE.mobVisuals.nearbyHudScale = clamped;
             }
         }
 
@@ -97,6 +106,7 @@ public final class SafariHud {
                 case PROGRESS -> ProgressHud.build();
                 case MISSING -> MissingHud.build();
                 case CONTEST -> ContestHud.build();
+                case NEARBY -> NearbyHud.build();
             };
         }
     }

@@ -45,6 +45,8 @@ public class HudEditorScreen extends Screen {
             SafariHud.Panel.MISSING.setScale(1.0f);
             SafariHud.Panel.CONTEST.setPosition(0.4f, 0.02f);
             SafariHud.Panel.CONTEST.setScale(1.0f);
+            SafariHud.Panel.NEARBY.setPosition(0.01f, 0.35f);
+            SafariHud.Panel.NEARBY.setScale(1.0f);
         }).bounds(width / 2 - 105, height - 30, 100, 20).build());
 
         addRenderableWidget(Button.builder(Component.literal("Done"), button -> onClose())
