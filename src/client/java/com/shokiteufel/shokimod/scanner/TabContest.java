@@ -27,12 +27,16 @@ public final class TabContest {
     /** Und was das naechste kostet: "Rare requires +638" */
     private static final Pattern NEXT = Pattern.compile("(?<next>[A-Za-z]+) requires \\+(?<needed>[\\d,.]+)");
 
+    /** So lange gilt die zuletzt gelesene Restzeit weiter, auch ohne neuen Treffer */
+    private static final long TIME_STICKY_MILLIS = 5000L;
+
     private static String host = "";
     private static String bracket = "";
     private static String amount = "";
     private static String next = "";
     private static String needed = "";
     private static String time = "";
+    private static long timeSeenAt = 0L;
 
     private TabContest() {
     }
@@ -64,9 +68,17 @@ public final class TabContest {
         return needed;
     }
 
-    /** Restzeit, wie Hypixel sie in der Seitenleiste schreibt ("0m35s"). Leer wenn unbekannt */
+    /**
+     * Restzeit, wie Hypixel sie in der Seitenleiste schreibt ("0m35s"). Leer wenn unbekannt.
+     *
+     * Der Wert haelt einige Sekunden nach: Hypixel schreibt die Seitenleiste laufend neu,
+     * dabei fehlt die Zeile immer wieder fuer einen Moment. Wuerde sie dann sofort als
+     * unbekannt gelten, schaltete die Uhr staendig zwischen dieser Angabe und der
+     * eigenen Rechnung hin und her - und weil beide leicht auseinanderliegen, zappelt
+     * die Anzeige.
+     */
     public static String time() {
-        return time;
+        return System.currentTimeMillis() - timeSeenAt < TIME_STICKY_MILLIS ? time : "";
     }
 
     public static void reset() {
@@ -76,6 +88,7 @@ public final class TabContest {
         next = "";
         needed = "";
         time = "";
+        timeSeenAt = 0L;
     }
 
     /**
@@ -88,11 +101,13 @@ public final class TabContest {
             Matcher header = SIDEBAR_HEADER.matcher(line);
             if (header.matches()) {
                 time = header.group("time").trim();
+                timeSeenAt = System.currentTimeMillis();
                 if (host.isEmpty()) host = header.group("who");
                 return;
             }
         }
-        time = "";
+        // Kein Treffer heisst nicht "weg" - die Zeile kann einen Moment fehlen.
+        // Der Wert altert von selbst aus, siehe time()
     }
 
     public static void processTabList(List<String> lines) {
