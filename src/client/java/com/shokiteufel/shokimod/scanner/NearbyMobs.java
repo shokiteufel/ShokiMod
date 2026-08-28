@@ -48,15 +48,18 @@ public final class NearbyMobs {
                     : CustomMob.byType(typeId, label, invisible, variant, CustomMob.DEFAULT_COLOR);
         }
 
+        /** Ist dieser Eintrag der eigenen Liste derselbe Mob? */
+        public boolean matches(CustomMob mob) {
+            return isNamed()
+                    ? mob.isNameMode() && mob.pattern.equalsIgnoreCase(pattern)
+                    : !mob.isNameMode() && typeId.equals(mob.typeId)
+                            && variant.equalsIgnoreCase(mob.variant);
+        }
+
         /** Steht der schon in der eigenen Liste? */
         public boolean alreadyAdded() {
             for (CustomMob mob : ModConfig.INSTANCE.mobVisuals.customTargets) {
-                if (isNamed()) {
-                    if (mob.isNameMode() && mob.pattern.equalsIgnoreCase(pattern)) return true;
-                } else if (!mob.isNameMode() && typeId.equals(mob.typeId)
-                        && variant.equalsIgnoreCase(mob.variant)) {
-                    return true;
-                }
+                if (matches(mob)) return true;
             }
             return false;
         }

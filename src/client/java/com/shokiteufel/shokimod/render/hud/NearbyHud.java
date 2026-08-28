@@ -169,8 +169,14 @@ public final class NearbyHud {
                 return true;
             }
             case Row.Nearby nearby -> {
-                if (nearby.entry().alreadyAdded()) return true;
-                ModConfig.INSTANCE.mobVisuals.customTargets.add(nearby.entry().toCustomMob());
+                // Derselbe Klick nimmt auf und wieder heraus - das Haekchen zeigt an, was gilt
+                NearbyMobs.Entry entry = nearby.entry();
+                List<CustomMob> targets = ModConfig.INSTANCE.mobVisuals.customTargets;
+                if (entry.alreadyAdded()) {
+                    targets.removeIf(entry::matches);
+                } else {
+                    targets.add(entry.toCustomMob());
+                }
                 ModConfig.INSTANCE.saveNow();
                 invalidate();
                 return true;
