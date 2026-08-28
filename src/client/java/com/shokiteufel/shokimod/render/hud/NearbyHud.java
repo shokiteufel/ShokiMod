@@ -64,10 +64,36 @@ public final class NearbyHud {
     /** Zeile fuer Zeile, gleiche Reihenfolge wie im gebauten Kasten */
     private static final List<Row> rows = new ArrayList<>();
 
+    /**
+     * Der fertige Kasten wird gepuffert.
+     *
+     * Gezeichnet wird in jedem Bild - bei 200 Bildern je Sekunde hiesse das 200 mal
+     * Liste filtern, Zeilen bauen und jede Zeile ausmessen. Schriftbreiten sind teuer,
+     * das summiert sich zu Zehntausenden Messungen je Sekunde. Viermal je Sekunde neu
+     * genuegt voellig; schneller aendert sich die Umgebung ohnehin nicht.
+     */
+    private static final long REBUILD_INTERVAL_MILLIS = 250L;
+
+    private static HudPanel cached = null;
+    private static long cachedAt = 0L;
+
     private NearbyHud() {
     }
 
+    /** Nach einem Klick stimmt der Puffer nicht mehr */
+    private static void invalidate() {
+        cached = null;
+    }
+
     public static HudPanel build() {
+        long now = System.currentTimeMillis();
+        if (cached != null && now - cachedAt < REBUILD_INTERVAL_MILLIS) return cached;
+        cachedAt = now;
+        cached = rebuild();
+        return cached;
+    }
+
+    private static HudPanel rebuild() {
         rows.clear();
         HudPanel panel = new HudPanel();
 
@@ -160,18 +186,21 @@ public final class NearbyHud {
         switch (rows.get(row)) {
             case Row.Tabs ignored -> {
                 tab = tab.next();
+                invalidate();
                 return true;
             }
             case Row.Nearby nearby -> {
                 if (nearby.entry().alreadyAdded()) return true;
                 ModConfig.INSTANCE.mobVisuals.customTargets.add(nearby.entry().toCustomMob());
                 ModConfig.INSTANCE.saveNow();
+                invalidate();
                 return true;
             }
             case Row.Own own -> {
                 // Umschalten statt loeschen: ein Fehlklick soll nicht Arbeit vernichten
                 own.mob().enabled = !own.mob().enabled;
                 ModConfig.INSTANCE.saveNow();
+                invalidate();
                 return true;
             }
             case Row.Plain ignored -> {
