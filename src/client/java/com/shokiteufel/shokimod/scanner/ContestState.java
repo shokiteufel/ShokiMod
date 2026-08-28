@@ -23,6 +23,25 @@ public final class ContestState {
     private static final long PAUSE_SECONDS = 30;
     /** Ein SkyBlock-Tag in echten Millisekunden */
     private static final long DAY_MILLIS = 20 * 60 * 1000L;
+    /**
+     * Ab dieser Abweichung wird der Endzeitpunkt nachgezogen.
+     *
+     * Die SkyBlock-Uhr springt in Stufen von 8,3 Sekunden, die eigene Rechnung weicht
+     * dadurch um bis zu einer Sekunde ab. Wer bei jeder Abweichung nachzieht, laesst die
+     * Anzeige auf die grobe Quelle einrasten - sichtbar als Sprung um ein, zwei Sekunden.
+     * Nachgezogen wird deshalb nur, wenn die Abweichung groesser ist als das Rauschen.
+     */
+    private static final long RESYNC_TOLERANCE_MILLIS = 2500L;
+
+    /**
+     * Der zuletzt gesehene Quellwert.
+     *
+     * Zwischen ihren Spruengen steht die Quelle still: sagt sie "noch 20 Sekunden",
+     * sagt sie das acht Sekunden lang. Wer daraus laufend einen Endzeitpunkt rechnet,
+     * bekommt einen, der mitwandert. Verglichen wird deshalb nur im Moment des
+     * Sprungs - dann, und nur dann, traegt die Quelle eine neue Information.
+     */
+    private static long lastSourceSeconds = Long.MIN_VALUE;
 
     private ContestState() {
     }
@@ -57,34 +76,28 @@ public final class ContestState {
     }
 
     /**
-     * Restsekunden bis zum naechsten Wechsel, sekundengenau.
+     * Restsekunden bis zum naechsten Wechsel.
      *
-     * Waehrend der Laufzeit bis zum Ende, waehrend der Pause bis zum naechsten Start.
-     * Beide Quellen springen - die SkyBlock-Uhr in 10-Minuten-Schritten, was 8,3 echten
-     * Sekunden entspricht. Angezeigt wird deshalb nicht die Quelle, sondern der zuletzt
-     * gelesene Wert, mit der echten Uhr heruntergezaehlt; bei jedem Sprung wird neu
-     * aufgesetzt.
-     *
-     * Laeuft die Zeit ab, bevor die Quelle nachzieht, wird hier selbst auf die Pause
-     * umgeschaltet. Sonst stuende die Anzeige bis zu acht Sekunden auf 0:00.
+     * Gerechnet wird gegen einen festen Endzeitpunkt, nicht gegen einen nachgezogenen
+     * Restwert. Dadurch faellt die Zahl gleichmaessig, unabhaengig davon in welchen
+     * Stufen die Quelle springt.
      */
     public static long secondsRemaining() {
-        if (cfg().contestSecondsLeft < 0) return -1;
+        if (cfg().contestEndsAt <= 0) return -1;
 
-        long elapsed = elapsed();
-        long left = cfg().contestSecondsLeft - elapsed;
+        long now = System.currentTimeMillis();
+        long left = (cfg().contestEndsAt - now) / 1000L;
         if (!cfg().contestRunning) return Math.max(0, left);
         if (left > 0) return left;
 
         // Der Contest ist gerade abgelaufen, jetzt kommt die halbe Minute Pause
-        return Math.max(0, cfg().contestSecondsLeft + PAUSE_SECONDS - elapsed);
+        return Math.max(0, (cfg().contestEndsAt + PAUSE_SECONDS * 1000L - now) / 1000L);
     }
 
     /** Laeuft gerade einer, oder ist die Pause dazwischen? */
     public static boolean running() {
-        if (cfg().contestSecondsLeft < 0) return false;
-        if (!cfg().contestRunning) return false;
-        return cfg().contestSecondsLeft - elapsed() > 0;
+        return cfg().contestEndsAt > 0 && cfg().contestRunning
+                && cfg().contestEndsAt > System.currentTimeMillis();
     }
 
     /** Restzeit als "m:ss" */
@@ -93,8 +106,14 @@ public final class ContestState {
         return String.format("%d:%02d", seconds / 60, seconds % 60);
     }
 
-    private static long elapsed() {
-        return (System.currentTimeMillis() - cfg().contestSecondsAt) / 1000L;
+    /** Was die Quellen gerade sagen, ohne Glaettung. -1 wenn keine etwas hergibt */
+    private static long sourceSeconds() {
+        long stated = ContestTimer.statedSeconds();
+        if (stated >= 0) return stated;
+
+        long toDayEnd = SkyblockClock.secondsToDayEnd();
+        // Der Contest endet eine halbe Minute vor dem Tageswechsel
+        return toDayEnd < 0 ? -1 : Math.max(0, toDayEnd - PAUSE_SECONDS);
     }
 
     /** Wie viel bis zum naechsten Bracket fehlt, aus der Schwelle abzueglich der Menge */
@@ -134,8 +153,8 @@ public final class ContestState {
         // 372 SkyBlock-Tage, also alle 5,2 echten Tage. Waere Minecraft so lange zu,
         // passte "Winter 7th" wieder und der alte Stand ueberlebte. Deshalb gilt ein
         // Stand, der aelter als ein SkyBlock-Tag ist, ohnehin als abgelaufen.
-        boolean stale = cfg().contestSecondsAt > 0
-                && System.currentTimeMillis() - cfg().contestSecondsAt > DAY_MILLIS;
+        boolean stale = cfg().contestEndsAt > 0
+                && System.currentTimeMillis() - cfg().contestEndsAt > DAY_MILLIS;
 
         if (stale || !date.equals(cfg().contestDate)) {
             startNewDay(date);
@@ -155,26 +174,26 @@ public final class ContestState {
         cfg().contestNext = "";
         cfg().contestNextThreshold = 0;
         cfg().contestWarnedDate = "";
-        cfg().contestSecondsLeft = -1;
-        cfg().contestSecondsAt = 0L;
+        cfg().contestEndsAt = 0L;
         cfg().contestRunning = true;
+        lastSourceSeconds = Long.MIN_VALUE;
         ModConfig.INSTANCE.saveNow();
     }
 
     /**
-     * Setzt die Uhr neu auf, sobald die Quelle etwas anderes sagt.
+     * Zieht den Endzeitpunkt nach, wenn die Quelle deutlich etwas anderes sagt.
      *
-     * Nur beim Sprung, nicht bei jedem Tick: sonst wuerde der Zeitpunkt staendig
-     * nachgezogen und die Zahl bliebe stehen, statt herunterzuzaehlen.
+     * Kleine Abweichungen bleiben unbeachtet - sie sind das Rauschen der grob
+     * springenden Quelle und wuerden die Anzeige zappeln lassen.
      */
     private static void anchorTime() {
         long stated = ContestTimer.statedSeconds();
-        long value;
         boolean isRunning;
+        long seconds;
 
         if (stated >= 0) {
             // Steht der Contest in der Seitenleiste, laeuft er auch
-            value = stated;
+            seconds = stated;
             isRunning = true;
         } else {
             long toDayEnd = SkyblockClock.secondsToDayEnd();
@@ -183,14 +202,20 @@ public final class ContestState {
             // Der Contest endet eine halbe Minute vor dem Tageswechsel. Darunter
             // laeuft die Pause, und dann zaehlt die Uhr bis zum Tagesende selbst
             isRunning = toDayEnd > PAUSE_SECONDS;
-            value = isRunning ? toDayEnd - PAUSE_SECONDS : toDayEnd;
+            seconds = isRunning ? toDayEnd - PAUSE_SECONDS : toDayEnd;
         }
 
-        if (value == cfg().contestSecondsLeft && isRunning == cfg().contestRunning) return;
+        // Nur wenn die Quelle etwas Neues sagt, ist ihr Wert ueberhaupt aussagekraeftig
+        if (seconds == lastSourceSeconds && isRunning == cfg().contestRunning) return;
+        lastSourceSeconds = seconds;
 
-        cfg().contestSecondsLeft = (int) value;
+        long candidate = System.currentTimeMillis() + seconds * 1000L;
+        boolean phaseChanged = isRunning != cfg().contestRunning;
+        boolean drifted = Math.abs(candidate - cfg().contestEndsAt) > RESYNC_TOLERANCE_MILLIS;
+        if (!phaseChanged && !drifted) return;
+
+        cfg().contestEndsAt = candidate;
         cfg().contestRunning = isRunning;
-        cfg().contestSecondsAt = System.currentTimeMillis();
     }
 
     /**

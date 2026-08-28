@@ -480,12 +480,15 @@ public class ModConfig extends Config {
         public String contestWarnedDate = "";
         @Expose
         public String contestWarningSound = "";
-        /** Zuletzt aus der Seitenleiste gehoerte Restzeit in Sekunden, -1 wenn keine */
+        /**
+         * Wann die laufende Phase endet, als echter Zeitpunkt.
+         *
+         * Nicht als Restwert: eine Restzeit muesste staendig nachgezogen werden und
+         * rastet dabei auf die grobe Quelle ein. Ein fester Endzeitpunkt laesst sich
+         * dagegen einfach abziehen, und der Countdown laeuft glatt.
+         */
         @Expose
-        public int contestSecondsLeft = -1;
-        /** Wann das war. Von hier aus laeuft die Uhr weiter, wenn die Seitenleiste schweigt */
-        @Expose
-        public long contestSecondsAt = 0L;
+        public long contestEndsAt = 0L;
         /** Ob zu diesem Zeitpunkt der Contest lief oder die Pause dazwischen */
         @Expose
         public boolean contestRunning = true;
