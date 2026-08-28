@@ -39,6 +39,16 @@ public class HudPanel {
 
     private final List<Row> rows = new ArrayList<>();
 
+    /**
+     * Einmal ausgemessen, dann behalten.
+     *
+     * Schriftbreiten sind teuer - Minecraft zerlegt dafuer die Zeichenkette und schlaegt
+     * jede Glyphe nach. Gezeichnet wird in jedem Bild, die Zeilen aendern sich dabei
+     * aber nicht: ein Kasten wird gebaut und danach nur noch angezeigt.
+     */
+    private int measuredWidth = -1;
+    private int[] valueWidths = null;
+
     public HudPanel title(String text, int colour) {
         rows.add(new Row(Kind.TITLE, text, "", colour, colour, 0, 0));
         return this;
@@ -77,18 +87,28 @@ public class HudPanel {
     }
 
     private int contentWidth(Font font) {
+        measure(font);
+        return measuredWidth;
+    }
+
+    private void measure(Font font) {
+        if (measuredWidth >= 0) return;
+
+        valueWidths = new int[rows.size()];
         int widest = 0;
-        for (Row row : rows) {
+        for (int i = 0; i < rows.size(); i++) {
+            Row row = rows.get(i);
+            valueWidths[i] = row.value().isEmpty() ? 0 : font.width(row.value());
+
             int width = switch (row.kind()) {
                 case TITLE, TEXT -> font.width(row.label());
-                case PAIR -> font.width(row.label()) + GUTTER + font.width(row.value());
-                case BAR -> font.width(row.label()) + GUTTER + BAR_WIDTH + GUTTER
-                        + font.width(row.value());
+                case PAIR -> font.width(row.label()) + GUTTER + valueWidths[i];
+                case BAR -> font.width(row.label()) + GUTTER + BAR_WIDTH + GUTTER + valueWidths[i];
                 case BLANK -> 0;
             };
             widest = Math.max(widest, width);
         }
-        return widest;
+        measuredWidth = widest;
     }
 
     /**
@@ -129,20 +149,21 @@ public class HudPanel {
 
         int x = left + PADDING;
         int y = top + PADDING;
-        for (Row row : rows) {
-            draw(graphics, font, row, x, y, content);
+        for (int i = 0; i < rows.size(); i++) {
+            draw(graphics, font, rows.get(i), x, y, content, valueWidths[i]);
             y += LINE_HEIGHT;
         }
     }
 
-    private void draw(GuiGraphicsExtractor graphics, Font font, Row row, int x, int y, int content) {
+    private void draw(GuiGraphicsExtractor graphics, Font font, Row row, int x, int y,
+                      int content, int valueWidth) {
         switch (row.kind()) {
             case BLANK -> {
             }
             case TITLE, TEXT -> graphics.text(font, row.label(), x, y, opaque(row.labelColour()), true);
             case PAIR -> {
                 graphics.text(font, row.label(), x, y, opaque(row.labelColour()), true);
-                int valueX = x + content - font.width(row.value());
+                int valueX = x + content - valueWidth;
                 graphics.text(font, row.value(), valueX, y, opaque(row.valueColour()), true);
             }
             case BAR -> {
@@ -150,7 +171,6 @@ public class HudPanel {
 
                 // Der Balken sitzt rechts, direkt vor der Zahl - so stehen alle Balken
                 // untereinander auf gleicher Hoehe, egal wie lang die Beschriftung ist
-                int valueWidth = font.width(row.value());
                 int barLeft = x + content - valueWidth - GUTTER - BAR_WIDTH;
                 int barY = y + 2;
                 graphics.fill(barLeft, barY, barLeft + BAR_WIDTH, barY + 5, 0xFF303030);

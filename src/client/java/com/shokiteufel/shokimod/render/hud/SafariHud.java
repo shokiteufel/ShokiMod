@@ -6,6 +6,9 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 
+import java.util.EnumMap;
+import java.util.Map;
+
 /**
  * Platziert die Kaesten dieser Mod und zeichnet sie.
  *
@@ -101,7 +104,28 @@ public final class SafariHud {
             }
         }
 
+        /**
+         * Der fertige Kasten, gepuffert.
+         *
+         * Gezeichnet wird in jedem Bild. Neu gebaut werden muss dafuer nichts: die
+         * Inhalte aendern sich hoechstens im Sekundentakt, das Ausmessen der Zeilen
+         * ist aber teuer. Viermal je Sekunde genuegt - auch fuer die Uhr im
+         * Contest-Kasten, die im Sekundentakt weiterzaehlt.
+         */
         public HudPanel build() {
+            long now = System.currentTimeMillis();
+            HudPanel panel = cache.get(this);
+            if (panel != null && now - cachedAt.getOrDefault(this, 0L) < REBUILD_INTERVAL_MILLIS) {
+                return panel;
+            }
+
+            panel = rebuild();
+            cache.put(this, panel);
+            cachedAt.put(this, now);
+            return panel;
+        }
+
+        private HudPanel rebuild() {
             return switch (this) {
                 case PROGRESS -> ProgressHud.build();
                 case MISSING -> MissingHud.build();
@@ -111,7 +135,18 @@ public final class SafariHud {
         }
     }
 
+    /** Hoechstens viermal je Sekunde neu bauen */
+    private static final long REBUILD_INTERVAL_MILLIS = 250L;
+
+    private static final Map<Panel, HudPanel> cache = new EnumMap<>(Panel.class);
+    private static final Map<Panel, Long> cachedAt = new EnumMap<>(Panel.class);
+
     private SafariHud() {
+    }
+
+    /** Nach einer Aenderung stimmt der gepufferte Kasten nicht mehr */
+    public static void invalidate(Panel panel) {
+        cache.remove(panel);
     }
 
     /** Beim Spielen: nur was eingeschaltet ist und an diesen Ort gehoert */
