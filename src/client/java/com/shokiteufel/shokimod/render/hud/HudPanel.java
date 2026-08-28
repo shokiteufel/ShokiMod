@@ -123,6 +123,19 @@ public class HudPanel {
     }
 
     /**
+     * Deckkraft auf eine Farbe rechnen.
+     *
+     * Angewendet auf Hintergrund und Schrift gleichermassen - waere nur der Hintergrund
+     * durchsichtig, stuende die Schrift hart darueber und der Kasten wirkte kaputt statt
+     * dezent.
+     */
+    private static int withAlpha(int colour, float alpha) {
+        int base = opaque(colour);
+        int a = Math.round(((base >>> 24) & 0xFF) * Math.clamp(alpha, 0f, 1f));
+        return (a << 24) | (base & 0xFFFFFF);
+    }
+
+    /**
      * Welche Zeile liegt unter dem Zeiger? -1, wenn keine.
      *
      * Gerechnet wird in den Massen des Kastens, deshalb wird die Skalierung
@@ -140,47 +153,52 @@ public class HudPanel {
     }
 
     public void render(GuiGraphicsExtractor graphics, Font font, int left, int top) {
+        render(graphics, font, left, top, 1.0f);
+    }
+
+    public void render(GuiGraphicsExtractor graphics, Font font, int left, int top, float alpha) {
         if (rows.isEmpty()) return;
 
         int content = contentWidth(font);
         int right = left + content + PADDING * 2;
-        graphics.fill(left, top, right, top + height(), BACKGROUND);
-        graphics.fill(left, top, right, top + 1, TOP_EDGE);
+        graphics.fill(left, top, right, top + height(), withAlpha(BACKGROUND, alpha));
+        graphics.fill(left, top, right, top + 1, withAlpha(TOP_EDGE, alpha));
 
         int x = left + PADDING;
         int y = top + PADDING;
         for (int i = 0; i < rows.size(); i++) {
-            draw(graphics, font, rows.get(i), x, y, content, valueWidths[i]);
+            draw(graphics, font, rows.get(i), x, y, content, valueWidths[i], alpha);
             y += LINE_HEIGHT;
         }
     }
 
     private void draw(GuiGraphicsExtractor graphics, Font font, Row row, int x, int y,
-                      int content, int valueWidth) {
+                      int content, int valueWidth, float alpha) {
         switch (row.kind()) {
             case BLANK -> {
             }
-            case TITLE, TEXT -> graphics.text(font, row.label(), x, y, opaque(row.labelColour()), true);
+            case TITLE, TEXT -> graphics.text(font, row.label(), x, y, withAlpha(row.labelColour(), alpha), true);
             case PAIR -> {
-                graphics.text(font, row.label(), x, y, opaque(row.labelColour()), true);
+                graphics.text(font, row.label(), x, y, withAlpha(row.labelColour(), alpha), true);
                 int valueX = x + content - valueWidth;
-                graphics.text(font, row.value(), valueX, y, opaque(row.valueColour()), true);
+                graphics.text(font, row.value(), valueX, y, withAlpha(row.valueColour(), alpha), true);
             }
             case BAR -> {
-                graphics.text(font, row.label(), x, y, opaque(row.labelColour()), true);
+                graphics.text(font, row.label(), x, y, withAlpha(row.labelColour(), alpha), true);
 
                 // Der Balken sitzt rechts, direkt vor der Zahl - so stehen alle Balken
                 // untereinander auf gleicher Hoehe, egal wie lang die Beschriftung ist
                 int barLeft = x + content - valueWidth - GUTTER - BAR_WIDTH;
                 int barY = y + 2;
-                graphics.fill(barLeft, barY, barLeft + BAR_WIDTH, barY + 5, 0xFF303030);
+                graphics.fill(barLeft, barY, barLeft + BAR_WIDTH, barY + 5, withAlpha(0xFF303030, alpha));
                 if (row.max() > 0 && row.current() > 0) {
                     int filled = Math.max(1, BAR_WIDTH * Math.min(row.current(), row.max()) / row.max());
                     graphics.fill(barLeft, barY, barLeft + filled, barY + 5,
-                            opaque(row.valueColour()));
+                            withAlpha(row.valueColour(), alpha));
                 }
 
-                graphics.text(font, row.value(), x + content - valueWidth, y, HudColours.WHITE, true);
+                graphics.text(font, row.value(), x + content - valueWidth, y,
+                        withAlpha(HudColours.WHITE, alpha), true);
             }
         }
     }

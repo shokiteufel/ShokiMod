@@ -97,6 +97,12 @@ public class ModConfig extends Config {
         if (INSTANCE.mobVisuals.customTargets == null) INSTANCE.mobVisuals.customTargets = new ArrayList<>();
         if (INSTANCE.chat.chatRules == null) INSTANCE.chat.chatRules = new ArrayList<>();
         if (INSTANCE.chat.discoveredAreas == null) INSTANCE.chat.discoveredAreas = new ArrayList<>();
+        INSTANCE.chat.chatRules.removeIf(r -> r == null);
+        INSTANCE.chat.chatRules.forEach(r -> {
+            // Regeln aus aelteren Fassungen haben noch keine Kennung und keine Sperrliste
+            if (r.id == null || r.id.isBlank()) r.id = java.util.UUID.randomUUID().toString();
+            if (r.blocks == null) r.blocks = new ArrayList<>();
+        });
         INSTANCE.mobVisuals.customTargets.removeIf(m -> m == null);
         INSTANCE.mobVisuals.customTargets.forEach(m -> {
             m.pattern = CustomMob.normalize(m.pattern);
@@ -318,6 +324,8 @@ public class ModConfig extends Config {
         public float nearbyHudY = 0.35f;
         @Expose
         public float nearbyHudScale = 1.0f;
+        @Expose
+        public float nearbyHudAlpha = 1.0f;
 
         @Expose
         @ConfigOption(name = "Debug Logging", desc = "Writes into the log why a custom mob does or does not glow. Only for troubleshooting.")
@@ -379,8 +387,27 @@ public class ModConfig extends Config {
         // ==========================================
 
         @Expose
-        @ConfigOption(name = "Progress HUD", desc = "The panels that show a Safari run,"
-                + " and what feeds them.")
+        @ConfigOption(name = "Contest panel", desc = "The running contest with its score and remaining time.\nThe clock comes from the day cycle, so it works everywhere - the score only where the tab list carries it.")
+        @ConfigEditorBoolean
+        public boolean showContestHud = true;
+
+        @Expose
+        @ConfigOption(name = "Warn before the end", desc = "Plays a sound 60 seconds before the contest ends.")
+        @ConfigEditorBoolean
+        public boolean contestWarning = true;
+
+        @ConfigOption(name = "Warning Sound", desc = "Your own file from config/shokimod/sounds.")
+        @ConfigEditorButton(buttonText = "Pick")
+        public transient Runnable openContestSound = () -> {
+        };
+
+        @ConfigOption(name = "Move Panels", desc = "Drag the panels where you want them.\nScroll over one to resize it, hold Shift while scrolling to change its transparency.")
+        @ConfigEditorButton(buttonText = "Open")
+        public transient Runnable openHudEditor = () -> {
+        };
+
+        @Expose
+        @ConfigOption(name = "Progress HUD", desc = "The two Safari panels and what feeds them.")
         @ConfigEditorAccordion(id = 10)
         @ConfigEditorBoolean
         public boolean progressHudFolder = true;
@@ -402,30 +429,6 @@ public class ModConfig extends Config {
         @ConfigEditorBoolean
         @ConfigAccordionId(id = 10)
         public boolean showMissingHud = true;
-
-        @Expose
-        @ConfigOption(name = "Contest panel", desc = "The running contest with its score and remaining time.\nThe clock comes from the day cycle, so it works everywhere - the score only where the tab list carries it.")
-        @ConfigEditorBoolean
-        @ConfigAccordionId(id = 10)
-        public boolean showContestHud = true;
-
-        @Expose
-        @ConfigOption(name = "Warn before the end", desc = "Plays a sound 60 seconds before the contest ends.")
-        @ConfigEditorBoolean
-        @ConfigAccordionId(id = 10)
-        public boolean contestWarning = true;
-
-        @ConfigOption(name = "Warning Sound", desc = "Your own file from config/shokimod/sounds.")
-        @ConfigEditorButton(buttonText = "Pick")
-        @ConfigAccordionId(id = 10)
-        public transient Runnable openContestSound = () -> {
-        };
-
-        @ConfigOption(name = "Move Panels", desc = "Drag the panels where you want them, scroll over one to resize it.")
-        @ConfigEditorButton(buttonText = "Open")
-        @ConfigAccordionId(id = 10)
-        public transient Runnable openHudEditor = () -> {
-        };
 
         @Expose
         @ConfigOption(name = "First catch is enough", desc = "Treat a species as done at the first catch.\nOff: species that spawn a fixed number of times per run stay listed until every one is caught.\nQuotas: Gazer 4, Gemzie 3, Troodon 3, Hideyho 1, Wumpa 1, Doomspiral 1")
@@ -514,6 +517,14 @@ public class ModConfig extends Config {
         public float contestHudY = 0.02f;
         @Expose
         public float contestHudScale = 1.0f;
+
+        // Deckkraft je Kasten, 0.1 bis 1.0. Eingestellt wird sie im Verschiebe-Fenster
+        @Expose
+        public float progressHudAlpha = 1.0f;
+        @Expose
+        public float missingHudAlpha = 1.0f;
+        @Expose
+        public float contestHudAlpha = 1.0f;
 
         // ==========================================
         // Werte ohne eigene Zeile. Gesetzt wird alles ueber MarkerSettingsScreen

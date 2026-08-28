@@ -15,7 +15,7 @@ import java.util.List;
 public class ChatRuleScreen extends Screen {
 
     private static final int ROW_HEIGHT = 24;
-    private static final int ROW_WIDTH = 340;
+    private static final int ROW_WIDTH = 392;
     private static final int WIDGET_HEIGHT = 20;
     private static final int LIST_TOP = 48;
 
@@ -68,11 +68,28 @@ public class ChatRuleScreen extends Screen {
                     : Component.literal("Filter: " + rule.filter)));
             addRenderableWidget(edit);
 
+            // Die Reihenfolge entscheidet, welche Regel zuerst zuschlaegt - und damit,
+            // welche eine andere aussperren kann
+            int index = start + i;
+            Button up = Button.builder(Component.literal("▲"), button -> {
+                swap(index, index - 1);
+                rebuild();
+            }).bounds(left + 300, y, 20, WIDGET_HEIGHT).build();
+            up.active = index > 0;
+            addRenderableWidget(up);
+
+            Button down = Button.builder(Component.literal("▼"), button -> {
+                swap(index, index + 1);
+                rebuild();
+            }).bounds(left + 324, y, 20, WIDGET_HEIGHT).build();
+            down.active = index < list.size() - 1;
+            addRenderableWidget(down);
+
             addRenderableWidget(Button.builder(
                     Component.literal("✕").withStyle(ChatFormatting.RED), button -> {
                         rules().remove(rule);
                         rebuild();
-                    }).bounds(left + 300, y, 20, WIDGET_HEIGHT).build());
+                    }).bounds(left + 352, y, 20, WIDGET_HEIGHT).build());
         }
 
         int y = height - 30;
@@ -95,6 +112,13 @@ public class ChatRuleScreen extends Screen {
 
         addRenderableWidget(Button.builder(Component.literal("Done"), button -> onClose())
                 .bounds(left + ROW_WIDTH - 90, y, 90, WIDGET_HEIGHT).build());
+    }
+
+    /** Zwei Regeln tauschen. Ausserhalb der Liste passiert nichts */
+    private void swap(int from, int to) {
+        List<ChatRule> list = rules();
+        if (from < 0 || to < 0 || from >= list.size() || to >= list.size()) return;
+        list.add(to, list.remove(from));
     }
 
     /** Kurzzeichen, welche Reaktionen die Regel auslöst */
@@ -125,7 +149,8 @@ public class ChatRuleScreen extends Screen {
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
         int centerX = width / 2;
         graphics.centeredText(font, this.title, centerX, 16, 0xFFFFFFFF);
-        graphics.centeredText(font, Component.literal("React to words in chat")
+        graphics.centeredText(font, Component.literal(
+                        "React to words in chat  ·  the order decides who goes first")
                 .withStyle(ChatFormatting.DARK_GRAY), centerX, 30, 0xFF808080);
 
         if (rules().isEmpty()) {

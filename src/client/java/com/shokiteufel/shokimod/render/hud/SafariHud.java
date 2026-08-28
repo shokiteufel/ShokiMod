@@ -93,6 +93,29 @@ public final class SafariHud {
             }
         }
 
+        /** Deckkraft, 0.1 bis 1.0 */
+        public float alpha() {
+            ModConfig.SafariCategory c = ModConfig.INSTANCE.safari;
+            return switch (this) {
+                case PROGRESS -> c.progressHudAlpha;
+                case MISSING -> c.missingHudAlpha;
+                case CONTEST -> c.contestHudAlpha;
+                case NEARBY -> ModConfig.INSTANCE.mobVisuals.nearbyHudAlpha;
+            };
+        }
+
+        public void setAlpha(float alpha) {
+            ModConfig.SafariCategory c = ModConfig.INSTANCE.safari;
+            // Ganz durchsichtig waere dasselbe wie aus, nur ohne dass man es merkt
+            float clamped = Math.clamp(alpha, 0.1f, 1.0f);
+            switch (this) {
+                case PROGRESS -> c.progressHudAlpha = clamped;
+                case MISSING -> c.missingHudAlpha = clamped;
+                case CONTEST -> c.contestHudAlpha = clamped;
+                case NEARBY -> ModConfig.INSTANCE.mobVisuals.nearbyHudAlpha = clamped;
+            }
+        }
+
         public void setScale(float scale) {
             ModConfig.SafariCategory c = ModConfig.INSTANCE.safari;
             float clamped = Math.clamp(scale, 0.5f, 3.0f);
@@ -169,7 +192,7 @@ public final class SafariHud {
         graphics.pose().pushMatrix();
         graphics.pose().translate(originX(panel), originY(panel));
         graphics.pose().scale(scale, scale);
-        content.render(graphics, font, 0, 0);
+        content.render(graphics, font, 0, 0, panel.alpha());
         graphics.pose().popMatrix();
     }
 

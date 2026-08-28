@@ -4,6 +4,7 @@ import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.render.hud.HudPanel;
 import com.shokiteufel.shokimod.render.hud.SafariHud;
 import net.minecraft.ChatFormatting;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
@@ -47,6 +48,9 @@ public class HudEditorScreen extends Screen {
             SafariHud.Panel.CONTEST.setScale(1.0f);
             SafariHud.Panel.NEARBY.setPosition(0.01f, 0.35f);
             SafariHud.Panel.NEARBY.setScale(1.0f);
+            for (SafariHud.Panel panel : SafariHud.Panel.values()) {
+                panel.setAlpha(1.0f);
+            }
         }).bounds(width / 2 - 105, height - 30, 100, 20).build());
 
         addRenderableWidget(Button.builder(Component.literal("Done"), button -> onClose())
@@ -103,7 +107,14 @@ public class HudEditorScreen extends Screen {
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
         for (SafariHud.Panel panel : SafariHud.Panel.values()) {
             if (!isOver(panel, mouseX, mouseY)) continue;
-            panel.setScale(panel.scale() + (float) scrollY * 0.1f);
+
+            // Mit Umschalt die Deckkraft, sonst die Groesse - beides am selben Rad,
+            // damit man die Hand nicht von der Maus nehmen muss
+            if (Minecraft.getInstance().hasShiftDown()) {
+                panel.setAlpha(panel.alpha() + (float) scrollY * 0.05f);
+            } else {
+                panel.setScale(panel.scale() + (float) scrollY * 0.1f);
+            }
             return true;
         }
         return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
@@ -143,8 +154,19 @@ public class HudEditorScreen extends Screen {
         }
 
         graphics.centeredText(font, this.title, width / 2, 12, 0xFFFFFFFF);
-        graphics.centeredText(font, Component.literal("Drag to move, scroll over a panel to resize")
+        graphics.centeredText(font, Component.literal(
+                        "Drag to move  ·  scroll to resize  ·  Shift+scroll for transparency")
                 .withStyle(ChatFormatting.GRAY), width / 2, 26, 0xFFAAAAAA);
+
+        // Beim Zeigen auf einen Kasten seine Werte einblenden, sonst raet man beim Scrollen
+        for (SafariHud.Panel panel : SafariHud.Panel.values()) {
+            if (!isOver(panel, mouseX, mouseY)) continue;
+            graphics.centeredText(font, Component.literal(String.format(
+                            "%s   size %.0f%%   opacity %.0f%%",
+                            panel.name().toLowerCase(), panel.scale() * 100, panel.alpha() * 100))
+                    .withStyle(ChatFormatting.YELLOW), width / 2, 38, 0xFFFFFF55);
+            break;
+        }
     }
 
     @Override

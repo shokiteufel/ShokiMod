@@ -14,6 +14,8 @@ import net.minecraft.sounds.SoundEvent;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 
+import java.util.HashSet;
+import java.util.Set;
 import java.util.regex.Matcher;
 
 /**
@@ -39,9 +41,20 @@ public final class ChatRuleHandler {
         String area = GameState.Server.map;
         boolean keepOriginal = true;
 
+        // Regeln, die eine vorherige gesperrt hat. Die Reihenfolge der Liste entscheidet
+        // also, wer zuerst zuschlaegt und damit wen aussperren darf
+        Set<String> blocked = new HashSet<>();
+
         for (ChatRule rule : rules) {
+            if (blocked.contains(rule.id)) continue;
+
             Matcher matcher = rule.match(formatted, plain, area);
             if (matcher == null) continue;
+
+            // Mindestwert: greift die Regel erst ab einem Betrag, muss die Zeile ihn nennen
+            if (rule.minValue > 0 && ChatRule.valueIn(plain) < rule.minValue) continue;
+
+            if (rule.blocks != null) blocked.addAll(rule.blocks);
 
             apply(client, rule, matcher);
 
