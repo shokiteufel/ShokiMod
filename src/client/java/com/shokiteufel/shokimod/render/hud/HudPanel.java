@@ -1,5 +1,6 @@
 package com.shokiteufel.shokimod.render.hud;
 
+import com.shokiteufel.shokimod.data.ModConfig;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 
@@ -48,6 +49,9 @@ public class HudPanel {
      */
     private int measuredWidth = -1;
     private int[] valueWidths = null;
+    /** Dieselben Zeilen ohne Farbcodes - der Umriss soll einfarbig dunkel sein */
+    private String[] labelOutline = null;
+    private String[] valueOutline = null;
 
     public HudPanel title(String text, int colour) {
         rows.add(new Row(Kind.TITLE, text, "", colour, colour, 0, 0));
@@ -95,10 +99,14 @@ public class HudPanel {
         if (measuredWidth >= 0) return;
 
         valueWidths = new int[rows.size()];
+        labelOutline = new String[rows.size()];
+        valueOutline = new String[rows.size()];
         int widest = 0;
         for (int i = 0; i < rows.size(); i++) {
             Row row = rows.get(i);
             valueWidths[i] = row.value().isEmpty() ? 0 : font.width(row.value());
+            labelOutline[i] = stripColours(row.label());
+            valueOutline[i] = stripColours(row.value());
 
             int width = switch (row.kind()) {
                 case TITLE, TEXT -> font.width(row.label());
@@ -125,14 +133,80 @@ public class HudPanel {
     /**
      * Deckkraft auf eine Farbe rechnen.
      *
-     * Angewendet auf Hintergrund und Schrift gleichermassen - waere nur der Hintergrund
-     * durchsichtig, stuende die Schrift hart darueber und der Kasten wirkte kaputt statt
-     * dezent.
+     * Nur fuer den Untergrund gedacht. Die Schrift bleibt voll deckend - durchsichtig
+     * gemacht waere sie ueber hellem Gelaende nicht mehr zu lesen, und lesen will man
+     * sie ja gerade.
      */
     private static int withAlpha(int colour, float alpha) {
         int base = opaque(colour);
         int a = Math.round(((base >>> 24) & 0xFF) * Math.clamp(alpha, 0f, 1f));
         return (a << 24) | (base & 0xFFFFFF);
+    }
+
+    /**
+     * Farbcodes herausnehmen.
+     *
+     * Der Umriss wird mit derselben Zeichenkette gezeichnet wie die Schrift. Bliebe ein
+     * Farbcode darin, waere der Umriss dort hell statt dunkel - aus dem Leuchten wuerde
+     * fette Schrift. Formatierungscodes (fett, kursiv) bleiben stehen, weil sie die
+     * Breite aendern und der Umriss sonst verrutschte.
+     */
+    private static String stripColours(String text) {
+        if (text == null) return "";
+        if (text.indexOf('§') < 0) return text;
+        StringBuilder out = new StringBuilder(text.length());
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c == '§' && i + 1 < text.length()) {
+                char code = Character.toLowerCase(text.charAt(i + 1));
+                if ((code >= '0' && code <= '9') || (code >= 'a' && code <= 'f') || code == 'r') {
+                    i++;
+                    continue;
+                }
+            }
+            out.append(c);
+        }
+        return out.toString();
+    }
+
+    /**
+     * Der dunkle Umriss zu einer Schriftfarbe.
+     *
+     * Dieselbe Farbe stark abgedunkelt, wie Minecraft es bei leuchtenden Schildern macht:
+     * innen der helle Kern, aussen herum sein eigener dunkler Ton. Ein schwarzer Umriss
+     * fuer alle waere flacher - so behaelt jede Zeile ihre Farbe.
+     */
+    private static int outlineOf(int colour) {
+        int base = opaque(colour);
+        int r = (int) (((base >> 16) & 0xFF) * 0.22f);
+        int g = (int) (((base >> 8) & 0xFF) * 0.22f);
+        int b = (int) ((base & 0xFF) * 0.22f);
+        return 0xFF000000 | (r << 16) | (g << 8) | b;
+    }
+
+    /**
+     * Eine Zeile zeichnen - mit Leuchten oder ohne.
+     *
+     * Mit Leuchten steht die Schrift achtmal versetzt im dunklen Ton darunter und einmal
+     * hell darueber. Denselben Kniff benutzt Minecraft fuer Schilder mit Leuchtender
+     * Tinte. Der uebliche Schlagschatten faellt dabei weg, weil der Umriss ihn ersetzt.
+     */
+    private static void text(GuiGraphicsExtractor graphics, Font font, String text, String plain,
+                             int x, int y, int colour) {
+        int fill = opaque(colour);
+        if (!ModConfig.INSTANCE.safari.glowingHudText) {
+            graphics.text(font, text, x, y, fill, true);
+            return;
+        }
+
+        int outline = outlineOf(colour);
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dy = -1; dy <= 1; dy++) {
+                if (dx == 0 && dy == 0) continue;
+                graphics.text(font, plain, x + dx, y + dy, outline, false);
+            }
+        }
+        graphics.text(font, text, x, y, fill, false);
     }
 
     /**
@@ -167,38 +241,41 @@ public class HudPanel {
         int x = left + PADDING;
         int y = top + PADDING;
         for (int i = 0; i < rows.size(); i++) {
-            draw(graphics, font, rows.get(i), x, y, content, valueWidths[i], alpha);
+            draw(graphics, font, rows.get(i), x, y, content, i, alpha);
             y += LINE_HEIGHT;
         }
     }
 
     private void draw(GuiGraphicsExtractor graphics, Font font, Row row, int x, int y,
-                      int content, int valueWidth, float alpha) {
+                      int content, int index, float alpha) {
+        int valueWidth = valueWidths[index];
         switch (row.kind()) {
             case BLANK -> {
             }
-            case TITLE, TEXT -> graphics.text(font, row.label(), x, y, withAlpha(row.labelColour(), alpha), true);
+            case TITLE, TEXT -> text(graphics, font, row.label(), labelOutline[index],
+                    x, y, row.labelColour());
             case PAIR -> {
-                graphics.text(font, row.label(), x, y, withAlpha(row.labelColour(), alpha), true);
+                text(graphics, font, row.label(), labelOutline[index], x, y, row.labelColour());
                 int valueX = x + content - valueWidth;
-                graphics.text(font, row.value(), valueX, y, withAlpha(row.valueColour(), alpha), true);
+                text(graphics, font, row.value(), valueOutline[index], valueX, y, row.valueColour());
             }
             case BAR -> {
-                graphics.text(font, row.label(), x, y, withAlpha(row.labelColour(), alpha), true);
+                text(graphics, font, row.label(), labelOutline[index], x, y, row.labelColour());
 
                 // Der Balken sitzt rechts, direkt vor der Zahl - so stehen alle Balken
                 // untereinander auf gleicher Hoehe, egal wie lang die Beschriftung ist
                 int barLeft = x + content - valueWidth - GUTTER - BAR_WIDTH;
                 int barY = y + 2;
+                // Die leere Rinne gehoert zum Untergrund und wird mit ihm durchsichtig,
+                // der gefuellte Teil ist Inhalt und bleibt stehen
                 graphics.fill(barLeft, barY, barLeft + BAR_WIDTH, barY + 5, withAlpha(0xFF303030, alpha));
                 if (row.max() > 0 && row.current() > 0) {
                     int filled = Math.max(1, BAR_WIDTH * Math.min(row.current(), row.max()) / row.max());
-                    graphics.fill(barLeft, barY, barLeft + filled, barY + 5,
-                            withAlpha(row.valueColour(), alpha));
+                    graphics.fill(barLeft, barY, barLeft + filled, barY + 5, opaque(row.valueColour()));
                 }
 
-                graphics.text(font, row.value(), x + content - valueWidth, y,
-                        withAlpha(HudColours.WHITE, alpha), true);
+                text(graphics, font, row.value(), valueOutline[index],
+                        x + content - valueWidth, y, HudColours.WHITE);
             }
         }
     }

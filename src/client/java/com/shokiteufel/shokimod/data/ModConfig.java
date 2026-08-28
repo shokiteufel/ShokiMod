@@ -402,10 +402,15 @@ public class ModConfig extends Config {
         public transient Runnable openContestSound = () -> {
         };
 
-        @ConfigOption(name = "Move Panels", desc = "Drag the panels where you want them.\nScroll over one to resize it, hold Shift while scrolling to change its transparency.")
+        @ConfigOption(name = "Move Panels", desc = "Drag the panels where you want them.\nScroll over one to resize it. Click a panel and the slider at the bottom sets how transparent its background is.")
         @ConfigEditorButton(buttonText = "Open")
         public transient Runnable openHudEditor = () -> {
         };
+
+        @Expose
+        @ConfigOption(name = "Glowing text", desc = "Draws the panel text with a dark outline in its own colour, the way Minecraft draws signs written with glow ink.\nOff: plain text with a drop shadow.")
+        @ConfigEditorBoolean
+        public boolean glowingHudText = true;
 
         @Expose
         @ConfigOption(name = "Progress HUD", desc = "The two Safari panels and what feeds them.")

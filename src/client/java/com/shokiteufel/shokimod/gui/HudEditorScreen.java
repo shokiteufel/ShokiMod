@@ -4,8 +4,8 @@ import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.render.hud.HudPanel;
 import com.shokiteufel.shokimod.render.hud.SafariHud;
 import net.minecraft.ChatFormatting;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.AbstractSliderButton;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -30,6 +30,10 @@ public class HudEditorScreen extends Screen {
     private int grabX = 0;
     private int grabY = 0;
 
+    /** Der Kasten, auf den sich der Regler bezieht. Ein Klick waehlt ihn aus */
+    private SafariHud.Panel selected = SafariHud.Panel.PROGRESS;
+    private OpacitySlider opacity;
+
     public HudEditorScreen(Screen parent) {
         super(Component.literal("Move the Safari panels"));
         this.parent = parent;
@@ -38,6 +42,9 @@ public class HudEditorScreen extends Screen {
     @Override
     protected void init() {
         rebuildContent();
+
+        opacity = new OpacitySlider(width / 2 - 105, height - 54, 210);
+        addRenderableWidget(opacity);
 
         addRenderableWidget(Button.builder(Component.literal("Reset positions"), button -> {
             SafariHud.Panel.PROGRESS.setPosition(0.01f, 0.02f);
@@ -51,6 +58,7 @@ public class HudEditorScreen extends Screen {
             for (SafariHud.Panel panel : SafariHud.Panel.values()) {
                 panel.setAlpha(1.0f);
             }
+            opacity.sync();
         }).bounds(width / 2 - 105, height - 30, 100, 20).build());
 
         addRenderableWidget(Button.builder(Component.literal("Done"), button -> onClose())
@@ -79,6 +87,9 @@ public class HudEditorScreen extends Screen {
         for (SafariHud.Panel panel : SafariHud.Panel.values()) {
             if (!isOver(panel, event.x(), event.y())) continue;
             dragging = panel;
+            // Angefasst heisst ausgewaehlt - der Regler unten arbeitet danach an diesem Kasten
+            selected = panel;
+            opacity.sync();
             grabX = (int) event.x() - SafariHud.originX(panel);
             grabY = (int) event.y() - SafariHud.originY(panel);
             return true;
@@ -107,14 +118,7 @@ public class HudEditorScreen extends Screen {
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
         for (SafariHud.Panel panel : SafariHud.Panel.values()) {
             if (!isOver(panel, mouseX, mouseY)) continue;
-
-            // Mit Umschalt die Deckkraft, sonst die Groesse - beides am selben Rad,
-            // damit man die Hand nicht von der Maus nehmen muss
-            if (Minecraft.getInstance().hasShiftDown()) {
-                panel.setAlpha(panel.alpha() + (float) scrollY * 0.05f);
-            } else {
-                panel.setScale(panel.scale() + (float) scrollY * 0.1f);
-            }
+            panel.setScale(panel.scale() + (float) scrollY * 0.1f);
             return true;
         }
         return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
@@ -144,7 +148,10 @@ public class HudEditorScreen extends Screen {
             int top = SafariHud.originY(panel);
             int right = left + SafariHud.scaledWidth(panel, built, font);
             int bottom = top + SafariHud.scaledHeight(panel, built);
-            int colour = isOver(panel, mouseX, mouseY) ? 0xFFFFAA00 : 0x60FFFFFF;
+            // Der ausgewaehlte Kasten bleibt sichtbar markiert, auch wenn der Zeiger
+            // unten am Regler steht - sonst raet man, welchen man gerade einstellt
+            int colour = panel == selected ? 0xFFFFAA00
+                    : isOver(panel, mouseX, mouseY) ? 0xC0FFFFFF : 0x50FFFFFF;
             graphics.fill(left - 1, top - 1, right + 1, top, colour);
             graphics.fill(left - 1, bottom, right + 1, bottom + 1, colour);
             graphics.fill(left - 1, top, left, bottom, colour);
@@ -155,17 +162,49 @@ public class HudEditorScreen extends Screen {
 
         graphics.centeredText(font, this.title, width / 2, 12, 0xFFFFFFFF);
         graphics.centeredText(font, Component.literal(
-                        "Drag to move  ·  scroll to resize  ·  Shift+scroll for transparency")
+                        "Drag to move  ·  scroll to resize  ·  slider below for the background")
                 .withStyle(ChatFormatting.GRAY), width / 2, 26, 0xFFAAAAAA);
 
-        // Beim Zeigen auf einen Kasten seine Werte einblenden, sonst raet man beim Scrollen
+        // Beim Zeigen auf einen Kasten seine Groesse einblenden, sonst raet man beim Scrollen
         for (SafariHud.Panel panel : SafariHud.Panel.values()) {
             if (!isOver(panel, mouseX, mouseY)) continue;
-            graphics.centeredText(font, Component.literal(String.format(
-                            "%s   size %.0f%%   opacity %.0f%%",
-                            panel.name().toLowerCase(), panel.scale() * 100, panel.alpha() * 100))
+            graphics.centeredText(font, Component.literal(String.format("%s   size %.0f%%",
+                            panel.name().toLowerCase(), panel.scale() * 100))
                     .withStyle(ChatFormatting.YELLOW), width / 2, 38, 0xFFFFFF55);
             break;
+        }
+    }
+
+    /**
+     * Regler fuer die Deckkraft des ausgewaehlten Kastens.
+     *
+     * Ein Regler zeigt seinen Wert von selbst an und laesst sich mit der Maus finden.
+     * Umschalt+Scrollen tat dasselbe, sah man aber nirgends - man musste es wissen.
+     */
+    private class OpacitySlider extends AbstractSliderButton {
+
+        OpacitySlider(int x, int y, int width) {
+            super(x, y, width, 20, Component.empty(), 0);
+            sync();
+        }
+
+        /** Nach einem Wechsel des Kastens den Regler auf dessen Wert stellen */
+        void sync() {
+            // Der Bereich geht von 0.1 bis 1.0, ganz durchsichtig waere dasselbe wie aus
+            this.value = (selected.alpha() - 0.1) / 0.9;
+            updateMessage();
+        }
+
+        @Override
+        protected void updateMessage() {
+            setMessage(Component.literal(String.format("Background of %s: %.0f%%",
+                    selected.name().toLowerCase(), selected.alpha() * 100)));
+        }
+
+        @Override
+        protected void applyValue() {
+            selected.setAlpha((float) (0.1 + value * 0.9));
+            updateMessage();
         }
     }
 
