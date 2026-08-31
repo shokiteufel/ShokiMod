@@ -130,15 +130,6 @@ public class ChatRuleEditScreen extends Screen {
         addVolumeRow(rightColumn, y);
         y += ROW;
 
-        addRenderableWidget(box(rightColumn, y, "Min value", trimZero(rule.minValue), 16, value -> {
-            try {
-                rule.minValue = value.isBlank() ? 0 : Math.max(0, Double.parseDouble(value.trim()));
-            } catch (NumberFormatException e) {
-                rule.minValue = 0;
-            }
-        }, "Only fire from this amount up. Reads the biggest number in the line, so 1.2M counts as 1200000. Empty or 0 means always."));
-        y += ROW;
-
         Button blocksButton = Button.builder(blocksLabel(), button -> {
             if (minecraft != null) minecraft.setScreen(new RuleBlockScreen(this, rule));
         }).bounds(rightColumn, y, COLUMN_WIDTH, WIDGET_HEIGHT).build();
@@ -273,12 +264,6 @@ public class ChatRuleEditScreen extends Screen {
         return count == 0
                 ? Component.literal("Blocks: none").withStyle(ChatFormatting.GRAY)
                 : Component.literal("Blocks: " + count).withStyle(ChatFormatting.YELLOW);
-    }
-
-    /** Ganze Betraege ohne die Nachkommastelle zeigen */
-    private static String trimZero(double value) {
-        if (value <= 0) return "";
-        return value == Math.rint(value) ? String.valueOf((long) value) : String.valueOf(value);
     }
 
     private Component areaLabel() {

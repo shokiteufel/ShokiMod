@@ -28,6 +28,19 @@ public final class NearbyOverlay {
                 && !(Minecraft.getInstance().screen instanceof HudEditorScreen);
     }
 
+    /**
+     * Ist ueberhaupt ein Kasten eingeschaltet?
+     *
+     * Diese Frage steht vor jedem Bild mit offenem Fenster. Sind alle Kaesten aus,
+     * endet der Durchgang hier, ohne die Zeichenroutine anzustossen.
+     */
+    public static boolean anyPanel() {
+        for (SafariHud.Panel panel : SafariHud.panels()) {
+            if (panel.visible()) return true;
+        }
+        return false;
+    }
+
     public static void draw(GuiGraphicsExtractor graphics) {
         // Im Einrichtungsfenster nicht: dort werden die Kaesten schon selbst gezeichnet,
         // an der Stelle, an die man sie gerade zieht

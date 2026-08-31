@@ -24,6 +24,7 @@ public class ArmorStandHeadOnlyGlowMixin {
     @Inject(method = "extractRenderState(Lnet/minecraft/world/entity/decoration/ArmorStand;Lnet/minecraft/client/renderer/entity/state/ArmorStandRenderState;F)V",
             at = @At("TAIL"))
     private void shokimod$hideBodyForHighlight(ArmorStand entity, ArmorStandRenderState renderState, float partialTicks, CallbackInfo ci) {
+        if (EntityHighlightManager.headOnlyGlowEntities.isEmpty()) return;
         if (EntityHighlightManager.headOnlyGlowEntities.contains(entity)) renderState.isMarker = true;
     }
 }

@@ -15,6 +15,7 @@ public class NearbyOverlayMixin {
     @Inject(method = "extractRenderState", at = @At("RETURN"))
     private void shokimod$drawNearby(GuiGraphicsExtractor graphics, int mouseX, int mouseY,
                                      float partialTick, CallbackInfo ci) {
+        if (!NearbyOverlay.anyPanel()) return;
         NearbyOverlay.draw(graphics);
     }
 }

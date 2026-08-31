@@ -140,14 +140,16 @@ public class ChatRule {
     public List<String> blocks = new ArrayList<>();
 
     /**
-     * Mindestwert, ab dem die Regel ueberhaupt greift. 0 heisst: immer.
+     * Der alte Mindestwert. Wird nicht mehr geprueft, nur noch einmal uebernommen.
      *
-     * Gemeint ist die groesste Zahl in der Zeile - bei Fundmeldungen also der Betrag.
-     * Damit laesst sich eine Regel auf lohnende Funde beschraenken, ohne fuer jede
-     * Groessenordnung eine eigene zu bauen.
+     * Er las die groesste Zahl aus der Chatzeile - eine Schaetzung, die daneben liegt,
+     * sobald in der Zeile noch eine andere Zahl steht. Den Wert eines Fundes bestimmt
+     * jetzt der Wert-Alarm am Item selbst. Beim ersten Start nach dem Wechsel wandert
+     * die hoechste hier gesetzte Schwelle dorthin, danach steht das Feld auf null und
+     * verschwindet beim naechsten Speichern aus der Datei.
      */
     @Expose
-    public double minValue = 0.0;
+    public Double minValue = null;
 
     private transient Pattern compiled;
     private transient String compiledFor;
@@ -257,51 +259,6 @@ public class ChatRule {
             }
         }
         return compiledExcept;
-    }
-
-    /** Zahlen wie "1,2M", "340k" oder "12.500" - die groesste in der Zeile zaehlt */
-    private static final java.util.regex.Pattern VALUE = java.util.regex.Pattern.compile(
-            "(?<![\\w.,])(\\d[\\d.,]*)\\s*(?<unit>[kKmMbB])?");
-
-    /**
-     * Der groesste Betrag in der Zeile.
-     *
-     * Hypixel schreibt Betraege mal ausgeschrieben, mal mit Kuerzel. Genommen wird die
-     * groesste gefundene Zahl: in "RARE DROP! Enchanted Book (1.2M coins)" ist das der
-     * Betrag und nicht die Eins aus einem Namen.
-     */
-    public static double valueIn(String text) {
-        java.util.regex.Matcher matcher = VALUE.matcher(text);
-        double best = 0;
-        while (matcher.find()) {
-            String digits = matcher.group(1);
-            // Trennzeichen entfernen: Punkt und Komma trennen je nach Schreibweise
-            String cleaned = digits.replace(",", ".");
-            int lastDot = cleaned.lastIndexOf('.');
-            if (lastDot >= 0 && cleaned.length() - lastDot - 1 == 3) {
-                cleaned = cleaned.replace(".", "");   // Tausendertrenner
-            } else if (cleaned.indexOf('.') != lastDot) {
-                cleaned = cleaned.substring(0, lastDot).replace(".", "") + cleaned.substring(lastDot);
-            }
-
-            double value;
-            try {
-                value = Double.parseDouble(cleaned);
-            } catch (NumberFormatException e) {
-                continue;
-            }
-
-            String unit = matcher.group("unit");
-            if (unit != null) {
-                value *= switch (Character.toLowerCase(unit.charAt(0))) {
-                    case 'k' -> 1_000d;
-                    case 'm' -> 1_000_000d;
-                    default -> 1_000_000_000d;
-                };
-            }
-            best = Math.max(best, value);
-        }
-        return best;
     }
 
     public boolean filterIsValid() {

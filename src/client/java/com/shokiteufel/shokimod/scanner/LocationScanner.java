@@ -1,5 +1,6 @@
 package com.shokiteufel.shokimod.scanner;
 
+import com.shokiteufel.shokimod.data.FeatureGate;
 import com.shokiteufel.shokimod.data.GameState;
 import com.shokiteufel.shokimod.data.ModConstants;
 import com.shokiteufel.shokimod.render.EntityHighlightManager;
@@ -22,6 +23,8 @@ public class LocationScanner {
     // サイドバーのタイトルからSkyBlock内かどうかを判定する
     private static void scanSidebar(Minecraft client) {
         if (client.level == null || client.player == null) return;
+        // Ist alles abgeschaltet, muss auch niemand wissen, wo wir gerade sind
+        if (!FeatureGate.location()) return;
 
         String title = ScoreboardUtils.stripColor(ScoreboardUtils.getSidebarTitle(client)).trim();
         // ワールド遷移直後はサイドバーがまだ無い。ここでUnknownに落とすとHUDが一瞬消えてしまうため、

@@ -1,11 +1,11 @@
 package com.shokiteufel.shokimod.compat;
 
 import com.shokiteufel.shokimod.data.ModConfig;
+import com.shokiteufel.shokimod.gui.ShokiConfigEditor;
 import com.terraformersmc.modmenu.api.ConfigScreenFactory;
 import com.terraformersmc.modmenu.api.ModMenuApi;
 import io.github.notenoughupdates.moulconfig.gui.GuiContext;
 import io.github.notenoughupdates.moulconfig.gui.GuiElementComponent;
-import io.github.notenoughupdates.moulconfig.gui.MoulConfigEditor;
 import io.github.notenoughupdates.moulconfig.platform.MoulConfigScreenComponent;
 import io.github.notenoughupdates.moulconfig.processor.ConfigProcessorDriver;
 import io.github.notenoughupdates.moulconfig.processor.MoulConfigProcessor;
@@ -23,7 +23,7 @@ public class ModMenuIntegration implements ModMenuApi {
                 ConfigProcessorDriver driver = new ConfigProcessorDriver(processor);
                 driver.processConfig(ModConfig.INSTANCE);
 
-                MoulConfigEditor<ModConfig> editor = new MoulConfigEditor<>(processor);
+                ShokiConfigEditor editor = new ShokiConfigEditor(processor);
                 GuiElementComponent editorComponent = new GuiElementComponent(editor);
                 GuiContext guiContext = new GuiContext(editorComponent);
 

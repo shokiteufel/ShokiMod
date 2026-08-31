@@ -17,6 +17,7 @@ public class PlayerGlowingMixin {
 
     @Inject(method = "isCurrentlyGlowing", at = @At("HEAD"), cancellable = true, require = 0)
     private void forceHighlightGlowing(CallbackInfoReturnable<Boolean> cir) {
+        if (EntityHighlightManager.highlightedEntities.isEmpty()) return;
         if (EntityHighlightManager.highlightedEntities.contains((Entity) (Object) this)) {
             cir.setReturnValue(true);
         }
@@ -24,6 +25,7 @@ public class PlayerGlowingMixin {
 
     @Inject(method = "getTeamColor", at = @At("HEAD"), cancellable = true, require = 0)
     private void overrideGlowColor(CallbackInfoReturnable<Integer> cir) {
+        if (EntityHighlightManager.customGlowColors.isEmpty()) return;
         Integer color = EntityHighlightManager.customGlowColors.get((Entity) (Object) this);
         if (color != null) cir.setReturnValue(color);
     }

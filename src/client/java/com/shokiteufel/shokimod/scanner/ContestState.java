@@ -1,5 +1,6 @@
 package com.shokiteufel.shokimod.scanner;
 
+import com.shokiteufel.shokimod.data.FeatureGate;
 import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.util.CustomSoundPlayer;
 import com.shokiteufel.shokimod.util.ScoreboardUtils;
@@ -55,11 +56,6 @@ public final class ContestState {
     }
 
     // ---- gemerkter Stand ----
-
-    /** Wer den Contest ausrichtet. Leer, solange noch nie einer gesehen wurde */
-    public static String host() {
-        return cfg().contestHost == null ? "" : cfg().contestHost;
-    }
 
     /** Das erreichte Bracket. Leer, solange man in keinem ist */
     public static String bracket() {
@@ -136,6 +132,10 @@ public final class ContestState {
     // ---- Fortschreibung ----
 
     private static void tick() {
+        // Weder Kasten noch Warnton: dann braucht es auch keine Uhr und keine
+        // Seitenleiste. Der gemerkte Stand bleibt liegen und altert von selbst aus
+        if (!FeatureGate.contest()) return;
+
         SkyblockClock.tick();
         // Die Seitenleiste fuehrt die Restzeit; die Tab-Liste tut das nicht
         TabContest.processSidebar(ScoreboardUtils.getSidebarLines(Minecraft.getInstance()));
@@ -252,11 +252,6 @@ public final class ContestState {
         if (!TabContest.isActive()) return;
 
         boolean changed = false;
-        if (!TabContest.host().equals(host())) {
-            cfg().contestHost = TabContest.host();
-            changed = true;
-        }
-
         int seen = parse(TabContest.amount());
         if (seen >= 0 && seen != cfg().contestAmount) {
             cfg().contestAmount = seen;

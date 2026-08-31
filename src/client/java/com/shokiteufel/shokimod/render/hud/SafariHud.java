@@ -161,10 +161,21 @@ public final class SafariHud {
     /** Hoechstens viermal je Sekunde neu bauen */
     private static final long REBUILD_INTERVAL_MILLIS = 250L;
 
+    /**
+     * Einmal geholt statt je Bild: values() gibt jedes Mal eine frische Kopie zurueck,
+     * und diese Schleife laeuft in jedem Bild - zweimal, sobald ein Fenster offen ist
+     */
+    private static final Panel[] PANELS = Panel.values();
+
     private static final Map<Panel, HudPanel> cache = new EnumMap<>(Panel.class);
     private static final Map<Panel, Long> cachedAt = new EnumMap<>(Panel.class);
 
     private SafariHud() {
+    }
+
+    /** Die Kaesten, ohne bei jedem Aufruf eine neue Kopie anzulegen */
+    public static Panel[] panels() {
+        return PANELS;
     }
 
     /** Nach einer Aenderung stimmt der gepufferte Kasten nicht mehr */
@@ -178,7 +189,7 @@ public final class SafariHud {
         if (client.player == null || client.options.hideGui) return;
         if (!GameState.Server.isSkyblock()) return;
 
-        for (Panel panel : Panel.values()) {
+        for (Panel panel : PANELS) {
             if (!panel.visible() || !panel.showsHere()) continue;
             draw(graphics, client.font, panel, panel.build());
         }

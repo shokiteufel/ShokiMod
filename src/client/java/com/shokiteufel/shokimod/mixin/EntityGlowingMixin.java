@@ -13,6 +13,9 @@ public class EntityGlowingMixin {
 
     @Inject(method = "isCurrentlyGlowing", at = @At("HEAD"), cancellable = true)
     private void forceHighlightGlowing(CallbackInfoReturnable<Boolean> cir) {
+        // Diese Methode laeuft fuer jede Entity in jedem Bild. Ist nichts markiert,
+        // kostet der Abbruch einen Feldzugriff statt eines Hash-Vergleichs
+        if (EntityHighlightManager.highlightedEntities.isEmpty()) return;
         if (EntityHighlightManager.highlightedEntities.contains((Entity) (Object) this)) {
             cir.setReturnValue(true);
             CustomMobDebug.mixinHit((Entity) (Object) this);
@@ -28,6 +31,7 @@ public class EntityGlowingMixin {
      */
     @Inject(method = "shouldRenderAtSqrDistance(D)Z", at = @At("HEAD"), cancellable = true)
     private void forceHighlightRenderDistance(double distanceSqr, CallbackInfoReturnable<Boolean> cir) {
+        if (EntityHighlightManager.highlightedEntities.isEmpty()) return;
         if (EntityHighlightManager.highlightedEntities.contains((Entity) (Object) this)) {
             cir.setReturnValue(true);
         }
@@ -35,6 +39,7 @@ public class EntityGlowingMixin {
 
     @Inject(method = "getTeamColor", at = @At("HEAD"), cancellable = true)
     private void overrideGlowingColor(CallbackInfoReturnable<Integer> cir) {
+        if (EntityHighlightManager.highlightedEntities.isEmpty()) return;
         Entity entity = (Entity) (Object) this;
         if (!EntityHighlightManager.highlightedEntities.contains(entity)) return;
 

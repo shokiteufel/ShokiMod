@@ -51,9 +51,6 @@ public final class ChatRuleHandler {
             Matcher matcher = rule.match(formatted, plain, area);
             if (matcher == null) continue;
 
-            // Mindestwert: greift die Regel erst ab einem Betrag, muss die Zeile ihn nennen
-            if (rule.minValue > 0 && ChatRule.valueIn(plain) < rule.minValue) continue;
-
             if (rule.blocks != null) blocked.addAll(rule.blocks);
 
             apply(client, rule, matcher);

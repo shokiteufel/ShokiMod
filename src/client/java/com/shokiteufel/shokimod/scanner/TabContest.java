@@ -5,13 +5,20 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Der laufende Contest aus der Tab-Liste - Miria, Agatha oder Jacob.
+ * Miries Contest aus der Tab-Liste.
  *
  * Gruppiert wird hier nichts: die Tab-Liste kommt ungeordnet an, im Mitschnitt lagen
  * Kopfzeile und Inhalt sechs Plaetze auseinander. Jede Zeile muss sich also an ihrer
  * eigenen Form erkennen lassen, nicht an ihrer Nachbarschaft.
+ *
+ * Hypixel schreibt in dieselben Zeilen auch fremde Contests - im Garden steht dort
+ * Jacobs. Der traegt eigene Zahlen und eine eigene Restzeit; uebernommen wird deshalb
+ * nur, was den hier erwarteten Ausrichter nennt.
  */
 public final class TabContest {
+
+    /** Wessen Contest dieses Panel fuehrt. Alles andere wird ueberlesen */
+    public static final String HOST = "Miria";
 
     private static final Pattern HEADER = Pattern.compile("(?<who>[A-Za-z]+)'s Contest:");
     /**
@@ -30,7 +37,7 @@ public final class TabContest {
     /** So lange gilt die zuletzt gelesene Restzeit weiter, auch ohne neuen Treffer */
     private static final long TIME_STICKY_MILLIS = 5000L;
 
-    private static String host = "";
+    private static boolean active = false;
     private static String bracket = "";
     private static String amount = "";
     private static String next = "";
@@ -42,12 +49,7 @@ public final class TabContest {
     }
 
     public static boolean isActive() {
-        return !host.isEmpty();
-    }
-
-    /** Wer den Contest ausrichtet, etwa "Miria" */
-    public static String host() {
-        return host;
+        return active;
     }
 
     /** Das erreichte Bracket, leer solange man in keinem ist */
@@ -82,7 +84,7 @@ public final class TabContest {
     }
 
     public static void reset() {
-        host = "";
+        active = false;
         bracket = "";
         amount = "";
         next = "";
@@ -99,10 +101,9 @@ public final class TabContest {
         for (String raw : lines) {
             String line = raw.replaceAll("§.", "").trim();
             Matcher header = SIDEBAR_HEADER.matcher(line);
-            if (header.matches()) {
+            if (header.matches() && HOST.equalsIgnoreCase(header.group("who"))) {
                 time = header.group("time").trim();
                 timeSeenAt = System.currentTimeMillis();
-                if (host.isEmpty()) host = header.group("who");
                 return;
             }
         }
@@ -111,7 +112,7 @@ public final class TabContest {
     }
 
     public static void processTabList(List<String> lines) {
-        String foundHost = "";
+        boolean foundHeader = false;
         String foundBracket = "";
         String foundAmount = "";
         String foundNext = "";
@@ -122,8 +123,14 @@ public final class TabContest {
             if (line.isEmpty()) continue;
 
             Matcher header = HEADER.matcher(line);
-            if (foundHost.isEmpty() && header.matches()) {
-                foundHost = header.group("who");
+            if (header.matches()) {
+                // Ein fremder Ausrichter macht die ganze Liste unbrauchbar: die Zahlen
+                // darunter gehoeren dann zu seinem Contest, nicht zu unserem
+                if (!HOST.equalsIgnoreCase(header.group("who"))) {
+                    foundHeader = false;
+                    break;
+                }
+                foundHeader = true;
                 continue;
             }
 
@@ -147,11 +154,11 @@ public final class TabContest {
             }
         }
 
-        host = foundHost;
+        active = foundHeader;
         // Ohne Kopfzeile laeuft kein Contest; dann gehoeren auch die Zahlen nicht hierher
-        bracket = foundHost.isEmpty() ? "" : foundBracket;
-        amount = foundHost.isEmpty() ? "" : foundAmount;
-        next = foundHost.isEmpty() ? "" : foundNext;
-        needed = foundHost.isEmpty() ? "" : foundNeeded;
+        bracket = foundHeader ? foundBracket : "";
+        amount = foundHeader ? foundAmount : "";
+        next = foundHeader ? foundNext : "";
+        needed = foundHeader ? foundNeeded : "";
     }
 }

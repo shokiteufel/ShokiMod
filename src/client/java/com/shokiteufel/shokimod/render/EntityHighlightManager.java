@@ -1,6 +1,7 @@
 package com.shokiteufel.shokimod.render;
 
 import com.shokiteufel.shokimod.data.CustomMob;
+import com.shokiteufel.shokimod.data.FeatureGate;
 import com.shokiteufel.shokimod.data.GameState;
 import com.shokiteufel.shokimod.data.MobVisual;
 import com.shokiteufel.shokimod.data.ModConfig;
@@ -90,7 +91,24 @@ public class EntityHighlightManager {
         ClientTickEvents.END_CLIENT_TICK.register(EntityHighlightManager::updateHighlights);
     }
 
+    /** Liegt aus einem frueheren Tick noch etwas herum, das aufgeraeumt werden muss? */
+    private static boolean nothingHeld() {
+        return highlightedEntities.isEmpty() && customGlowColors.isEmpty()
+                && nameplateEntities.isEmpty() && tracerEntities.isEmpty()
+                && renderAnchors.isEmpty() && headOnlyGlowEntities.isEmpty()
+                && rebuiltVisuals.isEmpty() && nametagClaimedEntities.isEmpty()
+                && tracerNearest.isEmpty();
+    }
+
     private static void updateHighlights(Minecraft client) {
+        // Ist nichts eingestellt und liegt auch nichts mehr herum, endet der Tick hier -
+        // ohne jede Sammlung anzufassen. Erst wenn wieder etwas markiert werden soll,
+        // faellt ueberhaupt Arbeit an
+        // Die Fehlersuche ist selbst eine Funktion: ist sie an, darf sie melden, dass
+        // gerade nichts eingestellt ist - sonst schwiege genau der Fall, den man sucht
+        boolean wanted = FeatureGate.mobMarkers();
+        if (!wanted && nothingHeld() && !CustomMobDebug.enabled()) return;
+
         customGlowColors.clear();
         nameplateEntities.clear();
         // 型で消せない見た目エンティティは毎 tick 作り直す
@@ -101,11 +119,6 @@ public class EntityHighlightManager {
         headOnlyGlowEntities.clear();
         tracerEntities.clear();
         tracerNearest.clear();
-
-        if (client.level == null || client.player == null) {
-            highlightedEntities.clear();
-            return;
-        }
 
         if (CustomMobDebug.enabled()) {
             List<CustomMob> customs = ModConfig.INSTANCE.mobVisuals.customTargets;
@@ -119,11 +132,26 @@ public class EntityHighlightManager {
         debugNamedCount = 0;
         debugMatchCount = 0;
 
-        boolean scanCustom = ModConfig.INSTANCE.mobVisuals.customTargets.stream()
-                .anyMatch(m -> m.isUsable() && m.anyEnabled());
-        // 型ベースの規則は名前を持たないモブが対象なので、名前フィルタの外で回す必要がある
-        boolean scanCustomType = ModConfig.INSTANCE.mobVisuals.customTargets.stream()
-                .anyMatch(m -> !m.isNameMode() && m.isUsable() && m.anyEnabled());
+        if (!wanted || client.level == null || client.player == null) {
+            highlightedEntities.clear();
+            return;
+        }
+
+        // Ein Durchgang fuer beide Fragen, ohne Stream und ohne Lambda: diese Schleife
+        // laeuft jeden Tick, und jede Allokation darin waere eine je Tick
+        boolean scanCustom = false;
+        boolean scanCustomType = false;
+        List<CustomMob> targets = ModConfig.INSTANCE.mobVisuals.customTargets;
+        for (int i = 0; i < targets.size(); i++) {
+            CustomMob mob = targets.get(i);
+            if (mob == null || !mob.isUsable() || !mob.anyEnabled()) continue;
+            scanCustom = true;
+            // 型ベースの規則は名前を持たないモブが対象なので、名前フィルタの外で回す必要がある
+            if (!mob.isNameMode()) {
+                scanCustomType = true;
+                break;
+            }
+        }
         // レア個体は接頭辞つきの名前を持つので、名前ループの中で拾える
         boolean scanSparkling = SparklingTarget.INSTANCE.anyEnabled();
 

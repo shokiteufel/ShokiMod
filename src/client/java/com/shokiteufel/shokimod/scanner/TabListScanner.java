@@ -1,5 +1,6 @@
 package com.shokiteufel.shokimod.scanner;
 
+import com.shokiteufel.shokimod.data.FeatureGate;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
@@ -36,6 +37,9 @@ public class TabListScanner {
 
     private static void scanTabList(Minecraft client) {
         if (client.level == null || client.player == null) return;
+        // Ohne Abnehmer wird die Liste gar nicht erst gelesen: jede Zeile in Text zu
+        // verwandeln ist der teuerste Handgriff dieser Mod, und er faellt jeden Tick an
+        if (!FeatureGate.location()) return;
         ClientPacketListener networkHandler = client.getConnection();
         if (networkHandler == null) return;
 
@@ -73,8 +77,11 @@ public class TabListScanner {
 
         // Gebiet und Server-ID stehen in der Tab-Liste
         LocationScanner.processTabList(unformattedLines);
-        TabContest.processTabList(unformattedLines);
-        ContestState.observe();
+        // Die Contest-Zeilen nur auswerten, solange sie jemand anzeigt
+        if (FeatureGate.contest()) {
+            TabContest.processTabList(unformattedLines);
+            ContestState.observe();
+        }
     }
 
     private static String toLegacyString(Component text) {

@@ -100,6 +100,12 @@ public class ModConfig extends Config {
                         () -> INSTANCE.safari.contestWarningSound,
                         picked -> INSTANCE.safari.contestWarningSound = picked,
                         1.0f)));
+        INSTANCE.chat.openValueAlertSound = () -> Minecraft.getInstance().execute(() ->
+                Minecraft.getInstance().setScreen(new SoundPickerScreen(
+                        Minecraft.getInstance().screen,
+                        () -> INSTANCE.chat.valueAlertSound,
+                        picked -> INSTANCE.chat.valueAlertSound = picked,
+                        1.0f)));
 
         if (INSTANCE.mobVisuals.customTargets == null) INSTANCE.mobVisuals.customTargets = new ArrayList<>();
         if (INSTANCE.chat.chatRules == null) INSTANCE.chat.chatRules = new ArrayList<>();
@@ -123,7 +129,38 @@ public class ModConfig extends Config {
         });
         INSTANCE.mobVisuals.customTargets.removeIf(m -> m.pattern.isEmpty() && m.typeId.isEmpty());
 
+        adoptOldMinValues();
+
         INSTANCE.saveNow();
+    }
+
+    /**
+     * Der Mindestwert aus den Chatregeln wandert einmalig in den Wert-Alarm.
+     *
+     * Die alte Pruefung las die groesste Zahl aus der Chatzeile; die neue liest den
+     * Basarpreis des Items, das tatsaechlich angekommen ist. Uebernommen wird
+     * deshalb nur, was sich uebertragen laesst: die hoechste eingestellte Schwelle.
+     * Sie ist die vorsichtigste Wahl - der Alarm meldet danach hoechstens seltener
+     * als vorher, nicht oefter.
+     *
+     * Der Filtertext bleibt in seiner Regel: die Regel selbst gilt weiter, nur ohne
+     * die Wertgrenze. Wer den Alarm nicht will, schaltet ihn aus - er startet
+     * ausgeschaltet nur dann, wenn nie ein Mindestwert gesetzt war.
+     */
+    private static void adoptOldMinValues() {
+        if (INSTANCE.chat.valueAlertMigrated) return;
+        INSTANCE.chat.valueAlertMigrated = true;
+
+        double highest = 0;
+        for (ChatRule rule : INSTANCE.chat.chatRules) {
+            if (rule.minValue == null) continue;
+            highest = Math.max(highest, rule.minValue);
+            rule.minValue = null;
+        }
+        if (highest <= 0) return;
+
+        INSTANCE.chat.valueAlert = true;
+        INSTANCE.chat.valueAlertThreshold = String.valueOf((long) highest);
     }
 
     /**
@@ -205,7 +242,7 @@ public class ModConfig extends Config {
     public MobVisualsCategory mobVisuals = new MobVisualsCategory();
 
     @Expose
-    @Category(name = "Chat Rules", desc = "React to words in chat: hide, replace, action bar, banner, toast and sound.")
+    @Category(name = "Alerts", desc = "React to what happens: words in chat, and what lands in your inventory.")
     public ChatRulesCategory chat = new ChatRulesCategory();
 
     @Expose
@@ -401,10 +438,59 @@ public class ModConfig extends Config {
         @Expose
         public List<String> discoveredAreas = new ArrayList<>();
 
-        @ConfigOption(name = "Your Rules", desc = "Add words and choose what happens. Sound files go into config/shokimod/sounds.")
+        @ConfigOption(name = "Chat Rules", desc = "Add words and choose what happens. Sound files go into config/shokimod/sounds.")
         @ConfigEditorButton(buttonText = "Manage")
         public transient Runnable openChatRules = () -> {
         };
+
+        // ==========================================
+        // Der Wert-Alarm. Er haengt nicht am Chat, sondern am Item selbst: was ins
+        // Inventar wandert, wird an seiner SkyBlock-Kennung erkannt und im Basar
+        // nachgeschlagen. Der Chat kann eine Meldung faerben, kuerzen oder ganz
+        // weglassen - das Item traegt seine Kennung immer
+        // ==========================================
+
+        @Expose
+        @ConfigOption(name = "Value Alert", desc = "Fires when something lands in your inventory that is worth more than the threshold.\nThe item is recognised by its own SkyBlock id, not by the chat line, and the price comes from the bazaar.\nOff means no price is ever requested.")
+        @ConfigEditorBoolean
+        public boolean valueAlert = false;
+
+        @Expose
+        @ConfigOption(name = "Threshold", desc = "From this many coins up. Short forms work: 500k, 5M, 1.2B.\nCounted is the whole stack: ten items at 100k each reach 1M.")
+        @ConfigEditorText
+        public String valueAlertThreshold = "1M";
+
+        @Expose
+        @ConfigOption(name = "Banner", desc = "Large text across the screen when the threshold is reached.")
+        @ConfigEditorBoolean
+        public boolean valueAlertBanner = true;
+
+        @Expose
+        @ConfigOption(name = "Toast", desc = "Small box in the top right corner, with the item as its icon.")
+        @ConfigEditorBoolean
+        public boolean valueAlertToast = true;
+
+        @Expose
+        @ConfigOption(name = "Chat line", desc = "Writes what was found and what it is worth into your chat.")
+        @ConfigEditorBoolean
+        public boolean valueAlertChat = false;
+
+        @ConfigOption(name = "Alert Sound", desc = "Your own file from config/shokimod/sounds. Leave empty for silence.")
+        @ConfigEditorButton(buttonText = "Pick")
+        public transient Runnable openValueAlertSound = () -> {
+        };
+
+        @Expose
+        public String valueAlertSound = "";
+
+        /**
+         * Die uebernommene Schwelle aus den alten Chatregeln.
+         *
+         * Damit die Uebernahme genau einmal laeuft: ohne die Marke wuerde eine spaeter
+         * von Hand geaenderte Schwelle beim naechsten Start wieder ueberschrieben.
+         */
+        @Expose
+        public boolean valueAlertMigrated = false;
     }
 
     public static class SafariCategory {
@@ -500,8 +586,6 @@ public class ModConfig extends Config {
         // Gemerkter Contest-Stand. Die Tab-Liste fuehrt ihn nur am Ort des Contests,
         // angezeigt werden soll er ueberall - also hier ablegen und fortschreiben
         // ==========================================
-        @Expose
-        public String contestHost = "";
         @Expose
         public String contestBracket = "";
         @Expose

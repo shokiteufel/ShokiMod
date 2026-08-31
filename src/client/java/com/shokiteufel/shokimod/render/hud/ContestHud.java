@@ -2,6 +2,7 @@ package com.shokiteufel.shokimod.render.hud;
 
 import com.shokiteufel.shokimod.scanner.ContestState;
 import com.shokiteufel.shokimod.scanner.SkyblockClock;
+import com.shokiteufel.shokimod.scanner.TabContest;
 
 /**
  * Der laufende Contest mit Punktestand und Restzeit.
@@ -24,8 +25,10 @@ public final class ContestHud {
         HudPanel panel = new HudPanel();
         if (!SkyblockClock.known() && ContestState.secondsRemaining() < 0) return panel;
 
-        String host = ContestState.host();
-        panel.title(host.isEmpty() ? "Contest" : host + "'s Contest", TITLE_COLOUR);
+        // Fest, nicht aus der Zeile gelesen: das Panel fuehrt genau diesen einen
+        // Contest. Wo Hypixel einen fremden nennt - im Garden Jacobs - soll hier
+        // weder der Name noch die Zahl wechseln
+        panel.title(TabContest.HOST + "'s Contest", TITLE_COLOUR);
 
         // Waehrend der halben Minute dazwischen zaehlt die Uhr zum naechsten Start
         panel.pair(ContestState.running() ? "Ends In:" : "Starts In:",
