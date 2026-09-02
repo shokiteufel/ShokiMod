@@ -13,6 +13,7 @@ public class HudRenderer {
         // Die Einblendung läuft auch außerhalb von SkyBlock, damit der Testknopf
         // im Einstellungsfenster überall etwas zeigt
         AlertBanner.render(graphics);
+        DropBanner.render(graphics);
 
         Minecraft client = Minecraft.getInstance();
         if (client.player == null || client.options.hideGui) return;

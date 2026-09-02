@@ -12,19 +12,46 @@ import java.util.Map;
  * Was ein Fund wert ist - und woher die Zahl stammt.
  *
  * Zwei Listen, in dieser Reihenfolge: erst der Basar, dann das Auktionshaus.
- * Der Basar handelt Waren wie Enchanted Diamonds oder verzauberte Buecher; das
+ * Der Basar handelt Waren wie Enchanted Diamonds, Buecher oder Shards; das
  * Auktionshaus alles andere, vom Hyperion bis zum Pet. Wer in keiner steht, hat
  * keinen Wert - nicht "null Coins", sondern unbekannt.
  *
+ * Im Basar gibt es zwei Preise: was der Sofortverkauf gerade zahlt, und was eine
+ * Verkaufsorder bringt, wenn man auf den Kaeufer wartet. Beim Ghost Shard liegen
+ * 3,5k und 9k dazwischen. Welcher zaehlt, darf man getrennt fuer Shards und fuer
+ * alle anderen Waren waehlen - Shards verkauft man anders als Enchanted Diamonds.
+ *
  * Reihenfolge und Quellen entsprechen Skysofts RareLootValueResolver (LGPL-3.0,
- * Akinsoft). Abweichung: Skysoft nimmt zuerst den Sell-Order-Preis seines eigenen
- * Spiegels; hier gilt der Sofortverkaufspreis direkt von Hypixel - das ist, was
- * man fuer einen Fund bekommt, wenn man ihn ohne Warten abgibt.
+ * Akinsoft).
  */
 public final class ItemValue {
 
+    /** Welcher Basarpreis zaehlt */
+    public enum PriceMode {
+        INSTANT_SELL("Instant Sell"),
+        SELL_ORDER("Sell Order");
+
+        private final String label;
+
+        PriceMode(String label) {
+            this.label = label;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
+    }
+
+    /** Beide Basarpreise einer Ware, so wie Hypixel sie in quick_status liefert */
+    public record BazaarPrice(double instantSell, double sellOrder) {
+        double pick(PriceMode mode) {
+            return mode == PriceMode.SELL_ORDER ? sellOrder : instantSell;
+        }
+    }
+
     /** Derselbe Endpunkt, den zehn Mods dieses Profils nutzen - schluesselfrei */
-    public static final RemoteMap<Double> BAZAAR = new RemoteMap<>(
+    public static final RemoteMap<BazaarPrice> BAZAAR = new RemoteMap<>(
             "bazaar prices",
             "https://api.hypixel.net/v2/skyblock/bazaar",
             "bazaar-prices.json",
@@ -39,6 +66,8 @@ public final class ItemValue {
             10 * 60 * 1000L,
             ItemValue::parseLowestBins);
 
+    private static final String SHARD_PREFIX = "SHARD_";
+
     private ItemValue() {
     }
 
@@ -48,6 +77,7 @@ public final class ItemValue {
 
     public enum Source {
         BAZAAR_INSTANT_SELL,
+        BAZAAR_SELL_ORDER,
         LOWEST_BIN
     }
 
@@ -69,8 +99,11 @@ public final class ItemValue {
      * Aus einer Chatzeile lassen sich oft mehrere Kennungen ableiten - ein Buch
      * "Wise V" kann ENCHANTMENT_WISE_5 oder ENCHANTMENT_ULTIMATE_WISE_5 sein.
      * Genommen wird der erste, fuer den es einen Preis gibt. Keiner: null.
+     *
+     * @param shardMode welcher Basarpreis fuer SHARD_-Waren zaehlt
+     * @param otherMode welcher Basarpreis fuer alle anderen Waren zaehlt
      */
-    public static Value resolve(List<String> candidates, int amount) {
+    public static Value resolve(List<String> candidates, int amount, PriceMode shardMode, PriceMode otherMode) {
         if (candidates == null) return null;
         int multiplier = Math.max(1, amount);
 
@@ -79,8 +112,19 @@ public final class ItemValue {
             String itemId = candidate.trim();
             if (itemId.isEmpty()) continue;
 
-            Double bazaar = BAZAAR.get(itemId);
-            if (bazaar != null && bazaar > 0) return new Value(bazaar * multiplier, itemId, Source.BAZAAR_INSTANT_SELL);
+            BazaarPrice bazaar = BAZAAR.get(itemId);
+            if (bazaar != null) {
+                PriceMode mode = itemId.startsWith(SHARD_PREFIX) ? shardMode : otherMode;
+                if (mode == null) mode = PriceMode.INSTANT_SELL;
+                double price = bazaar.pick(mode);
+                // Eine Ware ohne Order auf der gewaehlten Seite faellt auf die andere zurueck,
+                // bevor sie als unbekannt gilt
+                if (price <= 0) price = bazaar.pick(mode == PriceMode.SELL_ORDER ? PriceMode.INSTANT_SELL : PriceMode.SELL_ORDER);
+                if (price > 0) {
+                    Source source = mode == PriceMode.SELL_ORDER ? Source.BAZAAR_SELL_ORDER : Source.BAZAAR_INSTANT_SELL;
+                    return new Value(price * multiplier, itemId, source);
+                }
+            }
 
             Double bin = LOWEST_BIN.get(itemId);
             if (bin != null && bin > 0) return new Value(bin * multiplier, itemId, Source.LOWEST_BIN);
@@ -88,9 +132,12 @@ public final class ItemValue {
         return null;
     }
 
-    /** products.<ID>.quick_status.sellPrice - was der Sofortverkauf gerade zahlt */
-    private static Map<String, Double> parseBazaar(JsonObject root) {
-        Map<String, Double> out = new HashMap<>();
+    /**
+     * quick_status je Ware: sellPrice zahlt der Sofortverkauf, buyPrice bringt eine
+     * Verkaufsorder - so nennt es auch Skysofts Tooltip "Bazaar Sell Order".
+     */
+    private static Map<String, BazaarPrice> parseBazaar(JsonObject root) {
+        Map<String, BazaarPrice> out = new HashMap<>();
         if (!root.has("products")) return out;
 
         JsonObject products = root.getAsJsonObject("products");
@@ -101,10 +148,11 @@ public final class ItemValue {
             JsonObject product = productElement.getAsJsonObject();
             if (!product.has("quick_status")) continue;
             JsonObject status = product.getAsJsonObject("quick_status");
-            if (status == null || !status.has("sellPrice")) continue;
+            if (status == null) continue;
 
-            double price = status.get("sellPrice").getAsDouble();
-            if (price > 0) out.put(id, price);
+            double instantSell = status.has("sellPrice") ? status.get("sellPrice").getAsDouble() : 0;
+            double sellOrder = status.has("buyPrice") ? status.get("buyPrice").getAsDouble() : 0;
+            if (instantSell > 0 || sellOrder > 0) out.put(id, new BazaarPrice(instantSell, sellOrder));
         }
         return out;
     }
@@ -164,8 +212,6 @@ public final class ItemValue {
         }
         if (factor > 1) cleaned = cleaned.substring(0, cleaned.length() - 1);
 
-        // "1,000,000" ist ein Tausendertrenner, "1,2" ein Dezimalkomma: entscheidet
-        // die Stellenzahl hinter dem letzten Komma
         int comma = cleaned.lastIndexOf(',');
         if (comma >= 0 && cleaned.length() - comma - 1 == 3) {
             cleaned = cleaned.replace(",", "");

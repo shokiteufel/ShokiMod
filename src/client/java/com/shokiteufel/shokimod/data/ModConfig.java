@@ -1,6 +1,8 @@
 package com.shokiteufel.shokimod.data;
 
+import com.shokiteufel.shokimod.render.DropBanner;
 import com.shokiteufel.shokimod.util.AlertVolume;
+import com.shokiteufel.shokimod.util.ItemValue;
 import com.shokiteufel.shokimod.util.ModPaths;
 import com.shokiteufel.shokimod.gui.ColorPickerScreen;
 import com.shokiteufel.shokimod.gui.ChatRuleScreen;
@@ -71,6 +73,12 @@ public class ModConfig extends Config {
         if (INSTANCE.safari == null) INSTANCE.safari = new SafariCategory();
         // Der Unterreiter kann in einer Datei von vor 1.1.4 als null stehen
         if (INSTANCE.chat.rareLoot == null) INSTANCE.chat.rareLoot = new RareLootCategory();
+        if (INSTANCE.test == null) INSTANCE.test = new TestCategory();
+        // Gson laesst ein unbekanntes Enum-Wort als null stehen - dann gilt der Standard
+        if (INSTANCE.chat.rareLoot.bannerStyle == null) INSTANCE.chat.rareLoot.bannerStyle = DropBanner.Style.CLASSIC;
+        if (INSTANCE.chat.rareLoot.shardPriceMode == null) INSTANCE.chat.rareLoot.shardPriceMode = ItemValue.PriceMode.INSTANT_SELL;
+        if (INSTANCE.chat.rareLoot.bazaarPriceMode == null) INSTANCE.chat.rareLoot.bazaarPriceMode = ItemValue.PriceMode.INSTANT_SELL;
+        if (INSTANCE.chat.rareLoot.shareTemplate == null) INSTANCE.chat.rareLoot.shareTemplate = "{prefix} {item} {mf} {value}";
 
         adoptLegacyCategory();
 
@@ -127,6 +135,11 @@ public class ModConfig extends Config {
         INSTANCE.chat.rareLoot.testTier3 = () -> RareLootHandler.test(3);
         INSTANCE.chat.rareLoot.openDiagnostics = () -> Minecraft.getInstance().execute(RareLootHandler::writeDiagnostics);
         INSTANCE.chat.testAlertVolume = () -> Minecraft.getInstance().execute(AlertVolume::test);
+        INSTANCE.test.banner1 = () -> Minecraft.getInstance().execute(() -> DropBanner.preview(DropBanner.Style.CLASSIC));
+        INSTANCE.test.banner2 = () -> Minecraft.getInstance().execute(() -> DropBanner.preview(DropBanner.Style.COMPACT));
+        INSTANCE.test.banner3 = () -> Minecraft.getInstance().execute(() -> DropBanner.preview(DropBanner.Style.TITLE));
+        INSTANCE.test.banner4 = () -> Minecraft.getInstance().execute(() -> DropBanner.preview(DropBanner.Style.CARD));
+        INSTANCE.test.banner5 = () -> Minecraft.getInstance().execute(() -> DropBanner.preview(DropBanner.Style.RIBBON));
 
         if (INSTANCE.mobVisuals.customTargets == null) INSTANCE.mobVisuals.customTargets = new ArrayList<>();
         if (INSTANCE.chat.chatRules == null) INSTANCE.chat.chatRules = new ArrayList<>();
@@ -269,6 +282,39 @@ public class ModConfig extends Config {
     @Expose
     @Category(name = "Safari", desc = "Markers for the Critter Safari.")
     public SafariCategory safari = new SafariCategory();
+
+    @Expose
+    @Category(name = "Test", desc = "Try things without waiting for a drop. Nothing here is saved.")
+    public TestCategory test = new TestCategory();
+
+    /** Nur Knoepfe: jeder zeigt einen Banner-Stil, damit man waehlen kann, ohne zu raten */
+    public static class TestCategory {
+
+        @ConfigOption(name = "Banner 1 - Classic band", desc = "The band across the screen that SHINY critters use.")
+        @ConfigEditorButton(buttonText = "Show")
+        public transient Runnable banner1 = () -> {
+        };
+
+        @ConfigOption(name = "Banner 2 - Compact strip", desc = "One line above the hotbar with a coloured underline.")
+        @ConfigEditorButton(buttonText = "Show")
+        public transient Runnable banner2 = () -> {
+        };
+
+        @ConfigOption(name = "Banner 3 - Big title", desc = "Large free-standing text in the middle, like a Minecraft title.")
+        @ConfigEditorButton(buttonText = "Show")
+        public transient Runnable banner3 = () -> {
+        };
+
+        @ConfigOption(name = "Banner 4 - Side card", desc = "A card that slides in from the right edge.")
+        @ConfigEditorButton(buttonText = "Show")
+        public transient Runnable banner4 = () -> {
+        };
+
+        @ConfigOption(name = "Banner 5 - Top ribbon", desc = "A coloured ribbon dropping down from the top.")
+        @ConfigEditorButton(buttonText = "Show")
+        public transient Runnable banner5 = () -> {
+        };
+    }
 
     /**
      * Bis 1.0.0 lagen die drei Bereiche als Akkordeon in einer Kategorie "ShokiTeufel".
@@ -519,6 +565,21 @@ public class ModConfig extends Config {
         public transient Runnable openDiagnostics = () -> {
         };
 
+        @Expose
+        @ConfigOption(name = "Banner style", desc = "How a drop banner looks. Try all five in the Test tab; SHINY critters keep the classic band regardless.")
+        @ConfigEditorDropdown
+        public DropBanner.Style bannerStyle = DropBanner.Style.CLASSIC;
+
+        @Expose
+        @ConfigOption(name = "Shard price", desc = "Which bazaar price counts for shards (SHARD_...). Instant Sell is what selling right now pays; Sell Order is what a listed order brings once it fills.")
+        @ConfigEditorDropdown
+        public ItemValue.PriceMode shardPriceMode = ItemValue.PriceMode.INSTANT_SELL;
+
+        @Expose
+        @ConfigOption(name = "Bazaar price", desc = "Which bazaar price counts for every other bazaar item.")
+        @ConfigEditorDropdown
+        public ItemValue.PriceMode bazaarPriceMode = ItemValue.PriceMode.INSTANT_SELL;
+
         /**
          * Nur zum Auf- und Zuklappen. MoulConfig haelt den Zustand selbst und schreibt
          * nie in dieses Feld - ein Schalter darf deshalb nicht am Kopf haengen
@@ -705,6 +766,24 @@ public class ModConfig extends Config {
         @ConfigEditorText
         @ConfigAccordionId(id = 24)
         public String shareThreshold = "1M";
+
+        @Expose
+        @ConfigOption(name = "Message", desc = "The line that gets sent. Placeholders: {prefix} = RARE DROP! or LOOTSHARE DROP!, {item} = drop with count, {name}, {amount}, {mf} = Magic Find in brackets, {value} = value in brackets, {coins} = bare value. Empty restores the default.")
+        @ConfigEditorText
+        @ConfigAccordionId(id = 24)
+        public String shareTemplate = "{prefix} {item} {mf} {value}";
+
+        @Expose
+        @ConfigOption(name = "Show Magic Find", desc = "Fill {mf} with the Magic Find from the drop line, e.g. (+471 MF).")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 24)
+        public boolean shareMagicFind = true;
+
+        @Expose
+        @ConfigOption(name = "Show value", desc = "Fill {value} and {coins} with the price, e.g. (+121.8k coins).")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 24)
+        public boolean shareValue = true;
 
         /** Eine Stufe, wie der Handler sie sieht */
         public record Tier(int number, boolean enabled, String threshold, boolean banner,

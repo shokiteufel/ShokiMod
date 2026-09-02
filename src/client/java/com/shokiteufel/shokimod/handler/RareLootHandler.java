@@ -7,7 +7,7 @@ import com.shokiteufel.shokimod.data.ModConfig.RareLootCategory;
 import com.shokiteufel.shokimod.data.ModConfig.RareLootCategory.Tier;
 import com.shokiteufel.shokimod.data.RareLootParser;
 import com.shokiteufel.shokimod.data.RareLootParser.Drop;
-import com.shokiteufel.shokimod.render.AlertBanner;
+import com.shokiteufel.shokimod.render.DropBanner;
 import com.shokiteufel.shokimod.render.ShokiModToast;
 import com.shokiteufel.shokimod.util.AlertVolume;
 import com.shokiteufel.shokimod.util.CustomSoundPlayer;
@@ -18,9 +18,9 @@ import com.shokiteufel.shokimod.util.ItemValue.Value;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
-import net.minecraft.util.Util;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.Util;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -38,14 +38,15 @@ import java.util.regex.Pattern;
 /**
  * Seltene Funde aus dem Chat: Stufen-Alarm und Teilen in Party oder Gilde.
  *
- * Hypixel meldet jeden seltenen Fund als "RARE DROP!"-Zeile. Daraus wird der Fund
- * gelesen, sein Wert im Basar oder Auktionshaus nachgeschlagen, und dann greift
- * die hoechste Stufe, deren Schwelle er erreicht - mit ihrer eigenen Reaktion.
- * Wer 50M findet, bekommt den 50M-Alarm und nicht zusaetzlich die beiden darunter.
+ * Hypixel meldet jeden seltenen Fund als "RARE DROP!"-Zeile, gefangene Shards als
+ * "CHARM!". Daraus wird der Fund gelesen, sein Wert im Basar oder Auktionshaus
+ * nachgeschlagen, und dann greift die hoechste Stufe, deren Schwelle er erreicht -
+ * mit ihrer eigenen Reaktion. Wer 50M findet, bekommt den 50M-Alarm und nicht
+ * zusaetzlich die beiden darunter.
  *
- * Das Teilen schickt dieselbe Meldung mit Wert in die Party und auf Wunsch in die
- * Gilde, ab einer eigenen Schwelle. Kommt sie als "Party > ..." zurueck, wird sie
- * nicht noch einmal gelesen - sonst teilte die Mod ihre eigene Meldung.
+ * Das Teilen schickt eine Meldung nach eigener Vorlage in die Party und auf Wunsch
+ * in die Gilde, ab einer eigenen Schwelle. Kommt sie als "Party > ..." zurueck,
+ * wird sie nicht noch einmal gelesen - sonst teilte die Mod ihre eigene Meldung.
  *
  * Jede Entscheidung wird festgehalten - im Log und in einem kurzen Gedaechtnis,
  * das der Diagnoseknopf in eine Datei schreibt. Der Tester sieht das Spiel, nicht
@@ -64,12 +65,16 @@ public final class RareLootHandler {
     private static final int REMEMBERED_EVENTS = 40;
     private static final String DIAGNOSTICS_FILE = "shokimod-diagnostics.txt";
 
+    /** Die Vorlage, wenn das Feld leer ist - Skysofts Wortlaut */
+    public static final String DEFAULT_SHARE_TEMPLATE = "{prefix} {item} {mf} {value}";
+
     /** Je Stufe eine Farbe, damit man schon am Banner sieht, welche es war */
     private static final int[] TIER_COLOURS = {0x55FF55, 0xFFD700, 0xFF55FF};
 
     private static final Pattern LOOTSHARE_RECEIPT = Pattern.compile(
             "^LOOT SHARE You received(?: .+?)? for assisting (?<player>[A-Za-z0-9_]{1,16})!(?: \\(\\d+\\))?$",
             Pattern.CASE_INSENSITIVE);
+    private static final Pattern MULTI_SPACE = Pattern.compile("\\s{2,}");
 
     /** Zeilen anderer Spieler und eigene geteilte Meldungen */
     private static final String[] SKIPPED_PREFIXES = {"Party >", "Guild >", "Co-op >", "From ", "To "};
@@ -128,8 +133,9 @@ public final class RareLootHandler {
         Drop drop = RareLootParser.parse(clean);
         if (drop == null) return;
 
+        RareLootCategory cfg = cfg();
         List<String> candidates = candidatesFor(drop);
-        Value value = ItemValue.resolve(candidates, drop.amount());
+        Value value = ItemValue.resolve(candidates, drop.amount(), cfg.shardPriceMode, cfg.bazaarPriceMode);
         boolean lootshare = lastLootShareAt > 0L && now - lastLootShareAt <= LOOTSHARE_WINDOW_MILLIS;
 
         note("drop \"" + clean + "\" -> name=" + drop.displayName() + " x" + drop.amount()
@@ -138,7 +144,6 @@ public final class RareLootHandler {
                 + " via " + value.itemId() + "/" + value.source()));
 
         Minecraft client = Minecraft.getInstance();
-        RareLootCategory cfg = cfg();
 
         if (cfg.enabled) {
             if (value == null) {
@@ -161,7 +166,7 @@ public final class RareLootHandler {
      * Woher die Kennung kommt: erst Hypixels Item-Liste, dann das Raten aus dem Namen.
      *
      * "Ghostly Boots" heisst GHOST_BOOTS - das steht nur in der Liste. Was die Liste
-     * nicht kennt, etwa verzauberte Buecher, liefert der Parser aus dem Namen.
+     * nicht kennt, etwa Buecher und Shards, liefert der Parser aus dem Namen.
      */
     private static List<String> candidatesFor(Drop drop) {
         LinkedHashSet<String> out = new LinkedHashSet<>(ItemNames.idsFor(drop.displayName()));
@@ -206,7 +211,7 @@ public final class RareLootHandler {
         Tier tier = cfg().tier(number);
         double threshold = ItemValue.parseAmount(tier.threshold());
         Minecraft client = Minecraft.getInstance();
-        client.execute(() -> announce(client, tier, "Test: Flash I", Math.max(threshold, 0)));
+        client.execute(() -> announce(client, tier, "Test: 3x Ghost Shard", Math.max(threshold, 0)));
     }
 
     private static void announce(Minecraft client, Tier tier, String headline, double coins) {
@@ -214,7 +219,8 @@ public final class RareLootHandler {
         int colour = TIER_COLOURS[Math.min(Math.max(tier.number() - 1, 0), TIER_COLOURS.length - 1)];
 
         if (tier.banner()) {
-            AlertBanner.show("+ " + headline, "(" + worth + ")", "Tier " + tier.number(), colour, BANNER_MILLIS);
+            DropBanner.show(cfg().bannerStyle, "+ " + headline, "(" + worth + ")",
+                    "Tier " + tier.number(), colour, BANNER_MILLIS);
         }
 
         if (tier.toast() && client.getToastManager() != null) {
@@ -243,7 +249,7 @@ public final class RareLootHandler {
     private static void share(Minecraft client, Drop drop, Value value, boolean lootshare) {
         RareLootCategory cfg = cfg();
         double threshold = ItemValue.parseAmount(cfg.shareThreshold);
-        String message = shareText(drop, value, lootshare);
+        String message = shareText(drop, value, lootshare, cfg.shareTemplate, cfg.shareMagicFind, cfg.shareValue);
 
         if (threshold > 0 && value == null) {
             note("  not shared: no price known");
@@ -255,6 +261,10 @@ public final class RareLootHandler {
         }
         if (!cfg.shareParty && !cfg.shareGuild) {
             note("  not shared: no channel chosen");
+            return;
+        }
+        if (message.isBlank()) {
+            note("  not shared: template produced an empty line");
             return;
         }
 
@@ -274,17 +284,32 @@ public final class RareLootHandler {
         }
     }
 
-    /** Skysofts Wortlaut: "RARE DROP! 3x Flash I (+289 MF) (+4.1m coins)" */
-    static String shareText(Drop drop, Value value, boolean lootshare) {
-        StringBuilder out = new StringBuilder(lootshare ? "LOOTSHARE DROP! " : "RARE DROP! ");
-        out.append(headline(drop));
-        if (drop.context() != null && !drop.context().isBlank()) {
-            out.append(" (").append(drop.context()).append(')');
-        }
-        if (value != null) {
-            out.append(" (+").append(ItemValue.format(value.coins())).append(" coins)");
-        }
-        return out.toString();
+    /**
+     * Die Meldung nach Vorlage.
+     *
+     * Platzhalter: {prefix} wird "RARE DROP!" oder "LOOTSHARE DROP!", {item} der Fund
+     * mit Stueckzahl, {name} nur der Name, {amount} nur die Zahl, {mf} der
+     * Magic-Find-Zusatz in Klammern, {value} der Wert in Klammern, {coins} der
+     * blanke Betrag. Was abgeschaltet oder unbekannt ist, wird leer - und die
+     * Luecke geschlossen, damit keine doppelten Leerzeichen bleiben.
+     */
+    static String shareText(Drop drop, Value value, boolean lootshare, String template,
+                            boolean withMagicFind, boolean withValue) {
+        String pattern = template == null || template.isBlank() ? DEFAULT_SHARE_TEMPLATE : template;
+        String mf = withMagicFind && drop.context() != null && !drop.context().isBlank()
+                ? "(" + drop.context() + ")" : "";
+        String coins = withValue && value != null ? ItemValue.format(value.coins()) : "";
+        String worth = coins.isEmpty() ? "" : "(+" + coins + " coins)";
+
+        String out = pattern
+                .replace("{prefix}", lootshare ? "LOOTSHARE DROP!" : "RARE DROP!")
+                .replace("{item}", headline(drop))
+                .replace("{name}", drop.displayName())
+                .replace("{amount}", String.valueOf(drop.amount()))
+                .replace("{mf}", mf)
+                .replace("{value}", worth)
+                .replace("{coins}", coins);
+        return MULTI_SPACE.matcher(out).replaceAll(" ").trim();
     }
 
     /** Ins Log und ins Gedaechtnis - beides, damit der Bericht auch ohne Log etwas sagt */
@@ -340,7 +365,11 @@ public final class RareLootHandler {
                 .append(" server=").append(GameState.Server.id).append("\n\n");
 
         out.append("[settings]\n");
-        out.append("enabled=").append(cfg.enabled).append('\n');
+        out.append("enabled=").append(cfg.enabled)
+                .append(" banner=").append(cfg.bannerStyle)
+                .append(" shardPrice=").append(cfg.shardPriceMode)
+                .append(" bazaarPrice=").append(cfg.bazaarPriceMode)
+                .append(" alertVolume=").append(AlertVolume.factor()).append('\n');
         for (Tier tier : cfg.tiers()) {
             out.append("tier").append(tier.number())
                     .append(": enabled=").append(tier.enabled())
@@ -355,7 +384,10 @@ public final class RareLootHandler {
                 .append(" party=").append(cfg.shareParty)
                 .append(" guild=").append(cfg.shareGuild)
                 .append(" threshold=").append(cfg.shareThreshold)
-                .append(" (=").append((long) ItemValue.parseAmount(cfg.shareThreshold)).append(")\n\n");
+                .append(" (=").append((long) ItemValue.parseAmount(cfg.shareThreshold)).append(")")
+                .append(" mf=").append(cfg.shareMagicFind)
+                .append(" value=").append(cfg.shareValue)
+                .append(" template=\"").append(cfg.shareTemplate).append("\"\n\n");
 
         out.append("[price lists]\n");
         for (String line : ItemValue.statusLines()) out.append(line).append('\n');
