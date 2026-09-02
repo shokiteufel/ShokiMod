@@ -249,7 +249,10 @@ public final class RareLootHandler {
     private static void share(Minecraft client, Drop drop, Value value, boolean lootshare) {
         RareLootCategory cfg = cfg();
         double threshold = ItemValue.parseAmount(cfg.shareThreshold);
-        String message = shareText(drop, value, lootshare, cfg.shareTemplate, cfg.shareMagicFind, cfg.shareValue);
+        // Die Vorlage der erreichten Stufe, damit ein 50M-Fund anders klingt als ein 1M-Fund
+        Tier reached = value == null ? null : tierFor(value.coins());
+        String template = reached == null ? cfg.shareTemplate : cfg.shareTemplateFor(reached.number());
+        String message = shareText(drop, value, lootshare, template, cfg.shareMagicFind, cfg.shareValue);
 
         if (threshold > 0 && value == null) {
             note("  not shared: no price known");
@@ -387,7 +390,10 @@ public final class RareLootHandler {
                 .append(" (=").append((long) ItemValue.parseAmount(cfg.shareThreshold)).append(")")
                 .append(" mf=").append(cfg.shareMagicFind)
                 .append(" value=").append(cfg.shareValue)
-                .append(" template=\"").append(cfg.shareTemplate).append("\"\n\n");
+                .append(" template=\"").append(cfg.shareTemplate).append("\"")
+                .append(" tier1=\"").append(cfg.shareTemplate1).append("\"")
+                .append(" tier2=\"").append(cfg.shareTemplate2).append("\"")
+                .append(" tier3=\"").append(cfg.shareTemplate3).append("\"\n\n");
 
         out.append("[price lists]\n");
         for (String line : ItemValue.statusLines()) out.append(line).append('\n');

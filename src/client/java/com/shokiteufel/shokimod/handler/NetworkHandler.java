@@ -32,6 +32,8 @@ public class NetworkHandler {
             SessionManager.onChatMessage(msg);
             // Seltene Funde ebenso: bewerten und melden, die Zeile bleibt
             RareLootHandler.onChatMessage(unformattedMsg);
+            // Der Shiny-Ruf eines anderen: nur hoeren, nichts aendern
+            ShinyAlert.onChatMessage(unformattedMsg);
 
             // Ein "false" blendet die Originalzeile aus
             return ChatRuleHandler.handleMessage(message, msg, unformattedMsg);
