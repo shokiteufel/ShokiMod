@@ -7,7 +7,7 @@ import com.shokiteufel.shokimod.gui.HudEditorScreen;
 import com.shokiteufel.shokimod.gui.CustomMobScreen;
 import com.shokiteufel.shokimod.gui.MarkerSettingsScreen;
 import com.shokiteufel.shokimod.gui.SoundPickerScreen;
-import com.shokiteufel.shokimod.handler.ValueAlertHandler;
+import com.shokiteufel.shokimod.handler.RareLootHandler;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.annotations.Expose;
@@ -68,8 +68,8 @@ public class ModConfig extends Config {
         if (INSTANCE.mobVisuals == null) INSTANCE.mobVisuals = new MobVisualsCategory();
         if (INSTANCE.chat == null) INSTANCE.chat = new ChatRulesCategory();
         if (INSTANCE.safari == null) INSTANCE.safari = new SafariCategory();
-        // Der Unterreiter kann in einer Datei von vor 1.1.3 als null stehen
-        if (INSTANCE.chat.valueAlerts == null) INSTANCE.chat.valueAlerts = new ValueAlertCategory();
+        // Der Unterreiter kann in einer Datei von vor 1.1.4 als null stehen
+        if (INSTANCE.chat.rareLoot == null) INSTANCE.chat.rareLoot = new RareLootCategory();
 
         adoptLegacyCategory();
 
@@ -103,27 +103,27 @@ public class ModConfig extends Config {
                         () -> INSTANCE.safari.contestWarningSound,
                         picked -> INSTANCE.safari.contestWarningSound = picked,
                         1.0f)));
-        INSTANCE.chat.valueAlerts.openTier1Sound = () -> Minecraft.getInstance().execute(() ->
+        INSTANCE.chat.rareLoot.openTier1Sound = () -> Minecraft.getInstance().execute(() ->
                 Minecraft.getInstance().setScreen(new SoundPickerScreen(
                         Minecraft.getInstance().screen,
-                        () -> INSTANCE.chat.valueAlerts.tier1Sound,
-                        picked -> INSTANCE.chat.valueAlerts.tier1Sound = picked,
+                        () -> INSTANCE.chat.rareLoot.tier1Sound,
+                        picked -> INSTANCE.chat.rareLoot.tier1Sound = picked,
                         1.0f)));
-        INSTANCE.chat.valueAlerts.testTier1 = () -> ValueAlertHandler.test(1);
-        INSTANCE.chat.valueAlerts.openTier2Sound = () -> Minecraft.getInstance().execute(() ->
+        INSTANCE.chat.rareLoot.testTier1 = () -> RareLootHandler.test(1);
+        INSTANCE.chat.rareLoot.openTier2Sound = () -> Minecraft.getInstance().execute(() ->
                 Minecraft.getInstance().setScreen(new SoundPickerScreen(
                         Minecraft.getInstance().screen,
-                        () -> INSTANCE.chat.valueAlerts.tier2Sound,
-                        picked -> INSTANCE.chat.valueAlerts.tier2Sound = picked,
+                        () -> INSTANCE.chat.rareLoot.tier2Sound,
+                        picked -> INSTANCE.chat.rareLoot.tier2Sound = picked,
                         1.0f)));
-        INSTANCE.chat.valueAlerts.testTier2 = () -> ValueAlertHandler.test(2);
-        INSTANCE.chat.valueAlerts.openTier3Sound = () -> Minecraft.getInstance().execute(() ->
+        INSTANCE.chat.rareLoot.testTier2 = () -> RareLootHandler.test(2);
+        INSTANCE.chat.rareLoot.openTier3Sound = () -> Minecraft.getInstance().execute(() ->
                 Minecraft.getInstance().setScreen(new SoundPickerScreen(
                         Minecraft.getInstance().screen,
-                        () -> INSTANCE.chat.valueAlerts.tier3Sound,
-                        picked -> INSTANCE.chat.valueAlerts.tier3Sound = picked,
+                        () -> INSTANCE.chat.rareLoot.tier3Sound,
+                        picked -> INSTANCE.chat.rareLoot.tier3Sound = picked,
                         1.0f)));
-        INSTANCE.chat.valueAlerts.testTier3 = () -> ValueAlertHandler.test(3);
+        INSTANCE.chat.rareLoot.testTier3 = () -> RareLootHandler.test(3);
 
         if (INSTANCE.mobVisuals.customTargets == null) INSTANCE.mobVisuals.customTargets = new ArrayList<>();
         if (INSTANCE.chat.chatRules == null) INSTANCE.chat.chatRules = new ArrayList<>();
@@ -177,8 +177,8 @@ public class ModConfig extends Config {
         }
         if (highest <= 0) return;
 
-        INSTANCE.chat.valueAlerts.enabled = true;
-        INSTANCE.chat.valueAlerts.tier1Threshold = String.valueOf((long) highest);
+        INSTANCE.chat.rareLoot.enabled = true;
+        INSTANCE.chat.rareLoot.tier1Threshold = String.valueOf((long) highest);
     }
 
     /**
@@ -462,13 +462,13 @@ public class ModConfig extends Config {
         };
 
         // ==========================================
-        // Der Wert-Alarm als eigener Reiter unter Alerts. Er haengt nicht am Chat,
-        // sondern am Item selbst: was ins Inventar wandert, wird an seiner
-        // SkyBlock-Kennung erkannt und im Basar nachgeschlagen
+        // Seltene Funde als eigener Reiter unter Alerts. Gelesen wird Hypixels
+        // "RARE DROP!"-Zeile, bewertet im Basar und Auktionshaus, gemeldet in
+        // drei Stufen - und auf Wunsch in Party oder Gilde geteilt
         // ==========================================
         @Expose
-        @Category(name = "Value Alert", desc = "Fires when something lands in your inventory that is worth more than a threshold. Three tiers, each with its own reaction.")
-        public ValueAlertCategory valueAlerts = new ValueAlertCategory();
+        @Category(name = "Rare Loot", desc = "Rare drops from chat, priced on the bazaar and auction house. Three tiers with their own reactions, and sharing to your party or guild.")
+        public RareLootCategory rareLoot = new RareLootCategory();
 
         /**
          * Die uebernommene Schwelle aus den alten Chatregeln.
@@ -481,7 +481,7 @@ public class ModConfig extends Config {
     }
 
     /**
-     * Drei Stufen, jede mit eigener Schwelle und eigener Reaktion.
+     * Seltene Funde aus dem Chat: drei Stufen und das Teilen.
      *
      * Ein Fund loest nur die hoechste Stufe aus, die er erreicht: wer 50M findet,
      * bekommt den 50M-Alarm und nicht zusaetzlich die beiden darunter. Die Stufen
@@ -491,22 +491,24 @@ public class ModConfig extends Config {
      * Die Felder wiederholen sich dreimal, weil MoulConfig nur flache Felder in
      * einer Kategorie kennt. Der Handler sieht davon nichts: {@link #tiers()} liefert
      * ihm die drei Stufen als Werte.
+     *
+     * Nachbau von Skysofts Rare Drop Titles und Rare Loot Sharing (LGPL-3.0).
      */
-    public static class ValueAlertCategory {
+    public static class RareLootCategory {
 
         @Expose
-        @ConfigOption(name = "Enabled", desc = "The item is recognised by its own SkyBlock id, not by the chat line, and the price comes from the bazaar. Off means no price is ever requested.")
+        @ConfigOption(name = "Enabled", desc = "Reads Hypixel's RARE DROP! lines and prices the drop on the bazaar or, failing that, the auction house. Off means no price is ever requested.")
         @ConfigEditorBoolean
         public boolean enabled = false;
 
         @Expose
-        @ConfigOption(name = "Tier 1", desc = "From the threshold below up. A find that also clears a higher tier fires only that one.")
+        @ConfigOption(name = "Tier 1", desc = "From the threshold below up. A drop that also clears a higher tier fires only that one.")
         @ConfigEditorAccordion(id = 21)
         @ConfigEditorBoolean
         public boolean tier1Enabled = true;
 
         @Expose
-        @ConfigOption(name = "Threshold", desc = "Coins. Short forms work: 500k, 5M, 1.2B. Counted is the whole stack.")
+        @ConfigOption(name = "Threshold", desc = "Coins. Short forms work: 500k, 5M, 1.2B. Counted is the whole drop, so 3x counts three times.")
         @ConfigEditorText
         @ConfigAccordionId(id = 21)
         public String tier1Threshold = "1M";
@@ -524,7 +526,7 @@ public class ModConfig extends Config {
         public boolean tier1Toast = true;
 
         @Expose
-        @ConfigOption(name = "Chat line", desc = "Writes what was found and what it is worth into your chat.")
+        @ConfigOption(name = "Chat line", desc = "Writes the drop and its value into your chat.")
         @ConfigEditorBoolean
         @ConfigAccordionId(id = 21)
         public boolean tier1Chat = false;
@@ -538,20 +540,20 @@ public class ModConfig extends Config {
         @Expose
         public String tier1Sound = "";
 
-        @ConfigOption(name = "Test", desc = "Fires this tier once with a sample item, so you can see and hear what you set.")
+        @ConfigOption(name = "Test", desc = "Fires this tier once with a sample drop, so you can see and hear what you set.")
         @ConfigEditorButton(buttonText = "Test")
         @ConfigAccordionId(id = 21)
         public transient Runnable testTier1 = () -> {
         };
 
         @Expose
-        @ConfigOption(name = "Tier 2", desc = "From the threshold below up. A find that also clears a higher tier fires only that one.")
+        @ConfigOption(name = "Tier 2", desc = "From the threshold below up. A drop that also clears a higher tier fires only that one.")
         @ConfigEditorAccordion(id = 22)
         @ConfigEditorBoolean
         public boolean tier2Enabled = true;
 
         @Expose
-        @ConfigOption(name = "Threshold", desc = "Coins. Short forms work: 500k, 5M, 1.2B. Counted is the whole stack.")
+        @ConfigOption(name = "Threshold", desc = "Coins. Short forms work: 500k, 5M, 1.2B. Counted is the whole drop, so 3x counts three times.")
         @ConfigEditorText
         @ConfigAccordionId(id = 22)
         public String tier2Threshold = "25M";
@@ -569,7 +571,7 @@ public class ModConfig extends Config {
         public boolean tier2Toast = true;
 
         @Expose
-        @ConfigOption(name = "Chat line", desc = "Writes what was found and what it is worth into your chat.")
+        @ConfigOption(name = "Chat line", desc = "Writes the drop and its value into your chat.")
         @ConfigEditorBoolean
         @ConfigAccordionId(id = 22)
         public boolean tier2Chat = false;
@@ -583,20 +585,20 @@ public class ModConfig extends Config {
         @Expose
         public String tier2Sound = "";
 
-        @ConfigOption(name = "Test", desc = "Fires this tier once with a sample item, so you can see and hear what you set.")
+        @ConfigOption(name = "Test", desc = "Fires this tier once with a sample drop, so you can see and hear what you set.")
         @ConfigEditorButton(buttonText = "Test")
         @ConfigAccordionId(id = 22)
         public transient Runnable testTier2 = () -> {
         };
 
         @Expose
-        @ConfigOption(name = "Tier 3", desc = "From the threshold below up. A find that also clears a higher tier fires only that one.")
+        @ConfigOption(name = "Tier 3", desc = "From the threshold below up. A drop that also clears a higher tier fires only that one.")
         @ConfigEditorAccordion(id = 23)
         @ConfigEditorBoolean
         public boolean tier3Enabled = true;
 
         @Expose
-        @ConfigOption(name = "Threshold", desc = "Coins. Short forms work: 500k, 5M, 1.2B. Counted is the whole stack.")
+        @ConfigOption(name = "Threshold", desc = "Coins. Short forms work: 500k, 5M, 1.2B. Counted is the whole drop, so 3x counts three times.")
         @ConfigEditorText
         @ConfigAccordionId(id = 23)
         public String tier3Threshold = "50M";
@@ -614,7 +616,7 @@ public class ModConfig extends Config {
         public boolean tier3Toast = true;
 
         @Expose
-        @ConfigOption(name = "Chat line", desc = "Writes what was found and what it is worth into your chat.")
+        @ConfigOption(name = "Chat line", desc = "Writes the drop and its value into your chat.")
         @ConfigEditorBoolean
         @ConfigAccordionId(id = 23)
         public boolean tier3Chat = false;
@@ -628,11 +630,35 @@ public class ModConfig extends Config {
         @Expose
         public String tier3Sound = "";
 
-        @ConfigOption(name = "Test", desc = "Fires this tier once with a sample item, so you can see and hear what you set.")
+        @ConfigOption(name = "Test", desc = "Fires this tier once with a sample drop, so you can see and hear what you set.")
         @ConfigEditorButton(buttonText = "Test")
         @ConfigAccordionId(id = 23)
         public transient Runnable testTier3 = () -> {
         };
+
+        @Expose
+        @ConfigOption(name = "Share drops", desc = "Sends valuable drops to your party or guild as RARE DROP! with the value. Your own shared line is never read again.")
+        @ConfigEditorAccordion(id = 24)
+        @ConfigEditorBoolean
+        public boolean shareEnabled = false;
+
+        @Expose
+        @ConfigOption(name = "Party", desc = "Send as /pc.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 24)
+        public boolean shareParty = true;
+
+        @Expose
+        @ConfigOption(name = "Guild", desc = "Send as /gc.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 24)
+        public boolean shareGuild = false;
+
+        @Expose
+        @ConfigOption(name = "Share from", desc = "Coins. 0 shares every rare drop, even one without a known price.")
+        @ConfigEditorText
+        @ConfigAccordionId(id = 24)
+        public String shareThreshold = "1M";
 
         /** Eine Stufe, wie der Handler sie sieht */
         public record Tier(int number, boolean enabled, String threshold, boolean banner,

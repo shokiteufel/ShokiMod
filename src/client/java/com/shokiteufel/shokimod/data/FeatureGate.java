@@ -58,9 +58,10 @@ public final class FeatureGate {
         return false;
     }
 
-    /** Der Wert-Alarm am Inventar. Aus heisst: kein Zaehlen, kein Preis, kein Request */
-    public static boolean valueAlert() {
-        return ModConfig.INSTANCE.chat.valueAlerts.enabled;
+    /** Seltene Funde: Alarm oder Teilen. Aus heisst: kein Preis, kein Request */
+    public static boolean rareLoot() {
+        ModConfig.RareLootCategory c = ModConfig.INSTANCE.chat.rareLoot;
+        return c.enabled || c.shareEnabled;
     }
 
     /**
@@ -71,6 +72,6 @@ public final class FeatureGate {
      * reine Verschwendung. Billige Schalter stehen deshalb vorn.
      */
     public static boolean location() {
-        return contest() || safari() || nearbyPanel() || valueAlert() || mobMarkers() || chatRules();
+        return contest() || safari() || nearbyPanel() || rareLoot() || mobMarkers() || chatRules();
     }
 }

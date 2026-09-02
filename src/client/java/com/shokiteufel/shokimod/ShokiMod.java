@@ -5,7 +5,7 @@ import com.shokiteufel.shokimod.gui.HudEditorScreen;
 import com.shokiteufel.shokimod.gui.ShokiConfigEditor;
 import com.shokiteufel.shokimod.handler.FloorDropHandler;
 import com.shokiteufel.shokimod.handler.NetworkHandler;
-import com.shokiteufel.shokimod.handler.ValueAlertHandler;
+import com.shokiteufel.shokimod.handler.RareLootHandler;
 import com.shokiteufel.shokimod.render.EntityHighlightManager;
 import com.shokiteufel.shokimod.scanner.LocationScanner;
 import com.shokiteufel.shokimod.scanner.ContestState;
@@ -49,7 +49,7 @@ public class ShokiMod implements ClientModInitializer {
         TabListScanner.register();
         EntityHighlightManager.register();
         FloorDropHandler.register();
-        ValueAlertHandler.register();
+        RareLootHandler.register();
         NestTracker.register();
         ContestState.register();
         SessionManager.register();

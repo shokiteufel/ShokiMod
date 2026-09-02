@@ -18,6 +18,7 @@ public class NetworkHandler {
             FloorDropHandler.reset();
             NestTracker.reset();
             SessionManager.onWorldChange();
+            RareLootHandler.reset();
         });
 
         ClientReceiveMessageEvents.ALLOW_GAME.register((message, overlay) -> {
@@ -29,6 +30,8 @@ public class NetworkHandler {
 
             // Die Lauf-Mitschrift liest nur mit und aendert an der Zeile nichts
             SessionManager.onChatMessage(msg);
+            // Seltene Funde ebenso: bewerten und melden, die Zeile bleibt
+            RareLootHandler.onChatMessage(unformattedMsg);
 
             // Ein "false" blendet die Originalzeile aus
             return ChatRuleHandler.handleMessage(message, msg, unformattedMsg);
