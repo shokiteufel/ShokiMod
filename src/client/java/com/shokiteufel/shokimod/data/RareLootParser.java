@@ -49,6 +49,10 @@ public final class RareLootParser {
     private static final Pattern CHARM = Pattern.compile(
             "^CHARM!\\s+You charmed the .+? and received (?<amount>\\d+|an?) (?<shard>.+?) Shards?!?$",
             Pattern.CASE_INSENSITIVE);
+    /** Derselbe Shard, anders gemeldet: "You caught x3 Timil Shards! (2)" */
+    private static final Pattern CAUGHT = Pattern.compile(
+            "^You caught (?:x(?<amount>\\d+) |an? )?(?<shard>.+?) Shards?!(?:\\s*\\(\\d+\\))?$",
+            Pattern.CASE_INSENSITIVE);
     private static final String SHARD_PREFIX = "SHARD_";
 
     private static final Pattern COLOUR_CODE = Pattern.compile("§.");
@@ -73,6 +77,9 @@ public final class RareLootParser {
 
         Matcher charm = CHARM.matcher(clean);
         if (charm.matches()) return shardDrop(charm.group("amount"), charm.group("shard"));
+
+        Matcher caught = CAUGHT.matcher(clean);
+        if (caught.matches()) return shardDrop(caught.group("amount"), caught.group("shard"));
 
         Matcher dug = DUG_OUT.matcher(clean);
         if (dug.matches()) {

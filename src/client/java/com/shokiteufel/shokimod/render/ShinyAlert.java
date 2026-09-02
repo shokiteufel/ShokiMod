@@ -24,15 +24,20 @@ import java.util.UUID;
  * Hypixel nennt die seltene Variante "Sparkling <Art>"; angezeigt wird "SHINY!".
  * Gezeichnet wird ueber AlertBanner, das sich auch die Chatregeln teilen.
  *
- * Wer einen Shiny sieht, kann die Party rufen: ein fester Satz geht per /pc hinaus.
- * Und wer diesen Satz im Chat liest - von wem auch immer - hoert einen Ton. So
- * erfaehrt jeder in der Party vom Fund, auch wer gerade woanders hinschaut. Der
- * eigene Ruf loest den Ton nicht aus; den Fund hat man ja selbst vor Augen.
+ * Wer einen Shiny sieht, ruft die Party: ein fester Satz geht per /pc hinaus. Und
+ * wer diesen Satz im Chat liest - von wem auch immer - hoert einen Ton. Der Satz
+ * ist absichtlich nicht einstellbar: nur wenn alle denselben schicken, hoert auch
+ * jeder den Ruf der anderen. Der eigene Ruf, der vom Server zurueckkommt, loest
+ * den Ton nicht aus; den Fund hat man ja selbst vor Augen.
  */
 public final class ShinyAlert {
 
     private static final String HEADLINE = "SHINY!";
     private static final long DISPLAY_MILLIS = 7000L;
+
+    /** Der Ruf. Fest, damit jede Mod in der Party denselben Satz erkennt */
+    public static final String CALL = "OMG!! WHO IS THAT SHINY?!";
+    private static final String CALL_LOWER = CALL.toLowerCase(Locale.ROOT);
 
     /**
      * Bereits gemeldete Funde. Gemerkt wird die UUID des Namenstraegers, nicht die
@@ -58,18 +63,15 @@ public final class ShinyAlert {
                 pos.getX() + " " + pos.getY() + " " + pos.getZ(),
                 cfg.shinyColorRGB(), DISPLAY_MILLIS);
 
-        if (cfg.shinyShareEnabled) shareWithParty(cfg.shinyShareMessage);
+        if (cfg.shinyCallParty) callParty();
     }
 
-    private static void shareWithParty(String message) {
-        String text = message == null ? "" : message.trim();
-        if (text.isEmpty()) return;
-
+    private static void callParty() {
         ClientPacketListener connection = Minecraft.getInstance().getConnection();
         if (connection == null) return;
 
-        ShokiMod.LOGGER.info("[Shiny] sharing to party: {}", text);
-        connection.sendCommand("pc " + text);
+        ShokiMod.LOGGER.info("[Shiny] calling the party: {}", CALL);
+        connection.sendCommand("pc " + CALL);
     }
 
     /**
@@ -78,18 +80,14 @@ public final class ShinyAlert {
      * @param plain die Chatzeile ohne Farbcodes
      */
     public static void onChatMessage(String plain) {
-        ModConfig.SafariCategory cfg = ModConfig.INSTANCE.safari;
-        if (!cfg.shinyChatAlert || plain == null) return;
-
-        String message = cfg.shinyShareMessage == null ? "" : cfg.shinyShareMessage.trim();
-        if (message.isEmpty()) return;
+        if (!ModConfig.INSTANCE.safari.shinyCallSound || plain == null) return;
 
         String line = plain.trim();
-        if (!line.toLowerCase(Locale.ROOT).contains(message.toLowerCase(Locale.ROOT))) return;
+        if (!line.toLowerCase(Locale.ROOT).contains(CALL_LOWER)) return;
         if (isOwnEcho(line)) return;
 
         ShokiMod.LOGGER.info("[Shiny] party call heard: {}", line);
-        playChatAlert();
+        playCallSound();
     }
 
     /**
@@ -106,18 +104,19 @@ public final class ShinyAlert {
     }
 
     /** Der Testknopf: derselbe Ton, den ein fremder Ruf ausloest */
-    public static void testChatAlert() {
-        playChatAlert();
+    public static void testCallSound() {
+        playCallSound();
     }
 
     /**
      * Die eingestellte Datei, sonst Minecrafts Notenblock.
      *
-     * Die Datei muss man selbst in config/shokimod/sounds legen - eine fehlende soll
-     * den Alarm nicht stumm machen, sondern nur anders klingen lassen.
+     * Die Standarddatei liegt der Mod bei und wird beim Start nach
+     * config/shokimod/sounds gelegt, falls dort noch keine liegt. Eine fehlende
+     * Datei soll den Alarm nicht stumm machen, sondern nur anders klingen lassen.
      */
-    private static void playChatAlert() {
-        String file = ModConfig.INSTANCE.safari.shinyChatAlertSound;
+    private static void playCallSound() {
+        String file = ModConfig.INSTANCE.safari.shinyCallSoundFile;
         if (file != null && !file.isBlank() && CustomSoundPlayer.isSupported(file)
                 && Files.exists(CustomSoundPlayer.SOUND_DIRECTORY.resolve(file))) {
             CustomSoundPlayer.play(file, AlertVolume.factor(), ShinyAlert.class);

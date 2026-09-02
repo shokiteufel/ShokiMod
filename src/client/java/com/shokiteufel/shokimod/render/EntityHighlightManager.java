@@ -271,11 +271,6 @@ public class EntityHighlightManager {
         Player player = Minecraft.getInstance().player;
         if (player == null) return;
 
-        if (ModConfig.INSTANCE.mobVisuals.tracerMode == ModConfig.MobVisualsCategory.TracerMode.ALL) {
-            tracerEntities.put(entity, colorARGB);
-            return;
-        }
-
         Entity current = tracerNearest.get(key);
         if (current != null) {
             if (current.distanceToSqr(player) <= entity.distanceToSqr(player)) return;

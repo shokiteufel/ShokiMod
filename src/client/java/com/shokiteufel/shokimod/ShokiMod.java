@@ -1,6 +1,7 @@
 package com.shokiteufel.shokimod;
 
 import com.shokiteufel.shokimod.data.ModConfig;
+import com.shokiteufel.shokimod.util.BundledSounds;
 import com.shokiteufel.shokimod.gui.HudEditorScreen;
 import com.shokiteufel.shokimod.gui.ShokiConfigEditor;
 import com.shokiteufel.shokimod.handler.FloorDropHandler;
@@ -43,6 +44,7 @@ public class ShokiMod implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         ModConfig.load();
+        BundledSounds.seed();
         NetworkHandler.init();
         // Die Ortsbestimmung ist Voraussetzung für alles Weitere, darum zuerst
         LocationScanner.register();

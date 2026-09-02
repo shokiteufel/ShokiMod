@@ -68,6 +68,19 @@ public class CustomMob implements MobVisual {
     @Expose
     public boolean enabled = true;
 
+    /**
+     * Die drei Anzeigen je Mob: Namensschild, Umriss, Linie.
+     *
+     * Die Gesamtschalter im Reiter gelten weiter; hier nimmt man einem einzelnen Mob
+     * eine Anzeige weg, ohne ihn aus der Liste zu werfen.
+     */
+    @Expose
+    public boolean showName = true;
+    @Expose
+    public boolean showHighlight = true;
+    @Expose
+    public boolean showLine = true;
+
     public CustomMob() {
     }
 
@@ -126,17 +139,17 @@ public class CustomMob implements MobVisual {
     // 個別のオン・オフはリストから外さずに切り替えたいので、機能側の判定に条件を足す
     @Override
     public boolean highlight() {
-        return enabled && MobVisual.super.highlight();
+        return enabled && showHighlight && MobVisual.super.highlight();
     }
 
     @Override
     public boolean tracer() {
-        return enabled && MobVisual.super.tracer();
+        return enabled && showLine && MobVisual.super.tracer();
     }
 
     @Override
     public boolean nameplate() {
-        return enabled && MobVisual.super.nameplate();
+        return enabled && showName && MobVisual.super.nameplate();
     }
 
     public boolean isUsable() {

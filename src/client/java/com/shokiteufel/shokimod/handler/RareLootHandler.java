@@ -219,7 +219,7 @@ public final class RareLootHandler {
         int colour = TIER_COLOURS[Math.min(Math.max(tier.number() - 1, 0), TIER_COLOURS.length - 1)];
 
         if (tier.banner()) {
-            DropBanner.show(cfg().bannerStyle, "+ " + headline, "(" + worth + ")",
+            DropBanner.show(tier.style(), "+ " + headline, "(" + worth + ")",
                     "Tier " + tier.number(), colour, BANNER_MILLIS);
         }
 
@@ -369,7 +369,6 @@ public final class RareLootHandler {
 
         out.append("[settings]\n");
         out.append("enabled=").append(cfg.enabled)
-                .append(" banner=").append(cfg.bannerStyle)
                 .append(" shardPrice=").append(cfg.shardPriceMode)
                 .append(" bazaarPrice=").append(cfg.bazaarPriceMode)
                 .append(" alertVolume=").append(AlertVolume.factor()).append('\n');
@@ -379,6 +378,7 @@ public final class RareLootHandler {
                     .append(" threshold=").append(tier.threshold())
                     .append(" (=").append((long) ItemValue.parseAmount(tier.threshold())).append(")")
                     .append(" banner=").append(tier.banner())
+                    .append(" style=").append(tier.style())
                     .append(" toast=").append(tier.toast())
                     .append(" chat=").append(tier.chat())
                     .append(" sound=").append(tier.sound()).append('\n');

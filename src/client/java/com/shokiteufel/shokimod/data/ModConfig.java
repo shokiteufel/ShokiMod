@@ -76,16 +76,17 @@ public class ModConfig extends Config {
         if (INSTANCE.chat.rareLoot == null) INSTANCE.chat.rareLoot = new RareLootCategory();
         if (INSTANCE.test == null) INSTANCE.test = new TestCategory();
         // Gson laesst ein unbekanntes Enum-Wort als null stehen - dann gilt der Standard
-        if (INSTANCE.chat.rareLoot.bannerStyle == null) INSTANCE.chat.rareLoot.bannerStyle = DropBanner.Style.CLASSIC;
+        if (INSTANCE.chat.rareLoot.tier1Style == null) INSTANCE.chat.rareLoot.tier1Style = DropBanner.Style.CLASSIC;
+        if (INSTANCE.chat.rareLoot.tier2Style == null) INSTANCE.chat.rareLoot.tier2Style = DropBanner.Style.CLASSIC;
+        if (INSTANCE.chat.rareLoot.tier3Style == null) INSTANCE.chat.rareLoot.tier3Style = DropBanner.Style.CLASSIC;
         if (INSTANCE.chat.rareLoot.shardPriceMode == null) INSTANCE.chat.rareLoot.shardPriceMode = ItemValue.PriceMode.INSTANT_SELL;
         if (INSTANCE.chat.rareLoot.bazaarPriceMode == null) INSTANCE.chat.rareLoot.bazaarPriceMode = ItemValue.PriceMode.INSTANT_SELL;
         if (INSTANCE.chat.rareLoot.shareTemplate == null) INSTANCE.chat.rareLoot.shareTemplate = "{prefix} {item} {mf} {value}";
-        if (INSTANCE.chat.rareLoot.bannerColour == null) INSTANCE.chat.rareLoot.bannerColour = "";
+        if (INSTANCE.chat.bannerColour == null) INSTANCE.chat.bannerColour = "";
         if (INSTANCE.chat.rareLoot.shareTemplate1 == null) INSTANCE.chat.rareLoot.shareTemplate1 = "";
         if (INSTANCE.chat.rareLoot.shareTemplate2 == null) INSTANCE.chat.rareLoot.shareTemplate2 = "";
         if (INSTANCE.chat.rareLoot.shareTemplate3 == null) INSTANCE.chat.rareLoot.shareTemplate3 = "";
-        if (INSTANCE.safari.shinyShareMessage == null) INSTANCE.safari.shinyShareMessage = "OMG!! WHO IS THAT SHINY?!";
-        if (INSTANCE.safari.shinyChatAlertSound == null) INSTANCE.safari.shinyChatAlertSound = "shiny-alert.mp3";
+        if (INSTANCE.safari.shinyCallSoundFile == null) INSTANCE.safari.shinyCallSoundFile = "shiny-alert.mp3";
 
         adoptLegacyCategory();
 
@@ -152,14 +153,24 @@ public class ModConfig extends Config {
         INSTANCE.test.banner8 = () -> Minecraft.getInstance().execute(() -> DropBanner.preview(DropBanner.Style.TWO_TONE));
         INSTANCE.test.banner9 = () -> Minecraft.getInstance().execute(() -> DropBanner.preview(DropBanner.Style.POP));
         INSTANCE.test.banner10 = () -> Minecraft.getInstance().execute(() -> DropBanner.preview(DropBanner.Style.MINIMAL));
-        INSTANCE.test.shinyCallSound = () -> Minecraft.getInstance().execute(ShinyAlert::testChatAlert);
-        INSTANCE.safari.openShinyChatAlertSound = () -> Minecraft.getInstance().execute(() ->
+        INSTANCE.test.banner11 = () -> Minecraft.getInstance().execute(() -> DropBanner.preview(DropBanner.Style.SWEEP));
+        INSTANCE.test.banner12 = () -> Minecraft.getInstance().execute(() -> DropBanner.preview(DropBanner.Style.DOUBLE_FRAME));
+        INSTANCE.test.banner13 = () -> Minecraft.getInstance().execute(() -> DropBanner.preview(DropBanner.Style.GLOW));
+        INSTANCE.test.banner14 = () -> Minecraft.getInstance().execute(() -> DropBanner.preview(DropBanner.Style.SIDEBAR));
+        INSTANCE.test.banner15 = () -> Minecraft.getInstance().execute(() -> DropBanner.preview(DropBanner.Style.TAG));
+        INSTANCE.test.banner16 = () -> Minecraft.getInstance().execute(() -> DropBanner.preview(DropBanner.Style.BRACKETS));
+        INSTANCE.test.banner17 = () -> Minecraft.getInstance().execute(() -> DropBanner.preview(DropBanner.Style.SPLIT));
+        INSTANCE.test.banner18 = () -> Minecraft.getInstance().execute(() -> DropBanner.preview(DropBanner.Style.TYPEWRITER));
+        INSTANCE.test.banner19 = () -> Minecraft.getInstance().execute(() -> DropBanner.preview(DropBanner.Style.FLASH));
+        INSTANCE.test.banner20 = () -> Minecraft.getInstance().execute(() -> DropBanner.preview(DropBanner.Style.CHEVRON));
+        INSTANCE.test.shinyCall = () -> Minecraft.getInstance().execute(ShinyAlert::testCallSound);
+        INSTANCE.safari.openShinyCallSound = () -> Minecraft.getInstance().execute(() ->
                 Minecraft.getInstance().setScreen(new SoundPickerScreen(
                         Minecraft.getInstance().screen,
-                        () -> INSTANCE.safari.shinyChatAlertSound,
-                        picked -> INSTANCE.safari.shinyChatAlertSound = picked,
+                        () -> INSTANCE.safari.shinyCallSoundFile,
+                        picked -> INSTANCE.safari.shinyCallSoundFile = picked,
                         1.0f)));
-        INSTANCE.safari.testShinyChatAlert = () -> Minecraft.getInstance().execute(ShinyAlert::testChatAlert);
+        INSTANCE.safari.testShinyCallSound = () -> Minecraft.getInstance().execute(ShinyAlert::testCallSound);
 
         if (INSTANCE.mobVisuals.customTargets == null) INSTANCE.mobVisuals.customTargets = new ArrayList<>();
         if (INSTANCE.chat.chatRules == null) INSTANCE.chat.chatRules = new ArrayList<>();
@@ -360,9 +371,59 @@ public class ModConfig extends Config {
         public transient Runnable banner10 = () -> {
         };
 
+        @ConfigOption(name = "Banner 11 - Underline sweep", desc = "A line grows out from the middle under the headline.")
+        @ConfigEditorButton(buttonText = "Show")
+        public transient Runnable banner11 = () -> {
+        };
+
+        @ConfigOption(name = "Banner 12 - Double frame", desc = "Two frames, one inside the other.")
+        @ConfigEditorButton(buttonText = "Show")
+        public transient Runnable banner12 = () -> {
+        };
+
+        @ConfigOption(name = "Banner 13 - Glow", desc = "A soft glow around the headline.")
+        @ConfigEditorButton(buttonText = "Show")
+        public transient Runnable banner13 = () -> {
+        };
+
+        @ConfigOption(name = "Banner 14 - Left bar stack", desc = "Three lines behind a coloured bar.")
+        @ConfigEditorButton(buttonText = "Show")
+        public transient Runnable banner14 = () -> {
+        };
+
+        @ConfigOption(name = "Banner 15 - Small tag", desc = "A small coloured label with dark text.")
+        @ConfigEditorButton(buttonText = "Show")
+        public transient Runnable banner15 = () -> {
+        };
+
+        @ConfigOption(name = "Banner 16 - Brackets", desc = "Coloured brackets around the headline.")
+        @ConfigEditorButton(buttonText = "Show")
+        public transient Runnable banner16 = () -> {
+        };
+
+        @ConfigOption(name = "Banner 17 - Split bar", desc = "Name on the dark half, value on the coloured half.")
+        @ConfigEditorButton(buttonText = "Show")
+        public transient Runnable banner17 = () -> {
+        };
+
+        @ConfigOption(name = "Banner 18 - Typewriter", desc = "The headline types itself out.")
+        @ConfigEditorButton(buttonText = "Show")
+        public transient Runnable banner18 = () -> {
+        };
+
+        @ConfigOption(name = "Banner 19 - Flash", desc = "A short flash of colour, then the text.")
+        @ConfigEditorButton(buttonText = "Show")
+        public transient Runnable banner19 = () -> {
+        };
+
+        @ConfigOption(name = "Banner 20 - Chevrons", desc = "Chevrons left and right of the headline.")
+        @ConfigEditorButton(buttonText = "Show")
+        public transient Runnable banner20 = () -> {
+        };
+
         @ConfigOption(name = "Shiny party call sound", desc = "Plays the sound you hear when someone in the party calls a shiny.")
         @ConfigEditorButton(buttonText = "Play")
-        public transient Runnable shinyCallSound = () -> {
+        public transient Runnable shinyCall = () -> {
         };
     }
 
@@ -471,11 +532,6 @@ public class ModConfig extends Config {
         public boolean enableTracer = true;
 
         @Expose
-        @ConfigOption(name = "Tracer Target", desc = "Nearest: only the closest mob of each kind.\nAll: every mob found.")
-        @ConfigEditorDropdown
-        public TracerMode tracerMode = TracerMode.NEAREST;
-
-        @Expose
         @ConfigOption(name = "Nameplate", desc = "Shows a nameplate on the target mobs.")
         @ConfigEditorBoolean
         public boolean enableNameplate = true;
@@ -529,21 +585,6 @@ public class ModConfig extends Config {
         }
 
         /** Tracer をどのモブに出すか。表示名はそのまま設定画面の選択肢になる */
-        public enum TracerMode {
-            NEAREST("Nearest"),
-            ALL("All");
-
-            private final String label;
-
-            TracerMode(String label) {
-                this.label = label;
-            }
-
-            @Override
-            public String toString() {
-                return label;
-            }
-        }
     }
 
     public static class ChatRulesCategory {
@@ -569,6 +610,31 @@ public class ModConfig extends Config {
         @ConfigEditorButton(buttonText = "Test")
         public transient Runnable testAlertVolume = () -> {
         };
+
+        @Expose
+        @ConfigOption(name = "Banner colour", desc = "Hex like FFD700. Empty keeps the tier colour (green, gold, purple). Applies to every style.")
+        @ConfigEditorText
+        public String bannerColour = "";
+
+        @Expose
+        @ConfigOption(name = "Banner size", desc = "Text size for styles 6 and up. 1 is normal.")
+        @ConfigEditorSlider(minValue = 0.5f, maxValue = 3.0f, minStep = 0.1f)
+        public float bannerScale = 1.0f;
+
+        @Expose
+        @ConfigOption(name = "Banner shadow", desc = "Draw the text with a drop shadow.")
+        @ConfigEditorBoolean
+        public boolean bannerShadow = true;
+
+        @Expose
+        @ConfigOption(name = "Banner X", desc = "Horizontal position for styles 6 and up, as a share of the screen width. 0.5 is the middle.")
+        @ConfigEditorSlider(minValue = 0.0f, maxValue = 1.0f, minStep = 0.01f)
+        public float bannerX = 0.5f;
+
+        @Expose
+        @ConfigOption(name = "Banner Y", desc = "Vertical position for styles 6 and up, as a share of the screen height. 0 is the top.")
+        @ConfigEditorSlider(minValue = 0.0f, maxValue = 1.0f, minStep = 0.01f)
+        public float bannerY = 0.3f;
 
         // ==========================================
         // Seltene Funde als eigener Reiter unter Alerts. Gelesen wird Hypixels
@@ -616,11 +682,6 @@ public class ModConfig extends Config {
         };
 
         @Expose
-        @ConfigOption(name = "Banner style", desc = "How a drop banner looks. Try all five in the Test tab; SHINY critters keep the classic band regardless.")
-        @ConfigEditorDropdown
-        public DropBanner.Style bannerStyle = DropBanner.Style.CLASSIC;
-
-        @Expose
         @ConfigOption(name = "Shard price", desc = "Which bazaar price counts for shards (SHARD_...). Instant Sell is what selling right now pays; Sell Order is what a listed order brings once it fills.")
         @ConfigEditorDropdown
         public ItemValue.PriceMode shardPriceMode = ItemValue.PriceMode.INSTANT_SELL;
@@ -630,30 +691,6 @@ public class ModConfig extends Config {
         @ConfigEditorDropdown
         public ItemValue.PriceMode bazaarPriceMode = ItemValue.PriceMode.INSTANT_SELL;
 
-        @Expose
-        @ConfigOption(name = "Banner colour", desc = "Hex like FFD700. Empty keeps the tier colour (green, gold, purple). Applies to every style.")
-        @ConfigEditorText
-        public String bannerColour = "";
-
-        @Expose
-        @ConfigOption(name = "Banner size", desc = "Text size for the free styles 6 to 10. 1 is normal.")
-        @ConfigEditorSlider(minValue = 0.5f, maxValue = 3.0f, minStep = 0.1f)
-        public float bannerScale = 1.0f;
-
-        @Expose
-        @ConfigOption(name = "Banner shadow", desc = "Draw the text with a drop shadow.")
-        @ConfigEditorBoolean
-        public boolean bannerShadow = true;
-
-        @Expose
-        @ConfigOption(name = "Banner X", desc = "Horizontal position for the free styles 6 to 10, as a share of the screen width. 0.5 is the middle.")
-        @ConfigEditorSlider(minValue = 0.0f, maxValue = 1.0f, minStep = 0.01f)
-        public float bannerX = 0.5f;
-
-        @Expose
-        @ConfigOption(name = "Banner Y", desc = "Vertical position for the free styles 6 to 10, as a share of the screen height. 0 is the top.")
-        @ConfigEditorSlider(minValue = 0.0f, maxValue = 1.0f, minStep = 0.01f)
-        public float bannerY = 0.3f;
 
         /**
          * Nur zum Auf- und Zuklappen. MoulConfig haelt den Zustand selbst und schreibt
@@ -680,6 +717,12 @@ public class ModConfig extends Config {
         @ConfigEditorBoolean
         @ConfigAccordionId(id = 21)
         public boolean tier1Banner = true;
+
+        @Expose
+        @ConfigOption(name = "Banner style", desc = "Which of the twenty banners this tier shows. Try them in the Test tab.")
+        @ConfigEditorDropdown
+        @ConfigAccordionId(id = 21)
+        public DropBanner.Style tier1Style = DropBanner.Style.CLASSIC;
 
         @Expose
         @ConfigOption(name = "Toast", desc = "Small box in the top right corner.")
@@ -735,6 +778,12 @@ public class ModConfig extends Config {
         public boolean tier2Banner = true;
 
         @Expose
+        @ConfigOption(name = "Banner style", desc = "Which of the twenty banners this tier shows. Try them in the Test tab.")
+        @ConfigEditorDropdown
+        @ConfigAccordionId(id = 22)
+        public DropBanner.Style tier2Style = DropBanner.Style.CLASSIC;
+
+        @Expose
         @ConfigOption(name = "Toast", desc = "Small box in the top right corner.")
         @ConfigEditorBoolean
         @ConfigAccordionId(id = 22)
@@ -786,6 +835,12 @@ public class ModConfig extends Config {
         @ConfigEditorBoolean
         @ConfigAccordionId(id = 23)
         public boolean tier3Banner = true;
+
+        @Expose
+        @ConfigOption(name = "Banner style", desc = "Which of the twenty banners this tier shows. Try them in the Test tab.")
+        @ConfigEditorDropdown
+        @ConfigAccordionId(id = 23)
+        public DropBanner.Style tier3Style = DropBanner.Style.CLASSIC;
 
         @Expose
         @ConfigOption(name = "Toast", desc = "Small box in the top right corner.")
@@ -891,14 +946,14 @@ public class ModConfig extends Config {
 
         /** Eine Stufe, wie der Handler sie sieht */
         public record Tier(int number, boolean enabled, String threshold, boolean banner,
-                           boolean toast, boolean chat, String sound) {
+                           boolean toast, boolean chat, String sound, DropBanner.Style style) {
         }
 
         public Tier tier(int number) {
             return switch (number) {
-                case 1 -> new Tier(1, tier1Enabled, tier1Threshold, tier1Banner, tier1Toast, tier1Chat, tier1Sound);
-                case 2 -> new Tier(2, tier2Enabled, tier2Threshold, tier2Banner, tier2Toast, tier2Chat, tier2Sound);
-                default -> new Tier(3, tier3Enabled, tier3Threshold, tier3Banner, tier3Toast, tier3Chat, tier3Sound);
+                case 1 -> new Tier(1, tier1Enabled, tier1Threshold, tier1Banner, tier1Toast, tier1Chat, tier1Sound, tier1Style);
+                case 2 -> new Tier(2, tier2Enabled, tier2Threshold, tier2Banner, tier2Toast, tier2Chat, tier2Sound, tier2Style);
+                default -> new Tier(3, tier3Enabled, tier3Threshold, tier3Banner, tier3Toast, tier3Chat, tier3Sound, tier3Style);
             };
         }
 
@@ -1067,36 +1122,30 @@ public class ModConfig extends Config {
         public transient boolean shinyShareFolder = false;
 
         @Expose
-        @ConfigOption(name = "Call the party", desc = "When a SHINY banner fires, send the message below as /pc.")
+        @ConfigOption(name = "Call the party", desc = "When a SHINY banner fires, send OMG!! WHO IS THAT SHINY?! as /pc. The text is fixed so every ShokiMod in the party recognises it.")
         @ConfigEditorBoolean
         @ConfigAccordionId(id = 30)
-        public boolean shinyShareEnabled = false;
+        public boolean shinyCallParty = true;
 
         @Expose
-        @ConfigOption(name = "Message", desc = "What gets sent. The same text is what the sound below listens for, so keep it identical in the whole party.")
-        @ConfigEditorText
-        @ConfigAccordionId(id = 30)
-        public String shinyShareMessage = "OMG!! WHO IS THAT SHINY?!";
-
-        @Expose
-        @ConfigOption(name = "Sound on call", desc = "Play a sound whenever the message above shows up in chat from someone else.")
+        @ConfigOption(name = "Sound on call", desc = "Play a sound whenever someone else's OMG!! WHO IS THAT SHINY?! shows up in chat.")
         @ConfigEditorBoolean
         @ConfigAccordionId(id = 30)
-        public boolean shinyChatAlert = true;
+        public boolean shinyCallSound = true;
 
-        @ConfigOption(name = "Call sound", desc = "Your own file from config/shokimod/sounds. Default name is shiny-alert.mp3 - drop a file with that name in and it plays; without it you hear a note block.")
+        @ConfigOption(name = "Call sound", desc = "The file from config/shokimod/sounds. shiny-alert.mp3 comes with the mod and is placed there on first start; pick another if you like.")
         @ConfigEditorButton(buttonText = "Pick")
         @ConfigAccordionId(id = 30)
-        public transient Runnable openShinyChatAlertSound = () -> {
+        public transient Runnable openShinyCallSound = () -> {
         };
 
         @Expose
-        public String shinyChatAlertSound = "shiny-alert.mp3";
+        public String shinyCallSoundFile = "shiny-alert.mp3";
 
         @ConfigOption(name = "Test", desc = "Plays the call sound once.")
         @ConfigEditorButton(buttonText = "Test")
         @ConfigAccordionId(id = 30)
-        public transient Runnable testShinyChatAlert = () -> {
+        public transient Runnable testShinyCallSound = () -> {
         };
 
         // Werte ohne eigene Zeile. Gesetzt wird alles ueber MarkerSettingsScreen

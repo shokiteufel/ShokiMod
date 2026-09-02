@@ -31,7 +31,7 @@ import java.util.Map;
 public class CustomMobScreen extends Screen {
 
     private static final int ROW_HEIGHT = 24;
-    private static final int ROW_WIDTH = 384;
+    private static final int ROW_WIDTH = 392;
     private static final int WIDGET_HEIGHT = 20;
     private static final int LIST_TOP = 62;
 
@@ -40,10 +40,11 @@ public class CustomMobScreen extends Screen {
     private static final int COLUMN_LABEL = 36;
     private static final int COLUMN_DEFAULT = 156;
     private static final int COLUMN_MATCH = 190;
-    private static final int COLUMN_SWATCH = 324;
-    private static final int COLUMN_DELETE = 362;
+    private static final int COLUMN_FLAGS = 270;
+    private static final int COLUMN_SWATCH = 332;
+    private static final int COLUMN_DELETE = 370;
     private static final int LABEL_WIDTH = 116;
-    private static final int MATCH_WIDTH = 130;
+    private static final int MATCH_WIDTH = 76;
 
     private enum Tab {
         LIST("Your list"),
@@ -203,6 +204,11 @@ public class CustomMobScreen extends Screen {
             addRenderableWidget(info);
         }
 
+        // Die drei Anzeigen dieses einen Mobs. Gruen heisst an
+        addFlag(x + COLUMN_FLAGS, y, "N", "Name plate", mob.showName, value -> mob.showName = value);
+        addFlag(x + COLUMN_FLAGS + 20, y, "H", "Highlight (glow)", mob.showHighlight, value -> mob.showHighlight = value);
+        addFlag(x + COLUMN_FLAGS + 40, y, "L", "Line to the nearest one", mob.showLine, value -> mob.showLine = value);
+
         addRenderableWidget(new ColorSwatchButton(x + COLUMN_SWATCH, y, 36, WIDGET_HEIGHT,
                 () -> mob.color, () -> 255, () -> openColorPicker(mob)));
 
@@ -211,6 +217,22 @@ public class CustomMobScreen extends Screen {
                     targets().remove(mob);
                     rebuild();
                 }).bounds(x + COLUMN_DELETE, y, 20, WIDGET_HEIGHT).build());
+    }
+
+    private void addFlag(int x, int y, String letter, String what, boolean on,
+                         java.util.function.Consumer<Boolean> set) {
+        boolean[] state = {on};
+        Button flag = Button.builder(flagLabel(letter, state[0]), button -> {
+            state[0] = !state[0];
+            set.accept(state[0]);
+            button.setMessage(flagLabel(letter, state[0]));
+        }).bounds(x, y, 18, WIDGET_HEIGHT).build();
+        flag.setTooltip(Tooltip.create(Component.literal(what + " for this mob")));
+        addRenderableWidget(flag);
+    }
+
+    private static Component flagLabel(String letter, boolean on) {
+        return Component.literal(letter).withStyle(on ? ChatFormatting.GREEN : ChatFormatting.DARK_GRAY);
     }
 
     /** "entity.minecraft.tropical_fish" -> "tropical_fish (pink)" */
