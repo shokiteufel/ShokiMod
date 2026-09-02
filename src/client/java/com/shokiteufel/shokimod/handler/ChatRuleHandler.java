@@ -5,6 +5,7 @@ import com.shokiteufel.shokimod.data.GameState;
 import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.render.AlertBanner;
 import com.shokiteufel.shokimod.render.ShokiModToast;
+import com.shokiteufel.shokimod.util.AlertVolume;
 import com.shokiteufel.shokimod.util.CustomSoundPlayer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -88,12 +89,12 @@ public final class ChatRuleHandler {
 
         if (!rule.soundId.isBlank() && client.player != null) {
             SoundEvent sound = soundOf(rule.soundId);
-            if (sound != null) client.player.playSound(sound, rule.volume, 1.0f);
+            if (sound != null) client.player.playSound(sound, AlertVolume.scale(rule.volume), 1.0f);
         }
 
         if (!rule.soundFile.isBlank()) {
             // Jede Regel ist ein eigener Kanal - zwei Treffer kurz nacheinander sollen beide hoerbar sein
-            CustomSoundPlayer.play(rule.soundFile, rule.volume, rule);
+            CustomSoundPlayer.play(rule.soundFile, AlertVolume.scale(rule.volume), rule);
         }
     }
 

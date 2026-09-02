@@ -39,6 +39,18 @@ public final class RareLootParser {
             "^(?<amount>\\d+)\\s*x\\s+(?<drop>.+)$", Pattern.CASE_INSENSITIVE);
     private static final Pattern ENCHANTED_BOOK = Pattern.compile(
             "^Enchanted Book \\((?<enchant>.+?) (?<level>\\d+|[IVXLCDM]+)\\)$", Pattern.CASE_INSENSITIVE);
+    /**
+     * Ein gefangener Shard: "CHARM! You charmed the Ghost and received 3 Ghost Shards!"
+     *
+     * Hypixels Item-Liste fuehrt Shards nicht als Items, der Basar aber als Ware
+     * SHARD_<NAME>. "Ghost Shard" wird also zu SHARD_GHOST, "Wiki Tiki Shard" zu
+     * SHARD_WIKI_TIKI - gebildet aus dem Namen ohne das Wort Shard.
+     */
+    private static final Pattern CHARM = Pattern.compile(
+            "^CHARM!\\s+You charmed the .+? and received (?<amount>\\d+|an?) (?<shard>.+?) Shards?!?$",
+            Pattern.CASE_INSENSITIVE);
+    private static final String SHARD_PREFIX = "SHARD_";
+
     private static final Pattern COLOUR_CODE = Pattern.compile("§.");
     private static final Pattern NOT_ID_CHARS = Pattern.compile("[^A-Z0-9]+");
     private static final Pattern NOT_ASCII = Pattern.compile("[^\\x20-\\x7E]");
@@ -58,6 +70,9 @@ public final class RareLootParser {
         if (plain == null) return null;
         String clean = plain.trim();
         if (clean.isEmpty()) return null;
+
+        Matcher charm = CHARM.matcher(clean);
+        if (charm.matches()) return shardDrop(charm.group("amount"), charm.group("shard"));
 
         Matcher dug = DUG_OUT.matcher(clean);
         if (dug.matches()) {
@@ -111,6 +126,23 @@ public final class RareLootParser {
         String id = idFromDisplayName(displayName);
         if (id != null) candidates.add(id);
         return new Drop(displayName, amount, context, candidates);
+    }
+
+    /** "3" und "Ghost" werden zu 3x "Ghost Shard" mit der Kennung SHARD_GHOST */
+    private static Drop shardDrop(String amountText, String shardName) {
+        int amount = 1;
+        if (amountText != null && Character.isDigit(amountText.charAt(0))) {
+            try {
+                amount = Math.max(1, Integer.parseInt(amountText));
+            } catch (NumberFormatException ignored) {
+                // "a" oder "an" bleiben bei eins
+            }
+        }
+        String name = shardName.trim();
+        String key = trimUnderscores(NOT_ID_CHARS.matcher(name.toUpperCase(Locale.US)).replaceAll("_"));
+        List<String> candidates = new ArrayList<>(1);
+        if (!key.isEmpty()) candidates.add(SHARD_PREFIX + key);
+        return new Drop(name + " Shard", amount, null, candidates);
     }
 
     /** Ohne Ausrufezeichen, Klammern und Artikel. Null fuer Zeilen, die kein Fund sind */

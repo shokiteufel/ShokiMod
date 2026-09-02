@@ -9,6 +9,7 @@ import com.shokiteufel.shokimod.data.RareLootParser;
 import com.shokiteufel.shokimod.data.RareLootParser.Drop;
 import com.shokiteufel.shokimod.render.AlertBanner;
 import com.shokiteufel.shokimod.render.ShokiModToast;
+import com.shokiteufel.shokimod.util.AlertVolume;
 import com.shokiteufel.shokimod.util.CustomSoundPlayer;
 import com.shokiteufel.shokimod.util.ItemNames;
 import com.shokiteufel.shokimod.util.ItemValue;
@@ -228,7 +229,7 @@ public final class RareLootHandler {
 
         String sound = tier.sound();
         if (sound != null && !sound.isBlank()) {
-            CustomSoundPlayer.play(sound, 1.0f, RareLootHandler.class);
+            CustomSoundPlayer.play(sound, AlertVolume.factor(), RareLootHandler.class);
         }
     }
 

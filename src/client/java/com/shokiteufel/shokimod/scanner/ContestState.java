@@ -2,6 +2,7 @@ package com.shokiteufel.shokimod.scanner;
 
 import com.shokiteufel.shokimod.data.FeatureGate;
 import com.shokiteufel.shokimod.data.ModConfig;
+import com.shokiteufel.shokimod.util.AlertVolume;
 import com.shokiteufel.shokimod.util.CustomSoundPlayer;
 import com.shokiteufel.shokimod.util.ScoreboardUtils;
 import net.minecraft.client.Minecraft;
@@ -237,7 +238,7 @@ public final class ContestState {
 
         String file = cfg().contestWarningSound;
         if (file != null && !file.isBlank()) {
-            CustomSoundPlayer.play(file, 1.0f, ContestState.class);
+            CustomSoundPlayer.play(file, AlertVolume.factor(), ContestState.class);
         }
     }
 

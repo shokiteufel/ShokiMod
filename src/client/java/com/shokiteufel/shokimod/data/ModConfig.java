@@ -1,5 +1,6 @@
 package com.shokiteufel.shokimod.data;
 
+import com.shokiteufel.shokimod.util.AlertVolume;
 import com.shokiteufel.shokimod.util.ModPaths;
 import com.shokiteufel.shokimod.gui.ColorPickerScreen;
 import com.shokiteufel.shokimod.gui.ChatRuleScreen;
@@ -125,6 +126,7 @@ public class ModConfig extends Config {
                         1.0f)));
         INSTANCE.chat.rareLoot.testTier3 = () -> RareLootHandler.test(3);
         INSTANCE.chat.rareLoot.openDiagnostics = () -> Minecraft.getInstance().execute(RareLootHandler::writeDiagnostics);
+        INSTANCE.chat.testAlertVolume = () -> Minecraft.getInstance().execute(AlertVolume::test);
 
         if (INSTANCE.mobVisuals.customTargets == null) INSTANCE.mobVisuals.customTargets = new ArrayList<>();
         if (INSTANCE.chat.chatRules == null) INSTANCE.chat.chatRules = new ArrayList<>();
@@ -460,6 +462,16 @@ public class ModConfig extends Config {
         @ConfigOption(name = "Chat Rules", desc = "Add words and choose what happens. Sound files go into config/shokimod/sounds.")
         @ConfigEditorButton(buttonText = "Manage")
         public transient Runnable openChatRules = () -> {
+        };
+
+        @Expose
+        @ConfigOption(name = "Alert Volume", desc = "One knob for every alert sound: chat rules, rare loot tiers and the contest warning. A rule's own volume is scaled by this.")
+        @ConfigEditorSlider(minValue = 0.0f, maxValue = 1.0f, minStep = 0.05f)
+        public float alertVolume = 1.0f;
+
+        @ConfigOption(name = "Test Volume", desc = "Plays one of your alert sounds at the volume above. Uses the first rare loot or contest sound you picked, or a note block if none.")
+        @ConfigEditorButton(buttonText = "Test")
+        public transient Runnable testAlertVolume = () -> {
         };
 
         // ==========================================
