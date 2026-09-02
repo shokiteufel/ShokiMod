@@ -156,7 +156,7 @@ public class CustomMob implements MobVisual {
 
     @Override
     public boolean box() {
-        return enabled && showBox && MobVisual.super.box();
+        return enabled && showBox && MobVisual.master();
     }
 
     public boolean isUsable() {

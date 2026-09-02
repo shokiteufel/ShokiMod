@@ -11,6 +11,7 @@ import com.shokiteufel.shokimod.gui.HudEditorScreen;
 import com.shokiteufel.shokimod.gui.CustomMobScreen;
 import com.shokiteufel.shokimod.gui.MarkerSettingsScreen;
 import com.shokiteufel.shokimod.gui.SoundPickerScreen;
+import com.shokiteufel.shokimod.handler.HuntingTracker;
 import com.shokiteufel.shokimod.handler.RareLootHandler;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -27,6 +28,8 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.List;
 import java.util.Optional;
 
@@ -75,9 +78,11 @@ public class ModConfig extends Config {
         // Der Unterreiter kann in einer Datei von vor 1.1.4 als null stehen
         if (INSTANCE.chat.rareLoot == null) INSTANCE.chat.rareLoot = new RareLootCategory();
         if (INSTANCE.chat.banner == null) INSTANCE.chat.banner = new BannerCategory();
-        if (INSTANCE.chat.rareLoot.tier1Colour == null) INSTANCE.chat.rareLoot.tier1Colour = "";
-        if (INSTANCE.chat.rareLoot.tier2Colour == null) INSTANCE.chat.rareLoot.tier2Colour = "";
-        if (INSTANCE.chat.rareLoot.tier3Colour == null) INSTANCE.chat.rareLoot.tier3Colour = "";
+        if (INSTANCE.chat.banner.looks == null) INSTANCE.chat.banner.looks = new HashMap<>();
+        if (INSTANCE.hunting == null) INSTANCE.hunting = new HuntingCategory();
+        if (INSTANCE.hunting.tracker == null) INSTANCE.hunting.tracker = new HuntingTrackerCategory();
+        if (INSTANCE.hunting.tracker.counts == null) INSTANCE.hunting.tracker.counts = new HashMap<>();
+        if (INSTANCE.hunting.tracker.priceMode == null) INSTANCE.hunting.tracker.priceMode = ItemValue.PriceMode.INSTANT_SELL;
         if (INSTANCE.mobVisuals.shinyColour == null) INSTANCE.mobVisuals.shinyColour = "FFD700";
         // Der Shiny-Schalter zog aus dem Safari-Reiter hierher; den alten Stand einmal mitnehmen
         if (!INSTANCE.mobVisuals.shinyMoved) {
@@ -154,6 +159,7 @@ public class ModConfig extends Config {
         INSTANCE.chat.rareLoot.testTier3 = () -> RareLootHandler.test(3);
         INSTANCE.chat.rareLoot.openDiagnostics = () -> Minecraft.getInstance().execute(RareLootHandler::writeDiagnostics);
         INSTANCE.chat.testAlertVolume = () -> Minecraft.getInstance().execute(AlertVolume::test);
+        INSTANCE.hunting.tracker.resetTracker = () -> Minecraft.getInstance().execute(HuntingTracker::reset);
         INSTANCE.chat.banner.openEditor = () -> Minecraft.getInstance().execute(() ->
                 Minecraft.getInstance().setScreen(new HudEditorScreen(Minecraft.getInstance().screen)));
         INSTANCE.chat.banner.banner1 = () -> Minecraft.getInstance().execute(() -> DropBanner.preview(DropBanner.Style.CLASSIC));
@@ -326,6 +332,77 @@ public class ModConfig extends Config {
     @Category(name = "Safari", desc = "Markers for the Critter Safari.")
     public SafariCategory safari = new SafariCategory();
 
+    @Expose
+    @Category(name = "Hunting", desc = "Shard hunting.")
+    public HuntingCategory hunting = new HuntingCategory();
+
+    public static class HuntingCategory {
+
+        @ConfigOption(name = "Hunting", desc = "Everything about shard hunting lives in the sub tabs on the left.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @Category(name = "Hunting Tracker", desc = "Counts every shard you catch and prices the haul on the bazaar: total, per hour, and the top shards.")
+        public HuntingTrackerCategory tracker = new HuntingTrackerCategory();
+    }
+
+    /**
+     * Der Hunting Tracker: nur Shards, bewertet mit dem Basar.
+     *
+     * Der Zaehlstand liegt hier, damit er einen Neustart ueberlebt - bis zum Reset.
+     */
+    public static class HuntingTrackerCategory {
+
+        @Expose
+        @ConfigOption(name = "Enabled", desc = "Count shards from You caught and CHARM! lines. Off means nothing is counted or priced.")
+        @ConfigEditorBoolean
+        public boolean enabled = false;
+
+        @Expose
+        @ConfigOption(name = "Show panel", desc = "The tracker panel on screen. Move it with /shoki hud.")
+        @ConfigEditorBoolean
+        public boolean showHud = true;
+
+        @Expose
+        @ConfigOption(name = "Price", desc = "Instant Sell is what selling right now pays; Sell Order is what a listed order brings once it fills. The total follows the live price.")
+        @ConfigEditorDropdown
+        public ItemValue.PriceMode priceMode = ItemValue.PriceMode.INSTANT_SELL;
+
+        @Expose
+        @ConfigOption(name = "Pause after", desc = "Seconds without a catch before the timer pauses. The idle time since the last catch is taken off again, so Profit/h does not drop while you are away.")
+        @ConfigEditorSlider(minValue = 10f, maxValue = 600f, minStep = 5f)
+        public int pauseAfterSeconds = 120;
+
+        @Expose
+        @ConfigOption(name = "Rows", desc = "How many shards the panel lists, most valuable first.")
+        @ConfigEditorSlider(minValue = 1f, maxValue = 15f, minStep = 1f)
+        public int maxRows = 8;
+
+        @ConfigOption(name = "Reset", desc = "Clears the count and the timer.")
+        @ConfigEditorButton(buttonText = "Reset")
+        public transient Runnable resetTracker = () -> {
+        };
+
+        // Zaehlstand und Zeit - kein Menuefeld, nur Ablage
+        @Expose
+        public Map<String, Integer> counts = new HashMap<>();
+        @Expose
+        public long uptimeMillis = 0L;
+        @Expose
+        public long startedAt = 0L;
+
+        // Lage des Kastens, gesetzt ueber /shoki hud
+        @Expose
+        public float hudX = 0.75f;
+        @Expose
+        public float hudY = 0.4f;
+        @Expose
+        public float hudScale = 1.0f;
+        @Expose
+        public float hudAlpha = 1.0f;
+    }
+
 
     /**
      * Bis 1.0.0 lagen die drei Bereiche als Akkordeon in einer Kategorie "ShokiTeufel".
@@ -437,7 +514,7 @@ public class ModConfig extends Config {
         public boolean enableTracer = true;
 
         @Expose
-        @ConfigOption(name = "Box", desc = "Draws a box around the target mob's hitbox. Works on invisible mobs too, and may be combined with the glow.")
+        @ConfigOption(name = "Box", desc = "Box around Sparkling critters and the Hideyho finder. Your Mobs use the B button in their own row instead.")
         @ConfigEditorBoolean
         public boolean enableBox = false;
 
@@ -582,6 +659,29 @@ public class ModConfig extends Config {
         @ConfigOption(name = "Text shadow", desc = "Draw banner text with a drop shadow.")
         @ConfigEditorBoolean
         public boolean bannerShadow = true;
+
+        /**
+         * Ort, Groesse und Farbe je Stil, aus dem HUD-Editor.
+         *
+         * Je Stil, nicht je Stufe: wer Banner 7 einmal an seinen Platz gezogen hat,
+         * bekommt es dort, egal welche Stufe es ausloest. Schluessel ist der Name des
+         * Stils, damit die Datei lesbar bleibt und neue Stile keine alten verschieben.
+         */
+        @Expose
+        public Map<String, BannerLook> looks = new HashMap<>();
+
+        public BannerLook look(DropBanner.Style style) {
+            if (looks == null) looks = new HashMap<>();
+            return looks.computeIfAbsent(style.name(), key -> new BannerLook());
+        }
+
+        public static class BannerLook {
+            @Expose public float x = 0.5f;
+            @Expose public float y = 0.3f;
+            @Expose public float scale = 1.0f;
+            /** Hex wie FFD700. Leer: die Farbe der Stufe */
+            @Expose public String colour = "";
+        }
 
         @ConfigOption(name = "Banner 1 - Classic band", desc = "The band across the screen that SHINY critters use.")
         @ConfigEditorButton(buttonText = "Show")
@@ -753,15 +853,6 @@ public class ModConfig extends Config {
         @ConfigAccordionId(id = 21)
         public DropBanner.Style tier1Style = DropBanner.Style.CLASSIC;
 
-        /** Ort, Groesse und Farbe aus dem HUD-Editor. Kein Menuefeld: dort zieht man */
-        @Expose
-        public float tier1X = 0.5f;
-        @Expose
-        public float tier1Y = 0.3f;
-        @Expose
-        public float tier1Scale = 1.0f;
-        @Expose
-        public String tier1Colour = "";
 
         @Expose
         @ConfigOption(name = "Toast", desc = "Small box in the top right corner.")
@@ -822,15 +913,6 @@ public class ModConfig extends Config {
         @ConfigAccordionId(id = 22)
         public DropBanner.Style tier2Style = DropBanner.Style.CLASSIC;
 
-        /** Ort, Groesse und Farbe aus dem HUD-Editor. Kein Menuefeld: dort zieht man */
-        @Expose
-        public float tier2X = 0.5f;
-        @Expose
-        public float tier2Y = 0.4f;
-        @Expose
-        public float tier2Scale = 1.0f;
-        @Expose
-        public String tier2Colour = "";
 
         @Expose
         @ConfigOption(name = "Toast", desc = "Small box in the top right corner.")
@@ -891,15 +973,6 @@ public class ModConfig extends Config {
         @ConfigAccordionId(id = 23)
         public DropBanner.Style tier3Style = DropBanner.Style.CLASSIC;
 
-        /** Ort, Groesse und Farbe aus dem HUD-Editor. Kein Menuefeld: dort zieht man */
-        @Expose
-        public float tier3X = 0.5f;
-        @Expose
-        public float tier3Y = 0.5f;
-        @Expose
-        public float tier3Scale = 1.0f;
-        @Expose
-        public String tier3Colour = "";
 
         @Expose
         @ConfigOption(name = "Toast", desc = "Small box in the top right corner.")
@@ -1010,39 +1083,6 @@ public class ModConfig extends Config {
                 case 3 -> 0xFF55FF;
                 default -> 0xFFD700;
             };
-        }
-
-        public float bannerX(int tier) {
-            return switch (tier) { case 1 -> tier1X; case 2 -> tier2X; default -> tier3X; };
-        }
-
-        public float bannerY(int tier) {
-            return switch (tier) { case 1 -> tier1Y; case 2 -> tier2Y; default -> tier3Y; };
-        }
-
-        public float bannerScale(int tier) {
-            return switch (tier) { case 1 -> tier1Scale; case 2 -> tier2Scale; default -> tier3Scale; };
-        }
-
-        public String bannerColour(int tier) {
-            return switch (tier) { case 1 -> tier1Colour; case 2 -> tier2Colour; default -> tier3Colour; };
-        }
-
-        public void setBannerX(int tier, float value) {
-            switch (tier) { case 1 -> tier1X = value; case 2 -> tier2X = value; default -> tier3X = value; }
-        }
-
-        public void setBannerY(int tier, float value) {
-            switch (tier) { case 1 -> tier1Y = value; case 2 -> tier2Y = value; default -> tier3Y = value; }
-        }
-
-        public void setBannerScale(int tier, float value) {
-            switch (tier) { case 1 -> tier1Scale = value; case 2 -> tier2Scale = value; default -> tier3Scale = value; }
-        }
-
-        public void setBannerColour(int tier, String value) {
-            String clean = value == null ? "" : value;
-            switch (tier) { case 1 -> tier1Colour = clean; case 2 -> tier2Colour = clean; default -> tier3Colour = clean; }
         }
 
         /** Eine Stufe, wie der Handler sie sieht */

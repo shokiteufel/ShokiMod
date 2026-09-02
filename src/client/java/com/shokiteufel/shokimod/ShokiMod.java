@@ -6,7 +6,9 @@ import com.shokiteufel.shokimod.gui.HudEditorScreen;
 import com.shokiteufel.shokimod.gui.ShokiConfigEditor;
 import com.shokiteufel.shokimod.handler.FloorDropHandler;
 import com.shokiteufel.shokimod.handler.NetworkHandler;
+import com.shokiteufel.shokimod.handler.HuntingTracker;
 import com.shokiteufel.shokimod.handler.RareLootHandler;
+import com.shokiteufel.shokimod.render.DropBanner;
 import com.shokiteufel.shokimod.render.EntityHighlightManager;
 import com.shokiteufel.shokimod.scanner.LocationScanner;
 import com.shokiteufel.shokimod.scanner.ContestState;
@@ -14,6 +16,7 @@ import com.shokiteufel.shokimod.scanner.NestTracker;
 import com.shokiteufel.shokimod.session.SessionManager;
 import com.shokiteufel.shokimod.scanner.TabListScanner;
 
+import com.mojang.brigadier.arguments.StringArgumentType;
 import io.github.notenoughupdates.moulconfig.gui.GuiContext;
 import io.github.notenoughupdates.moulconfig.gui.GuiElementComponent;
 import io.github.notenoughupdates.moulconfig.platform.MoulConfigScreenComponent;
@@ -52,6 +55,7 @@ public class ShokiMod implements ClientModInitializer {
         EntityHighlightManager.register();
         FloorDropHandler.register();
         RareLootHandler.register();
+        HuntingTracker.register();
         NestTracker.register();
         ContestState.register();
         SessionManager.register();
@@ -93,6 +97,29 @@ public class ShokiMod implements ClientModInitializer {
                         // /shoki tab -> die Tab-Liste ins Log schreiben.
                         // Hypixels Zeilen aendern sich mit jedem Update; ohne den Blick
                         // auf die echten Zeilen ist jede Auswertung geraten
+                        // /shoki test B7 -> zeigt Banner 7 mit Beispieltext
+                        .then(ClientCommands.literal("test")
+                                .then(ClientCommands.argument("banner", StringArgumentType.word())
+                                        .executes(context -> {
+                                            String raw = StringArgumentType.getString(context, "banner").trim();
+                                            String digits = raw.replaceAll("(?i)^b", "");
+                                            int number;
+                                            try {
+                                                number = Integer.parseInt(digits);
+                                            } catch (NumberFormatException e) {
+                                                number = -1;
+                                            }
+                                            DropBanner.Style[] styles = DropBanner.Style.values();
+                                            if (number < 1 || number > styles.length) {
+                                                context.getSource().sendFeedback(Component.literal(
+                                                        "Use /shoki test B1 to B" + styles.length + "."));
+                                                return 0;
+                                            }
+                                            DropBanner.preview(styles[number - 1]);
+                                            context.getSource().sendFeedback(Component.literal(
+                                                    "Banner " + styles[number - 1]));
+                                            return 1;
+                                        })))
                         .then(ClientCommands.literal("tab").executes(context -> {
                             List<String> lines = TabListScanner.lastLines();
                             LOGGER.info("[ShokiMod] Tab list, {} lines:", lines.size());

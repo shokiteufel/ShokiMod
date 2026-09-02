@@ -122,7 +122,7 @@ public final class DropBanner {
         Font font = Minecraft.getInstance().font;
         int width = graphics.guiWidth();
         int height = graphics.guiHeight();
-        Look look = Look.fromTier(tierNumber, tint);
+        Look look = Look.fromStyle(style, tint);
 
         switch (style) {
             case CLASSIC -> classic(graphics, font, width, height, alpha, look);
@@ -148,16 +148,15 @@ public final class DropBanner {
         }
     }
 
-    /** Ort, Groesse, Farbe und Schatten einer Stufe - beim Zeichnen gelesen */
+    /** Ort, Groesse, Farbe und Schatten eines Stils - beim Zeichnen gelesen */
     private record Look(int colour, float scale, boolean shadow, float x, float y) {
 
-        static Look fromTier(int tier, int tierColour) {
-            ModConfig.RareLootCategory cfg = ModConfig.INSTANCE.chat.rareLoot;
-            int colour = parseColour(cfg.bannerColour(tier), tierColour);
-            float scale = clamp(cfg.bannerScale(tier), 0.5f, 3.0f);
-            float x = clamp(cfg.bannerX(tier), 0.0f, 1.0f);
-            float y = clamp(cfg.bannerY(tier), 0.0f, 1.0f);
-            return new Look(colour, scale, ModConfig.INSTANCE.chat.banner.bannerShadow, x, y);
+        static Look fromStyle(Style style, int tierColour) {
+            ModConfig.BannerCategory banner = ModConfig.INSTANCE.chat.banner;
+            ModConfig.BannerCategory.BannerLook look = banner.look(style);
+            int colour = parseColour(look.colour, tierColour);
+            return new Look(colour, clamp(look.scale, 0.5f, 3.0f), banner.bannerShadow,
+                    clamp(look.x, 0.0f, 1.0f), clamp(look.y, 0.0f, 1.0f));
         }
 
         int cx(int width) {

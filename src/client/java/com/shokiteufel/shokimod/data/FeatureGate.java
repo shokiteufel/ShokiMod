@@ -60,6 +60,11 @@ public final class FeatureGate {
         return false;
     }
 
+    /** Der Hunting Tracker: nur wenn er zaehlt, braucht er Ort und Preise */
+    public static boolean huntingTracker() {
+        return ModConfig.INSTANCE.hunting.tracker.enabled;
+    }
+
     /** Seltene Funde: Alarm oder Teilen. Aus heisst: kein Preis, kein Request */
     public static boolean rareLoot() {
         ModConfig.RareLootCategory c = ModConfig.INSTANCE.chat.rareLoot;
@@ -74,6 +79,6 @@ public final class FeatureGate {
      * reine Verschwendung. Billige Schalter stehen deshalb vorn.
      */
     public static boolean location() {
-        return contest() || safari() || nearbyPanel() || rareLoot() || mobMarkers() || chatRules();
+        return contest() || safari() || nearbyPanel() || rareLoot() || huntingTracker() || mobMarkers() || chatRules();
     }
 }

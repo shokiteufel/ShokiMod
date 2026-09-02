@@ -34,6 +34,8 @@ public class NetworkHandler {
             RareLootHandler.onChatMessage(unformattedMsg);
             // Der Shiny-Ruf eines anderen: nur hoeren, nichts aendern
             ShinyAlert.onChatMessage(unformattedMsg);
+            // Der Hunting Tracker zaehlt dieselben Shard-Zeilen mit
+            HuntingTracker.onChatMessage(unformattedMsg);
 
             // Ein "false" blendet die Originalzeile aus
             return ChatRuleHandler.handleMessage(message, msg, unformattedMsg);

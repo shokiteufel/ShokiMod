@@ -17,35 +17,36 @@ import java.util.EnumMap;
 import java.util.Map;
 
 /**
- * Die Kaesten und die drei Fund-Banner an die gewuenschte Stelle ziehen.
+ * Die Kaesten und die Fund-Banner an die gewuenschte Stelle ziehen.
  *
  * Ziehen verschiebt, Scrollen ueber einem Element aendert seine Groesse. Die
- * Kaesten werden mit Beispielinhalt gezeichnet, die Banner als Rahmen mit Namen -
- * so laesst sich alles einrichten, ohne auf einen Fund oder die Safari zu warten.
+ * Kaesten werden mit Beispielinhalt gezeichnet.
  *
- * Bei den Bannern gilt: Ort und Groesse zaehlen fuer die Stile ab 6. Die ersten
- * fuenf haben ihren festen Platz und nehmen aus dem Editor nur die Farbe.
+ * Bei den Bannern wird immer genau eines bearbeitet: das unten ausgewaehlte. Jeder
+ * der zwanzig Stile hat seinen eigenen Ort, seine Groesse und Farbe - und die
+ * gelten dann ueberall, wo dieser Stil eingesetzt wird, egal in welcher Stufe.
+ * Die Stile 1 bis 5 haben ihren festen Platz und nehmen von hier nur die Farbe.
  */
 public class HudEditorScreen extends Screen {
 
-    private static final int BANNER_COUNT = 3;
-    private static final int BANNER_BASE_WIDTH = 110;
-    private static final int BANNER_BASE_HEIGHT = 24;
+    private static final int BANNER_BASE_WIDTH = 120;
+    private static final int BANNER_BASE_HEIGHT = 26;
+    private static final DropBanner.Style[] STYLES = DropBanner.Style.values();
 
     private final Screen parent;
     private final Map<SafariHud.Panel, HudPanel> content = new EnumMap<>(SafariHud.Panel.class);
 
     private SafariHud.Panel draggingPanel = null;
-    /** 0 heisst: kein Banner wird gerade gezogen */
-    private int draggingBanner = 0;
+    private boolean draggingBanner = false;
     private int grabX = 0;
     private int grabY = 0;
 
     /** Der Kasten, auf den sich der Regler bezieht. Ein Klick waehlt ihn aus */
     private SafariHud.Panel selectedPanel = SafariHud.Panel.PROGRESS;
-    /** Das Banner, auf das sich Farbe und Zuruecksetzen beziehen */
-    private int selectedBanner = 1;
+    /** Der Stil, dessen Banner gerade bearbeitet wird */
+    private int styleIndex = 0;
     private OpacitySlider opacity;
+    private Button styleButton;
     private Button colourReset;
 
     public HudEditorScreen(Screen parent) {
@@ -53,29 +54,47 @@ public class HudEditorScreen extends Screen {
         this.parent = parent;
     }
 
-    private static ModConfig.RareLootCategory banners() {
-        return ModConfig.INSTANCE.chat.rareLoot;
+    private static ModConfig.BannerCategory banners() {
+        return ModConfig.INSTANCE.chat.banner;
+    }
+
+    private DropBanner.Style style() {
+        return STYLES[styleIndex];
+    }
+
+    private ModConfig.BannerCategory.BannerLook look() {
+        return banners().look(style());
     }
 
     @Override
     protected void init() {
         rebuildContent();
 
-        opacity = new OpacitySlider(width / 2 - 105, height - 78, 210);
+        opacity = new OpacitySlider(width / 2 - 105, height - 102, 210);
         addRenderableWidget(opacity);
 
-        // Farbe des ausgewaehlten Banners: das Feld zeigt sie, ein Klick oeffnet den Waehler
+        // Welches Banner: mit den Pfeilen durch die zwanzig Stile
+        addRenderableWidget(Button.builder(Component.literal("◀"), button -> selectStyle(styleIndex - 1))
+                .bounds(width / 2 - 105, height - 78, 20, 20).build());
+        styleButton = Button.builder(styleLabel(), button -> selectStyle(styleIndex + 1))
+                .bounds(width / 2 - 83, height - 78, 166, 20).build();
+        styleButton.setTooltip(Tooltip.create(Component.literal(
+                "The banner being edited. Its place, size and colour apply wherever this style is used.")));
+        addRenderableWidget(styleButton);
+        addRenderableWidget(Button.builder(Component.literal("▶"), button -> selectStyle(styleIndex + 1))
+                .bounds(width / 2 + 85, height - 78, 20, 20).build());
+
         ColorSwatchButton swatch = new ColorSwatchButton(width / 2 - 105, height - 54, 100, 20,
-                () -> bannerColour(selectedBanner), () -> 255, this::openBannerColour);
-        swatch.setTooltip(Tooltip.create(Component.literal("Colour of the selected banner")));
+                this::bannerColour, () -> 255, this::openBannerColour);
+        swatch.setTooltip(Tooltip.create(Component.literal("Colour of this banner")));
         addRenderableWidget(swatch);
 
         colourReset = Button.builder(Component.literal("Tier colour"), button -> {
-            banners().setBannerColour(selectedBanner, "");
+            look().colour = "";
             refreshColourReset();
         }).bounds(width / 2 + 5, height - 54, 100, 20).build();
         colourReset.setTooltip(Tooltip.create(Component.literal(
-                "Back to the tier colour: green, gold or purple")));
+                "No own colour: the banner takes the colour of the tier that fires it")));
         addRenderableWidget(colourReset);
         refreshColourReset();
 
@@ -88,21 +107,28 @@ public class HudEditorScreen extends Screen {
             SafariHud.Panel.CONTEST.setScale(1.0f);
             SafariHud.Panel.NEARBY.setPosition(0.01f, 0.35f);
             SafariHud.Panel.NEARBY.setScale(1.0f);
+            SafariHud.Panel.HUNTING.setPosition(0.75f, 0.4f);
+            SafariHud.Panel.HUNTING.setScale(1.0f);
             for (SafariHud.Panel panel : SafariHud.Panel.values()) {
                 panel.setAlpha(1.0f);
             }
-            for (int tier = 1; tier <= BANNER_COUNT; tier++) {
-                banners().setBannerX(tier, 0.5f);
-                banners().setBannerY(tier, 0.2f + tier * 0.1f);
-                banners().setBannerScale(tier, 1.0f);
-                banners().setBannerColour(tier, "");
-            }
+            banners().looks.clear();
             opacity.sync();
             refreshColourReset();
         }).bounds(width / 2 - 105, height - 30, 100, 20).build());
 
         addRenderableWidget(Button.builder(Component.literal("Done"), button -> onClose())
                 .bounds(width / 2 + 5, height - 30, 100, 20).build());
+    }
+
+    private void selectStyle(int index) {
+        styleIndex = Math.floorMod(index, STYLES.length);
+        styleButton.setMessage(styleLabel());
+        refreshColourReset();
+    }
+
+    private Component styleLabel() {
+        return Component.literal("Banner " + style());
     }
 
     /** Der Inhalt aendert sich waehrend des Einrichtens nicht - einmal bauen genuegt */
@@ -114,45 +140,44 @@ public class HudEditorScreen extends Screen {
 
     private void refreshColourReset() {
         if (colourReset == null) return;
-        String own = banners().bannerColour(selectedBanner);
+        String own = look().colour;
         colourReset.active = own != null && !own.isBlank();
     }
 
-    private int bannerColour(int tier) {
-        return DropBanner.parseColour(banners().bannerColour(tier),
-                ModConfig.RareLootCategory.defaultTierColour(tier));
+    private int bannerColour() {
+        return DropBanner.parseColour(look().colour, ModConfig.RareLootCategory.defaultTierColour(2));
     }
 
     private void openBannerColour() {
         if (minecraft == null) return;
-        int tier = selectedBanner;
-        minecraft.setScreen(new ColorPickerScreen(this, bannerColour(tier), 255,
-                (rgb, fillAlpha) -> banners().setBannerColour(tier, String.format("%06X", rgb & 0xFFFFFF))));
+        ModConfig.BannerCategory.BannerLook target = look();
+        minecraft.setScreen(new ColorPickerScreen(this, bannerColour(), 255,
+                (rgb, fillAlpha) -> target.colour = String.format("%06X", rgb & 0xFFFFFF)));
     }
 
-    // ---- Lage der Banner-Rahmen ----
+    // ---- Lage des Banner-Rahmens ----
 
-    private int bannerWidth(int tier) {
-        return (int) (BANNER_BASE_WIDTH * banners().bannerScale(tier));
+    private int bannerWidth() {
+        return (int) (BANNER_BASE_WIDTH * look().scale);
     }
 
-    private int bannerHeight(int tier) {
-        return (int) (BANNER_BASE_HEIGHT * banners().bannerScale(tier));
+    private int bannerHeight() {
+        return (int) (BANNER_BASE_HEIGHT * look().scale);
     }
 
-    private int bannerLeft(int tier) {
-        return (int) (banners().bannerX(tier) * width) - bannerWidth(tier) / 2;
+    private int bannerLeft() {
+        return (int) (look().x * width) - bannerWidth() / 2;
     }
 
-    private int bannerTop(int tier) {
-        return (int) (banners().bannerY(tier) * height) - bannerHeight(tier) / 2;
+    private int bannerTop() {
+        return (int) (look().y * height) - bannerHeight() / 2;
     }
 
-    private boolean isOverBanner(int tier, double mouseX, double mouseY) {
-        int left = bannerLeft(tier);
-        int top = bannerTop(tier);
-        return mouseX >= left && mouseX <= left + bannerWidth(tier)
-                && mouseY >= top && mouseY <= top + bannerHeight(tier);
+    private boolean isOverBanner(double mouseX, double mouseY) {
+        int left = bannerLeft();
+        int top = bannerTop();
+        return mouseX >= left && mouseX <= left + bannerWidth()
+                && mouseY >= top && mouseY <= top + bannerHeight();
     }
 
     private boolean isOver(SafariHud.Panel panel, double mouseX, double mouseY) {
@@ -169,14 +194,10 @@ public class HudEditorScreen extends Screen {
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-        // Banner zuerst: sie liegen ueber den Kaesten, so wie im Spiel auch
-        for (int tier = 1; tier <= BANNER_COUNT; tier++) {
-            if (!isOverBanner(tier, event.x(), event.y())) continue;
-            draggingBanner = tier;
-            selectedBanner = tier;
-            refreshColourReset();
-            grabX = (int) event.x() - (bannerLeft(tier) + bannerWidth(tier) / 2);
-            grabY = (int) event.y() - (bannerTop(tier) + bannerHeight(tier) / 2);
+        if (isOverBanner(event.x(), event.y())) {
+            draggingBanner = true;
+            grabX = (int) event.x() - (bannerLeft() + bannerWidth() / 2);
+            grabY = (int) event.y() - (bannerTop() + bannerHeight() / 2);
             return true;
         }
         for (SafariHud.Panel panel : SafariHud.Panel.values()) {
@@ -193,12 +214,10 @@ public class HudEditorScreen extends Screen {
 
     @Override
     public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
-        if (draggingBanner > 0) {
+        if (draggingBanner) {
             // Der Rahmen haengt an seiner Mitte, so wie das Banner spaeter auch
-            float x = (float) (event.x() - grabX) / width;
-            float y = (float) (event.y() - grabY) / height;
-            banners().setBannerX(draggingBanner, Math.clamp(x, 0f, 1f));
-            banners().setBannerY(draggingBanner, Math.clamp(y, 0f, 1f));
+            look().x = Math.clamp((float) (event.x() - grabX) / width, 0f, 1f);
+            look().y = Math.clamp((float) (event.y() - grabY) / height, 0f, 1f);
             return true;
         }
         if (draggingPanel == null) return super.mouseDragged(event, dragX, dragY);
@@ -212,16 +231,14 @@ public class HudEditorScreen extends Screen {
     @Override
     public boolean mouseReleased(MouseButtonEvent event) {
         draggingPanel = null;
-        draggingBanner = 0;
+        draggingBanner = false;
         return super.mouseReleased(event);
     }
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
-        for (int tier = 1; tier <= BANNER_COUNT; tier++) {
-            if (!isOverBanner(tier, mouseX, mouseY)) continue;
-            float scale = banners().bannerScale(tier) + (float) scrollY * 0.1f;
-            banners().setBannerScale(tier, Math.clamp(scale, 0.5f, 3.0f));
+        if (isOverBanner(mouseX, mouseY)) {
+            look().scale = Math.clamp(look().scale + (float) scrollY * 0.1f, 0.5f, 3.0f);
             return true;
         }
         for (SafariHud.Panel panel : SafariHud.Panel.values()) {
@@ -235,11 +252,8 @@ public class HudEditorScreen extends Screen {
     // ---- Zeichnen ----
 
     /**
-     * Kein Abdunkeln, kein Weichzeichner.
-     *
-     * Beides wuerde hinter die halbdurchsichtigen Kaesten geraten und sie blasser
-     * wirken lassen, als sie im Spiel aussehen - man wuerde also etwas einrichten,
-     * das man so nie zu sehen bekommt.
+     * Kein Abdunkeln, kein Weichzeichner: beides wuerde die halbdurchsichtigen
+     * Kaesten blasser zeigen, als sie im Spiel sind.
      */
     @Override
     public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
@@ -264,32 +278,25 @@ public class HudEditorScreen extends Screen {
             SafariHud.draw(graphics, font, panel, built);
         }
 
-        for (int tier = 1; tier <= BANNER_COUNT; tier++) {
-            int left = bannerLeft(tier);
-            int top = bannerTop(tier);
-            int right = left + bannerWidth(tier);
-            int bottom = top + bannerHeight(tier);
-            int colour = 0xFF000000 | bannerColour(tier);
-
-            graphics.fill(left, top, right, bottom, 0xA0101010);
-            int edge = tier == selectedBanner ? 0xFFFFAA00 : isOverBanner(tier, mouseX, mouseY) ? 0xFFFFFFFF : colour;
-            frame(graphics, left, top, right, bottom, edge);
-            // Der Farbbalken links zeigt die Farbe auch dann, wenn der Rahmen gerade gelb ist
-            graphics.fill(left, top, left + 3, bottom, colour);
-
-            String label = "Tier " + tier + " banner";
-            graphics.centeredText(font, label, (left + right) / 2, (top + bottom) / 2 - 4, 0xFFFFFFFF);
-        }
+        // Das eine Banner, das gerade bearbeitet wird
+        int left = bannerLeft();
+        int top = bannerTop();
+        int right = left + bannerWidth();
+        int bottom = top + bannerHeight();
+        int colour = 0xFF000000 | bannerColour();
+        graphics.fill(left, top, right, bottom, 0xA0101010);
+        frame(graphics, left, top, right, bottom, isOverBanner(mouseX, mouseY) ? 0xFFFFFFFF : 0xFFFFAA00);
+        graphics.fill(left, top, left + 3, bottom, colour);
+        graphics.centeredText(font, "Banner " + (styleIndex + 1), (left + right) / 2, (top + bottom) / 2 - 4, 0xFFFFFFFF);
 
         graphics.centeredText(font, this.title, width / 2, 12, 0xFFFFFFFF);
         graphics.centeredText(font, Component.literal(
-                        "Drag to move  ·  scroll to resize  ·  banners: styles 6 and up follow the frame")
+                        "Drag to move  ·  scroll to resize  ·  pick the banner below; styles 1-5 keep their place and take only the colour")
                 .withStyle(ChatFormatting.GRAY), width / 2, 26, 0xFFAAAAAA);
 
-        for (int tier = 1; tier <= BANNER_COUNT; tier++) {
-            if (!isOverBanner(tier, mouseX, mouseY)) continue;
-            graphics.centeredText(font, Component.literal(String.format("tier %d banner   size %.0f%%   style %s",
-                            tier, banners().bannerScale(tier) * 100, banners().tier(tier).style()))
+        if (isOverBanner(mouseX, mouseY)) {
+            graphics.centeredText(font, Component.literal(String.format("%s   size %.0f%%",
+                            style(), look().scale * 100))
                     .withStyle(ChatFormatting.YELLOW), width / 2, 38, 0xFFFFFF55);
             return;
         }
@@ -309,11 +316,7 @@ public class HudEditorScreen extends Screen {
         graphics.fill(right, top, right + 1, bottom, colour);
     }
 
-    /**
-     * Regler fuer die Deckkraft des ausgewaehlten Kastens.
-     *
-     * Ein Regler zeigt seinen Wert von selbst an und laesst sich mit der Maus finden.
-     */
+    /** Regler fuer die Deckkraft des ausgewaehlten Kastens */
     private class OpacitySlider extends AbstractSliderButton {
 
         OpacitySlider(int x, int y, int width) {
