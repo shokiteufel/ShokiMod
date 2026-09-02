@@ -24,7 +24,7 @@ import java.util.Map;
 public final class ItemValue {
 
     /** Derselbe Endpunkt, den zehn Mods dieses Profils nutzen - schluesselfrei */
-    public static final PriceFeed BAZAAR = new PriceFeed(
+    public static final RemoteMap<Double> BAZAAR = new RemoteMap<>(
             "bazaar prices",
             "https://api.hypixel.net/v2/skyblock/bazaar",
             "bazaar-prices.json",
@@ -32,7 +32,7 @@ public final class ItemValue {
             ItemValue::parseBazaar);
 
     /** Skyblockers Backend, in diesem Profil ohnehin schon in Gebrauch */
-    public static final PriceFeed LOWEST_BIN = new PriceFeed(
+    public static final RemoteMap<Double> LOWEST_BIN = new RemoteMap<>(
             "lowest BIN prices",
             "https://hysky.de/api/auctions/lowestbins",
             "lowest-bins.json",
@@ -51,10 +51,16 @@ public final class ItemValue {
         LOWEST_BIN
     }
 
-    /** Beide Listen nachladen, bevor der erste Fund sie braucht */
+    /** Alle Listen nachladen, bevor der erste Fund sie braucht */
     public static void prefetch() {
         BAZAAR.prefetch();
         LOWEST_BIN.prefetch();
+        ItemNames.prefetch();
+    }
+
+    /** Eine Zeile je Liste fuer den Diagnosebericht */
+    public static List<String> statusLines() {
+        return List.of(BAZAAR.status(), LOWEST_BIN.status(), ItemNames.FEED.status());
     }
 
     /**
@@ -73,11 +79,11 @@ public final class ItemValue {
             String itemId = candidate.trim();
             if (itemId.isEmpty()) continue;
 
-            double bazaar = BAZAAR.price(itemId);
-            if (bazaar > 0) return new Value(bazaar * multiplier, itemId, Source.BAZAAR_INSTANT_SELL);
+            Double bazaar = BAZAAR.get(itemId);
+            if (bazaar != null && bazaar > 0) return new Value(bazaar * multiplier, itemId, Source.BAZAAR_INSTANT_SELL);
 
-            double bin = LOWEST_BIN.price(itemId);
-            if (bin > 0) return new Value(bin * multiplier, itemId, Source.LOWEST_BIN);
+            Double bin = LOWEST_BIN.get(itemId);
+            if (bin != null && bin > 0) return new Value(bin * multiplier, itemId, Source.LOWEST_BIN);
         }
         return null;
     }
@@ -104,7 +110,7 @@ public final class ItemValue {
     }
 
     /**
-     * Eine flache Karte: Kennung auf Preis.
+     * Eine flache Karte: Kennung auf Preis, 4.800 Eintraege.
      *
      * Skyblocker liest dieselbe Antwort in eine Object2IntMap; mehr Struktur hat
      * sie nicht. Alles, was keine Zahl ist, wird uebergangen.

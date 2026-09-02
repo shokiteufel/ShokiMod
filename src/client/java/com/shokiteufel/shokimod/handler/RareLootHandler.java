@@ -10,14 +10,28 @@ import com.shokiteufel.shokimod.data.RareLootParser.Drop;
 import com.shokiteufel.shokimod.render.AlertBanner;
 import com.shokiteufel.shokimod.render.ShokiModToast;
 import com.shokiteufel.shokimod.util.CustomSoundPlayer;
+import com.shokiteufel.shokimod.util.ItemNames;
 import com.shokiteufel.shokimod.util.ItemValue;
 import com.shokiteufel.shokimod.util.ItemValue.Value;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
+import net.minecraft.util.Util;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.network.chat.Component;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Deque;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.regex.Pattern;
 
 /**
@@ -32,6 +46,10 @@ import java.util.regex.Pattern;
  * Gilde, ab einer eigenen Schwelle. Kommt sie als "Party > ..." zurueck, wird sie
  * nicht noch einmal gelesen - sonst teilte die Mod ihre eigene Meldung.
  *
+ * Jede Entscheidung wird festgehalten - im Log und in einem kurzen Gedaechtnis,
+ * das der Diagnoseknopf in eine Datei schreibt. Der Tester sieht das Spiel, nicht
+ * den Code; die Datei sagt ihm, was die Mod gesehen und warum sie geschwiegen hat.
+ *
  * Nachbau von Skysofts Rare Drop Titles und Rare Loot Sharing (LGPL-3.0,
  * Akinsoft), mit drei Stufen statt einer.
  */
@@ -41,6 +59,9 @@ public final class RareLootHandler {
     private static final long TOAST_MILLIS = 5000L;
     /** So lange nach "LOOT SHARE You received ..." gilt der naechste Fund als geteilt */
     private static final long LOOTSHARE_WINDOW_MILLIS = 2000L;
+    /** So viele Entscheidungen bleiben fuer den Bericht im Gedaechtnis */
+    private static final int REMEMBERED_EVENTS = 40;
+    private static final String DIAGNOSTICS_FILE = "shokimod-diagnostics.txt";
 
     /** Je Stufe eine Farbe, damit man schon am Banner sieht, welche es war */
     private static final int[] TIER_COLOURS = {0x55FF55, 0xFFD700, 0xFF55FF};
@@ -52,13 +73,16 @@ public final class RareLootHandler {
     /** Zeilen anderer Spieler und eigene geteilte Meldungen */
     private static final String[] SKIPPED_PREFIXES = {"Party >", "Guild >", "Co-op >", "From ", "To "};
 
+    private static final DateTimeFormatter CLOCK = DateTimeFormatter.ofPattern("HH:mm:ss");
+
+    private static final Deque<String> events = new ArrayDeque<>();
     private static long lastLootShareAt = 0L;
 
     private RareLootHandler() {
     }
 
     public static void register() {
-        // Die Preise sollen dastehen, bevor der erste Fund faellt. Ist alles aus,
+        // Die Listen sollen dastehen, bevor der erste Fund faellt. Ist alles aus,
         // wird hier nichts angestossen und nichts geholt
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (client.player == null || !GameState.Server.isSkyblock()) return;
@@ -103,18 +127,45 @@ public final class RareLootHandler {
         Drop drop = RareLootParser.parse(clean);
         if (drop == null) return;
 
-        Value value = ItemValue.resolve(drop.itemIdCandidates(), drop.amount());
+        List<String> candidates = candidatesFor(drop);
+        Value value = ItemValue.resolve(candidates, drop.amount());
         boolean lootshare = lastLootShareAt > 0L && now - lastLootShareAt <= LOOTSHARE_WINDOW_MILLIS;
+
+        note("drop \"" + clean + "\" -> name=" + drop.displayName() + " x" + drop.amount()
+                + " ids=" + candidates
+                + (value == null ? " value=UNKNOWN" : " value=" + ItemValue.format(value.coins())
+                + " via " + value.itemId() + "/" + value.source()));
 
         Minecraft client = Minecraft.getInstance();
         RareLootCategory cfg = cfg();
 
-        if (cfg.enabled && value != null) {
-            Tier tier = tierFor(value.coins());
-            if (tier != null) announce(client, tier, headline(drop), value.coins());
+        if (cfg.enabled) {
+            if (value == null) {
+                note("  no alert: no price known for any id");
+            } else {
+                Tier tier = tierFor(value.coins());
+                if (tier == null) {
+                    note("  no alert: below every enabled tier");
+                } else {
+                    note("  alert tier " + tier.number());
+                    announce(client, tier, headline(drop), value.coins());
+                }
+            }
         }
 
         if (cfg.shareEnabled) share(client, drop, value, lootshare);
+    }
+
+    /**
+     * Woher die Kennung kommt: erst Hypixels Item-Liste, dann das Raten aus dem Namen.
+     *
+     * "Ghostly Boots" heisst GHOST_BOOTS - das steht nur in der Liste. Was die Liste
+     * nicht kennt, etwa verzauberte Buecher, liefert der Parser aus dem Namen.
+     */
+    private static List<String> candidatesFor(Drop drop) {
+        LinkedHashSet<String> out = new LinkedHashSet<>(ItemNames.idsFor(drop.displayName()));
+        out.addAll(drop.itemIdCandidates());
+        return new ArrayList<>(out);
     }
 
     private static String headline(Drop drop) {
@@ -193,32 +244,31 @@ public final class RareLootHandler {
         double threshold = ItemValue.parseAmount(cfg.shareThreshold);
         String message = shareText(drop, value, lootshare);
 
-        // Jede Entscheidung steht im Log: der Tester sieht das Spiel, nicht den Code
         if (threshold > 0 && value == null) {
-            ShokiMod.LOGGER.info("[RareLoot] not shared, no price known: {}", message);
+            note("  not shared: no price known");
             return;
         }
         if (threshold > 0 && value.coins() < threshold) {
-            ShokiMod.LOGGER.info("[RareLoot] not shared, below {}: {}", cfg.shareThreshold, message);
+            note("  not shared: below " + cfg.shareThreshold);
             return;
         }
         if (!cfg.shareParty && !cfg.shareGuild) {
-            ShokiMod.LOGGER.info("[RareLoot] not shared, no channel chosen: {}", message);
+            note("  not shared: no channel chosen");
             return;
         }
 
         ClientPacketListener connection = client.getConnection();
         if (connection == null) {
-            ShokiMod.LOGGER.warn("[RareLoot] not shared, no connection: {}", message);
+            note("  not shared: no connection");
             return;
         }
 
         if (cfg.shareParty) {
-            ShokiMod.LOGGER.info("[RareLoot] sharing to party: {}", message);
+            note("  sharing to party: " + message);
             connection.sendCommand("pc " + message);
         }
         if (cfg.shareGuild) {
-            ShokiMod.LOGGER.info("[RareLoot] sharing to guild: {}", message);
+            note("  sharing to guild: " + message);
             connection.sendCommand("gc " + message);
         }
     }
@@ -232,6 +282,88 @@ public final class RareLootHandler {
         }
         if (value != null) {
             out.append(" (+").append(ItemValue.format(value.coins())).append(" coins)");
+        }
+        return out.toString();
+    }
+
+    /** Ins Log und ins Gedaechtnis - beides, damit der Bericht auch ohne Log etwas sagt */
+    private static void note(String text) {
+        ShokiMod.LOGGER.info("[RareLoot] {}", text);
+        synchronized (events) {
+            events.addLast(LocalDateTime.now().format(CLOCK) + " " + text);
+            while (events.size() > REMEMBERED_EVENTS) events.removeFirst();
+        }
+    }
+
+    /**
+     * Der Diagnoseknopf: schreibt alles Wissenswerte neben latest.log und oeffnet den Ordner.
+     *
+     * Version, Ort, Einstellungen, Zustand der drei Listen und die letzten
+     * Entscheidungen. Eine Datei, die man einfach weiterschicken kann - der Tester
+     * muss nichts suchen und nichts abtippen.
+     */
+    public static void writeDiagnostics() {
+        Path logs = FabricLoader.getInstance().getGameDir().resolve("logs");
+        Path file = logs.resolve(DIAGNOSTICS_FILE);
+        String report = buildReport(logs);
+
+        try {
+            Files.createDirectories(logs);
+            Files.writeString(file, report, StandardCharsets.UTF_8);
+            ShokiMod.LOGGER.info("[RareLoot] diagnostics written to {}", file);
+        } catch (IOException e) {
+            ShokiMod.LOGGER.warn("[RareLoot] could not write diagnostics: {}", e.toString());
+        }
+
+        Minecraft client = Minecraft.getInstance();
+        if (client.player != null) {
+            client.player.sendSystemMessage(Component.literal("§6[ShokiMod] §eDiagnostics written to §f" + file));
+        }
+        Util.getPlatform().openPath(logs);
+    }
+
+    private static String buildReport(Path logs) {
+        RareLootCategory cfg = cfg();
+        StringBuilder out = new StringBuilder();
+        String version = FabricLoader.getInstance().getModContainer("shokimod")
+                .map(container -> container.getMetadata().getVersion().getFriendlyString())
+                .orElse("unknown");
+
+        out.append("ShokiMod ").append(version).append(" - Rare Loot diagnostics\n");
+        out.append("written ").append(LocalDateTime.now()).append('\n');
+        out.append("send this file together with ").append(logs.resolve("latest.log")).append("\n\n");
+
+        out.append("[location]\n");
+        out.append("skyblock=").append(GameState.Server.isSkyblock())
+                .append(" area=").append(GameState.Server.map)
+                .append(" server=").append(GameState.Server.id).append("\n\n");
+
+        out.append("[settings]\n");
+        out.append("enabled=").append(cfg.enabled).append('\n');
+        for (Tier tier : cfg.tiers()) {
+            out.append("tier").append(tier.number())
+                    .append(": enabled=").append(tier.enabled())
+                    .append(" threshold=").append(tier.threshold())
+                    .append(" (=").append((long) ItemValue.parseAmount(tier.threshold())).append(")")
+                    .append(" banner=").append(tier.banner())
+                    .append(" toast=").append(tier.toast())
+                    .append(" chat=").append(tier.chat())
+                    .append(" sound=").append(tier.sound()).append('\n');
+        }
+        out.append("share: enabled=").append(cfg.shareEnabled)
+                .append(" party=").append(cfg.shareParty)
+                .append(" guild=").append(cfg.shareGuild)
+                .append(" threshold=").append(cfg.shareThreshold)
+                .append(" (=").append((long) ItemValue.parseAmount(cfg.shareThreshold)).append(")\n\n");
+
+        out.append("[price lists]\n");
+        for (String line : ItemValue.statusLines()) out.append(line).append('\n');
+        out.append('\n');
+
+        out.append("[recent decisions, oldest first]\n");
+        synchronized (events) {
+            if (events.isEmpty()) out.append("(none since start)\n");
+            for (String event : events) out.append(event).append('\n');
         }
         return out.toString();
     }

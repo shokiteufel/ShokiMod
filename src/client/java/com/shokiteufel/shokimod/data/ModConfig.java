@@ -124,6 +124,7 @@ public class ModConfig extends Config {
                         picked -> INSTANCE.chat.rareLoot.tier3Sound = picked,
                         1.0f)));
         INSTANCE.chat.rareLoot.testTier3 = () -> RareLootHandler.test(3);
+        INSTANCE.chat.rareLoot.openDiagnostics = () -> Minecraft.getInstance().execute(RareLootHandler::writeDiagnostics);
 
         if (INSTANCE.mobVisuals.customTargets == null) INSTANCE.mobVisuals.customTargets = new ArrayList<>();
         if (INSTANCE.chat.chatRules == null) INSTANCE.chat.chatRules = new ArrayList<>();
@@ -500,6 +501,11 @@ public class ModConfig extends Config {
         @ConfigOption(name = "Enabled", desc = "Reads Hypixel's RARE DROP! lines and prices the drop on the bazaar or, failing that, the auction house. Off means no price is ever requested.")
         @ConfigEditorBoolean
         public boolean enabled = false;
+
+        @ConfigOption(name = "Diagnostics", desc = "Writes what the mod saw and decided into logs/shokimod-diagnostics.txt and opens that folder. Send that file together with latest.log when something did not fire.")
+        @ConfigEditorButton(buttonText = "Open")
+        public transient Runnable openDiagnostics = () -> {
+        };
 
         /**
          * Nur zum Auf- und Zuklappen. MoulConfig haelt den Zustand selbst und schreibt
