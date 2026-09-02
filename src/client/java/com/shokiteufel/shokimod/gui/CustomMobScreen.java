@@ -31,7 +31,7 @@ import java.util.Map;
 public class CustomMobScreen extends Screen {
 
     private static final int ROW_HEIGHT = 24;
-    private static final int ROW_WIDTH = 392;
+    private static final int ROW_WIDTH = 412;
     private static final int WIDGET_HEIGHT = 20;
     private static final int LIST_TOP = 62;
 
@@ -41,8 +41,8 @@ public class CustomMobScreen extends Screen {
     private static final int COLUMN_DEFAULT = 156;
     private static final int COLUMN_MATCH = 190;
     private static final int COLUMN_FLAGS = 270;
-    private static final int COLUMN_SWATCH = 332;
-    private static final int COLUMN_DELETE = 370;
+    private static final int COLUMN_SWATCH = 352;
+    private static final int COLUMN_DELETE = 390;
     private static final int LABEL_WIDTH = 116;
     private static final int MATCH_WIDTH = 76;
 
@@ -208,6 +208,7 @@ public class CustomMobScreen extends Screen {
         addFlag(x + COLUMN_FLAGS, y, "N", "Name plate", mob.showName, value -> mob.showName = value);
         addFlag(x + COLUMN_FLAGS + 20, y, "H", "Highlight (glow)", mob.showHighlight, value -> mob.showHighlight = value);
         addFlag(x + COLUMN_FLAGS + 40, y, "L", "Line to the nearest one", mob.showLine, value -> mob.showLine = value);
+        addFlag(x + COLUMN_FLAGS + 60, y, "B", "Box around the hitbox", mob.showBox, value -> mob.showBox = value);
 
         addRenderableWidget(new ColorSwatchButton(x + COLUMN_SWATCH, y, 36, WIDGET_HEIGHT,
                 () -> mob.color, () -> 255, () -> openColorPicker(mob)));

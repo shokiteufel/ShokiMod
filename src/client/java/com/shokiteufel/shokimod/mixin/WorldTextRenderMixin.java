@@ -1,5 +1,6 @@
 package com.shokiteufel.shokimod.mixin;
 
+import com.shokiteufel.shokimod.render.BoxHighlightRenderer;
 import com.shokiteufel.shokimod.render.EntityTracerRenderer;
 import com.shokiteufel.shokimod.render.WorldTextRenderer;
 import net.minecraft.client.Minecraft;
@@ -25,5 +26,6 @@ public class WorldTextRenderMixin {
         Minecraft client = Minecraft.getInstance();
         WorldTextRenderer.render(client);
         EntityTracerRenderer.emitGizmos(client, partialTicks);
+        BoxHighlightRenderer.emitGizmos(client, partialTicks);
     }
 }

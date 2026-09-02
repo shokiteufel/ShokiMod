@@ -219,7 +219,7 @@ public final class RareLootHandler {
         int colour = TIER_COLOURS[Math.min(Math.max(tier.number() - 1, 0), TIER_COLOURS.length - 1)];
 
         if (tier.banner()) {
-            DropBanner.show(tier.style(), "+ " + headline, "(" + worth + ")",
+            DropBanner.show(tier.style(), tier.number(), "+ " + headline, "(" + worth + ")",
                     "Tier " + tier.number(), colour, BANNER_MILLIS);
         }
 

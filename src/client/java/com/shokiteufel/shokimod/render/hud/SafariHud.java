@@ -27,7 +27,7 @@ public final class SafariHud {
                 case PROGRESS -> c.showProgressHud;
                 case MISSING -> c.showMissingHud;
                 case CONTEST -> c.showContestHud;
-                case NEARBY -> ModConfig.INSTANCE.mobVisuals.showNearbyHud;
+                case NEARBY -> ModConfig.INSTANCE.mobVisuals.masterEnabled && ModConfig.INSTANCE.mobVisuals.showNearbyHud;
             };
         }
 

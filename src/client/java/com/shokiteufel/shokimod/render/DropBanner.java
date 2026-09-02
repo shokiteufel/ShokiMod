@@ -13,15 +13,15 @@ import java.util.Locale;
  *
  * Getrennt vom {@link AlertBanner}: der bleibt, wie er ist, fuer SHINY-Critter und
  * Chatregeln. Dieses Banner hier gehoert den Funden und darf anders aussehen -
- * welcher Stil, entscheidet jede Stufe fuer sich; der Test-Reiter zeigt alle.
+ * welcher Stil, entscheidet jede Stufe fuer sich; der Banner-Reiter zeigt alle.
  *
- * Die Stile 1 bis 5 haben ihren festen Platz. Alle ab 6 sitzen dort, wo die Regler
- * fuer X und Y sie hinschieben, in der eingestellten Groesse. Die Farbe kommt von
- * der Stufe - ausser es steht eine eigene in den Alert-Einstellungen.
+ * Die Stile 1 bis 5 haben ihren festen Platz. Alle ab 6 sitzen dort, wo man sie
+ * im HUD-Editor hingezogen hat, in der dort eingestellten Groesse - je Stufe
+ * eigens. Die Farbe kommt von der Stufe, ausser im Editor wurde eine gewaehlt.
  *
  * Wie beim AlertBanner gibt es keinen Timer: nur ein Zeitstempel, aus dem beim
- * Zeichnen Deckkraft und Position folgen. Die Regler werden beim Zeichnen gelesen,
- * nicht beim Ausloesen - so sieht man beim Schieben sofort, wohin es geht.
+ * Zeichnen Deckkraft und Position folgen. Ort und Groesse werden beim Zeichnen
+ * gelesen, nicht beim Ausloesen - so sieht man im Editor sofort, wohin es geht.
  */
 public final class DropBanner {
 
@@ -58,7 +58,7 @@ public final class DropBanner {
             return label;
         }
 
-        /** Alles ab Stil 6 folgt den Reglern fuer Ort und Groesse */
+        /** Alles ab Stil 6 folgt Ort und Groesse aus dem Editor */
         public boolean free() {
             return ordinal() >= OUTLINE.ordinal();
         }
@@ -72,6 +72,7 @@ public final class DropBanner {
     private static final long FLASH_MILLIS = 160L;
 
     private static Style style = Style.CLASSIC;
+    private static int tierNumber = 1;
     private static String headline = "";
     private static String worth = "";
     private static String tierLabel = "";
@@ -82,10 +83,15 @@ public final class DropBanner {
     private DropBanner() {
     }
 
-    /** Blendet ein Banner ein. Ein zweiter Aufruf ersetzt das laufende. */
-    public static void show(Style chosen, String headlineText, String worthText, String tierText,
+    /**
+     * Blendet ein Banner ein. Ein zweiter Aufruf ersetzt das laufende.
+     *
+     * @param tier die Stufe, deren Ort, Groesse und Farbe gelten (1 bis 3)
+     */
+    public static void show(Style chosen, int tier, String headlineText, String worthText, String tierText,
                             int rgb, long millis) {
         style = chosen == null ? Style.CLASSIC : chosen;
+        tierNumber = Math.min(Math.max(tier, 1), 3);
         headline = headlineText == null ? "" : headlineText;
         worth = worthText == null ? "" : worthText;
         tierLabel = tierText == null ? "" : tierText;
@@ -94,9 +100,9 @@ public final class DropBanner {
         shownAtMillis = System.currentTimeMillis();
     }
 
-    /** Der Test-Reiter: ein Beispiel im gewuenschten Stil, laenger als im Spiel */
+    /** Der Banner-Reiter: ein Beispiel im gewuenschten Stil, mit Ort und Farbe der Stufe 1 */
     public static void preview(Style chosen) {
-        show(chosen, "+ 3x Ghost Shard", "(10.5k)", "Tier 1 - " + chosen, 0xFFD700, 4500L);
+        show(chosen, 1, "+ 3x Ghost Shard", "(10.5k)", "Tier 1 - " + chosen, 0xFFD700, 4500L);
     }
 
     public static void render(GuiGraphicsExtractor graphics) {
@@ -116,7 +122,7 @@ public final class DropBanner {
         Font font = Minecraft.getInstance().font;
         int width = graphics.guiWidth();
         int height = graphics.guiHeight();
-        Look look = Look.fromConfig(tint);
+        Look look = Look.fromTier(tierNumber, tint);
 
         switch (style) {
             case CLASSIC -> classic(graphics, font, width, height, alpha, look);
@@ -142,16 +148,16 @@ public final class DropBanner {
         }
     }
 
-    /** Die Regler, beim Zeichnen gelesen: Farbe, Groesse, Schatten, Ort */
+    /** Ort, Groesse, Farbe und Schatten einer Stufe - beim Zeichnen gelesen */
     private record Look(int colour, float scale, boolean shadow, float x, float y) {
 
-        static Look fromConfig(int tierColour) {
-            ModConfig.ChatRulesCategory cfg = ModConfig.INSTANCE.chat;
-            int colour = parseColour(cfg.bannerColour, tierColour);
-            float scale = clamp(Float.isNaN(cfg.bannerScale) ? 1.0f : cfg.bannerScale, 0.5f, 3.0f);
-            float x = clamp(Float.isNaN(cfg.bannerX) ? 0.5f : cfg.bannerX, 0.0f, 1.0f);
-            float y = clamp(Float.isNaN(cfg.bannerY) ? 0.3f : cfg.bannerY, 0.0f, 1.0f);
-            return new Look(colour, scale, cfg.bannerShadow, x, y);
+        static Look fromTier(int tier, int tierColour) {
+            ModConfig.RareLootCategory cfg = ModConfig.INSTANCE.chat.rareLoot;
+            int colour = parseColour(cfg.bannerColour(tier), tierColour);
+            float scale = clamp(cfg.bannerScale(tier), 0.5f, 3.0f);
+            float x = clamp(cfg.bannerX(tier), 0.0f, 1.0f);
+            float y = clamp(cfg.bannerY(tier), 0.0f, 1.0f);
+            return new Look(colour, scale, ModConfig.INSTANCE.chat.banner.bannerShadow, x, y);
         }
 
         int cx(int width) {
@@ -164,7 +170,7 @@ public final class DropBanner {
     }
 
     /** "FFD700" oder "#ffd700" - leer oder unlesbar heisst: Farbe der Stufe */
-    static int parseColour(String text, int fallback) {
+    public static int parseColour(String text, int fallback) {
         if (text == null) return fallback;
         String hex = text.trim();
         if (hex.startsWith("#")) hex = hex.substring(1);
@@ -384,7 +390,6 @@ public final class DropBanner {
         float big = 2.6f * look.scale();
         float small = 1.2f * look.scale();
 
-        // Dieselbe Zeile mehrfach, leicht versetzt und blass: das wirkt wie ein Leuchten
         int haze = argb(alpha * 0.28f, look.colour());
         for (int dx = -2; dx <= 2; dx++) {
             for (int dy = -2; dy <= 2; dy++) {
@@ -479,8 +484,6 @@ public final class DropBanner {
         int shown = Math.min(headline.length(), Math.round(headline.length() * progress));
         String partial = headline.substring(0, shown) + (progress < 1.0f ? "_" : "");
 
-        // Links ausgerichtet an der Stelle, an der die volle Zeile zentriert stuende -
-        // sonst wanderte der Text beim Wachsen
         int left = cx - (int) (font.width(headline) * big) / 2;
         scaledText(g, font, partial, left, cy, big, argb(alpha, look.colour()), look.shadow());
         if (progress >= 1.0f) scaledCentered(g, font, worth, cx, cy + (int) (big * 11), small, argb(alpha, 0xFFFFFF), look.shadow());
@@ -559,6 +562,7 @@ public final class DropBanner {
     }
 
     private static float clamp(float value, float min, float max) {
+        if (Float.isNaN(value)) return min;
         return Math.max(min, Math.min(max, value));
     }
 

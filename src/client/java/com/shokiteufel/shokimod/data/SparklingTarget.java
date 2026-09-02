@@ -91,16 +91,21 @@ public final class SparklingTarget implements MobVisual {
     // エリア判定や捕獲済み判定は使わないので、shown() を通さず設定だけで決める
     @Override
     public boolean highlight() {
-        return cfg().sparklingEnabled && visuals().enableHighlight;
+        return MobVisual.master() && cfg().sparklingEnabled && visuals().enableHighlight;
     }
 
     @Override
     public boolean tracer() {
-        return cfg().sparklingEnabled && visuals().enableTracer;
+        return MobVisual.master() && cfg().sparklingEnabled && visuals().enableTracer;
     }
 
     @Override
     public boolean nameplate() {
-        return cfg().sparklingEnabled && visuals().enableNameplate;
+        return MobVisual.master() && cfg().sparklingEnabled && visuals().enableNameplate;
+    }
+
+    @Override
+    public boolean box() {
+        return MobVisual.master() && cfg().sparklingEnabled && visuals().enableBox;
     }
 }

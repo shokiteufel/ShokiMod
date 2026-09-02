@@ -80,6 +80,8 @@ public class CustomMob implements MobVisual {
     public boolean showHighlight = true;
     @Expose
     public boolean showLine = true;
+    @Expose
+    public boolean showBox = false;
 
     public CustomMob() {
     }
@@ -150,6 +152,11 @@ public class CustomMob implements MobVisual {
     @Override
     public boolean nameplate() {
         return enabled && showName && MobVisual.super.nameplate();
+    }
+
+    @Override
+    public boolean box() {
+        return enabled && showBox && MobVisual.super.box();
     }
 
     public boolean isUsable() {

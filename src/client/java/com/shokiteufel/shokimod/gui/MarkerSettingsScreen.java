@@ -67,21 +67,11 @@ public class MarkerSettingsScreen extends Screen {
                 new Row("Bee nests", "Nests in the Forest biome; harvested ones stop showing",
                         () -> c.highlightNests, v -> c.highlightNests = v,
                         c::nestColorRGB, rgb -> c.nestColor = hex(rgb), null),
-                new Row("Shiny alert", "Full-screen banner when a rare critter shows up",
-                        () -> c.shinyAlertEnabled, v -> c.shinyAlertEnabled = v,
-                        c::shinyColorRGB, rgb -> c.shinyColor = hex(rgb),
-                        MarkerSettingsScreen::previewShiny),
                 // Zeile ohne Farbe: colour bleibt null, dann wird kein Farbfeld gebaut
                 new Row("Only in matching biome", "Show Safari markers only while you are in their biome",
                         () -> c.safariBiomeOnly, v -> c.safariBiomeOnly = v,
                         null, null, null)
         );
-    }
-
-    /** Zeigt das Banner mit Beispieldaten, damit man Farbe und Groesse beurteilen kann */
-    private static void previewShiny() {
-        AlertBanner.show("SHINY!", "Sparkling Rockmite", "-87 42 156",
-                ModConfig.INSTANCE.safari.shinyColorRGB(), 7000L);
     }
 
     private static String hex(int rgb) {

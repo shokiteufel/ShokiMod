@@ -24,7 +24,7 @@ public final class NearbyOverlay {
     }
 
     public static boolean shown() {
-        return ModConfig.INSTANCE.mobVisuals.showNearbyHud
+        return ModConfig.INSTANCE.mobVisuals.masterEnabled && ModConfig.INSTANCE.mobVisuals.showNearbyHud
                 && !(Minecraft.getInstance().screen instanceof HudEditorScreen);
     }
 

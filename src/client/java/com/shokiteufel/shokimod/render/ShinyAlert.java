@@ -55,13 +55,14 @@ public final class ShinyAlert {
 
     public static void onSighting(Entity nameTag, String plainName, Entity body) {
         ModConfig.SafariCategory cfg = ModConfig.INSTANCE.safari;
-        if (!cfg.shinyAlertEnabled) return;
+        ModConfig.MobVisualsCategory visuals = ModConfig.INSTANCE.mobVisuals;
+        if (!visuals.masterEnabled || !visuals.shinyAlert) return;
         if (!announced.add(nameTag.getUUID())) return;
 
         BlockPos pos = body != null ? body.blockPosition() : nameTag.blockPosition();
         AlertBanner.show(HEADLINE, plainName,
                 pos.getX() + " " + pos.getY() + " " + pos.getZ(),
-                cfg.shinyColorRGB(), DISPLAY_MILLIS);
+                DropBanner.parseColour(visuals.shinyColour, 0xFFD700), DISPLAY_MILLIS);
 
         if (cfg.shinyCallParty) callParty();
     }

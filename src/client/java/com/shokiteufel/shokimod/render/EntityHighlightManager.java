@@ -3,6 +3,7 @@ package com.shokiteufel.shokimod.render;
 import com.shokiteufel.shokimod.data.CustomMob;
 import com.shokiteufel.shokimod.data.FeatureGate;
 import com.shokiteufel.shokimod.data.GameState;
+import com.shokiteufel.shokimod.data.HideyhoTarget;
 import com.shokiteufel.shokimod.data.MobVisual;
 import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.data.SparklingTarget;
@@ -63,6 +64,9 @@ public class EntityHighlightManager {
     /** Tracer-Ziele mit ihrer Linienfarbe */
     public static final Map<Entity, Integer> tracerEntities = new LinkedHashMap<>();
 
+    /** Kasten-Ziele mit ihrer Linienfarbe - die zweite Hervorhebung */
+    public static final Map<Entity, Integer> boxedEntities = new LinkedHashMap<>();
+
     /** Aufhängehöhe, wenn die Trefferbox nicht zum Aussehen passt */
     public static final Map<Entity, Double> renderAnchors = new HashMap<>();
 
@@ -97,7 +101,7 @@ public class EntityHighlightManager {
                 && nameplateEntities.isEmpty() && tracerEntities.isEmpty()
                 && renderAnchors.isEmpty() && headOnlyGlowEntities.isEmpty()
                 && rebuiltVisuals.isEmpty() && nametagClaimedEntities.isEmpty()
-                && tracerNearest.isEmpty();
+                && tracerNearest.isEmpty() && boxedEntities.isEmpty();
     }
 
     private static void updateHighlights(Minecraft client) {
@@ -119,6 +123,7 @@ public class EntityHighlightManager {
         headOnlyGlowEntities.clear();
         tracerEntities.clear();
         tracerNearest.clear();
+        boxedEntities.clear();
 
         if (CustomMobDebug.enabled()) {
             List<CustomMob> customs = ModConfig.INSTANCE.mobVisuals.customTargets;
@@ -154,8 +159,9 @@ public class EntityHighlightManager {
         }
         // レア個体は接頭辞つきの名前を持つので、名前ループの中で拾える
         boolean scanSparkling = SparklingTarget.INSTANCE.anyEnabled();
+        boolean scanHideyho = HideyhoTarget.enabled();
 
-        if (!scanCustom && !scanSparkling) return;
+        if (!scanCustom && !scanSparkling && !scanHideyho) return;
 
         if (scanCustomType) {
             for (Entity entity : client.level.entitiesForRendering()) {
@@ -177,6 +183,7 @@ public class EntityHighlightManager {
                         CustomMobDebug.registered(custom.label(), visual, custom.glowColorRGB());
                     }
                     registerTracer(visual, custom);
+                    registerBox(visual, custom);
                     if (custom.nameplate()) {
                         nameplateEntities.put(visual, nameplateLabel(custom, custom.plainLabel()));
                     }
@@ -201,12 +208,26 @@ public class EntityHighlightManager {
                     if (target.highlight()) registerHighlight(visualTarget, target);
                 }
                 registerTracer(visual, target);
+                registerBox(visual, target);
                 if (target.nameplate()) {
                     nameplateEntities.put(visual,
                             nameplateLabel(target, SparklingTarget.displayName(nameStr)));
                 }
                 // Einmalige Einblendung. Die Entprellung steckt in ShinyAlert
                 ShinyAlert.onSighting(entity, SparklingTarget.displayName(nameStr), visualTarget);
+            }
+
+            // Der Hideyho-Finder: Umriss und Linie zum naechsten, sonst nichts
+            if (scanHideyho && HideyhoTarget.isHideyho(nameStr)) {
+                HideyhoTarget target = HideyhoTarget.INSTANCE;
+                Entity visualTarget = customVisual(client, entity);
+                Entity visual = visualTarget != null ? visualTarget : entity;
+                if (visualTarget != null) {
+                    nametagClaimedEntities.add(visualTarget);
+                    if (target.highlight()) registerHighlight(visualTarget, target);
+                }
+                registerTracer(visual, target);
+                registerBox(visual, target);
             }
 
             // ユーザーが Customize で追加したモブ。エリアを限定しないので毎回見る。
@@ -233,6 +254,7 @@ public class EntityHighlightManager {
                     }
                 }
                 registerTracer(visual, custom);
+                registerBox(visual, custom);
                 if (custom.nameplate()) {
                     nameplateEntities.put(visual, nameplateLabel(custom, custom.plainLabel()));
                 }
@@ -256,6 +278,10 @@ public class EntityHighlightManager {
         rebuiltVisuals.add(visual);
         // 同じ型でも呼び名ごとに色が変わるため、mixin から引けるよう控えておく
         customGlowColors.put(visual, target.glowColorRGB());
+    }
+
+    private static void registerBox(Entity entity, MobVisual target) {
+        if (entity != null && target.box()) boxedEntities.put(entity, target.tracerColorARGB());
     }
 
     private static void registerTracer(Entity entity, MobVisual target) {

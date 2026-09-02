@@ -20,6 +20,8 @@ public final class FeatureGate {
 
     /** Soll noch irgendein Mob markiert werden - eigener Eintrag oder seltenes Exemplar? */
     public static boolean mobMarkers() {
+        if (!ModConfig.INSTANCE.mobVisuals.masterEnabled) return false;
+        if (ModConfig.INSTANCE.mobVisuals.hideyhoFinder) return true;
         List<CustomMob> targets = ModConfig.INSTANCE.mobVisuals.customTargets;
         for (int i = 0; i < targets.size(); i++) {
             CustomMob mob = targets.get(i);
@@ -45,7 +47,7 @@ public final class FeatureGate {
 
     /** Der Kasten mit den Mobs in der Naehe */
     public static boolean nearbyPanel() {
-        return ModConfig.INSTANCE.mobVisuals.showNearbyHud;
+        return ModConfig.INSTANCE.mobVisuals.masterEnabled && ModConfig.INSTANCE.mobVisuals.showNearbyHud;
     }
 
     /** Mindestens eine Chatregel, die auch greifen kann */

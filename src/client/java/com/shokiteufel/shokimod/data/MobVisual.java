@@ -28,19 +28,29 @@ public interface MobVisual {
     }
 
     default boolean highlight() {
-        return ModConfig.INSTANCE.mobVisuals.enableHighlight;
+        return master() && ModConfig.INSTANCE.mobVisuals.enableHighlight;
     }
 
     default boolean tracer() {
-        return ModConfig.INSTANCE.mobVisuals.enableTracer;
+        return master() && ModConfig.INSTANCE.mobVisuals.enableTracer;
     }
 
     default boolean nameplate() {
-        return ModConfig.INSTANCE.mobVisuals.enableNameplate;
+        return master() && ModConfig.INSTANCE.mobVisuals.enableNameplate;
+    }
+
+    /** Ein Kasten um die Trefferbox - die zweite Hervorhebung neben dem Glow */
+    default boolean box() {
+        return master() && ModConfig.INSTANCE.mobVisuals.enableBox;
+    }
+
+    /** Der Hauptschalter des Reiters. Aus heisst: nichts davon, ohne etwas zu verlieren */
+    static boolean master() {
+        return ModConfig.INSTANCE.mobVisuals.masterEnabled;
     }
 
     /** Nur wenn wenigstens eine Anzeige an ist, lohnt das Suchen überhaupt */
     default boolean anyEnabled() {
-        return highlight() || tracer() || nameplate();
+        return highlight() || tracer() || nameplate() || box();
     }
 }
