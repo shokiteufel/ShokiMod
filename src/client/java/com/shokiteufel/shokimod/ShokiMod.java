@@ -67,7 +67,7 @@ public class ShokiMod implements ClientModInitializer {
             }
             if (openHudNextTick) {
                 openHudNextTick = false;
-                client.setScreen(new HudEditorScreen(null));
+                client.setScreen(new HudEditorScreen(null, false));
             }
         });
 

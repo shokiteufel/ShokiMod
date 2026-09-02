@@ -15,6 +15,7 @@ import net.minecraft.client.Minecraft;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -23,12 +24,16 @@ import java.util.Map;
  *
  * Gezaehlt werden nur Shards - aus denselben Chatzeilen, die auch der Fund-Alarm
  * liest ("You caught x3 Timil Shards!", "CHARM! ..."). Bewertet wird live mit dem
- * Basarpreis, wahlweise Sofortverkauf oder Verkaufsorder: der Gesamtwert folgt
- * also dem Markt, nicht dem Kurs zum Zeitpunkt des Fangs.
+ * Basarpreis, Sofortverkauf und Verkaufsorder nebeneinander: der Gesamtwert folgt
+ * dem Markt, nicht dem Kurs zum Zeitpunkt des Fangs.
+ *
+ * Die Kennung eines Shards wird gegen die Produktliste des Basars abgeglichen,
+ * denn der Chat schreibt "Spectre", der Basar "SPECTER" - siehe
+ * {@link ItemValue#canonicalShard(String)}. Gezaehlt wird unter der Basar-Kennung.
  *
  * Die Zeit laeuft nur, solange gejagt wird. Bleibt ein Fang laenger als die
  * eingestellte Pause aus, wird die Zeit seit dem letzten Fang wieder abgezogen -
- * so wie Skysofts Profit Tracker es macht. Ein Klo-Gang druekt Profit/h nicht.
+ * so wie Skysofts Profit Tracker es macht. Ein Klo-Gang drueckt Profit/h nicht.
  *
  * Zaehlstand und Zeit liegen in der Config und ueberleben einen Neustart, bis man
  * auf Reset drueckt.
@@ -40,7 +45,7 @@ public final class HuntingTracker {
     private static final String SHARD_PREFIX = "SHARD_";
     private static final String[] SKIPPED_PREFIXES = {"Party >", "Guild >", "Co-op >", "From ", "To "};
 
-    /** Eine Zeile im Kasten: Shard, Stueckzahl, Wert des Stapels */
+    /** Eine Zeile im Kasten: Shard, Stueckzahl, Wert des Stapels nach der gewaehlten Preisart */
     public record Row(String itemId, String name, int count, double value, boolean priced) {
     }
 
@@ -51,6 +56,7 @@ public final class HuntingTracker {
     private static boolean paused = true;
     private static boolean dirty = false;
     private static long lastSaveMillis = 0L;
+    private static boolean countsNormalised = false;
 
     private HuntingTracker() {
     }
@@ -85,7 +91,7 @@ public final class HuntingTracker {
         String shard = null;
         for (String candidate : drop.itemIdCandidates()) {
             if (candidate != null && candidate.startsWith(SHARD_PREFIX)) {
-                shard = candidate;
+                shard = ItemValue.canonicalShard(candidate);
                 break;
             }
         }
@@ -119,6 +125,12 @@ public final class HuntingTracker {
         // Die Preise sollen dastehen, sobald der Kasten sichtbar ist
         if (client.player != null && GameState.Server.isSkyblock()) ItemValue.BAZAAR.prefetch();
 
+        // Einmal je Sitzung: Kennungen aus frueheren Fassungen auf die Basar-Schreibweise bringen
+        if (!countsNormalised && ItemValue.BAZAAR.ready()) {
+            countsNormalised = true;
+            normaliseCounts();
+        }
+
         long pauseAfter = Math.max(5, cfg().pauseAfterSeconds) * 1000L;
         boolean active = lastActivityMillis > 0L && now - lastActivityMillis <= pauseAfter
                 && client.isWindowActive();
@@ -144,6 +156,23 @@ public final class HuntingTracker {
         }
     }
 
+    /** "SHARD_WITHER_SPECTRE" aus 1.1.12 wird zu SHARD_WITHER_SPECTER, die Stueckzahl wandert mit */
+    private static void normaliseCounts() {
+        Map<String, Integer> fixed = new HashMap<>();
+        boolean changed = false;
+        for (Map.Entry<String, Integer> entry : cfg().counts.entrySet()) {
+            String canonical = ItemValue.canonicalShard(entry.getKey());
+            if (!canonical.equals(entry.getKey())) changed = true;
+            fixed.merge(canonical, entry.getValue(), Integer::sum);
+        }
+        if (!changed) return;
+
+        cfg().counts.clear();
+        cfg().counts.putAll(fixed);
+        dirty = true;
+        ShokiMod.LOGGER.info("[Hunting] shard ids aligned with the bazaar: {}", fixed.keySet());
+    }
+
     /** Der Reset-Knopf: Zaehlstand und Zeit auf null */
     public static void reset() {
         cfg().counts.clear();
@@ -165,42 +194,50 @@ public final class HuntingTracker {
         return cfg().uptimeMillis;
     }
 
-    /** Der Wert eines Shards nach der gewaehlten Preisart, oder -1 wenn unbekannt */
-    private static double unitPrice(String itemId) {
+    public static PriceMode mode() {
+        return cfg().priceMode == null ? PriceMode.INSTANT_SELL : cfg().priceMode;
+    }
+
+    /** Der Stueckpreis eines Shards nach Preisart, oder -1 wenn der Basar ihn nicht kennt */
+    private static double unitPrice(String itemId, PriceMode mode) {
         BazaarPrice price = ItemValue.BAZAAR.get(itemId);
         if (price == null) return -1;
-        PriceMode mode = cfg().priceMode == null ? PriceMode.INSTANT_SELL : cfg().priceMode;
         double chosen = mode == PriceMode.SELL_ORDER ? price.sellOrder() : price.instantSell();
         if (chosen <= 0) chosen = mode == PriceMode.SELL_ORDER ? price.instantSell() : price.sellOrder();
         return chosen > 0 ? chosen : -1;
     }
 
-    /** Alle Zeilen, wertvollste zuerst */
+    /** Alle Zeilen nach der gewaehlten Preisart, wertvollste zuerst */
     public static List<Row> rows() {
+        return rows(mode());
+    }
+
+    public static List<Row> rows(PriceMode mode) {
         List<Row> out = new ArrayList<>();
         for (Map.Entry<String, Integer> entry : cfg().counts.entrySet()) {
             String id = entry.getKey();
             int count = entry.getValue();
             if (id == null || count <= 0) continue;
 
-            double unit = unitPrice(id);
+            double unit = unitPrice(id, mode);
             out.add(new Row(id, readableName(id), count, unit > 0 ? unit * count : 0, unit > 0));
         }
         out.sort(Comparator.comparingDouble(Row::value).reversed().thenComparing(Row::name));
         return out;
     }
 
-    public static double total() {
+    /** Gesamtwert nach Preisart */
+    public static double total(PriceMode mode) {
         double sum = 0;
-        for (Row row : rows()) sum += row.value();
+        for (Row row : rows(mode)) sum += row.value();
         return sum;
     }
 
-    /** Profit je Stunde Jagdzeit. Ohne Zeit gibt es keinen Stundenwert */
+    /** Profit je Stunde Jagdzeit nach der gewaehlten Preisart. Ohne Zeit gibt es keinen Stundenwert */
     public static double perHour() {
         long uptime = cfg().uptimeMillis;
         if (uptime < 1_000L) return 0;
-        return total() / (uptime / 3_600_000d);
+        return total(mode()) / (uptime / 3_600_000d);
     }
 
     /** SHARD_QUEEN_BEE wird zu "Queen Bee" */

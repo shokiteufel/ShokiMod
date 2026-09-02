@@ -81,6 +81,62 @@ public final class ItemValue {
         LOWEST_BIN
     }
 
+    /** Einmal aufgeloeste Shard-Kennungen, damit der Abgleich nicht bei jedem Fang laeuft */
+    private static final Map<String, String> shardAliases = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
+     * Die Kennung, unter der der Basar einen Shard wirklich fuehrt.
+     *
+     * Der Chat sagt "Wither Spectre", der Basar schreibt SHARD_WITHER_SPECTER. Aus dem
+     * Namen laesst sich das nicht raten - aber die Produktliste des Basars kennt alle
+     * 320 Shards. Gibt es die geratene Kennung dort nicht, gewinnt das Produkt mit
+     * dem kleinsten Buchstabenabstand, sofern der hoechstens zwei betraegt. Ohne
+     * Treffer bleibt es bei der geratenen Kennung.
+     */
+    public static String canonicalShard(String guessed) {
+        if (guessed == null || !guessed.startsWith(SHARD_PREFIX)) return guessed;
+        if (BAZAAR.get(guessed) != null) return guessed;
+
+        String cached = shardAliases.get(guessed);
+        if (cached != null) return cached;
+        if (!BAZAAR.ready()) return guessed;
+
+        String best = guessed;
+        int bestDistance = 3;
+        for (String product : BAZAAR.keys()) {
+            if (!product.startsWith(SHARD_PREFIX)) continue;
+            if (Math.abs(product.length() - guessed.length()) > 2) continue;
+            int distance = editDistance(product, guessed, bestDistance);
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                best = product;
+            }
+        }
+        if (!best.equals(guessed)) shardAliases.put(guessed, best);
+        return best;
+    }
+
+    /** Levenshtein mit Abbruch, sobald der Abstand die Schranke erreicht */
+    private static int editDistance(String a, String b, int limit) {
+        int[] previous = new int[b.length() + 1];
+        int[] current = new int[b.length() + 1];
+        for (int j = 0; j <= b.length(); j++) previous[j] = j;
+        for (int i = 1; i <= a.length(); i++) {
+            current[0] = i;
+            int rowMin = current[0];
+            for (int j = 1; j <= b.length(); j++) {
+                int cost = a.charAt(i - 1) == b.charAt(j - 1) ? 0 : 1;
+                current[j] = Math.min(Math.min(current[j - 1] + 1, previous[j] + 1), previous[j - 1] + cost);
+                rowMin = Math.min(rowMin, current[j]);
+            }
+            if (rowMin >= limit) return limit;
+            int[] swap = previous;
+            previous = current;
+            current = swap;
+        }
+        return previous[b.length()];
+    }
+
     /** Alle Listen nachladen, bevor der erste Fund sie braucht */
     public static void prefetch() {
         BAZAAR.prefetch();

@@ -3,12 +3,13 @@ package com.shokiteufel.shokimod.render.hud;
 import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.handler.HuntingTracker;
 import com.shokiteufel.shokimod.util.ItemValue;
+import com.shokiteufel.shokimod.util.ItemValue.PriceMode;
 
 import java.util.List;
 
 /**
- * Der Kasten des Hunting Trackers: Gesamtwert, Profit je Stunde, Jagdzeit und die
- * wertvollsten Shards.
+ * Der Kasten des Hunting Trackers: beide Gesamtwerte, Profit je Stunde, Jagdzeit
+ * und die wertvollsten Shards.
  *
  * Nichts wird hier gerechnet; der Tracker liefert die Zeilen fertig. Der Kasten
  * ordnet sie nur an - und bleibt leer, solange noch kein Shard gefangen wurde,
@@ -26,15 +27,20 @@ public final class HuntingHud {
 
     public static HudPanel build() {
         HudPanel panel = new HudPanel();
-        List<HuntingTracker.Row> rows = HuntingTracker.rows();
+        PriceMode mode = HuntingTracker.mode();
+        List<HuntingTracker.Row> rows = HuntingTracker.rows(mode);
         if (rows.isEmpty() && HuntingTracker.uptimeMillis() <= 0L) return panel;
 
         ModConfig.HuntingTrackerCategory cfg = ModConfig.INSTANCE.hunting.tracker;
-        String mode = cfg.priceMode == ItemValue.PriceMode.SELL_ORDER ? "order" : "instant";
         panel.title("Hunting Tracker" + (HuntingTracker.isPaused() ? " (paused)" : ""), TITLE_COLOUR);
 
-        panel.pair("Total (" + mode + "):", ItemValue.format(HuntingTracker.total()), LABEL_COLOUR, VALUE_COLOUR);
-        panel.pair("Profit/h:", ItemValue.format(HuntingTracker.perHour()), LABEL_COLOUR, VALUE_COLOUR);
+        // Beide Sichtweisen nebeneinander; die gewaehlte bestimmt Profit/h und die Zeilen
+        panel.pair("Total (instant):", ItemValue.format(HuntingTracker.total(PriceMode.INSTANT_SELL)),
+                LABEL_COLOUR, VALUE_COLOUR);
+        panel.pair("Total (sell order):", ItemValue.format(HuntingTracker.total(PriceMode.SELL_ORDER)),
+                LABEL_COLOUR, VALUE_COLOUR);
+        panel.pair("Profit/h (" + (mode == PriceMode.SELL_ORDER ? "order" : "instant") + "):",
+                ItemValue.format(HuntingTracker.perHour()), LABEL_COLOUR, VALUE_COLOUR);
         panel.pair("Time:", clock(HuntingTracker.uptimeMillis()), LABEL_COLOUR, TIME_COLOUR);
 
         if (!rows.isEmpty()) {

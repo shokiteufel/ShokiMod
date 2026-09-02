@@ -129,7 +129,7 @@ public class ModConfig extends Config {
                         new MarkerSettingsScreen(Minecraft.getInstance().screen)));
         INSTANCE.hud.openHudEditor = () -> Minecraft.getInstance().execute(() ->
                 Minecraft.getInstance().setScreen(
-                        new HudEditorScreen(Minecraft.getInstance().screen)));
+                        new HudEditorScreen(Minecraft.getInstance().screen, false)));
         INSTANCE.safari.openContestSound = () -> Minecraft.getInstance().execute(() ->
                 Minecraft.getInstance().setScreen(new SoundPickerScreen(
                         Minecraft.getInstance().screen,
@@ -161,7 +161,7 @@ public class ModConfig extends Config {
         INSTANCE.chat.testAlertVolume = () -> Minecraft.getInstance().execute(AlertVolume::test);
         INSTANCE.hunting.tracker.resetTracker = () -> Minecraft.getInstance().execute(HuntingTracker::reset);
         INSTANCE.chat.banner.openEditor = () -> Minecraft.getInstance().execute(() ->
-                Minecraft.getInstance().setScreen(new HudEditorScreen(Minecraft.getInstance().screen)));
+                Minecraft.getInstance().setScreen(new HudEditorScreen(Minecraft.getInstance().screen, true)));
         INSTANCE.chat.banner.banner1 = () -> Minecraft.getInstance().execute(() -> DropBanner.preview(DropBanner.Style.CLASSIC));
         INSTANCE.chat.banner.banner2 = () -> Minecraft.getInstance().execute(() -> DropBanner.preview(DropBanner.Style.COMPACT));
         INSTANCE.chat.banner.banner3 = () -> Minecraft.getInstance().execute(() -> DropBanner.preview(DropBanner.Style.TITLE));

@@ -78,6 +78,11 @@ public final class RemoteMap<V> {
         return entries.size();
     }
 
+    /** Alle Schluessel, zum Abgleich ungenauer Kennungen. Nicht veraenderbar */
+    public java.util.Set<String> keys() {
+        return java.util.Collections.unmodifiableSet(entries.keySet());
+    }
+
     /**
      * Holt nach, wenn der Stand alt genug ist - und immer nur einmal gleichzeitig.
      *

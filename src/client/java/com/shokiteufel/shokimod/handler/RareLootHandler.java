@@ -170,7 +170,10 @@ public final class RareLootHandler {
      */
     private static List<String> candidatesFor(Drop drop) {
         LinkedHashSet<String> out = new LinkedHashSet<>(ItemNames.idsFor(drop.displayName()));
-        out.addAll(drop.itemIdCandidates());
+        for (String candidate : drop.itemIdCandidates()) {
+            // "Wither Spectre" ist im Basar SHARD_WITHER_SPECTER: die Produktliste weiss es
+            out.add(ItemValue.canonicalShard(candidate));
+        }
         return new ArrayList<>(out);
     }
 
