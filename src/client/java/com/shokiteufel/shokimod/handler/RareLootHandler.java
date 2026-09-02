@@ -1,5 +1,6 @@
 package com.shokiteufel.shokimod.handler;
 
+import com.shokiteufel.shokimod.ShokiMod;
 import com.shokiteufel.shokimod.data.GameState;
 import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.data.ModConfig.RareLootCategory;
@@ -190,14 +191,36 @@ public final class RareLootHandler {
     private static void share(Minecraft client, Drop drop, Value value, boolean lootshare) {
         RareLootCategory cfg = cfg();
         double threshold = ItemValue.parseAmount(cfg.shareThreshold);
-        if (threshold > 0 && (value == null || value.coins() < threshold)) return;
+        String message = shareText(drop, value, lootshare);
+
+        // Jede Entscheidung steht im Log: der Tester sieht das Spiel, nicht den Code
+        if (threshold > 0 && value == null) {
+            ShokiMod.LOGGER.info("[RareLoot] not shared, no price known: {}", message);
+            return;
+        }
+        if (threshold > 0 && value.coins() < threshold) {
+            ShokiMod.LOGGER.info("[RareLoot] not shared, below {}: {}", cfg.shareThreshold, message);
+            return;
+        }
+        if (!cfg.shareParty && !cfg.shareGuild) {
+            ShokiMod.LOGGER.info("[RareLoot] not shared, no channel chosen: {}", message);
+            return;
+        }
 
         ClientPacketListener connection = client.getConnection();
-        if (connection == null) return;
+        if (connection == null) {
+            ShokiMod.LOGGER.warn("[RareLoot] not shared, no connection: {}", message);
+            return;
+        }
 
-        String message = shareText(drop, value, lootshare);
-        if (cfg.shareParty) connection.sendCommand("pc " + message);
-        if (cfg.shareGuild) connection.sendCommand("gc " + message);
+        if (cfg.shareParty) {
+            ShokiMod.LOGGER.info("[RareLoot] sharing to party: {}", message);
+            connection.sendCommand("pc " + message);
+        }
+        if (cfg.shareGuild) {
+            ShokiMod.LOGGER.info("[RareLoot] sharing to guild: {}", message);
+            connection.sendCommand("gc " + message);
+        }
     }
 
     /** Skysofts Wortlaut: "RARE DROP! 3x Flash I (+289 MF) (+4.1m coins)" */

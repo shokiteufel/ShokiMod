@@ -501,10 +501,18 @@ public class ModConfig extends Config {
         @ConfigEditorBoolean
         public boolean enabled = false;
 
-        @Expose
+        /**
+         * Nur zum Auf- und Zuklappen. MoulConfig haelt den Zustand selbst und schreibt
+         * nie in dieses Feld - ein Schalter darf deshalb nicht am Kopf haengen
+         */
         @ConfigOption(name = "Tier 1", desc = "From the threshold below up. A drop that also clears a higher tier fires only that one.")
         @ConfigEditorAccordion(id = 21)
+        public transient boolean tier1Folder = false;
+
+        @Expose
+        @ConfigOption(name = "Enabled", desc = "Off means this tier never fires, even if the drop reaches its threshold.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 21)
         public boolean tier1Enabled = true;
 
         @Expose
@@ -546,10 +554,18 @@ public class ModConfig extends Config {
         public transient Runnable testTier1 = () -> {
         };
 
-        @Expose
+        /**
+         * Nur zum Auf- und Zuklappen. MoulConfig haelt den Zustand selbst und schreibt
+         * nie in dieses Feld - ein Schalter darf deshalb nicht am Kopf haengen
+         */
         @ConfigOption(name = "Tier 2", desc = "From the threshold below up. A drop that also clears a higher tier fires only that one.")
         @ConfigEditorAccordion(id = 22)
+        public transient boolean tier2Folder = false;
+
+        @Expose
+        @ConfigOption(name = "Enabled", desc = "Off means this tier never fires, even if the drop reaches its threshold.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 22)
         public boolean tier2Enabled = true;
 
         @Expose
@@ -591,10 +607,18 @@ public class ModConfig extends Config {
         public transient Runnable testTier2 = () -> {
         };
 
-        @Expose
+        /**
+         * Nur zum Auf- und Zuklappen. MoulConfig haelt den Zustand selbst und schreibt
+         * nie in dieses Feld - ein Schalter darf deshalb nicht am Kopf haengen
+         */
         @ConfigOption(name = "Tier 3", desc = "From the threshold below up. A drop that also clears a higher tier fires only that one.")
         @ConfigEditorAccordion(id = 23)
+        public transient boolean tier3Folder = false;
+
+        @Expose
+        @ConfigOption(name = "Enabled", desc = "Off means this tier never fires, even if the drop reaches its threshold.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 23)
         public boolean tier3Enabled = true;
 
         @Expose
@@ -636,10 +660,14 @@ public class ModConfig extends Config {
         public transient Runnable testTier3 = () -> {
         };
 
-        @Expose
         @ConfigOption(name = "Share drops", desc = "Sends valuable drops to your party or guild as RARE DROP! with the value. Your own shared line is never read again.")
         @ConfigEditorAccordion(id = 24)
+        public transient boolean shareFolder = false;
+
+        @Expose
+        @ConfigOption(name = "Enabled", desc = "Switch the sharing on. Party and Guild below choose where it goes.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 24)
         public boolean shareEnabled = false;
 
         @Expose
