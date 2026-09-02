@@ -60,7 +60,7 @@ public final class FeatureGate {
 
     /** Der Wert-Alarm am Inventar. Aus heisst: kein Zaehlen, kein Preis, kein Request */
     public static boolean valueAlert() {
-        return ModConfig.INSTANCE.chat.valueAlert;
+        return ModConfig.INSTANCE.chat.valueAlerts.enabled;
     }
 
     /**

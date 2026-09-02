@@ -7,6 +7,7 @@ import com.shokiteufel.shokimod.gui.HudEditorScreen;
 import com.shokiteufel.shokimod.gui.CustomMobScreen;
 import com.shokiteufel.shokimod.gui.MarkerSettingsScreen;
 import com.shokiteufel.shokimod.gui.SoundPickerScreen;
+import com.shokiteufel.shokimod.handler.ValueAlertHandler;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.annotations.Expose;
@@ -67,6 +68,8 @@ public class ModConfig extends Config {
         if (INSTANCE.mobVisuals == null) INSTANCE.mobVisuals = new MobVisualsCategory();
         if (INSTANCE.chat == null) INSTANCE.chat = new ChatRulesCategory();
         if (INSTANCE.safari == null) INSTANCE.safari = new SafariCategory();
+        // Der Unterreiter kann in einer Datei von vor 1.1.3 als null stehen
+        if (INSTANCE.chat.valueAlerts == null) INSTANCE.chat.valueAlerts = new ValueAlertCategory();
 
         adoptLegacyCategory();
 
@@ -100,12 +103,27 @@ public class ModConfig extends Config {
                         () -> INSTANCE.safari.contestWarningSound,
                         picked -> INSTANCE.safari.contestWarningSound = picked,
                         1.0f)));
-        INSTANCE.chat.openValueAlertSound = () -> Minecraft.getInstance().execute(() ->
+        INSTANCE.chat.valueAlerts.openTier1Sound = () -> Minecraft.getInstance().execute(() ->
                 Minecraft.getInstance().setScreen(new SoundPickerScreen(
                         Minecraft.getInstance().screen,
-                        () -> INSTANCE.chat.valueAlertSound,
-                        picked -> INSTANCE.chat.valueAlertSound = picked,
+                        () -> INSTANCE.chat.valueAlerts.tier1Sound,
+                        picked -> INSTANCE.chat.valueAlerts.tier1Sound = picked,
                         1.0f)));
+        INSTANCE.chat.valueAlerts.testTier1 = () -> ValueAlertHandler.test(1);
+        INSTANCE.chat.valueAlerts.openTier2Sound = () -> Minecraft.getInstance().execute(() ->
+                Minecraft.getInstance().setScreen(new SoundPickerScreen(
+                        Minecraft.getInstance().screen,
+                        () -> INSTANCE.chat.valueAlerts.tier2Sound,
+                        picked -> INSTANCE.chat.valueAlerts.tier2Sound = picked,
+                        1.0f)));
+        INSTANCE.chat.valueAlerts.testTier2 = () -> ValueAlertHandler.test(2);
+        INSTANCE.chat.valueAlerts.openTier3Sound = () -> Minecraft.getInstance().execute(() ->
+                Minecraft.getInstance().setScreen(new SoundPickerScreen(
+                        Minecraft.getInstance().screen,
+                        () -> INSTANCE.chat.valueAlerts.tier3Sound,
+                        picked -> INSTANCE.chat.valueAlerts.tier3Sound = picked,
+                        1.0f)));
+        INSTANCE.chat.valueAlerts.testTier3 = () -> ValueAlertHandler.test(3);
 
         if (INSTANCE.mobVisuals.customTargets == null) INSTANCE.mobVisuals.customTargets = new ArrayList<>();
         if (INSTANCE.chat.chatRules == null) INSTANCE.chat.chatRules = new ArrayList<>();
@@ -159,8 +177,8 @@ public class ModConfig extends Config {
         }
         if (highest <= 0) return;
 
-        INSTANCE.chat.valueAlert = true;
-        INSTANCE.chat.valueAlertThreshold = String.valueOf((long) highest);
+        INSTANCE.chat.valueAlerts.enabled = true;
+        INSTANCE.chat.valueAlerts.tier1Threshold = String.valueOf((long) highest);
     }
 
     /**
@@ -444,44 +462,13 @@ public class ModConfig extends Config {
         };
 
         // ==========================================
-        // Der Wert-Alarm. Er haengt nicht am Chat, sondern am Item selbst: was ins
-        // Inventar wandert, wird an seiner SkyBlock-Kennung erkannt und im Basar
-        // nachgeschlagen. Der Chat kann eine Meldung faerben, kuerzen oder ganz
-        // weglassen - das Item traegt seine Kennung immer
+        // Der Wert-Alarm als eigener Reiter unter Alerts. Er haengt nicht am Chat,
+        // sondern am Item selbst: was ins Inventar wandert, wird an seiner
+        // SkyBlock-Kennung erkannt und im Basar nachgeschlagen
         // ==========================================
-
         @Expose
-        @ConfigOption(name = "Value Alert", desc = "Fires when something lands in your inventory that is worth more than the threshold.\nThe item is recognised by its own SkyBlock id, not by the chat line, and the price comes from the bazaar.\nOff means no price is ever requested.")
-        @ConfigEditorBoolean
-        public boolean valueAlert = false;
-
-        @Expose
-        @ConfigOption(name = "Threshold", desc = "From this many coins up. Short forms work: 500k, 5M, 1.2B.\nCounted is the whole stack: ten items at 100k each reach 1M.")
-        @ConfigEditorText
-        public String valueAlertThreshold = "1M";
-
-        @Expose
-        @ConfigOption(name = "Banner", desc = "Large text across the screen when the threshold is reached.")
-        @ConfigEditorBoolean
-        public boolean valueAlertBanner = true;
-
-        @Expose
-        @ConfigOption(name = "Toast", desc = "Small box in the top right corner, with the item as its icon.")
-        @ConfigEditorBoolean
-        public boolean valueAlertToast = true;
-
-        @Expose
-        @ConfigOption(name = "Chat line", desc = "Writes what was found and what it is worth into your chat.")
-        @ConfigEditorBoolean
-        public boolean valueAlertChat = false;
-
-        @ConfigOption(name = "Alert Sound", desc = "Your own file from config/shokimod/sounds. Leave empty for silence.")
-        @ConfigEditorButton(buttonText = "Pick")
-        public transient Runnable openValueAlertSound = () -> {
-        };
-
-        @Expose
-        public String valueAlertSound = "";
+        @Category(name = "Value Alert", desc = "Fires when something lands in your inventory that is worth more than a threshold. Three tiers, each with its own reaction.")
+        public ValueAlertCategory valueAlerts = new ValueAlertCategory();
 
         /**
          * Die uebernommene Schwelle aus den alten Chatregeln.
@@ -492,6 +479,179 @@ public class ModConfig extends Config {
         @Expose
         public boolean valueAlertMigrated = false;
     }
+
+    /**
+     * Drei Stufen, jede mit eigener Schwelle und eigener Reaktion.
+     *
+     * Ein Fund loest nur die hoechste Stufe aus, die er erreicht: wer 50M findet,
+     * bekommt den 50M-Alarm und nicht zusaetzlich die beiden darunter. Die Stufen
+     * duerfen in beliebiger Reihenfolge stehen - gezaehlt wird nach Schwelle, nicht
+     * nach Nummer.
+     *
+     * Die Felder wiederholen sich dreimal, weil MoulConfig nur flache Felder in
+     * einer Kategorie kennt. Der Handler sieht davon nichts: {@link #tiers()} liefert
+     * ihm die drei Stufen als Werte.
+     */
+    public static class ValueAlertCategory {
+
+        @Expose
+        @ConfigOption(name = "Enabled", desc = "The item is recognised by its own SkyBlock id, not by the chat line, and the price comes from the bazaar. Off means no price is ever requested.")
+        @ConfigEditorBoolean
+        public boolean enabled = false;
+
+        @Expose
+        @ConfigOption(name = "Tier 1", desc = "From the threshold below up. A find that also clears a higher tier fires only that one.")
+        @ConfigEditorAccordion(id = 21)
+        @ConfigEditorBoolean
+        public boolean tier1Enabled = true;
+
+        @Expose
+        @ConfigOption(name = "Threshold", desc = "Coins. Short forms work: 500k, 5M, 1.2B. Counted is the whole stack.")
+        @ConfigEditorText
+        @ConfigAccordionId(id = 21)
+        public String tier1Threshold = "1M";
+
+        @Expose
+        @ConfigOption(name = "Banner", desc = "Large text across the screen.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 21)
+        public boolean tier1Banner = true;
+
+        @Expose
+        @ConfigOption(name = "Toast", desc = "Small box in the top right corner.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 21)
+        public boolean tier1Toast = true;
+
+        @Expose
+        @ConfigOption(name = "Chat line", desc = "Writes what was found and what it is worth into your chat.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 21)
+        public boolean tier1Chat = false;
+
+        @ConfigOption(name = "Sound", desc = "Your own file from config/shokimod/sounds. Leave empty for silence.")
+        @ConfigEditorButton(buttonText = "Pick")
+        @ConfigAccordionId(id = 21)
+        public transient Runnable openTier1Sound = () -> {
+        };
+
+        @Expose
+        public String tier1Sound = "";
+
+        @ConfigOption(name = "Test", desc = "Fires this tier once with a sample item, so you can see and hear what you set.")
+        @ConfigEditorButton(buttonText = "Test")
+        @ConfigAccordionId(id = 21)
+        public transient Runnable testTier1 = () -> {
+        };
+
+        @Expose
+        @ConfigOption(name = "Tier 2", desc = "From the threshold below up. A find that also clears a higher tier fires only that one.")
+        @ConfigEditorAccordion(id = 22)
+        @ConfigEditorBoolean
+        public boolean tier2Enabled = true;
+
+        @Expose
+        @ConfigOption(name = "Threshold", desc = "Coins. Short forms work: 500k, 5M, 1.2B. Counted is the whole stack.")
+        @ConfigEditorText
+        @ConfigAccordionId(id = 22)
+        public String tier2Threshold = "25M";
+
+        @Expose
+        @ConfigOption(name = "Banner", desc = "Large text across the screen.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 22)
+        public boolean tier2Banner = true;
+
+        @Expose
+        @ConfigOption(name = "Toast", desc = "Small box in the top right corner.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 22)
+        public boolean tier2Toast = true;
+
+        @Expose
+        @ConfigOption(name = "Chat line", desc = "Writes what was found and what it is worth into your chat.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 22)
+        public boolean tier2Chat = false;
+
+        @ConfigOption(name = "Sound", desc = "Your own file from config/shokimod/sounds. Leave empty for silence.")
+        @ConfigEditorButton(buttonText = "Pick")
+        @ConfigAccordionId(id = 22)
+        public transient Runnable openTier2Sound = () -> {
+        };
+
+        @Expose
+        public String tier2Sound = "";
+
+        @ConfigOption(name = "Test", desc = "Fires this tier once with a sample item, so you can see and hear what you set.")
+        @ConfigEditorButton(buttonText = "Test")
+        @ConfigAccordionId(id = 22)
+        public transient Runnable testTier2 = () -> {
+        };
+
+        @Expose
+        @ConfigOption(name = "Tier 3", desc = "From the threshold below up. A find that also clears a higher tier fires only that one.")
+        @ConfigEditorAccordion(id = 23)
+        @ConfigEditorBoolean
+        public boolean tier3Enabled = true;
+
+        @Expose
+        @ConfigOption(name = "Threshold", desc = "Coins. Short forms work: 500k, 5M, 1.2B. Counted is the whole stack.")
+        @ConfigEditorText
+        @ConfigAccordionId(id = 23)
+        public String tier3Threshold = "50M";
+
+        @Expose
+        @ConfigOption(name = "Banner", desc = "Large text across the screen.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 23)
+        public boolean tier3Banner = true;
+
+        @Expose
+        @ConfigOption(name = "Toast", desc = "Small box in the top right corner.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 23)
+        public boolean tier3Toast = true;
+
+        @Expose
+        @ConfigOption(name = "Chat line", desc = "Writes what was found and what it is worth into your chat.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 23)
+        public boolean tier3Chat = false;
+
+        @ConfigOption(name = "Sound", desc = "Your own file from config/shokimod/sounds. Leave empty for silence.")
+        @ConfigEditorButton(buttonText = "Pick")
+        @ConfigAccordionId(id = 23)
+        public transient Runnable openTier3Sound = () -> {
+        };
+
+        @Expose
+        public String tier3Sound = "";
+
+        @ConfigOption(name = "Test", desc = "Fires this tier once with a sample item, so you can see and hear what you set.")
+        @ConfigEditorButton(buttonText = "Test")
+        @ConfigAccordionId(id = 23)
+        public transient Runnable testTier3 = () -> {
+        };
+
+        /** Eine Stufe, wie der Handler sie sieht */
+        public record Tier(int number, boolean enabled, String threshold, boolean banner,
+                           boolean toast, boolean chat, String sound) {
+        }
+
+        public Tier tier(int number) {
+            return switch (number) {
+                case 1 -> new Tier(1, tier1Enabled, tier1Threshold, tier1Banner, tier1Toast, tier1Chat, tier1Sound);
+                case 2 -> new Tier(2, tier2Enabled, tier2Threshold, tier2Banner, tier2Toast, tier2Chat, tier2Sound);
+                default -> new Tier(3, tier3Enabled, tier3Threshold, tier3Banner, tier3Toast, tier3Chat, tier3Sound);
+            };
+        }
+
+        public List<Tier> tiers() {
+            return List.of(tier(1), tier(2), tier(3));
+        }
+    }
+
 
     public static class SafariCategory {
 

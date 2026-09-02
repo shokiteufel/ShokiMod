@@ -66,6 +66,16 @@ public final class BazaarPrices {
         return price == null ? -1 : price;
     }
 
+    /**
+     * Holt die Preise, bevor der erste Fund sie braucht.
+     *
+     * Die erste Antwort dauert Sekunden - genau die, in denen der erste Drop nach
+     * dem Einloggen faellt. Wer erst beim Fund fragt, hat fuer diesen keinen Preis.
+     */
+    public static void prefetch() {
+        ensureFresh();
+    }
+
     /** Steht ueberhaupt schon etwas bereit? */
     public static boolean ready() {
         return !prices.isEmpty();
