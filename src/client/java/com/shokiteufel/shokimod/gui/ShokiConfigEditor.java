@@ -50,7 +50,7 @@ public class ShokiConfigEditor extends MoulConfigEditor<ModConfig> {
         super(processor);
         this.searchText = findSearchField();
         setSearchFunction((editor, search) -> {
-            if (isHidden(editor.getOption().getCategory().getIdentifier())) return secretTyped();
+            if (isHidden(editor.getOption().getCategory())) return secretTyped();
             return editor.fulfillsSearch(search);
         });
     }
@@ -58,12 +58,14 @@ public class ShokiConfigEditor extends MoulConfigEditor<ModConfig> {
     @Override
     public LinkedHashMap<String, ProcessedCategory> getCurrentlyVisibleCategories() {
         LinkedHashMap<String, ProcessedCategory> visible = super.getCurrentlyVisibleCategories();
-        if (!secretTyped()) visible.keySet().removeIf(ShokiConfigEditor::isHidden);
+        if (!secretTyped()) visible.entrySet().removeIf(entry -> isHidden(entry.getValue()));
         return visible;
     }
 
-    private static boolean isHidden(String categoryId) {
-        return HIDDEN_ID != null && HIDDEN_ID.equals(categoryId);
+    /** Der Reiter selbst und jeder Unterreiter darunter - beide haengen am selben Codewort */
+    private static boolean isHidden(ProcessedCategory category) {
+        if (HIDDEN_ID == null || category == null) return false;
+        return HIDDEN_ID.equals(category.getIdentifier()) || HIDDEN_ID.equals(category.getParentCategoryId());
     }
 
     private boolean secretTyped() {

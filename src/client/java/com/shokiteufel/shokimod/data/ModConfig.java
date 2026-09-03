@@ -17,6 +17,7 @@ import com.shokiteufel.shokimod.handler.RareLootHandler;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.annotations.Expose;
+import com.google.gson.annotations.SerializedName;
 import io.github.notenoughupdates.moulconfig.Config;
 import io.github.notenoughupdates.moulconfig.annotations.*;
 import io.github.notenoughupdates.moulconfig.common.text.StructuredText;
@@ -84,13 +85,19 @@ public class ModConfig extends Config {
         if (INSTANCE.hunting.tracker == null) INSTANCE.hunting.tracker = new HuntingTrackerCategory();
         if (INSTANCE.hunting.tracker.counts == null) INSTANCE.hunting.tracker.counts = new HashMap<>();
         if (INSTANCE.hunting.tracker.priceMode == null) INSTANCE.hunting.tracker.priceMode = ItemValue.PriceMode.INSTANT_SELL;
-        if (INSTANCE.mobVisuals.shinyColour == null) INSTANCE.mobVisuals.shinyColour = "FFD700";
+        // Der Unterreiter fehlt in Dateien bis 1.1.17; die drei Werte lagen bis dahin eine Ebene hoeher
+        MobVisualsCategory visuals = INSTANCE.mobVisuals;
+        if (visuals.safari == null) visuals.safari = new MobVisualsCategory.SafariSecretCategory();
+        if (visuals.legacyShinyAlert != null) { visuals.safari.shinyAlert = visuals.legacyShinyAlert; visuals.legacyShinyAlert = null; }
+        if (visuals.legacyShinyColour != null) { visuals.safari.shinyColour = visuals.legacyShinyColour; visuals.legacyShinyColour = null; }
+        if (visuals.legacyHideyhoFinder != null) { visuals.safari.hideyhoFinder = visuals.legacyHideyhoFinder; visuals.legacyHideyhoFinder = null; }
+        if (visuals.safari.shinyColour == null) visuals.safari.shinyColour = "FFD700";
         // Der Shiny-Schalter zog aus dem Safari-Reiter hierher; den alten Stand einmal mitnehmen
-        if (!INSTANCE.mobVisuals.shinyMoved) {
-            INSTANCE.mobVisuals.shinyMoved = true;
-            INSTANCE.mobVisuals.shinyAlert = INSTANCE.safari.shinyAlertEnabled;
+        if (!visuals.shinyMoved) {
+            visuals.shinyMoved = true;
+            visuals.safari.shinyAlert = INSTANCE.safari.shinyAlertEnabled;
             if (INSTANCE.safari.shinyColor != null && !INSTANCE.safari.shinyColor.isBlank()) {
-                INSTANCE.mobVisuals.shinyColour = INSTANCE.safari.shinyColor;
+                visuals.safari.shinyColour = INSTANCE.safari.shinyColor;
             }
         }
         // Gson laesst ein unbekanntes Enum-Wort als null stehen - dann gilt der Standard
@@ -579,27 +586,15 @@ public class ModConfig extends Config {
         @Expose
         public float nearbyHudAlpha = 1.0f;
 
-        @ConfigOption(name = "Safari", desc = "Safari helpers that live here on purpose.")
-        @ConfigEditorAccordion(id = 40)
-        public transient boolean safariFolder = false;
-
+        /** Die Safari-Helfer als eigener Unterreiter links - verborgen wie der Reiter selbst */
         @Expose
-        @ConfigOption(name = "Shiny alert", desc = "Full-screen banner and party call when a Sparkling critter shows up.")
-        @ConfigEditorBoolean
-        @ConfigAccordionId(id = 40)
-        public boolean shinyAlert = true;
+        @Category(name = "Safari", desc = "Safari helpers that live here on purpose: the shiny alert and the Hideyho finder.")
+        public SafariSecretCategory safari = new SafariSecretCategory();
 
-        @Expose
-        @ConfigOption(name = "Shiny colour", desc = "Hex like FFD700 for the SHINY banner.")
-        @ConfigEditorText
-        @ConfigAccordionId(id = 40)
-        public String shinyColour = "FFD700";
-
-        @Expose
-        @ConfigOption(name = "Hideyho finder", desc = "Glow and a line to the nearest Hideyho, like a Your Mobs entry with Highlight and Line - without having to add one.")
-        @ConfigEditorBoolean
-        @ConfigAccordionId(id = 40)
-        public boolean hideyhoFinder = false;
+        /** Bis 1.1.17 lagen die drei Werte direkt hier; sie werden einmal in den Unterreiter uebernommen */
+        @Expose @SerializedName("shinyAlert") public Boolean legacyShinyAlert = null;
+        @Expose @SerializedName("shinyColour") public String legacyShinyColour = null;
+        @Expose @SerializedName("hideyhoFinder") public Boolean legacyHideyhoFinder = null;
 
         /** Einmalige Uebernahme des Shiny-Schalters aus dem Safari-Reiter */
         @Expose
@@ -609,6 +604,24 @@ public class ModConfig extends Config {
         @ConfigOption(name = "Debug Logging", desc = "Writes into the log why a custom mob does or does not glow. Only for troubleshooting.")
         @ConfigEditorBoolean
         public boolean debugLogging = false;
+
+        public static class SafariSecretCategory {
+
+            @Expose
+            @ConfigOption(name = "Shiny alert", desc = "Full-screen banner and party call when a Sparkling critter shows up.")
+            @ConfigEditorBoolean
+            public boolean shinyAlert = true;
+
+            @Expose
+            @ConfigOption(name = "Shiny colour", desc = "Hex like FFD700 for the SHINY banner.")
+            @ConfigEditorText
+            public String shinyColour = "FFD700";
+
+            @Expose
+            @ConfigOption(name = "Hideyho finder", desc = "Glow and a line to the nearest Hideyho, like a Your Mobs entry with Highlight and Line - without having to add one.")
+            @ConfigEditorBoolean
+            public boolean hideyhoFinder = false;
+        }
 
         /** Eingaben sind frei, deshalb beim Lesen abfangen */
         public double pickRadiusBlocks() {

@@ -28,7 +28,7 @@ public final class HideyhoTarget implements MobVisual {
     }
 
     public static boolean enabled() {
-        return cfg().masterEnabled && cfg().hideyhoFinder;
+        return cfg().masterEnabled && cfg().safari.hideyhoFinder;
     }
 
     /** Ein Hideyho am Namen - ohne die Sparkling-Fassung, die woanders gemeldet wird */
