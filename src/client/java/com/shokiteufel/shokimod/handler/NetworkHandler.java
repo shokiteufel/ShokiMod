@@ -19,6 +19,7 @@ public class NetworkHandler {
             NestTracker.reset();
             SessionManager.onWorldChange();
             RareLootHandler.reset();
+            HotspotTracker.reset();
         });
 
         ClientReceiveMessageEvents.ALLOW_GAME.register((message, overlay) -> {

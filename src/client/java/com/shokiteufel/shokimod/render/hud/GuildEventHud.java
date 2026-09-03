@@ -42,12 +42,8 @@ public final class GuildEventHud {
         }
 
         List<Event> events = feed.events();
-        if (events.isEmpty()) {
+        if (events.isEmpty() && feed.upcoming().isEmpty()) {
             panel.line("No event running", MUTED);
-            if (feed.next() != null) {
-                panel.pair("Next:", feed.next().name(), LABEL_COLOUR, NAME_COLOUR);
-                panel.pair("Starts in:", countdown(feed.next().start()), LABEL_COLOUR, TIME_COLOUR);
-            }
             return panel;
         }
 
@@ -55,6 +51,16 @@ public final class GuildEventHud {
         for (int i = 0; i < events.size(); i++) {
             if (i > 0) panel.blank();
             addEvent(panel, events.get(i), limit);
+        }
+        // Angekuendigte Events: Name, Wertung, Reward und wann es losgeht
+        long nowSeconds = System.currentTimeMillis() / 1000L;
+        for (GuildEvents.Upcoming u : feed.upcoming()) {
+            if (u.start() <= nowSeconds) continue; // laeuft gleich; der naechste Feed traegt es unter events
+            panel.blank();
+            panel.line(u.name(), NAME_COLOUR);
+            if (!u.label().isEmpty()) panel.line(u.label(), MUTED);
+            if (!u.reward().isEmpty()) panel.pair("Reward:", u.reward(), LABEL_COLOUR, NAME_COLOUR);
+            panel.pair("Starts in:", countdown(u.start()), LABEL_COLOUR, TIME_COLOUR);
         }
         return panel;
     }
@@ -92,7 +98,7 @@ public final class GuildEventHud {
     /** "2d 4h", "3h 12m", "45m", "ended" */
     private static String countdown(long unixSeconds) {
         long left = unixSeconds - System.currentTimeMillis() / 1000L;
-        if (left <= 0) return "ended";
+        if (left <= 0) return "now";
         return GuildEvents.span(0, left);
     }
 }

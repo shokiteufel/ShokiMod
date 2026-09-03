@@ -62,7 +62,7 @@ public final class GuildEvents {
                         List<Row> standings) {
     }
 
-    public record Upcoming(String id, String name, String label, long start, long end) {
+    public record Upcoming(String id, String name, String label, String reward, long start, long end) {
     }
 
     /** Eine Ankuendigung traegt alles fuers Banner mit: Wertung, Reward, Zeitraum */
@@ -70,12 +70,19 @@ public final class GuildEvents {
                                long start, long end, long at) {
     }
 
-    /** {@code events}: alle laufenden Events; {@code event}: das mit dem naechsten Ende, oder null */
-    public record Feed(long updated, List<Event> events, Upcoming next, List<Row> leaderboard,
+    /**
+     * {@code events}: alle laufenden Events; {@code event}: das mit dem naechsten Ende, oder null;
+     * {@code upcoming}: alle geplanten, der naechste Start zuerst
+     */
+    public record Feed(long updated, List<Event> events, List<Upcoming> upcoming, List<Row> leaderboard,
                        List<Announcement> announcements, String origin) {
 
         public Event event() {
             return events.isEmpty() ? null : events.get(0);
+        }
+
+        public Upcoming next() {
+            return upcoming.isEmpty() ? null : upcoming.get(0);
         }
     }
 
@@ -112,9 +119,10 @@ public final class GuildEvents {
 
         Feed fresh = pending.getAndSet(null);
         if (fresh != null) apply(client, fresh);
+        startDueEvents(client);
 
         long now = System.currentTimeMillis();
-        long wait = current == null && lastError != null ? RETRY_MILLIS : Math.max(30, cfg().refreshSeconds) * 1000L;
+        long wait = current == null && lastError != null ? RETRY_MILLIS : Math.max(15, cfg().refreshSeconds) * 1000L;
         if (now - attemptedAt < wait) return;
         if (!fetching.compareAndSet(false, true)) return;
         attemptedAt = now;
@@ -146,7 +154,9 @@ public final class GuildEvents {
             }
             if (!fallback.isEmpty()) {
                 try {
-                    pending.set(load(fallback, "", FALLBACK_TIMEOUT, "fallback"));
+                    // Ein wechselnder Parameter umgeht den Zwischenspeicher des Gist-Hosts (sonst bis zu 5 Minuten alt)
+                    String fresh = fallback + (fallback.contains("?") ? "&" : "?") + "t=" + System.currentTimeMillis();
+                    pending.set(load(fresh, "", FALLBACK_TIMEOUT, "fallback"));
                     if (firstError != null) lastError = firstError + " (fallback answered)";
                     return;
                 } catch (IOException | RuntimeException e) {
@@ -190,10 +200,13 @@ public final class GuildEvents {
             // Aeltere Bot-Staende kennen nur ein Event
             events.add(eventOf(root.getAsJsonObject("event")));
         }
-        Upcoming next = null;
-        if (root.has("next") && root.get("next").isJsonObject()) {
-            JsonObject n = root.getAsJsonObject("next");
-            next = new Upcoming(str(n, "id"), str(n, "name"), str(n, "label"), lng(n, "start"), lng(n, "end"));
+        List<Upcoming> upcoming = new ArrayList<>();
+        if (root.has("upcoming") && root.get("upcoming").isJsonArray()) {
+            for (JsonElement element : root.getAsJsonArray("upcoming")) {
+                if (element.isJsonObject()) upcoming.add(upcomingOf(element.getAsJsonObject()));
+            }
+        } else if (root.has("next") && root.get("next").isJsonObject()) {
+            upcoming.add(upcomingOf(root.getAsJsonObject("next")));
         }
         List<Announcement> announcements = new ArrayList<>();
         if (root.has("announcements") && root.get("announcements").isJsonArray()) {
@@ -204,9 +217,13 @@ public final class GuildEvents {
                         str(a, "reward"), lng(a, "start"), lng(a, "end"), lng(a, "at")));
             }
         }
-        return new Feed(lng(root, "updated"), Collections.unmodifiableList(events), next,
+        return new Feed(lng(root, "updated"), Collections.unmodifiableList(events), Collections.unmodifiableList(upcoming),
                 rows(root.has("leaderboard") ? root.getAsJsonArray("leaderboard") : null, "points"),
                 Collections.unmodifiableList(announcements), from);
+    }
+
+    private static Upcoming upcomingOf(JsonObject n) {
+        return new Upcoming(str(n, "id"), str(n, "name"), str(n, "label"), str(n, "reward"), lng(n, "start"), lng(n, "end"));
     }
 
     private static Event eventOf(JsonObject e) {
@@ -267,6 +284,29 @@ public final class GuildEvents {
             showAnnouncement(client, a, feed);
         }
         while (cfg.seenAnnouncements.size() > REMEMBERED_ANNOUNCEMENTS) cfg.seenAnnouncements.remove(0);
+        if (changed) ModConfig.INSTANCE.saveNow();
+    }
+
+    /**
+     * Der Start kommt nicht erst mit der naechsten Abfrage: die Mod kennt die geplanten Events
+     * samt Startzeit und zeigt das Banner selbst, sobald die Uhr es sagt. Die Kennung ist dieselbe
+     * wie die der Bot-Ankuendigung, deshalb erscheint es spaeter nicht noch einmal.
+     */
+    private static void startDueEvents(Minecraft client) {
+        Feed feed = current;
+        if (feed == null || feed.upcoming().isEmpty()) return;
+        long nowSeconds = System.currentTimeMillis() / 1000L;
+        GuildEventsCategory cfg = cfg();
+        boolean changed = false;
+        for (Upcoming u : feed.upcoming()) {
+            if (u.start() <= 0 || u.start() > nowSeconds || u.id().isEmpty()) continue;
+            String id = u.id() + ":start";
+            if (cfg.seenAnnouncements.contains(id)) continue;
+            cfg.seenAnnouncements.add(id);
+            changed = true;
+            showAnnouncement(client, new Announcement(id, "start", u.name(), u.label(), u.reward(), u.start(), u.end(), nowSeconds), feed);
+            SafariHud.invalidate(SafariHud.Panel.GUILD);
+        }
         if (changed) ModConfig.INSTANCE.saveNow();
     }
 

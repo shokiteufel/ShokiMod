@@ -11,7 +11,8 @@
 		"GizmoTextFogMixin",
 		"NearbyOverlayMixin",
 		"NearbyClickMixin",
-		"FloorDropParticleMixin"
+		"FloorDropParticleMixin",
+		"HotspotParticleMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

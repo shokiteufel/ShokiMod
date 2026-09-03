@@ -75,6 +75,11 @@ public final class FeatureGate {
         return ModConfig.INSTANCE.chat.reminder.cakeAlert;
     }
 
+    /** Angel-Hotspots: Staender suchen, Partikel lesen, Kreise zeichnen - nur wenn an */
+    public static boolean hotspots() {
+        return ModConfig.INSTANCE.fishing.hotspot.enabled;
+    }
+
     /** Seltene Funde: Alarm oder Teilen. Aus heisst: kein Preis, kein Request */
     public static boolean rareLoot() {
         ModConfig.RareLootCategory c = ModConfig.INSTANCE.chat.rareLoot;
@@ -90,6 +95,6 @@ public final class FeatureGate {
      */
     public static boolean location() {
         return contest() || safari() || nearbyPanel() || rareLoot() || huntingTracker() || mobMarkers() || chatRules()
-                || cakeReminder();
+                || cakeReminder() || hotspots();
     }
 }

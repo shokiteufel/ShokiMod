@@ -87,6 +87,8 @@ public class ModConfig extends Config {
         if (INSTANCE.guild == null) INSTANCE.guild = new GuildCategory();
         if (INSTANCE.guild.events == null) INSTANCE.guild.events = new GuildEventsCategory();
         if (INSTANCE.guild.events.seenAnnouncements == null) INSTANCE.guild.events.seenAnnouncements = new ArrayList<>();
+        if (INSTANCE.fishing == null) INSTANCE.fishing = new FishingCategory();
+        if (INSTANCE.fishing.hotspot == null) INSTANCE.fishing.hotspot = new HotspotCategory();
         if (INSTANCE.chat.reminder == null) INSTANCE.chat.reminder = new ReminderCategory();
         if (INSTANCE.chat.reminder.cakes == null) INSTANCE.chat.reminder.cakes = new HashMap<>();
         if (INSTANCE.hunting.tracker == null) INSTANCE.hunting.tracker = new HuntingTrackerCategory();
@@ -99,6 +101,11 @@ public class ModConfig extends Config {
         if (visuals.legacyShinyColour != null) { visuals.safari.shinyColour = visuals.legacyShinyColour; visuals.legacyShinyColour = null; }
         if (visuals.legacyHideyhoFinder != null) { visuals.safari.hideyhoFinder = visuals.legacyHideyhoFinder; visuals.legacyHideyhoFinder = null; }
         if (visuals.safari.shinyColour == null) visuals.safari.shinyColour = "FFD700";
+        // Wunsch der Tester: der Shiny-Alarm soll bei allen an sein - einmal setzen, danach zaehlt die eigene Wahl
+        if (!visuals.safari.defaultOnApplied) {
+            visuals.safari.defaultOnApplied = true;
+            visuals.safari.shinyAlert = true;
+        }
         // Der Shiny-Schalter zog aus dem Safari-Reiter hierher; den alten Stand einmal mitnehmen
         if (!visuals.shinyMoved) {
             visuals.shinyMoved = true;
@@ -375,6 +382,65 @@ public class ModConfig extends Config {
     @Category(name = "Guild", desc = "Guild events from the ShokiTeufelBot: a banner when one starts, the live ranking in a panel.")
     public GuildCategory guild = new GuildCategory();
 
+    @Expose
+    @Category(name = "Fishing", desc = "Fishing helpers.")
+    public FishingCategory fishing = new FishingCategory();
+
+    public static class FishingCategory {
+
+        @ConfigOption(name = "Fishing", desc = "Everything about fishing lives in the sub tabs on the left.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @Category(name = "Hotspot", desc = "Marks fishing hotspots with a circle in the colour of their bonus and warns when the one you fish in vanishes. Ported from SkyOcean.")
+        public HotspotCategory hotspot = new HotspotCategory();
+    }
+
+    /** Der Hotspot-Kreis aus SkyOcean (Modified MIT, meowdding), nachgebaut mit Minecrafts Gizmos */
+    public static class HotspotCategory {
+
+        @Expose
+        @ConfigOption(name = "Enabled", desc = "Track hotspots. Off means no scanning, no circles, no particle handling.")
+        @ConfigEditorBoolean
+        public boolean enabled = false;
+
+        @Expose
+        @ConfigOption(name = "Circle surface", desc = "Fill the hotspot area on the water in the colour of its bonus.")
+        @ConfigEditorBoolean
+        public boolean circleSurface = true;
+
+        @Expose
+        @ConfigOption(name = "Circle outline", desc = "Draw the rim of the hotspot.")
+        @ConfigEditorBoolean
+        public boolean circleOutline = true;
+
+        @Expose
+        @ConfigOption(name = "Hide particles", desc = "Hide Hypixel's pink rim particles once the circle knows its size.")
+        @ConfigEditorBoolean
+        public boolean hideParticles = true;
+
+        @Expose
+        @ConfigOption(name = "Surface opacity", desc = "Opacity of the filled area, in percent.")
+        @ConfigEditorSlider(minValue = 0f, maxValue = 100f, minStep = 5f)
+        public int surfaceAlpha = 50;
+
+        @Expose
+        @ConfigOption(name = "Outline opacity", desc = "Opacity of the rim, in percent.")
+        @ConfigEditorSlider(minValue = 0f, maxValue = 100f, minStep = 5f)
+        public int outlineAlpha = 100;
+
+        @Expose
+        @ConfigOption(name = "Despawn warning", desc = "Chat line and banner when the hotspot you were fishing in disappears.")
+        @ConfigEditorBoolean
+        public boolean warning = false;
+
+        @Expose
+        @ConfigOption(name = "Warning sound", desc = "A low note with the despawn warning, at the alert volume.")
+        @ConfigEditorBoolean
+        public boolean warningSound = true;
+    }
+
     public static class GuildCategory {
 
         @ConfigOption(name = "Guild", desc = "Everything about guild events lives in the sub tab on the left.")
@@ -446,8 +512,8 @@ public class ModConfig extends Config {
 
         @Expose
         @ConfigOption(name = "Refresh seconds", desc = "How often to ask. 60 is plenty - the bot itself updates every ten minutes.")
-        @ConfigEditorSlider(minValue = 30f, maxValue = 600f, minStep = 10f)
-        public int refreshSeconds = 60;
+        @ConfigEditorSlider(minValue = 15f, maxValue = 600f, minStep = 5f)
+        public int refreshSeconds = 30;
 
         /** Ankuendigungen, die schon als Banner liefen - jede genau einmal */
         @Expose
@@ -723,6 +789,10 @@ public class ModConfig extends Config {
             @ConfigOption(name = "Hideyho finder", desc = "Glow and a line to the nearest Hideyho, like a Your Mobs entry with Highlight and Line - without having to add one.")
             @ConfigEditorBoolean
             public boolean hideyhoFinder = false;
+
+            /** Einmalig: der Shiny-Alarm ist ab 1.1.18 fuer alle an, auch in alten Dateien */
+            @Expose
+            public boolean defaultOnApplied = false;
         }
 
         /** Eingaben sind frei, deshalb beim Lesen abfangen */
