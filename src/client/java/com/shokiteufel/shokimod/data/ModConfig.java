@@ -10,6 +10,7 @@ import com.shokiteufel.shokimod.gui.ChatRuleScreen;
 import com.shokiteufel.shokimod.gui.HudEditorScreen;
 import com.shokiteufel.shokimod.gui.CustomMobScreen;
 import com.shokiteufel.shokimod.gui.MarkerSettingsScreen;
+import com.shokiteufel.shokimod.gui.BannerDesignScreen;
 import com.shokiteufel.shokimod.gui.SoundPickerScreen;
 import com.shokiteufel.shokimod.handler.HuntingTracker;
 import com.shokiteufel.shokimod.handler.RareLootHandler;
@@ -78,7 +79,7 @@ public class ModConfig extends Config {
         // Der Unterreiter kann in einer Datei von vor 1.1.4 als null stehen
         if (INSTANCE.chat.rareLoot == null) INSTANCE.chat.rareLoot = new RareLootCategory();
         if (INSTANCE.chat.banner == null) INSTANCE.chat.banner = new BannerCategory();
-        if (INSTANCE.chat.banner.looks == null) INSTANCE.chat.banner.looks = new HashMap<>();
+        migrateBanners();
         if (INSTANCE.hunting == null) INSTANCE.hunting = new HuntingCategory();
         if (INSTANCE.hunting.tracker == null) INSTANCE.hunting.tracker = new HuntingTrackerCategory();
         if (INSTANCE.hunting.tracker.counts == null) INSTANCE.hunting.tracker.counts = new HashMap<>();
@@ -93,9 +94,6 @@ public class ModConfig extends Config {
             }
         }
         // Gson laesst ein unbekanntes Enum-Wort als null stehen - dann gilt der Standard
-        if (INSTANCE.chat.rareLoot.tier1Style == null) INSTANCE.chat.rareLoot.tier1Style = DropBanner.Style.CLASSIC;
-        if (INSTANCE.chat.rareLoot.tier2Style == null) INSTANCE.chat.rareLoot.tier2Style = DropBanner.Style.CLASSIC;
-        if (INSTANCE.chat.rareLoot.tier3Style == null) INSTANCE.chat.rareLoot.tier3Style = DropBanner.Style.CLASSIC;
         if (INSTANCE.chat.rareLoot.shardPriceMode == null) INSTANCE.chat.rareLoot.shardPriceMode = ItemValue.PriceMode.INSTANT_SELL;
         if (INSTANCE.chat.rareLoot.bazaarPriceMode == null) INSTANCE.chat.rareLoot.bazaarPriceMode = ItemValue.PriceMode.INSTANT_SELL;
         if (INSTANCE.chat.rareLoot.shareTemplate == null) INSTANCE.chat.rareLoot.shareTemplate = "{prefix} {item} {mf} {value}";
@@ -162,27 +160,8 @@ public class ModConfig extends Config {
         INSTANCE.hunting.tracker.resetTracker = () -> Minecraft.getInstance().execute(HuntingTracker::reset);
         INSTANCE.chat.banner.openEditor = () -> Minecraft.getInstance().execute(() ->
                 Minecraft.getInstance().setScreen(new HudEditorScreen(Minecraft.getInstance().screen, true)));
-        INSTANCE.chat.banner.banner1 = () -> Minecraft.getInstance().execute(() -> DropBanner.preview(DropBanner.Style.CLASSIC));
-        INSTANCE.chat.banner.banner2 = () -> Minecraft.getInstance().execute(() -> DropBanner.preview(DropBanner.Style.COMPACT));
-        INSTANCE.chat.banner.banner3 = () -> Minecraft.getInstance().execute(() -> DropBanner.preview(DropBanner.Style.TITLE));
-        INSTANCE.chat.banner.banner4 = () -> Minecraft.getInstance().execute(() -> DropBanner.preview(DropBanner.Style.CARD));
-        INSTANCE.chat.banner.banner5 = () -> Minecraft.getInstance().execute(() -> DropBanner.preview(DropBanner.Style.RIBBON));
-        INSTANCE.chat.banner.banner6 = () -> Minecraft.getInstance().execute(() -> DropBanner.preview(DropBanner.Style.OUTLINE));
-        INSTANCE.chat.banner.banner7 = () -> Minecraft.getInstance().execute(() -> DropBanner.preview(DropBanner.Style.BOXED));
-        INSTANCE.chat.banner.banner8 = () -> Minecraft.getInstance().execute(() -> DropBanner.preview(DropBanner.Style.TWO_TONE));
-        INSTANCE.chat.banner.banner9 = () -> Minecraft.getInstance().execute(() -> DropBanner.preview(DropBanner.Style.POP));
-        INSTANCE.chat.banner.banner10 = () -> Minecraft.getInstance().execute(() -> DropBanner.preview(DropBanner.Style.MINIMAL));
-        INSTANCE.chat.banner.banner11 = () -> Minecraft.getInstance().execute(() -> DropBanner.preview(DropBanner.Style.SWEEP));
-        INSTANCE.chat.banner.banner12 = () -> Minecraft.getInstance().execute(() -> DropBanner.preview(DropBanner.Style.DOUBLE_FRAME));
-        INSTANCE.chat.banner.banner13 = () -> Minecraft.getInstance().execute(() -> DropBanner.preview(DropBanner.Style.GLOW));
-        INSTANCE.chat.banner.banner14 = () -> Minecraft.getInstance().execute(() -> DropBanner.preview(DropBanner.Style.SIDEBAR));
-        INSTANCE.chat.banner.banner15 = () -> Minecraft.getInstance().execute(() -> DropBanner.preview(DropBanner.Style.TAG));
-        INSTANCE.chat.banner.banner16 = () -> Minecraft.getInstance().execute(() -> DropBanner.preview(DropBanner.Style.BRACKETS));
-        INSTANCE.chat.banner.banner17 = () -> Minecraft.getInstance().execute(() -> DropBanner.preview(DropBanner.Style.SPLIT));
-        INSTANCE.chat.banner.banner18 = () -> Minecraft.getInstance().execute(() -> DropBanner.preview(DropBanner.Style.TYPEWRITER));
-        INSTANCE.chat.banner.banner19 = () -> Minecraft.getInstance().execute(() -> DropBanner.preview(DropBanner.Style.FLASH));
-        INSTANCE.chat.banner.banner20 = () -> Minecraft.getInstance().execute(() -> DropBanner.preview(DropBanner.Style.CHEVRON));
-        INSTANCE.chat.banner.banner21 = () -> Minecraft.getInstance().execute(() -> DropBanner.preview(DropBanner.Style.ICON));
+        INSTANCE.chat.banner.openSandbox = () -> Minecraft.getInstance().execute(() ->
+                Minecraft.getInstance().setScreen(new BannerDesignScreen(Minecraft.getInstance().screen)));
         INSTANCE.safari.openShinyCallSound = () -> Minecraft.getInstance().execute(() ->
                 Minecraft.getInstance().setScreen(new SoundPickerScreen(
                         Minecraft.getInstance().screen,
@@ -216,6 +195,44 @@ public class ModConfig extends Config {
         adoptOldMinValues();
 
         INSTANCE.saveNow();
+    }
+
+    /**
+     * Die Banner-Designs: beim ersten Start die Vorlagen anlegen, alte Einstellungen mitnehmen.
+     *
+     * Bis 1.1.16 gab es feste Stile mit je einem Ort; jetzt sind es Designs. Ort, Groesse
+     * und Farbe je Stil wandern in die gleichnamige Vorlage, die Stufen zeigen auf deren
+     * Namen. Danach ist die alte Ablage leer und verschwindet aus der Datei.
+     */
+    private static void migrateBanners() {
+        BannerCategory banner = INSTANCE.chat.banner;
+        if (banner.designs == null) banner.designs = new ArrayList<>();
+        banner.designs.removeIf(d -> d == null);
+        banner.designs.forEach(BannerDesign::repair);
+
+        if (banner.designs.isEmpty()) {
+            banner.designs.addAll(BannerDesign.presets());
+            if (banner.looks != null) {
+                for (Map.Entry<String, BannerCategory.BannerLook> entry : banner.looks.entrySet()) {
+                    BannerDesign target = banner.design(BannerDesign.presetNameFor(entry.getKey()));
+                    BannerCategory.BannerLook look = entry.getValue();
+                    if (target == null || look == null) continue;
+                    target.x = look.x;
+                    target.y = look.y;
+                    target.scale = look.scale;
+                    target.colour = look.colour == null ? "" : look.colour;
+                }
+            }
+        }
+        banner.looks = null;
+
+        RareLootCategory rare = INSTANCE.chat.rareLoot;
+        if (rare.tier1Style != null) { rare.tier1Design = BannerDesign.presetNameFor(rare.tier1Style); rare.tier1Style = null; }
+        if (rare.tier2Style != null) { rare.tier2Design = BannerDesign.presetNameFor(rare.tier2Style); rare.tier2Style = null; }
+        if (rare.tier3Style != null) { rare.tier3Design = BannerDesign.presetNameFor(rare.tier3Style); rare.tier3Style = null; }
+        if (rare.tier1Design == null || rare.tier1Design.isBlank()) rare.tier1Design = "Classic band";
+        if (rare.tier2Design == null || rare.tier2Design.isBlank()) rare.tier2Design = "Classic band";
+        if (rare.tier3Design == null || rare.tier3Design.isBlank()) rare.tier3Design = "Classic band";
     }
 
     /**
@@ -653,146 +670,50 @@ public class ModConfig extends Config {
         public boolean valueAlertMigrated = false;
     }
 
-    /** Alle zwanzig Stile zum Ausprobieren, und der Weg in den Editor */
+    /** Die Banner-Designs: Vorlagen und Eigenbauten, dazu Sandbox und Editor */
     public static class BannerCategory {
 
-        @ConfigOption(name = "Editor", desc = "Opens the HUD editor: drag each tier's banner where you want it, scroll to size it, pick its colour. Same screen as /shoki hud.")
+        @ConfigOption(name = "Sandbox", desc = "Design your own banner: start from a template, change anything, preview it, assign it to a tier.")
+        @ConfigEditorButton(buttonText = "Open")
+        public transient Runnable openSandbox = () -> {
+        };
+
+        @ConfigOption(name = "Editor", desc = "Drag banners and panels into place. Same screen as /shoki hud.")
         @ConfigEditorButton(buttonText = "Open")
         public transient Runnable openEditor = () -> {
         };
 
+        /** Alle Designs, die einundzwanzig Vorlagen eingeschlossen. Name ist der Schluessel */
         @Expose
-        @ConfigOption(name = "Text shadow", desc = "Draw banner text with a drop shadow.")
-        @ConfigEditorBoolean
-        public boolean bannerShadow = true;
+        public List<BannerDesign> designs = new ArrayList<>();
 
-        /**
-         * Ort, Groesse und Farbe je Stil, aus dem HUD-Editor.
-         *
-         * Je Stil, nicht je Stufe: wer Banner 7 einmal an seinen Platz gezogen hat,
-         * bekommt es dort, egal welche Stufe es ausloest. Schluessel ist der Name des
-         * Stils, damit die Datei lesbar bleibt und neue Stile keine alten verschieben.
-         */
+        /** Alte Ablage bis 1.1.16: Ort und Farbe je Stil. Nur noch fuer die Uebernahme */
         @Expose
-        public Map<String, BannerLook> looks = new HashMap<>();
-
-        public BannerLook look(DropBanner.Style style) {
-            if (looks == null) looks = new HashMap<>();
-            return looks.computeIfAbsent(style.name(), key -> new BannerLook());
-        }
+        public Map<String, BannerLook> looks = null;
 
         public static class BannerLook {
             @Expose public float x = 0.5f;
             @Expose public float y = 0.3f;
             @Expose public float scale = 1.0f;
-            /** Hex wie FFD700. Leer: die Farbe der Stufe */
             @Expose public String colour = "";
         }
 
-        @ConfigOption(name = "Banner 1 - Classic band", desc = "The band across the screen that SHINY critters use.")
-        @ConfigEditorButton(buttonText = "Show")
-        public transient Runnable banner1 = () -> {
-        };
+        /** Das Design mit diesem Namen, oder null */
+        public BannerDesign design(String name) {
+            if (name == null || designs == null) return null;
+            for (BannerDesign d : designs) {
+                if (d != null && d.name != null && d.name.equalsIgnoreCase(name.trim())) return d;
+            }
+            return null;
+        }
 
-        @ConfigOption(name = "Banner 2 - Compact strip", desc = "One line above the hotbar with a coloured underline.")
-        @ConfigEditorButton(buttonText = "Show")
-        public transient Runnable banner2 = () -> {
-        };
-
-        @ConfigOption(name = "Banner 3 - Big title", desc = "Large free-standing text in the middle, like a Minecraft title.")
-        @ConfigEditorButton(buttonText = "Show")
-        public transient Runnable banner3 = () -> {
-        };
-
-        @ConfigOption(name = "Banner 4 - Side card", desc = "A card that slides in from the right edge.")
-        @ConfigEditorButton(buttonText = "Show")
-        public transient Runnable banner4 = () -> {
-        };
-
-        @ConfigOption(name = "Banner 5 - Top ribbon", desc = "A coloured ribbon dropping down from the top.")
-        @ConfigEditorButton(buttonText = "Show")
-        public transient Runnable banner5 = () -> {
-        };
-
-        @ConfigOption(name = "Banner 6 - Outlined text", desc = "Text with a dark outline, no box. Follows the editor frame.")
-        @ConfigEditorButton(buttonText = "Show")
-        public transient Runnable banner6 = () -> {
-        };
-
-        @ConfigOption(name = "Banner 7 - Boxed", desc = "A dark box with a coloured frame.")
-        @ConfigEditorButton(buttonText = "Show")
-        public transient Runnable banner7 = () -> {
-        };
-
-        @ConfigOption(name = "Banner 8 - Two tone", desc = "Coloured headline, white value, a line between.")
-        @ConfigEditorButton(buttonText = "Show")
-        public transient Runnable banner8 = () -> {
-        };
-
-        @ConfigOption(name = "Banner 9 - Pop-in", desc = "The headline pops up, then settles.")
-        @ConfigEditorButton(buttonText = "Show")
-        public transient Runnable banner9 = () -> {
-        };
-
-        @ConfigOption(name = "Banner 10 - Minimal dot", desc = "One small line with a coloured dot.")
-        @ConfigEditorButton(buttonText = "Show")
-        public transient Runnable banner10 = () -> {
-        };
-
-        @ConfigOption(name = "Banner 11 - Underline sweep", desc = "A line grows out from the middle under the headline.")
-        @ConfigEditorButton(buttonText = "Show")
-        public transient Runnable banner11 = () -> {
-        };
-
-        @ConfigOption(name = "Banner 12 - Double frame", desc = "Two frames, one inside the other.")
-        @ConfigEditorButton(buttonText = "Show")
-        public transient Runnable banner12 = () -> {
-        };
-
-        @ConfigOption(name = "Banner 13 - Glow", desc = "A soft glow around the headline.")
-        @ConfigEditorButton(buttonText = "Show")
-        public transient Runnable banner13 = () -> {
-        };
-
-        @ConfigOption(name = "Banner 14 - Left bar stack", desc = "Three lines behind a coloured bar.")
-        @ConfigEditorButton(buttonText = "Show")
-        public transient Runnable banner14 = () -> {
-        };
-
-        @ConfigOption(name = "Banner 15 - Small tag", desc = "A small coloured label with dark text.")
-        @ConfigEditorButton(buttonText = "Show")
-        public transient Runnable banner15 = () -> {
-        };
-
-        @ConfigOption(name = "Banner 16 - Brackets", desc = "Coloured brackets around the headline.")
-        @ConfigEditorButton(buttonText = "Show")
-        public transient Runnable banner16 = () -> {
-        };
-
-        @ConfigOption(name = "Banner 17 - Split bar", desc = "Name on the dark half, value on the coloured half.")
-        @ConfigEditorButton(buttonText = "Show")
-        public transient Runnable banner17 = () -> {
-        };
-
-        @ConfigOption(name = "Banner 18 - Typewriter", desc = "The headline types itself out.")
-        @ConfigEditorButton(buttonText = "Show")
-        public transient Runnable banner18 = () -> {
-        };
-
-        @ConfigOption(name = "Banner 19 - Flash", desc = "A short flash of colour, then the text.")
-        @ConfigEditorButton(buttonText = "Show")
-        public transient Runnable banner19 = () -> {
-        };
-
-        @ConfigOption(name = "Banner 20 - Chevrons", desc = "Chevrons left and right of the headline.")
-        @ConfigEditorButton(buttonText = "Show")
-        public transient Runnable banner20 = () -> {
-        };
-
-        @ConfigOption(name = "Banner 21 - Icon card", desc = "The item picture in the middle, its name above, the price below.")
-        @ConfigEditorButton(buttonText = "Show")
-        public transient Runnable banner21 = () -> {
-        };
+        /** Das Design mit diesem Namen, sonst das erste - ein Fund soll nie ohne Banner bleiben */
+        public BannerDesign designOrDefault(String name) {
+            BannerDesign found = design(name);
+            if (found != null) return found;
+            if (designs != null && !designs.isEmpty() && designs.get(0) != null) return designs.get(0);
+            return BannerDesign.presets().get(0);
+        }
     }
 
     /**
@@ -859,10 +780,14 @@ public class ModConfig extends Config {
         public boolean tier1Banner = true;
 
         @Expose
-        @ConfigOption(name = "Banner style", desc = "Which of the twenty banners this tier shows. Try them in the Test tab.")
-        @ConfigEditorDropdown
+        @ConfigOption(name = "Banner", desc = "Name of the banner design this tier shows. Pick or build one in Alerts > Banner > Sandbox, where Use for Tier sets this for you.")
+        @ConfigEditorText
         @ConfigAccordionId(id = 21)
-        public DropBanner.Style tier1Style = DropBanner.Style.CLASSIC;
+        public String tier1Design = "Classic band";
+
+        /** Alte Ablage bis 1.1.16, nur fuer die Uebernahme */
+        @Expose
+        public String tier1Style = null;
 
 
         @Expose
@@ -919,10 +844,14 @@ public class ModConfig extends Config {
         public boolean tier2Banner = true;
 
         @Expose
-        @ConfigOption(name = "Banner style", desc = "Which of the twenty banners this tier shows. Try them in the Test tab.")
-        @ConfigEditorDropdown
+        @ConfigOption(name = "Banner", desc = "Name of the banner design this tier shows. Pick or build one in Alerts > Banner > Sandbox, where Use for Tier sets this for you.")
+        @ConfigEditorText
         @ConfigAccordionId(id = 22)
-        public DropBanner.Style tier2Style = DropBanner.Style.CLASSIC;
+        public String tier2Design = "Classic band";
+
+        /** Alte Ablage bis 1.1.16, nur fuer die Uebernahme */
+        @Expose
+        public String tier2Style = null;
 
 
         @Expose
@@ -979,10 +908,14 @@ public class ModConfig extends Config {
         public boolean tier3Banner = true;
 
         @Expose
-        @ConfigOption(name = "Banner style", desc = "Which of the twenty banners this tier shows. Try them in the Test tab.")
-        @ConfigEditorDropdown
+        @ConfigOption(name = "Banner", desc = "Name of the banner design this tier shows. Pick or build one in Alerts > Banner > Sandbox, where Use for Tier sets this for you.")
+        @ConfigEditorText
         @ConfigAccordionId(id = 23)
-        public DropBanner.Style tier3Style = DropBanner.Style.CLASSIC;
+        public String tier3Design = "Classic band";
+
+        /** Alte Ablage bis 1.1.16, nur fuer die Uebernahme */
+        @Expose
+        public String tier3Style = null;
 
 
         @Expose
@@ -1096,16 +1029,25 @@ public class ModConfig extends Config {
             };
         }
 
+        /** Der Designname einer Stufe */
+        public String designFor(int tier) {
+            return switch (tier) { case 1 -> tier1Design; case 2 -> tier2Design; default -> tier3Design; };
+        }
+
+        public void setDesign(int tier, String name) {
+            switch (tier) { case 1 -> tier1Design = name; case 2 -> tier2Design = name; default -> tier3Design = name; }
+        }
+
         /** Eine Stufe, wie der Handler sie sieht */
         public record Tier(int number, boolean enabled, String threshold, boolean banner,
-                           boolean toast, boolean chat, String sound, DropBanner.Style style) {
+                           boolean toast, boolean chat, String sound, String design) {
         }
 
         public Tier tier(int number) {
             return switch (number) {
-                case 1 -> new Tier(1, tier1Enabled, tier1Threshold, tier1Banner, tier1Toast, tier1Chat, tier1Sound, tier1Style);
-                case 2 -> new Tier(2, tier2Enabled, tier2Threshold, tier2Banner, tier2Toast, tier2Chat, tier2Sound, tier2Style);
-                default -> new Tier(3, tier3Enabled, tier3Threshold, tier3Banner, tier3Toast, tier3Chat, tier3Sound, tier3Style);
+                case 1 -> new Tier(1, tier1Enabled, tier1Threshold, tier1Banner, tier1Toast, tier1Chat, tier1Sound, tier1Design);
+                case 2 -> new Tier(2, tier2Enabled, tier2Threshold, tier2Banner, tier2Toast, tier2Chat, tier2Sound, tier2Design);
+                default -> new Tier(3, tier3Enabled, tier3Threshold, tier3Banner, tier3Toast, tier3Chat, tier3Sound, tier3Design);
             };
         }
 

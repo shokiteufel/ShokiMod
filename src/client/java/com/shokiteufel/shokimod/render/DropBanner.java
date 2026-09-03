@@ -1,6 +1,14 @@
 package com.shokiteufel.shokimod.render;
 
-import com.shokiteufel.shokimod.data.ModConfig;
+import com.shokiteufel.shokimod.data.BannerDesign;
+import com.shokiteufel.shokimod.data.BannerDesign.Accent;
+import com.shokiteufel.shokimod.data.BannerDesign.Anchor;
+import com.shokiteufel.shokimod.data.BannerDesign.Animation;
+import com.shokiteufel.shokimod.data.BannerDesign.Background;
+import com.shokiteufel.shokimod.data.BannerDesign.Frame;
+import com.shokiteufel.shokimod.data.BannerDesign.Icon;
+import com.shokiteufel.shokimod.data.BannerDesign.TextColour;
+import com.shokiteufel.shokimod.data.BannerDesign.TextEffect;
 import com.shokiteufel.shokimod.util.ItemIcons;
 
 import net.minecraft.client.Minecraft;
@@ -11,61 +19,18 @@ import net.minecraft.world.item.ItemStack;
 import java.util.Locale;
 
 /**
- * Die Einblendung fuer seltene Funde, in zwanzig Stilen.
+ * Die Einblendung fuer seltene Funde - gezeichnet nach einem {@link BannerDesign}.
  *
- * Getrennt vom {@link AlertBanner}: der bleibt, wie er ist, fuer SHINY-Critter und
- * Chatregeln. Dieses Banner hier gehoert den Funden und darf anders aussehen -
- * welcher Stil, entscheidet jede Stufe fuer sich; der Banner-Reiter zeigt alle.
+ * Ein Zeichenweg fuer alle Banner: das Design sagt, wo es haengt, was dahinter liegt,
+ * wie die Schrift aussieht und wie es hereinkommt. Die frueheren zwanzig Stile sind
+ * Vorlagen desselben Modells, kein eigener Code mehr.
  *
- * Die Stile 1 bis 5 haben ihren festen Platz. Alle ab 6 sitzen dort, wo man sie
- * im HUD-Editor hingezogen hat, in der dort eingestellten Groesse - je Stufe
- * eigens. Die Farbe kommt von der Stufe, ausser im Editor wurde eine gewaehlt.
- *
- * Wie beim AlertBanner gibt es keinen Timer: nur ein Zeitstempel, aus dem beim
- * Zeichnen Deckkraft und Position folgen. Ort und Groesse werden beim Zeichnen
- * gelesen, nicht beim Ausloesen - so sieht man im Editor sofort, wohin es geht.
+ * Getrennt vom {@link AlertBanner}, der fuer SHINY-Critter und Chatregeln bleibt.
+ * Kein Timer: nur ein Zeitstempel, aus dem beim Zeichnen Deckkraft, Lage und
+ * Animationsfortschritt folgen. Das Design wird beim Zeichnen gelesen - wer im
+ * Sandbox oder Editor dreht, sieht es sofort.
  */
 public final class DropBanner {
-
-    public enum Style {
-        CLASSIC("1 - Classic band"),
-        COMPACT("2 - Compact strip"),
-        TITLE("3 - Big title"),
-        CARD("4 - Side card"),
-        RIBBON("5 - Top ribbon"),
-        OUTLINE("6 - Outlined text"),
-        BOXED("7 - Boxed"),
-        TWO_TONE("8 - Two tone"),
-        POP("9 - Pop-in"),
-        MINIMAL("10 - Minimal dot"),
-        SWEEP("11 - Underline sweep"),
-        DOUBLE_FRAME("12 - Double frame"),
-        GLOW("13 - Glow"),
-        SIDEBAR("14 - Left bar stack"),
-        TAG("15 - Small tag"),
-        BRACKETS("16 - Brackets"),
-        SPLIT("17 - Split bar"),
-        TYPEWRITER("18 - Typewriter"),
-        FLASH("19 - Flash"),
-        CHEVRON("20 - Chevrons"),
-        ICON("21 - Icon card");
-
-        private final String label;
-
-        Style(String label) {
-            this.label = label;
-        }
-
-        @Override
-        public String toString() {
-            return label;
-        }
-
-        /** Alles ab Stil 6 folgt Ort und Groesse aus dem Editor */
-        public boolean free() {
-            return ordinal() >= OUTLINE.ordinal();
-        }
-    }
 
     private static final long FADE_MILLIS = 900L;
     private static final long SLIDE_MILLIS = 250L;
@@ -73,9 +38,9 @@ public final class DropBanner {
     private static final long SWEEP_MILLIS = 350L;
     private static final long TYPE_MILLIS = 450L;
     private static final long FLASH_MILLIS = 160L;
+    private static final int PADDING = 10;
 
-    private static Style style = Style.CLASSIC;
-    private static int tierNumber = 1;
+    private static BannerDesign design = null;
     private static String headline = "";
     private static String worth = "";
     private static String tierLabel = "";
@@ -90,35 +55,33 @@ public final class DropBanner {
     /**
      * Blendet ein Banner ein. Ein zweiter Aufruf ersetzt das laufende.
      *
-     * @param tier die Stufe, deren Ort, Groesse und Farbe gelten (1 bis 3)
+     * @param chosen das Design; null nimmt die erste Vorlage
+     * @param rgb    die Farbe der Stufe - gilt, wenn das Design keine eigene hat
      */
-    public static void show(Style chosen, int tier, String headlineText, String worthText, String tierText,
-                            int rgb, long millis) {
-        style = chosen == null ? Style.CLASSIC : chosen;
-        tierNumber = Math.min(Math.max(tier, 1), 3);
+    public static void show(BannerDesign chosen, String headlineText, String worthText, String tierText,
+                            int rgb, ItemStack iconStack) {
+        design = chosen == null ? BannerDesign.presets().get(0) : chosen;
         headline = headlineText == null ? "" : headlineText;
         worth = worthText == null ? "" : worthText;
         tierLabel = tierText == null ? "" : tierText;
         tint = rgb & 0xFFFFFF;
-        icon = null;
-        displayMillis = Math.max(millis, FADE_MILLIS + 300L);
+        icon = iconStack;
+        displayMillis = Math.max(design.durationMillis, FADE_MILLIS + 300L);
         shownAtMillis = System.currentTimeMillis();
     }
 
-    /** Dasselbe, mit dem Bild des Items - die Icon-Karte zeigt es, alle anderen ignorieren es */
-    public static void show(Style chosen, int tier, String headlineText, String worthText, String tierText,
-                            int rgb, long millis, ItemStack iconStack) {
-        show(chosen, tier, headlineText, worthText, tierText, rgb, millis);
-        icon = iconStack;
+    /** Sandbox und Befehl: ein Beispiel im gewuenschten Design, laenger als im Spiel */
+    public static void preview(BannerDesign chosen) {
+        show(chosen, "+ 3x Ghost Shard", "(10.5k)", "Tier 1", 0xFFD700, ItemIcons.stackFor("SHARD_GHOST"));
+        displayMillis = Math.max(displayMillis, 4500L);
     }
 
-    /** Der Banner-Reiter: ein Beispiel im gewuenschten Stil, mit Ort und Farbe der Stufe 1 */
-    public static void preview(Style chosen) {
-        show(chosen, 1, "+ 3x Ghost Shard", "(10.5k)", "Tier 1 - " + chosen, 0xFFD700, 4500L, ItemIcons.stackFor("SHARD_GHOST"));
+    public static boolean visible() {
+        return shownAtMillis != 0L;
     }
 
-    public static void render(GuiGraphicsExtractor graphics) {
-        if (shownAtMillis == 0L) return;
+    public static void render(GuiGraphicsExtractor g) {
+        if (shownAtMillis == 0L || design == null) return;
 
         long age = System.currentTimeMillis() - shownAtMillis;
         if (age > displayMillis) {
@@ -129,56 +92,234 @@ public final class DropBanner {
         float alpha = 1.0f;
         long fadeStart = displayMillis - FADE_MILLIS;
         if (age > fadeStart) alpha = 1.0f - (age - fadeStart) / (float) FADE_MILLIS;
-        float slide = Math.min(1.0f, age / (float) SLIDE_MILLIS);
 
         Font font = Minecraft.getInstance().font;
-        int width = graphics.guiWidth();
-        int height = graphics.guiHeight();
-        Look look = Look.fromStyle(style, tint);
+        int width = g.guiWidth();
+        int height = g.guiHeight();
+        BannerDesign d = design;
+        int colour = parseColour(d.colour, tint);
+        float scale = clamp(d.scale, 0.3f, 4.0f);
 
-        switch (style) {
-            case CLASSIC -> classic(graphics, font, width, height, alpha, look);
-            case COMPACT -> compact(graphics, font, width, height, alpha, look);
-            case TITLE -> title(graphics, font, width, height, alpha, look);
-            case CARD -> card(graphics, font, width, height, alpha, slide, look);
-            case RIBBON -> ribbon(graphics, font, width, height, alpha, slide, look);
-            case OUTLINE -> outline(graphics, font, width, height, alpha, look);
-            case BOXED -> boxed(graphics, font, width, height, alpha, look);
-            case TWO_TONE -> twoTone(graphics, font, width, height, alpha, look);
-            case POP -> pop(graphics, font, width, height, alpha, age, look);
-            case MINIMAL -> minimal(graphics, font, width, height, alpha, look);
-            case SWEEP -> sweep(graphics, font, width, height, alpha, age, look);
-            case DOUBLE_FRAME -> doubleFrame(graphics, font, width, height, alpha, look);
-            case GLOW -> glow(graphics, font, width, height, alpha, look);
-            case SIDEBAR -> sidebar(graphics, font, width, height, alpha, look);
-            case TAG -> tag(graphics, font, width, height, alpha, look);
-            case BRACKETS -> brackets(graphics, font, width, height, alpha, look);
-            case SPLIT -> split(graphics, font, width, height, alpha, look);
-            case TYPEWRITER -> typewriter(graphics, font, width, height, alpha, age, look);
-            case FLASH -> flash(graphics, font, width, height, alpha, age, look);
-            case CHEVRON -> chevron(graphics, font, width, height, alpha, look);
-            case ICON -> iconCard(graphics, font, width, height, alpha, look);
+        // ---- Texte und Groessen ----
+        String head = d.prefix + headline + d.suffix;
+        String value = d.showValue ? worth : "";
+        String tier = d.showTier ? tierLabel : "";
+        float hs = clamp(d.headlineSize, 0.5f, 6.0f) * scale;
+        float vs = clamp(d.valueSize, 0.5f, 6.0f) * scale;
+        float ts = Math.max(0.8f, scale);
+
+        float pop = 1.0f;
+        if (d.animation == Animation.POP) {
+            float progress = Math.min(1.0f, age / (float) POP_MILLIS);
+            pop = progress < 0.6f ? 0.4f + progress : 1.3f - (progress - 0.6f) * 0.75f;
+        }
+        String shownHead = head;
+        boolean typing = false;
+        if (d.animation == Animation.TYPEWRITER) {
+            float progress = Math.min(1.0f, age / (float) TYPE_MILLIS);
+            int shown = Math.min(head.length(), Math.round(head.length() * progress));
+            shownHead = head.substring(0, shown) + (progress < 1.0f ? "_" : "");
+            typing = progress < 1.0f;
+        }
+
+        int headW = (int) (font.width(head) * hs * pop);
+        int headH = (int) (10 * hs * pop);
+        int valueW = value.isEmpty() ? 0 : (int) (font.width(value) * vs);
+        int valueH = value.isEmpty() ? 0 : (int) (10 * vs);
+        int tierW = tier.isEmpty() ? 0 : (int) (font.width(tier) * ts);
+        int tierH = tier.isEmpty() ? 0 : (int) (10 * ts);
+        int iconSize = d.icon == Icon.NONE || icon == null ? 0 : (int) (16 * clamp(d.iconScale, 0.5f, 6.0f) * scale);
+        int gap = (int) (4 * scale);
+
+        // Der Textblock: Ueberschrift, (Bild), Wert, Stufe untereinander
+        int textW = Math.max(headW, Math.max(valueW, tierW));
+        int textH = headH + (valueH > 0 ? gap + valueH : 0) + (tierH > 0 ? gap + tierH : 0);
+        int blockW;
+        int blockH;
+        if (d.icon == Icon.MIDDLE && iconSize > 0) {
+            blockW = Math.max(textW, iconSize);
+            blockH = textH + gap + iconSize;
+        } else if (d.icon == Icon.LEFT && iconSize > 0) {
+            blockW = iconSize + gap * 2 + textW;
+            blockH = Math.max(textH, iconSize);
+        } else {
+            blockW = textW;
+            blockH = textH;
+        }
+        int accentPad = d.accent == Accent.LEFT_BAR ? (int) (6 * scale) : d.accent == Accent.DOT ? (int) (8 * scale) : 0;
+        int boxW = blockW + PADDING * 2 + accentPad;
+        int boxH = blockH + PADDING * 2;
+
+        // ---- Lage ----
+        boolean fullWidth = d.anchor == Anchor.BAND || d.anchor == Anchor.TOP;
+        int cx;
+        int cy;
+        switch (d.anchor) {
+            case CENTER -> {
+                cx = width / 2;
+                cy = height / 2;
+            }
+            case HOTBAR -> {
+                cx = width / 2;
+                cy = (int) (height * 0.62f);
+            }
+            case BAND -> {
+                cx = width / 2;
+                cy = height / 4 + boxH / 2;
+            }
+            case TOP -> {
+                cx = width / 2;
+                cy = boxH / 2 + 4;
+            }
+            case RIGHT_EDGE -> {
+                cx = width - boxW / 2;
+                cy = height / 3 + boxH / 2;
+            }
+            default -> {
+                cx = (int) (width * clamp(d.x, 0f, 1f));
+                cy = (int) (height * clamp(d.y, 0f, 1f));
+            }
+        }
+
+        float slide = Math.min(1.0f, age / (float) SLIDE_MILLIS);
+        if (d.animation == Animation.SLIDE_RIGHT) cx += (int) ((1.0f - slide) * (width - cx + boxW));
+        if (d.animation == Animation.DROP) cy -= (int) ((1.0f - slide) * (cy + boxH));
+
+        int left = fullWidth ? 0 : cx - boxW / 2;
+        int right = fullWidth ? width : cx + boxW / 2;
+        int top = cy - boxH / 2;
+        int bottom = cy + boxH / 2;
+
+        // ---- Hintergrund und Rahmen ----
+        if (d.animation == Animation.FLASH && age < FLASH_MILLIS) {
+            g.fill(0, 0, width, height, argb((1.0f - age / (float) FLASH_MILLIS) * 0.45f, colour));
+        }
+        float bgAlpha = alpha * clamp(d.backgroundAlpha, 0f, 1f);
+        switch (d.background) {
+            case BOX -> g.fill(left, top, right, bottom, argb(bgAlpha, 0x101010));
+            case FILL -> g.fill(left, top, right, bottom, argb(bgAlpha, colour));
+            case SPLIT -> {
+                int mid = left + (right - left) * 3 / 5;
+                g.fill(left, top, mid, bottom, argb(bgAlpha, 0x101010));
+                g.fill(mid, top, right, bottom, argb(bgAlpha, colour));
+            }
+            default -> {
+            }
+        }
+        if (d.frame == Frame.SINGLE) frame(g, left, top, right, bottom, 2, argb(alpha, colour));
+        if (d.frame == Frame.DOUBLE) {
+            frame(g, left, top, right, bottom, 1, argb(alpha, colour));
+            frame(g, left + 4, top + 4, right - 4, bottom - 4, 1, argb(alpha, 0xFFFFFF));
+        }
+        if (d.accent == Accent.EDGES) {
+            g.fill(left, top, right, top + 1, argb(alpha, colour));
+            g.fill(left, bottom - 1, right, bottom, argb(alpha, colour));
+        }
+        if (d.accent == Accent.LEFT_BAR) g.fill(left, top, left + (int) (3 * scale) + 1, bottom, argb(alpha, colour));
+
+        // ---- Inhalt ----
+        int contentLeft = left + PADDING + accentPad + ((right - left) - boxW) / 2;
+        int textLeft = contentLeft;
+        int textTop = top + PADDING;
+        if (d.icon == Icon.LEFT && iconSize > 0) {
+            drawIcon(g, contentLeft, top + (boxH - iconSize) / 2, iconSize);
+            textLeft = contentLeft + iconSize + gap * 2;
+            textTop = top + (boxH - textH) / 2;
+        }
+        int textCentreX = textLeft + textW / 2;
+        if (d.accent == Accent.DOT) {
+            int dot = Math.max(3, (int) (4 * scale));
+            g.fill(textLeft - accentPad, textTop + headH / 2 - dot / 2, textLeft - accentPad + dot, textTop + headH / 2 + dot / 2, argb(alpha, colour));
+        }
+
+        int y = textTop;
+        drawText(g, font, shownHead, textCentreX, y, hs * pop, textColour(d.headlineColour, colour), d.textEffect, alpha, colour);
+        y += headH;
+
+        if (d.accent == Accent.UNDERLINE || d.accent == Accent.SWEEP) {
+            int half = headW / 2 + (int) (6 * scale);
+            if (d.accent == Accent.SWEEP) half = (int) (half * Math.min(1.0f, age / (float) SWEEP_MILLIS));
+            g.fill(textCentreX - half, y + 1, textCentreX + half, y + 1 + Math.max(1, (int) (2 * scale)), argb(alpha, colour));
+        }
+        if (d.icon == Icon.MIDDLE && iconSize > 0) {
+            y += gap;
+            drawIcon(g, textCentreX - iconSize / 2, y, iconSize);
+            y += iconSize;
+        }
+        if (valueH > 0 && !typing) {
+            y += gap;
+            if (d.accent == Accent.DIVIDER) {
+                int half = textW / 2 + (int) (6 * scale);
+                g.fill(textCentreX - half, y - gap / 2, textCentreX + half, y - gap / 2 + 1, argb(alpha, colour));
+            }
+            int valueX = textCentreX;
+            if (d.background == Background.SPLIT) valueX = left + (right - left) * 4 / 5;
+            drawText(g, font, value, valueX, y, vs, textColour(d.valueColour, colour), d.textEffect, alpha, colour);
+            y += valueH;
+        }
+        if (tierH > 0) {
+            y += gap;
+            drawText(g, font, tier, textCentreX, y, ts, 0xAAAAAA, TextEffect.PLAIN, alpha, colour);
         }
     }
 
-    /** Ort, Groesse, Farbe und Schatten eines Stils - beim Zeichnen gelesen */
-    private record Look(int colour, float scale, boolean shadow, float x, float y) {
+    // ---- Helfer ----
 
-        static Look fromStyle(Style style, int tierColour) {
-            ModConfig.BannerCategory banner = ModConfig.INSTANCE.chat.banner;
-            ModConfig.BannerCategory.BannerLook look = banner.look(style);
-            int colour = parseColour(look.colour, tierColour);
-            return new Look(colour, clamp(look.scale, 0.5f, 3.0f), banner.bannerShadow,
-                    clamp(look.x, 0.0f, 1.0f), clamp(look.y, 0.0f, 1.0f));
-        }
+    private static int textColour(TextColour choice, int accent) {
+        return switch (choice) {
+            case WHITE -> 0xFFFFFF;
+            case DARK -> 0x101010;
+            default -> accent;
+        };
+    }
 
-        int cx(int width) {
-            return (int) (width * x);
-        }
+    private static void drawIcon(GuiGraphicsExtractor g, int x, int y, int size) {
+        if (icon == null) return;
+        float s = size / 16f;
+        g.pose().pushMatrix();
+        g.pose().scale(s, s);
+        g.fakeItem(icon, (int) (x / s), (int) (y / s));
+        g.pose().popMatrix();
+    }
 
-        int cy(int height) {
-            return (int) (height * y);
+    private static void drawText(GuiGraphicsExtractor g, Font font, String text, int centreX, int y, float size,
+                                 int rgb, TextEffect effect, float alpha, int accent) {
+        if (text == null || text.isEmpty()) return;
+        int colour = argb(alpha, rgb);
+        int x = (int) (centreX / size) - font.width(text) / 2;
+        int sy = (int) (y / size);
+
+        g.pose().pushMatrix();
+        g.pose().scale(size, size);
+        switch (effect) {
+            case OUTLINE -> {
+                int edge = argb(alpha, 0x000000);
+                g.text(font, text, x - 1, sy, edge, false);
+                g.text(font, text, x + 1, sy, edge, false);
+                g.text(font, text, x, sy - 1, edge, false);
+                g.text(font, text, x, sy + 1, edge, false);
+                g.text(font, text, x, sy, colour, false);
+            }
+            case GLOW -> {
+                int haze = argb(alpha * 0.28f, accent);
+                for (int dx = -2; dx <= 2; dx++) {
+                    for (int dy = -2; dy <= 2; dy++) {
+                        if (dx != 0 || dy != 0) g.text(font, text, x + dx, sy + dy, haze, false);
+                    }
+                }
+                g.text(font, text, x, sy, colour, false);
+            }
+            case SHADOW -> g.text(font, text, x, sy, colour, true);
+            default -> g.text(font, text, x, sy, colour, false);
         }
+        g.pose().popMatrix();
+    }
+
+    private static void frame(GuiGraphicsExtractor g, int left, int top, int right, int bottom, int thick, int colour) {
+        g.fill(left, top, right, top + thick, colour);
+        g.fill(left, bottom - thick, right, bottom, colour);
+        g.fill(left, top, left + thick, bottom, colour);
+        g.fill(right - thick, top, right, bottom, colour);
     }
 
     /** "FFD700" oder "#ffd700" - leer oder unlesbar heisst: Farbe der Stufe */
@@ -192,413 +333,6 @@ public final class DropBanner {
         } catch (NumberFormatException e) {
             return fallback;
         }
-    }
-
-    // ---- 1: das Band, wie es SHINY nutzt ----
-
-    private static void classic(GuiGraphicsExtractor g, Font font, int width, int height, float alpha, Look look) {
-        int text = argb(alpha, 0xFFFFFF);
-        int accent = argb(alpha, look.colour());
-        int band = (int) (alpha * 140) << 24;
-
-        int top = height / 4;
-        int bottom = top + 54;
-        g.fill(0, top, width, bottom, band);
-        g.fill(0, top, width, top + 1, accent);
-        g.fill(0, bottom - 1, width, bottom, accent);
-
-        scaledCentered(g, font, headline, width / 2, top + 6, 3.0f, accent, look.shadow());
-        scaledCentered(g, font, worth, width / 2, top + 30, 1.6f, text, look.shadow());
-        g.centeredText(font, tierLabel, width / 2, bottom + 4, argb(alpha, 0xAAAAAA));
-    }
-
-    // ---- 2: ein schmaler Streifen ueber der Hotbar ----
-
-    private static void compact(GuiGraphicsExtractor g, Font font, int width, int height, float alpha, Look look) {
-        float scale = 1.5f;
-        String line = headline + (worth.isEmpty() ? "" : "  " + worth);
-        int textWidth = (int) (font.width(line) * scale);
-        int boxHalf = textWidth / 2 + 10;
-        int centreY = (int) (height * 0.62f);
-        int top = centreY - 10;
-        int bottom = centreY + 10;
-
-        g.fill(width / 2 - boxHalf, top, width / 2 + boxHalf, bottom, (int) (alpha * 170) << 24);
-        g.fill(width / 2 - boxHalf, bottom - 2, width / 2 + boxHalf, bottom, argb(alpha, look.colour()));
-        scaledCentered(g, font, line, width / 2, top + 4, scale, argb(alpha, 0xFFFFFF), look.shadow());
-        if (!tierLabel.isEmpty()) g.centeredText(font, tierLabel, width / 2, bottom + 3, argb(alpha, 0x999999));
-    }
-
-    // ---- 3: gross und frei, wie ein Minecraft-Titel ----
-
-    private static void title(GuiGraphicsExtractor g, Font font, int width, int height, float alpha, Look look) {
-        int centreY = height / 2;
-        scaledCentered(g, font, headline, width / 2, centreY - 34, 4.0f, argb(alpha, look.colour()), look.shadow());
-        scaledCentered(g, font, worth, width / 2, centreY + 6, 2.0f, argb(alpha, 0xFFFFFF), look.shadow());
-        if (!tierLabel.isEmpty()) g.centeredText(font, tierLabel, width / 2, centreY + 28, argb(alpha, 0xAAAAAA));
-    }
-
-    // ---- 4: eine Karte am rechten Rand, die hereinfaehrt ----
-
-    private static void card(GuiGraphicsExtractor g, Font font, int width, int height, float alpha, float slide, Look look) {
-        float scale = 1.3f;
-        int inner = Math.max((int) (font.width(headline) * scale), Math.max(font.width(worth), font.width(tierLabel)));
-        int cardWidth = inner + 22;
-        int cardHeight = 44;
-        int right = width + (int) ((1.0f - slide) * cardWidth);
-        int left = right - cardWidth;
-        int top = height / 3;
-
-        g.fill(left, top, right, top + cardHeight, (int) (alpha * 200) << 24);
-        g.fill(left, top, left + 3, top + cardHeight, argb(alpha, look.colour()));
-
-        int x = left + 10;
-        scaledText(g, font, headline, x, top + 6, scale, argb(alpha, 0xFFFFFF), true);
-        g.text(font, worth, x, top + 22, argb(alpha, look.colour()), false);
-        g.text(font, tierLabel, x, top + 33, argb(alpha, 0x999999), false);
-    }
-
-    // ---- 5: ein farbiges Band ganz oben ----
-
-    private static void ribbon(GuiGraphicsExtractor g, Font font, int width, int height, float alpha, float slide, Look look) {
-        int ribbonHeight = 30;
-        int top = -ribbonHeight + (int) (slide * (ribbonHeight + 6));
-        int bottom = top + ribbonHeight;
-
-        g.fill(0, top, width, bottom, (int) (alpha * 150) << 24 | look.colour());
-        g.fill(0, bottom, width, bottom + 1, argb(alpha, 0x000000));
-
-        scaledCentered(g, font, headline, width / 2, top + 7, 2.0f, argb(alpha, 0x101010), false);
-        if (!worth.isEmpty()) g.text(font, worth, width - font.width(worth) - 8, top + 11, argb(alpha, 0x101010), false);
-        if (!tierLabel.isEmpty()) g.text(font, tierLabel, 8, top + 11, argb(alpha, 0x101010), false);
-    }
-
-    // ---- 6: Text mit dunklem Rand, ohne Kasten ----
-
-    private static void outline(GuiGraphicsExtractor g, Font font, int width, int height, float alpha, Look look) {
-        int cx = look.cx(width);
-        int cy = look.cy(height);
-        float big = 2.4f * look.scale();
-        float small = 1.2f * look.scale();
-
-        outlinedCentered(g, font, headline, cx, cy, big, argb(alpha, look.colour()), argb(alpha, 0x000000));
-        outlinedCentered(g, font, worth, cx, cy + (int) (big * 11), small, argb(alpha, 0xFFFFFF), argb(alpha, 0x000000));
-        if (!tierLabel.isEmpty()) g.centeredText(font, tierLabel, cx, cy + (int) (big * 11 + small * 12), argb(alpha, 0xAAAAAA));
-    }
-
-    // ---- 7: ein Kasten mit farbigem Rahmen ----
-
-    private static void boxed(GuiGraphicsExtractor g, Font font, int width, int height, float alpha, Look look) {
-        int cx = look.cx(width);
-        int cy = look.cy(height);
-        float big = 2.0f * look.scale();
-        float small = 1.1f * look.scale();
-
-        int inner = Math.max((int) (font.width(headline) * big), (int) (font.width(worth) * small));
-        int halfWidth = inner / 2 + 14;
-        int boxHeight = (int) (big * 10 + small * 10 + 22);
-        int top = cy - boxHeight / 2;
-        int bottom = top + boxHeight;
-
-        g.fill(cx - halfWidth, top, cx + halfWidth, bottom, (int) (alpha * 190) << 24);
-        frame(g, cx - halfWidth, top, cx + halfWidth, bottom, 2, argb(alpha, look.colour()));
-
-        scaledCentered(g, font, headline, cx, top + 8, big, argb(alpha, look.colour()), look.shadow());
-        scaledCentered(g, font, worth, cx, top + 8 + (int) (big * 10) + 4, small, argb(alpha, 0xFFFFFF), look.shadow());
-    }
-
-    // ---- 8: Farbe oben, Weiss unten, ein Strich dazwischen ----
-
-    private static void twoTone(GuiGraphicsExtractor g, Font font, int width, int height, float alpha, Look look) {
-        int cx = look.cx(width);
-        int cy = look.cy(height);
-        float big = 2.2f * look.scale();
-        float small = 1.4f * look.scale();
-
-        int lineHalf = Math.max((int) (font.width(headline) * big), (int) (font.width(worth) * small)) / 2 + 6;
-        int lineY = cy + (int) (big * 10) + 2;
-
-        scaledCentered(g, font, headline, cx, cy, big, argb(alpha, look.colour()), look.shadow());
-        g.fill(cx - lineHalf, lineY, cx + lineHalf, lineY + 1, argb(alpha, look.colour()));
-        scaledCentered(g, font, worth, cx, lineY + 4, small, argb(alpha, 0xFFFFFF), look.shadow());
-        if (!tierLabel.isEmpty()) g.centeredText(font, tierLabel, cx, lineY + 4 + (int) (small * 11), argb(alpha, 0x999999));
-    }
-
-    // ---- 9: springt kurz auf und setzt sich dann ----
-
-    private static void pop(GuiGraphicsExtractor g, Font font, int width, int height, float alpha, long age, Look look) {
-        int cx = look.cx(width);
-        int cy = look.cy(height);
-        float progress = Math.min(1.0f, age / (float) POP_MILLIS);
-        float bump = progress < 0.6f ? 0.4f + progress : 1.3f - (progress - 0.6f) * 0.75f;
-        float big = 2.6f * look.scale() * bump;
-        float small = 1.2f * look.scale();
-
-        scaledCentered(g, font, headline, cx, cy, big, argb(alpha, look.colour()), look.shadow());
-        scaledCentered(g, font, worth, cx, cy + (int) (2.6f * look.scale() * 11), small, argb(alpha, 0xFFFFFF), look.shadow());
-    }
-
-    // ---- 10: eine kleine Zeile mit farbigem Punkt ----
-
-    private static void minimal(GuiGraphicsExtractor g, Font font, int width, int height, float alpha, Look look) {
-        int cx = look.cx(width);
-        int cy = look.cy(height);
-        float scale = look.scale();
-
-        String line = headline + (worth.isEmpty() ? "" : " " + worth);
-        int textWidth = (int) (font.width(line) * scale);
-        int dot = Math.max(3, (int) (4 * scale));
-        int left = cx - (textWidth + dot + 4) / 2;
-
-        g.fill(left, cy + (int) (3 * scale), left + dot, cy + (int) (3 * scale) + dot, argb(alpha, look.colour()));
-        scaledText(g, font, line, left + dot + 4, cy, scale, argb(alpha, 0xFFFFFF), look.shadow());
-    }
-
-    // ---- 11: ein Unterstrich, der aus der Mitte waechst ----
-
-    private static void sweep(GuiGraphicsExtractor g, Font font, int width, int height, float alpha, long age, Look look) {
-        int cx = look.cx(width);
-        int cy = look.cy(height);
-        float big = 2.2f * look.scale();
-        float small = 1.2f * look.scale();
-        float grow = Math.min(1.0f, age / (float) SWEEP_MILLIS);
-
-        int half = (int) (font.width(headline) * big) / 2 + 8;
-        int reach = (int) (half * grow);
-        int lineY = cy + (int) (big * 10) + 1;
-
-        scaledCentered(g, font, headline, cx, cy, big, argb(alpha, 0xFFFFFF), look.shadow());
-        g.fill(cx - reach, lineY, cx + reach, lineY + 2, argb(alpha, look.colour()));
-        scaledCentered(g, font, worth, cx, lineY + 5, small, argb(alpha, look.colour()), look.shadow());
-    }
-
-    // ---- 12: zwei Rahmen ineinander ----
-
-    private static void doubleFrame(GuiGraphicsExtractor g, Font font, int width, int height, float alpha, Look look) {
-        int cx = look.cx(width);
-        int cy = look.cy(height);
-        float big = 1.9f * look.scale();
-        float small = 1.1f * look.scale();
-
-        int inner = Math.max((int) (font.width(headline) * big), (int) (font.width(worth) * small));
-        int halfWidth = inner / 2 + 18;
-        int boxHeight = (int) (big * 10 + small * 10 + 26);
-        int top = cy - boxHeight / 2;
-        int bottom = top + boxHeight;
-
-        g.fill(cx - halfWidth, top, cx + halfWidth, bottom, (int) (alpha * 180) << 24);
-        frame(g, cx - halfWidth, top, cx + halfWidth, bottom, 1, argb(alpha, look.colour()));
-        frame(g, cx - halfWidth + 4, top + 4, cx + halfWidth - 4, bottom - 4, 1, argb(alpha, 0xFFFFFF));
-
-        scaledCentered(g, font, headline, cx, top + 10, big, argb(alpha, look.colour()), look.shadow());
-        scaledCentered(g, font, worth, cx, top + 10 + (int) (big * 10) + 4, small, argb(alpha, 0xFFFFFF), look.shadow());
-    }
-
-    // ---- 13: ein Schein um die Schrift ----
-
-    private static void glow(GuiGraphicsExtractor g, Font font, int width, int height, float alpha, Look look) {
-        int cx = look.cx(width);
-        int cy = look.cy(height);
-        float big = 2.6f * look.scale();
-        float small = 1.2f * look.scale();
-
-        int haze = argb(alpha * 0.28f, look.colour());
-        for (int dx = -2; dx <= 2; dx++) {
-            for (int dy = -2; dy <= 2; dy++) {
-                if (dx == 0 && dy == 0) continue;
-                scaledCentered(g, font, headline, cx + dx, cy + dy, big, haze, false);
-            }
-        }
-        scaledCentered(g, font, headline, cx, cy, big, argb(alpha, 0xFFFFFF), false);
-        scaledCentered(g, font, worth, cx, cy + (int) (big * 11), small, argb(alpha, look.colour()), look.shadow());
-    }
-
-    // ---- 14: drei Zeilen hinter einem farbigen Balken ----
-
-    private static void sidebar(GuiGraphicsExtractor g, Font font, int width, int height, float alpha, Look look) {
-        int cx = look.cx(width);
-        int cy = look.cy(height);
-        float big = 1.8f * look.scale();
-        float small = 1.0f * look.scale();
-
-        int inner = Math.max((int) (font.width(headline) * big), Math.max(font.width(worth), font.width(tierLabel)));
-        int left = cx - (inner + 16) / 2;
-        int top = cy - 20;
-        int bottom = cy + 24;
-
-        g.fill(left, top, left + 4, bottom, argb(alpha, look.colour()));
-        int x = left + 10;
-        scaledText(g, font, headline, x, top + 2, big, argb(alpha, 0xFFFFFF), look.shadow());
-        scaledText(g, font, worth, x, top + 2 + (int) (big * 10) + 3, small, argb(alpha, look.colour()), look.shadow());
-        g.text(font, tierLabel, x, top + 2 + (int) (big * 10) + 3 + (int) (small * 10) + 2, argb(alpha, 0x999999), false);
-    }
-
-    // ---- 15: ein kleines Etikett ----
-
-    private static void tag(GuiGraphicsExtractor g, Font font, int width, int height, float alpha, Look look) {
-        int cx = look.cx(width);
-        int cy = look.cy(height);
-        float scale = 1.1f * look.scale();
-
-        String line = headline + (worth.isEmpty() ? "" : " " + worth);
-        int textWidth = (int) (font.width(line) * scale);
-        int left = cx - textWidth / 2 - 6;
-        int right = cx + textWidth / 2 + 6;
-        int top = cy - 3;
-        int bottom = cy + (int) (scale * 10) + 3;
-
-        g.fill(left, top, right, bottom, (int) (alpha * 220) << 24 | look.colour());
-        scaledText(g, font, line, left + 6, cy, scale, argb(alpha, 0x101010), false);
-    }
-
-    // ---- 16: farbige Klammern um die Zeile ----
-
-    private static void brackets(GuiGraphicsExtractor g, Font font, int width, int height, float alpha, Look look) {
-        int cx = look.cx(width);
-        int cy = look.cy(height);
-        float big = 2.4f * look.scale();
-        float small = 1.2f * look.scale();
-
-        int half = (int) (font.width(headline) * big) / 2;
-        scaledCentered(g, font, headline, cx, cy, big, argb(alpha, 0xFFFFFF), look.shadow());
-        scaledText(g, font, "[", cx - half - (int) (big * 8), cy, big, argb(alpha, look.colour()), look.shadow());
-        scaledText(g, font, "]", cx + half + (int) (big * 3), cy, big, argb(alpha, look.colour()), look.shadow());
-        scaledCentered(g, font, worth, cx, cy + (int) (big * 11), small, argb(alpha, look.colour()), look.shadow());
-    }
-
-    // ---- 17: Name links, Wert rechts auf einem Balken ----
-
-    private static void split(GuiGraphicsExtractor g, Font font, int width, int height, float alpha, Look look) {
-        int cx = look.cx(width);
-        int cy = look.cy(height);
-        float scale = 1.5f * look.scale();
-
-        int barHalf = (int) ((font.width(headline) + font.width(worth) + 30) * scale) / 2;
-        int top = cy - 3;
-        int bottom = cy + (int) (scale * 10) + 3;
-
-        g.fill(cx - barHalf, top, cx, bottom, (int) (alpha * 200) << 24);
-        g.fill(cx, top, cx + barHalf, bottom, (int) (alpha * 200) << 24 | look.colour());
-        scaledText(g, font, headline, cx - barHalf + 6, cy, scale, argb(alpha, 0xFFFFFF), look.shadow());
-        int worthWidth = (int) (font.width(worth) * scale);
-        scaledText(g, font, worth, cx + barHalf - worthWidth - 6, cy, scale, argb(alpha, 0x101010), false);
-    }
-
-    // ---- 18: Buchstabe fuer Buchstabe ----
-
-    private static void typewriter(GuiGraphicsExtractor g, Font font, int width, int height, float alpha, long age, Look look) {
-        int cx = look.cx(width);
-        int cy = look.cy(height);
-        float big = 2.2f * look.scale();
-        float small = 1.2f * look.scale();
-
-        float progress = Math.min(1.0f, age / (float) TYPE_MILLIS);
-        int shown = Math.min(headline.length(), Math.round(headline.length() * progress));
-        String partial = headline.substring(0, shown) + (progress < 1.0f ? "_" : "");
-
-        int left = cx - (int) (font.width(headline) * big) / 2;
-        scaledText(g, font, partial, left, cy, big, argb(alpha, look.colour()), look.shadow());
-        if (progress >= 1.0f) scaledCentered(g, font, worth, cx, cy + (int) (big * 11), small, argb(alpha, 0xFFFFFF), look.shadow());
-    }
-
-    // ---- 19: erst ein Blitz in Farbe, dann der Text ----
-
-    private static void flash(GuiGraphicsExtractor g, Font font, int width, int height, float alpha, long age, Look look) {
-        int cx = look.cx(width);
-        int cy = look.cy(height);
-        float big = 2.4f * look.scale();
-        float small = 1.2f * look.scale();
-
-        if (age < FLASH_MILLIS) {
-            float strength = 1.0f - age / (float) FLASH_MILLIS;
-            g.fill(0, 0, width, height, argb(strength * 0.45f, look.colour()));
-        }
-        scaledCentered(g, font, headline, cx, cy, big, argb(alpha, 0xFFFFFF), look.shadow());
-        scaledCentered(g, font, worth, cx, cy + (int) (big * 11), small, argb(alpha, look.colour()), look.shadow());
-    }
-
-    // ---- 20: Winkel links und rechts ----
-
-    private static void chevron(GuiGraphicsExtractor g, Font font, int width, int height, float alpha, Look look) {
-        int cx = look.cx(width);
-        int cy = look.cy(height);
-        float big = 2.2f * look.scale();
-        float small = 1.2f * look.scale();
-
-        String line = ">> " + headline + " <<";
-        scaledCentered(g, font, line, cx, cy, big, argb(alpha, look.colour()), look.shadow());
-        scaledCentered(g, font, worth, cx, cy + (int) (big * 11), small, argb(alpha, 0xFFFFFF), look.shadow());
-    }
-
-    // ---- 21: das Bild in der Mitte, der Name darueber, der Preis darunter ----
-
-    private static void iconCard(GuiGraphicsExtractor g, Font font, int width, int height, float alpha, Look look) {
-        int cx = look.cx(width);
-        int cy = look.cy(height);
-        float text = 1.6f * look.scale();
-        float iconScale = 2.5f * look.scale();
-        int iconHalf = (int) (8 * iconScale);
-
-        int inner = Math.max((int) (font.width(headline) * text), Math.max((int) (font.width(worth) * text), iconHalf * 2));
-        int halfWidth = inner / 2 + 14;
-        int top = cy - iconHalf - (int) (text * 10) - 14;
-        int bottom = cy + iconHalf + (int) (text * 10) + 14;
-
-        g.fill(cx - halfWidth, top, cx + halfWidth, bottom, (int) (alpha * 190) << 24);
-        frame(g, cx - halfWidth, top, cx + halfWidth, bottom, 2, argb(alpha, look.colour()));
-
-        scaledCentered(g, font, headline, cx, top + 8, text, argb(alpha, look.colour()), look.shadow());
-        if (icon != null) {
-            // Das Bild ist 16 Pixel gross; ueber die Matrix wird es auf die Kartengroesse gebracht
-            g.pose().pushMatrix();
-            g.pose().scale(iconScale, iconScale);
-            g.fakeItem(icon, (int) (cx / iconScale) - 8, (int) (cy / iconScale) - 8);
-            g.pose().popMatrix();
-        }
-        scaledCentered(g, font, worth, cx, bottom - 8 - (int) (text * 10), text, argb(alpha, 0xFFFFFF), look.shadow());
-    }
-
-    // ---- Helfer ----
-
-    private static void frame(GuiGraphicsExtractor g, int left, int top, int right, int bottom, int thick, int colour) {
-        g.fill(left, top, right, top + thick, colour);
-        g.fill(left, bottom - thick, right, bottom, colour);
-        g.fill(left, top, left + thick, bottom, colour);
-        g.fill(right - thick, top, right, bottom, colour);
-    }
-
-    private static void scaledCentered(GuiGraphicsExtractor g, Font font, String text, int centreX, int y,
-                                       float scale, int colour, boolean shadow) {
-        if (text.isEmpty()) return;
-        g.pose().pushMatrix();
-        g.pose().scale(scale, scale);
-        int x = (int) (centreX / scale) - font.width(text) / 2;
-        g.text(font, text, x, (int) (y / scale), colour, shadow);
-        g.pose().popMatrix();
-    }
-
-    private static void outlinedCentered(GuiGraphicsExtractor g, Font font, String text, int centreX, int y,
-                                         float scale, int colour, int edge) {
-        if (text.isEmpty()) return;
-        g.pose().pushMatrix();
-        g.pose().scale(scale, scale);
-        int x = (int) (centreX / scale) - font.width(text) / 2;
-        int sy = (int) (y / scale);
-        g.text(font, text, x - 1, sy, edge, false);
-        g.text(font, text, x + 1, sy, edge, false);
-        g.text(font, text, x, sy - 1, edge, false);
-        g.text(font, text, x, sy + 1, edge, false);
-        g.text(font, text, x, sy, colour, false);
-        g.pose().popMatrix();
-    }
-
-    private static void scaledText(GuiGraphicsExtractor g, Font font, String text, int x, int y,
-                                   float scale, int colour, boolean shadow) {
-        if (text.isEmpty()) return;
-        g.pose().pushMatrix();
-        g.pose().scale(scale, scale);
-        g.text(font, text, (int) (x / scale), (int) (y / scale), colour, shadow);
-        g.pose().popMatrix();
     }
 
     private static float clamp(float value, float min, float max) {

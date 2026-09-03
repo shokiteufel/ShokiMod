@@ -1,5 +1,6 @@
 package com.shokiteufel.shokimod;
 
+import com.shokiteufel.shokimod.data.BannerDesign;
 import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.util.BundledSounds;
 import com.shokiteufel.shokimod.gui.HudEditorScreen;
@@ -97,27 +98,27 @@ public class ShokiMod implements ClientModInitializer {
                         // /shoki tab -> die Tab-Liste ins Log schreiben.
                         // Hypixels Zeilen aendern sich mit jedem Update; ohne den Blick
                         // auf die echten Zeilen ist jede Auswertung geraten
-                        // /shoki test B7 -> zeigt Banner 7 mit Beispieltext
+                        // /shoki test 7  oder  /shoki test Side card  -> zeigt das Design mit Beispieltext
                         .then(ClientCommands.literal("test")
-                                .then(ClientCommands.argument("banner", StringArgumentType.word())
+                                .then(ClientCommands.argument("banner", StringArgumentType.greedyString())
                                         .executes(context -> {
                                             String raw = StringArgumentType.getString(context, "banner").trim();
-                                            String digits = raw.replaceAll("(?i)^b", "");
-                                            int number;
+                                            List<BannerDesign> designs = ModConfig.INSTANCE.chat.banner.designs;
+                                            BannerDesign chosen = null;
                                             try {
-                                                number = Integer.parseInt(digits);
-                                            } catch (NumberFormatException e) {
-                                                number = -1;
+                                                int number = Integer.parseInt(raw.replaceAll("(?i)^b", ""));
+                                                if (number >= 1 && number <= designs.size()) chosen = designs.get(number - 1);
+                                            } catch (NumberFormatException ignored) {
+                                                // dann ist es ein Name
                                             }
-                                            DropBanner.Style[] styles = DropBanner.Style.values();
-                                            if (number < 1 || number > styles.length) {
+                                            if (chosen == null) chosen = ModConfig.INSTANCE.chat.banner.design(raw);
+                                            if (chosen == null) {
                                                 context.getSource().sendFeedback(Component.literal(
-                                                        "Use /shoki test B1 to B" + styles.length + "."));
+                                                        "Use /shoki test <1-" + designs.size() + "> or a design name."));
                                                 return 0;
                                             }
-                                            DropBanner.preview(styles[number - 1]);
-                                            context.getSource().sendFeedback(Component.literal(
-                                                    "Banner " + styles[number - 1]));
+                                            DropBanner.preview(chosen);
+                                            context.getSource().sendFeedback(Component.literal("Banner: " + chosen.name));
                                             return 1;
                                         })))
                         .then(ClientCommands.literal("tab").executes(context -> {

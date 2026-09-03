@@ -58,7 +58,6 @@ import java.util.regex.Pattern;
  */
 public final class RareLootHandler {
 
-    private static final long BANNER_MILLIS = 3000L;
     private static final long TOAST_MILLIS = 5000L;
     /** So lange nach "LOOT SHARE You received ..." gilt der naechste Fund als geteilt */
     private static final long LOOTSHARE_WINDOW_MILLIS = 2000L;
@@ -223,8 +222,8 @@ public final class RareLootHandler {
         int colour = TIER_COLOURS[Math.min(Math.max(tier.number() - 1, 0), TIER_COLOURS.length - 1)];
 
         if (tier.banner()) {
-            DropBanner.show(tier.style(), tier.number(), "+ " + headline, "(" + worth + ")",
-                    "Tier " + tier.number(), colour, BANNER_MILLIS, ItemIcons.stackFor(itemId));
+            DropBanner.show(ModConfig.INSTANCE.chat.banner.designOrDefault(tier.design()),
+                    "+ " + headline, "(" + worth + ")", "Tier " + tier.number(), colour, ItemIcons.stackFor(itemId));
         }
 
         if (tier.toast() && client.getToastManager() != null) {
@@ -382,7 +381,7 @@ public final class RareLootHandler {
                     .append(" threshold=").append(tier.threshold())
                     .append(" (=").append((long) ItemValue.parseAmount(tier.threshold())).append(")")
                     .append(" banner=").append(tier.banner())
-                    .append(" style=").append(tier.style())
+                    .append(" banner=").append(tier.design())
                     .append(" toast=").append(tier.toast())
                     .append(" chat=").append(tier.chat())
                     .append(" sound=").append(tier.sound()).append('\n');

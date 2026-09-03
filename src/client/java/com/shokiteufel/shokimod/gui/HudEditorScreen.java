@@ -1,5 +1,6 @@
 package com.shokiteufel.shokimod.gui;
 
+import com.shokiteufel.shokimod.data.BannerDesign;
 import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.render.DropBanner;
 import com.shokiteufel.shokimod.render.hud.HudPanel;
@@ -14,26 +15,24 @@ import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 
 import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
 
 /**
  * Kaesten oder Fund-Banner an die gewuenschte Stelle ziehen - eines von beiden.
  *
  * Der Editor kennt zwei Ansichten. In der Kasten-Ansicht liegen nur die Kaesten
- * auf dem Bildschirm; in der Banner-Ansicht nur das eine Banner, das unten
- * ausgewaehlt ist. So verdeckt nichts das, woran man gerade arbeitet. Ein Knopf
- * unten wechselt.
+ * auf dem Bildschirm; in der Banner-Ansicht nur das eine Design, das unten
+ * ausgewaehlt ist. So verdeckt nichts das, woran man gerade arbeitet.
  *
- * Ziehen verschiebt, Scrollen ueber einem Element aendert seine Groesse. Jeder der
- * zwanzig Banner-Stile hat seinen eigenen Ort, seine Groesse und Farbe - und die
- * gelten dann ueberall, wo dieser Stil eingesetzt wird, egal in welcher Stufe.
- * Die Stile 1 bis 5 haben ihren festen Platz und nehmen von hier nur die Farbe.
+ * Ziehen verschiebt, Scrollen ueber einem Element aendert seine Groesse. Beim
+ * Banner gilt: nur die Verankerung "Free" folgt dem Ziehen - alle anderen haben
+ * ihren festen Platz und nehmen von hier nur Groesse und Farbe.
  */
 public class HudEditorScreen extends Screen {
 
     private static final int BANNER_BASE_WIDTH = 120;
     private static final int BANNER_BASE_HEIGHT = 26;
-    private static final DropBanner.Style[] STYLES = DropBanner.Style.values();
 
     private final Screen parent;
     private final Map<SafariHud.Panel, HudPanel> content = new EnumMap<>(SafariHud.Panel.class);
@@ -46,82 +45,71 @@ public class HudEditorScreen extends Screen {
     private int grabX = 0;
     private int grabY = 0;
 
-    /** Der Kasten, auf den sich der Regler bezieht. Ein Klick waehlt ihn aus */
     private SafariHud.Panel selectedPanel = SafariHud.Panel.PROGRESS;
-    /** Der Stil, dessen Banner gerade bearbeitet wird */
-    private int styleIndex = 0;
+    private int designIndex = 0;
 
     private OpacitySlider opacity;
-    private Button previousStyle;
-    private Button styleButton;
-    private Button nextStyle;
+    private Button previousDesign;
+    private Button designButton;
+    private Button nextDesign;
     private ColorSwatchButton swatch;
     private Button colourReset;
     private Button modeButton;
 
-    /**
-     * @param bannerMode true oeffnet die Banner-Ansicht, false die Kaesten
-     */
     public HudEditorScreen(Screen parent, boolean bannerMode) {
         super(Component.literal("HUD editor"));
         this.parent = parent;
         this.bannerMode = bannerMode;
     }
 
-    private static ModConfig.BannerCategory banners() {
-        return ModConfig.INSTANCE.chat.banner;
+    private static List<BannerDesign> designs() {
+        List<BannerDesign> all = ModConfig.INSTANCE.chat.banner.designs;
+        if (all.isEmpty()) all.addAll(BannerDesign.presets());
+        return all;
     }
 
-    private DropBanner.Style style() {
-        return STYLES[styleIndex];
-    }
-
-    private ModConfig.BannerCategory.BannerLook look() {
-        return banners().look(style());
+    private BannerDesign design() {
+        List<BannerDesign> all = designs();
+        designIndex = Math.clamp(designIndex, 0, all.size() - 1);
+        return all.get(designIndex);
     }
 
     @Override
     protected void init() {
         rebuildContent();
 
-        // ---- Kasten-Ansicht ----
         opacity = new OpacitySlider(width / 2 - 105, height - 78, 210);
         addRenderableWidget(opacity);
 
-        // ---- Banner-Ansicht ----
-        previousStyle = Button.builder(Component.literal("◀"), button -> selectStyle(styleIndex - 1))
+        previousDesign = Button.builder(Component.literal("◀"), button -> selectDesign(designIndex - 1))
                 .bounds(width / 2 - 105, height - 78, 20, 20).build();
-        addRenderableWidget(previousStyle);
-        styleButton = Button.builder(styleLabel(), button -> selectStyle(styleIndex + 1))
+        addRenderableWidget(previousDesign);
+        designButton = Button.builder(designLabel(), button -> selectDesign(designIndex + 1))
                 .bounds(width / 2 - 83, height - 78, 166, 20).build();
-        styleButton.setTooltip(Tooltip.create(Component.literal(
-                "The banner being edited. Its place, size and colour apply wherever this style is used.")));
-        addRenderableWidget(styleButton);
-        nextStyle = Button.builder(Component.literal("▶"), button -> selectStyle(styleIndex + 1))
+        designButton.setTooltip(Tooltip.create(Component.literal("The design being placed. Build new ones in Alerts > Banner > Sandbox.")));
+        addRenderableWidget(designButton);
+        nextDesign = Button.builder(Component.literal("▶"), button -> selectDesign(designIndex + 1))
                 .bounds(width / 2 + 85, height - 78, 20, 20).build();
-        addRenderableWidget(nextStyle);
+        addRenderableWidget(nextDesign);
 
         swatch = new ColorSwatchButton(width / 2 - 105, height - 54, 100, 20,
                 this::bannerColour, () -> 255, this::openBannerColour);
-        swatch.setTooltip(Tooltip.create(Component.literal("Colour of this banner")));
+        swatch.setTooltip(Tooltip.create(Component.literal("Colour of this design")));
         addRenderableWidget(swatch);
 
         colourReset = Button.builder(Component.literal("Tier colour"), button -> {
-            look().colour = "";
+            design().colour = "";
             refreshColourReset();
         }).bounds(width / 2 + 5, height - 54, 100, 20).build();
-        colourReset.setTooltip(Tooltip.create(Component.literal(
-                "No own colour: the banner takes the colour of the tier that fires it")));
+        colourReset.setTooltip(Tooltip.create(Component.literal("No own colour: the banner takes the colour of the tier that fires it")));
         addRenderableWidget(colourReset);
 
-        // ---- beide ----
         modeButton = Button.builder(modeLabel(), button -> {
             bannerMode = !bannerMode;
             draggingPanel = null;
             draggingBanner = false;
             applyMode();
         }).bounds(width / 2 - 105, height - 30, 100, 20).build();
-        modeButton.setTooltip(Tooltip.create(Component.literal("Switch between the panels and the drop banners")));
         addRenderableWidget(modeButton);
 
         addRenderableWidget(Button.builder(Component.literal("Done"), button -> onClose())
@@ -130,11 +118,10 @@ public class HudEditorScreen extends Screen {
         applyMode();
     }
 
-    /** Nur die Knoepfe der aktuellen Ansicht sind da; die anderen weder sichtbar noch klickbar */
     private void applyMode() {
         opacity.visible = !bannerMode;
         opacity.active = !bannerMode;
-        for (Button button : new Button[]{previousStyle, styleButton, nextStyle, colourReset}) {
+        for (Button button : new Button[]{previousDesign, designButton, nextDesign, colourReset}) {
             button.visible = bannerMode;
             button.active = bannerMode;
         }
@@ -148,17 +135,16 @@ public class HudEditorScreen extends Screen {
         return Component.literal(bannerMode ? "Edit: Banners" : "Edit: Panels");
     }
 
-    private void selectStyle(int index) {
-        styleIndex = Math.floorMod(index, STYLES.length);
-        styleButton.setMessage(styleLabel());
+    private void selectDesign(int index) {
+        designIndex = Math.floorMod(index, designs().size());
+        designButton.setMessage(designLabel());
         refreshColourReset();
     }
 
-    private Component styleLabel() {
-        return Component.literal("Banner " + style());
+    private Component designLabel() {
+        return Component.literal(design().name);
     }
 
-    /** Der Inhalt aendert sich waehrend des Einrichtens nicht - einmal bauen genuegt */
     private void rebuildContent() {
         for (SafariHud.Panel panel : SafariHud.Panel.values()) {
             content.put(panel, panel.build());
@@ -167,37 +153,63 @@ public class HudEditorScreen extends Screen {
 
     private void refreshColourReset() {
         if (colourReset == null) return;
-        String own = look().colour;
+        String own = design().colour;
         colourReset.active = bannerMode && own != null && !own.isBlank();
     }
 
     private int bannerColour() {
-        return DropBanner.parseColour(look().colour, ModConfig.RareLootCategory.defaultTierColour(2));
+        return DropBanner.parseColour(design().colour, ModConfig.RareLootCategory.defaultTierColour(2));
     }
 
     private void openBannerColour() {
         if (minecraft == null) return;
-        ModConfig.BannerCategory.BannerLook target = look();
+        BannerDesign target = design();
         minecraft.setScreen(new ColorPickerScreen(this, bannerColour(), 255,
                 (rgb, fillAlpha) -> target.colour = String.format("%06X", rgb & 0xFFFFFF)));
     }
 
     // ---- Lage des Banner-Rahmens ----
 
+    private boolean freeAnchor() {
+        return design().anchor == BannerDesign.Anchor.FREE;
+    }
+
     private int bannerWidth() {
-        return (int) (BANNER_BASE_WIDTH * look().scale);
+        return (int) (BANNER_BASE_WIDTH * design().scale);
     }
 
     private int bannerHeight() {
-        return (int) (BANNER_BASE_HEIGHT * look().scale);
+        return (int) (BANNER_BASE_HEIGHT * design().scale);
+    }
+
+    /** Freie Designs haengen an X/Y; feste bekommen einen Platz, der ihrer Verankerung entspricht */
+    private int bannerCentreX() {
+        BannerDesign d = design();
+        return switch (d.anchor) {
+            case RIGHT_EDGE -> width - bannerWidth() / 2 - 4;
+            case FREE -> (int) (d.x * width);
+            default -> width / 2;
+        };
+    }
+
+    private int bannerCentreY() {
+        BannerDesign d = design();
+        return switch (d.anchor) {
+            case TOP -> bannerHeight() / 2 + 4;
+            case BAND -> height / 4 + bannerHeight() / 2;
+            case HOTBAR -> (int) (height * 0.62f);
+            case CENTER -> height / 2;
+            case RIGHT_EDGE -> height / 3 + bannerHeight() / 2;
+            default -> (int) (d.y * height);
+        };
     }
 
     private int bannerLeft() {
-        return (int) (look().x * width) - bannerWidth() / 2;
+        return bannerCentreX() - bannerWidth() / 2;
     }
 
     private int bannerTop() {
-        return (int) (look().y * height) - bannerHeight() / 2;
+        return bannerCentreY() - bannerHeight() / 2;
     }
 
     private boolean isOverBanner(double mouseX, double mouseY) {
@@ -224,9 +236,9 @@ public class HudEditorScreen extends Screen {
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         if (isOverBanner(event.x(), event.y())) {
-            draggingBanner = true;
-            grabX = (int) event.x() - (bannerLeft() + bannerWidth() / 2);
-            grabY = (int) event.y() - (bannerTop() + bannerHeight() / 2);
+            draggingBanner = freeAnchor();
+            grabX = (int) event.x() - bannerCentreX();
+            grabY = (int) event.y() - bannerCentreY();
             return true;
         }
         for (SafariHud.Panel panel : SafariHud.Panel.values()) {
@@ -244,9 +256,9 @@ public class HudEditorScreen extends Screen {
     @Override
     public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
         if (draggingBanner) {
-            // Der Rahmen haengt an seiner Mitte, so wie das Banner spaeter auch
-            look().x = Math.clamp((float) (event.x() - grabX) / width, 0f, 1f);
-            look().y = Math.clamp((float) (event.y() - grabY) / height, 0f, 1f);
+            BannerDesign d = design();
+            d.x = Math.clamp((float) (event.x() - grabX) / width, 0f, 1f);
+            d.y = Math.clamp((float) (event.y() - grabY) / height, 0f, 1f);
             return true;
         }
         if (draggingPanel == null) return super.mouseDragged(event, dragX, dragY);
@@ -267,7 +279,8 @@ public class HudEditorScreen extends Screen {
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
         if (isOverBanner(mouseX, mouseY)) {
-            look().scale = Math.clamp(look().scale + (float) scrollY * 0.1f, 0.5f, 3.0f);
+            BannerDesign d = design();
+            d.scale = Math.clamp(d.scale + (float) scrollY * 0.1f, 0.3f, 3.0f);
             return true;
         }
         for (SafariHud.Panel panel : SafariHud.Panel.values()) {
@@ -280,10 +293,6 @@ public class HudEditorScreen extends Screen {
 
     // ---- Zeichnen ----
 
-    /**
-     * Kein Abdunkeln, kein Weichzeichner: beides wuerde die halbdurchsichtigen
-     * Kaesten blasser zeigen, als sie im Spiel sind.
-     */
     @Override
     public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
     }
@@ -298,12 +307,12 @@ public class HudEditorScreen extends Screen {
             drawPanels(graphics, mouseX, mouseY);
         }
 
-        graphics.centeredText(font, Component.literal(bannerMode ? "Drop banners" : "Panels"),
-                width / 2, 12, 0xFFFFFFFF);
-        graphics.centeredText(font, Component.literal(bannerMode
-                        ? "Drag to move  ·  scroll to resize  ·  pick the banner below; styles 1-5 keep their place and take only the colour"
-                        : "Drag to move  ·  scroll to resize  ·  slider below for the background")
-                .withStyle(ChatFormatting.GRAY), width / 2, 26, 0xFFAAAAAA);
+        graphics.centeredText(font, Component.literal(bannerMode ? "Drop banners" : "Panels"), width / 2, 12, 0xFFFFFFFF);
+        String hint = bannerMode
+                ? (freeAnchor() ? "Drag to move  ·  scroll to resize  ·  pick the design below"
+                : "Anchor " + design().anchor.label + " has a fixed place  ·  scroll to resize  ·  pick the design below")
+                : "Drag to move  ·  scroll to resize  ·  slider below for the background";
+        graphics.centeredText(font, Component.literal(hint).withStyle(ChatFormatting.GRAY), width / 2, 26, 0xFFAAAAAA);
     }
 
     private void drawPanels(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
@@ -315,18 +324,14 @@ public class HudEditorScreen extends Screen {
             int top = SafariHud.originY(panel);
             int right = left + SafariHud.scaledWidth(panel, built, font);
             int bottom = top + SafariHud.scaledHeight(panel, built);
-            int colour = panel == selectedPanel ? 0xFFFFAA00
-                    : isOver(panel, mouseX, mouseY) ? 0xC0FFFFFF : 0x50FFFFFF;
+            int colour = panel == selectedPanel ? 0xFFFFAA00 : isOver(panel, mouseX, mouseY) ? 0xC0FFFFFF : 0x50FFFFFF;
             frame(graphics, left, top, right, bottom, colour);
-
             SafariHud.draw(graphics, font, panel, built);
         }
-
         for (SafariHud.Panel panel : SafariHud.Panel.values()) {
             if (!isOver(panel, mouseX, mouseY)) continue;
             graphics.centeredText(font, Component.literal(String.format("%s   size %.0f%%",
-                            panel.name().toLowerCase(), panel.scale() * 100))
-                    .withStyle(ChatFormatting.YELLOW), width / 2, 38, 0xFFFFFF55);
+                    panel.name().toLowerCase(), panel.scale() * 100)).withStyle(ChatFormatting.YELLOW), width / 2, 38, 0xFFFFFF55);
             break;
         }
     }
@@ -341,11 +346,10 @@ public class HudEditorScreen extends Screen {
         graphics.fill(left, top, right, bottom, 0xA0101010);
         frame(graphics, left, top, right, bottom, isOverBanner(mouseX, mouseY) ? 0xFFFFFFFF : 0xFFFFAA00);
         graphics.fill(left, top, left + 3, bottom, colour);
-        graphics.centeredText(font, "Banner " + (styleIndex + 1), (left + right) / 2, (top + bottom) / 2 - 4, 0xFFFFFFFF);
+        graphics.centeredText(font, design().name, (left + right) / 2, (top + bottom) / 2 - 4, 0xFFFFFFFF);
 
         if (isOverBanner(mouseX, mouseY)) {
-            graphics.centeredText(font, Component.literal(String.format("%s   size %.0f%%",
-                            style(), look().scale * 100))
+            graphics.centeredText(font, Component.literal(String.format("%s   size %.0f%%", design().name, design().scale * 100))
                     .withStyle(ChatFormatting.YELLOW), width / 2, 38, 0xFFFFFF55);
         }
     }
@@ -357,7 +361,6 @@ public class HudEditorScreen extends Screen {
         graphics.fill(right, top, right + 1, bottom, colour);
     }
 
-    /** Regler fuer die Deckkraft des ausgewaehlten Kastens */
     private class OpacitySlider extends AbstractSliderButton {
 
         OpacitySlider(int x, int y, int width) {
