@@ -107,12 +107,24 @@ public final class ItemIcons {
         if (cached != null) return cached.copy();
 
         ItemStack built = build(itemId);
-        // Erst merken, wenn Pack und Liste da waren - sonst bliebe der Ersatz fuer immer
-        if (!modelIndex.isEmpty() && ItemNames.FEED.ready()) cache.put(itemId, built.copy());
+        // Erst merken, wenn die Quelle da war - sonst bliebe der Ersatz fuer immer
+        boolean settled = itemId.startsWith("SHARD_")
+                ? ShardIcons.texture(itemId) != null
+                : !modelIndex.isEmpty() && ItemNames.FEED.ready();
+        if (settled) cache.put(itemId, built.copy());
         return built;
     }
 
     private static ItemStack build(String itemId) {
+        // Jagd-Shards sind Koepfe mit dem Gesicht des Mobs; die Textur kommt aus dem NEU-Repo
+        if (itemId.startsWith("SHARD_")) {
+            String texture = ShardIcons.texture(itemId);
+            if (texture == null) return fallback(itemId);
+            ItemStack head = new ItemStack(Items.PLAYER_HEAD);
+            applySkin(head, texture);
+            return head;
+        }
+
         ItemNames.Info info = ItemNames.info(itemId);
         Identifier model = packModel(itemId);
 
