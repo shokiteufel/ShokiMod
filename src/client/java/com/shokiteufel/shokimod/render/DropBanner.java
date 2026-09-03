@@ -1,10 +1,12 @@
 package com.shokiteufel.shokimod.render;
 
 import com.shokiteufel.shokimod.data.ModConfig;
+import com.shokiteufel.shokimod.util.ItemIcons;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.world.item.ItemStack;
 
 import java.util.Locale;
 
@@ -45,7 +47,8 @@ public final class DropBanner {
         SPLIT("17 - Split bar"),
         TYPEWRITER("18 - Typewriter"),
         FLASH("19 - Flash"),
-        CHEVRON("20 - Chevrons");
+        CHEVRON("20 - Chevrons"),
+        ICON("21 - Icon card");
 
         private final String label;
 
@@ -77,6 +80,7 @@ public final class DropBanner {
     private static String worth = "";
     private static String tierLabel = "";
     private static int tint = 0xFFFFFF;
+    private static ItemStack icon = null;
     private static long displayMillis = 3000L;
     private static long shownAtMillis = 0L;
 
@@ -96,13 +100,21 @@ public final class DropBanner {
         worth = worthText == null ? "" : worthText;
         tierLabel = tierText == null ? "" : tierText;
         tint = rgb & 0xFFFFFF;
+        icon = null;
         displayMillis = Math.max(millis, FADE_MILLIS + 300L);
         shownAtMillis = System.currentTimeMillis();
     }
 
+    /** Dasselbe, mit dem Bild des Items - die Icon-Karte zeigt es, alle anderen ignorieren es */
+    public static void show(Style chosen, int tier, String headlineText, String worthText, String tierText,
+                            int rgb, long millis, ItemStack iconStack) {
+        show(chosen, tier, headlineText, worthText, tierText, rgb, millis);
+        icon = iconStack;
+    }
+
     /** Der Banner-Reiter: ein Beispiel im gewuenschten Stil, mit Ort und Farbe der Stufe 1 */
     public static void preview(Style chosen) {
-        show(chosen, 1, "+ 3x Ghost Shard", "(10.5k)", "Tier 1 - " + chosen, 0xFFD700, 4500L);
+        show(chosen, 1, "+ 3x Ghost Shard", "(10.5k)", "Tier 1 - " + chosen, 0xFFD700, 4500L, ItemIcons.stackFor("SHARD_GHOST"));
     }
 
     public static void render(GuiGraphicsExtractor graphics) {
@@ -145,6 +157,7 @@ public final class DropBanner {
             case TYPEWRITER -> typewriter(graphics, font, width, height, alpha, age, look);
             case FLASH -> flash(graphics, font, width, height, alpha, age, look);
             case CHEVRON -> chevron(graphics, font, width, height, alpha, look);
+            case ICON -> iconCard(graphics, font, width, height, alpha, look);
         }
     }
 
@@ -515,6 +528,34 @@ public final class DropBanner {
         String line = ">> " + headline + " <<";
         scaledCentered(g, font, line, cx, cy, big, argb(alpha, look.colour()), look.shadow());
         scaledCentered(g, font, worth, cx, cy + (int) (big * 11), small, argb(alpha, 0xFFFFFF), look.shadow());
+    }
+
+    // ---- 21: das Bild in der Mitte, der Name darueber, der Preis darunter ----
+
+    private static void iconCard(GuiGraphicsExtractor g, Font font, int width, int height, float alpha, Look look) {
+        int cx = look.cx(width);
+        int cy = look.cy(height);
+        float text = 1.6f * look.scale();
+        float iconScale = 2.5f * look.scale();
+        int iconHalf = (int) (8 * iconScale);
+
+        int inner = Math.max((int) (font.width(headline) * text), Math.max((int) (font.width(worth) * text), iconHalf * 2));
+        int halfWidth = inner / 2 + 14;
+        int top = cy - iconHalf - (int) (text * 10) - 14;
+        int bottom = cy + iconHalf + (int) (text * 10) + 14;
+
+        g.fill(cx - halfWidth, top, cx + halfWidth, bottom, (int) (alpha * 190) << 24);
+        frame(g, cx - halfWidth, top, cx + halfWidth, bottom, 2, argb(alpha, look.colour()));
+
+        scaledCentered(g, font, headline, cx, top + 8, text, argb(alpha, look.colour()), look.shadow());
+        if (icon != null) {
+            // Das Bild ist 16 Pixel gross; ueber die Matrix wird es auf die Kartengroesse gebracht
+            g.pose().pushMatrix();
+            g.pose().scale(iconScale, iconScale);
+            g.fakeItem(icon, (int) (cx / iconScale) - 8, (int) (cy / iconScale) - 8);
+            g.pose().popMatrix();
+        }
+        scaledCentered(g, font, worth, cx, bottom - 8 - (int) (text * 10), text, argb(alpha, 0xFFFFFF), look.shadow());
     }
 
     // ---- Helfer ----

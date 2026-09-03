@@ -132,7 +132,7 @@ public final class HuntingTracker {
         }
 
         long pauseAfter = Math.max(5, cfg().pauseAfterSeconds) * 1000L;
-        boolean active = lastActivityMillis > 0L && now - lastActivityMillis <= pauseAfter
+        boolean active = cfg().timerEnabled && lastActivityMillis > 0L && now - lastActivityMillis <= pauseAfter
                 && client.isWindowActive();
 
         if (active) {

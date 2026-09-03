@@ -78,6 +78,11 @@ public class HudPanel {
         return this;
     }
 
+    /** Wie viele Zeilen der Kasten hat - fuer Klicks auf eine bestimmte */
+    public int rowCount() {
+        return rows.size();
+    }
+
     public boolean isEmpty() {
         return rows.isEmpty();
     }

@@ -25,7 +25,7 @@ public class NearbyClickMixin {
         // Nur bei offenem Fenster und nur beim Druecken, nicht beim Loslassen
         if (client.screen == null || action != 1 || client.getWindow() == null) return;
         // Ist der Kasten aus, wird hier auch nichts umgerechnet
-        if (!NearbyOverlay.shown()) return;
+        if (!NearbyOverlay.anyClickable()) return;
 
         double scaleX = (double) client.getWindow().getGuiScaledWidth()
                 / client.getWindow().getScreenWidth();

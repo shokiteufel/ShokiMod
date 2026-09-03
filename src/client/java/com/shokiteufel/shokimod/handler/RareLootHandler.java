@@ -11,6 +11,7 @@ import com.shokiteufel.shokimod.render.DropBanner;
 import com.shokiteufel.shokimod.render.ShokiModToast;
 import com.shokiteufel.shokimod.util.AlertVolume;
 import com.shokiteufel.shokimod.util.CustomSoundPlayer;
+import com.shokiteufel.shokimod.util.ItemIcons;
 import com.shokiteufel.shokimod.util.ItemNames;
 import com.shokiteufel.shokimod.util.ItemValue;
 import com.shokiteufel.shokimod.util.ItemValue.Value;
@@ -154,7 +155,7 @@ public final class RareLootHandler {
                     note("  no alert: below every enabled tier");
                 } else {
                     note("  alert tier " + tier.number());
-                    announce(client, tier, headline(drop), value.coins());
+                    announce(client, tier, headline(drop), value.coins(), value.itemId());
                 }
             }
         }
@@ -214,16 +215,16 @@ public final class RareLootHandler {
         Tier tier = cfg().tier(number);
         double threshold = ItemValue.parseAmount(tier.threshold());
         Minecraft client = Minecraft.getInstance();
-        client.execute(() -> announce(client, tier, "Test: 3x Ghost Shard", Math.max(threshold, 0)));
+        client.execute(() -> announce(client, tier, "Test: 3x Ghost Shard", Math.max(threshold, 0), "SHARD_GHOST"));
     }
 
-    private static void announce(Minecraft client, Tier tier, String headline, double coins) {
+    private static void announce(Minecraft client, Tier tier, String headline, double coins, String itemId) {
         String worth = ItemValue.format(coins);
         int colour = TIER_COLOURS[Math.min(Math.max(tier.number() - 1, 0), TIER_COLOURS.length - 1)];
 
         if (tier.banner()) {
             DropBanner.show(tier.style(), tier.number(), "+ " + headline, "(" + worth + ")",
-                    "Tier " + tier.number(), colour, BANNER_MILLIS);
+                    "Tier " + tier.number(), colour, BANNER_MILLIS, ItemIcons.stackFor(itemId));
         }
 
         if (tier.toast() && client.getToastManager() != null) {

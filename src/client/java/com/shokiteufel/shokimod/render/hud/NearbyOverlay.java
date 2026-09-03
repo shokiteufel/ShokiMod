@@ -2,6 +2,7 @@ package com.shokiteufel.shokimod.render.hud;
 
 import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.gui.HudEditorScreen;
+import com.shokiteufel.shokimod.handler.HuntingTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 
@@ -49,14 +50,36 @@ public final class NearbyOverlay {
         SafariHud.render(graphics);
     }
 
+    /** Gibt es bei offenem Fenster ueberhaupt etwas Anklickbares? */
+    public static boolean anyClickable() {
+        return shown() || SafariHud.Panel.HUNTING.visible();
+    }
+
     /** Sitzt der Zeiger auf einer Zeile? Dann handeln und den Klick schlucken */
     public static boolean handleClick(double mouseX, double mouseY) {
-        if (!shown()) return false;
+        if (Minecraft.getInstance().screen instanceof HudEditorScreen) return false;
 
-        SafariHud.Panel panel = SafariHud.Panel.NEARBY;
-        HudPanel content = NearbyHud.build();
-        int row = content.rowAt(Minecraft.getInstance().font,
-                SafariHud.originX(panel), SafariHud.originY(panel), panel.scale(), mouseX, mouseY);
-        return row >= 0 && NearbyHud.click(row);
+        if (shown()) {
+            SafariHud.Panel panel = SafariHud.Panel.NEARBY;
+            HudPanel content = NearbyHud.build();
+            int row = content.rowAt(Minecraft.getInstance().font,
+                    SafariHud.originX(panel), SafariHud.originY(panel), panel.scale(), mouseX, mouseY);
+            if (row >= 0 && NearbyHud.click(row)) return true;
+        }
+
+        if (SafariHud.Panel.HUNTING.visible()) {
+            SafariHud.Panel panel = SafariHud.Panel.HUNTING;
+            // Derselbe gepufferte Kasten, der gerade gezeichnet wird - sonst passen die Zeilen nicht
+            HudPanel content = panel.build();
+            int row = content.rowAt(Minecraft.getInstance().font,
+                    SafariHud.originX(panel), SafariHud.originY(panel), panel.scale(), mouseX, mouseY);
+            // Die Reset-Zeile ist immer die letzte
+            if (row >= 0 && row == content.rowCount() - 1) {
+                HuntingTracker.reset();
+                SafariHud.invalidate(panel);
+                return true;
+            }
+        }
+        return false;
     }
 }

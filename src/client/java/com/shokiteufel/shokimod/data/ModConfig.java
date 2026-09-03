@@ -182,6 +182,7 @@ public class ModConfig extends Config {
         INSTANCE.chat.banner.banner18 = () -> Minecraft.getInstance().execute(() -> DropBanner.preview(DropBanner.Style.TYPEWRITER));
         INSTANCE.chat.banner.banner19 = () -> Minecraft.getInstance().execute(() -> DropBanner.preview(DropBanner.Style.FLASH));
         INSTANCE.chat.banner.banner20 = () -> Minecraft.getInstance().execute(() -> DropBanner.preview(DropBanner.Style.CHEVRON));
+        INSTANCE.chat.banner.banner21 = () -> Minecraft.getInstance().execute(() -> DropBanner.preview(DropBanner.Style.ICON));
         INSTANCE.safari.openShinyCallSound = () -> Minecraft.getInstance().execute(() ->
                 Minecraft.getInstance().setScreen(new SoundPickerScreen(
                         Minecraft.getInstance().screen,
@@ -363,6 +364,11 @@ public class ModConfig extends Config {
         @ConfigOption(name = "Show panel", desc = "The tracker panel on screen. Move it with /shoki hud.")
         @ConfigEditorBoolean
         public boolean showHud = true;
+
+        @Expose
+        @ConfigOption(name = "Timer", desc = "Track hunting time for Profit/h. Off hides Time and Profit/h and counts only the shards.")
+        @ConfigEditorBoolean
+        public boolean timerEnabled = true;
 
         @Expose
         @ConfigOption(name = "Price", desc = "Instant Sell is what selling right now pays; Sell Order is what a listed order brings once it fills. The total follows the live price.")
@@ -781,6 +787,11 @@ public class ModConfig extends Config {
         @ConfigOption(name = "Banner 20 - Chevrons", desc = "Chevrons left and right of the headline.")
         @ConfigEditorButton(buttonText = "Show")
         public transient Runnable banner20 = () -> {
+        };
+
+        @ConfigOption(name = "Banner 21 - Icon card", desc = "The item picture in the middle, its name above, the price below.")
+        @ConfigEditorButton(buttonText = "Show")
+        public transient Runnable banner21 = () -> {
         };
     }
 

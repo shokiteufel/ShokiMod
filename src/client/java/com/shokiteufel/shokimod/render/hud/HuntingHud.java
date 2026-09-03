@@ -5,6 +5,8 @@ import com.shokiteufel.shokimod.handler.HuntingTracker;
 import com.shokiteufel.shokimod.util.ItemValue;
 import com.shokiteufel.shokimod.util.ItemValue.PriceMode;
 
+import net.minecraft.client.Minecraft;
+
 import java.util.List;
 
 /**
@@ -29,7 +31,7 @@ public final class HuntingHud {
         HudPanel panel = new HudPanel();
         PriceMode mode = HuntingTracker.mode();
         List<HuntingTracker.Row> rows = HuntingTracker.rows(mode);
-        if (rows.isEmpty() && HuntingTracker.uptimeMillis() <= 0L) return panel;
+        if (rows.isEmpty() && HuntingTracker.uptimeMillis() <= 0L && Minecraft.getInstance().screen == null) return panel;
 
         ModConfig.HuntingTrackerCategory cfg = ModConfig.INSTANCE.hunting.tracker;
         panel.title("Hunting Tracker" + (HuntingTracker.isPaused() ? " (paused)" : ""), TITLE_COLOUR);
@@ -39,9 +41,11 @@ public final class HuntingHud {
                 LABEL_COLOUR, VALUE_COLOUR);
         panel.pair("Total (sell order):", ItemValue.format(HuntingTracker.total(PriceMode.SELL_ORDER)),
                 LABEL_COLOUR, VALUE_COLOUR);
-        panel.pair("Profit/h (" + (mode == PriceMode.SELL_ORDER ? "order" : "instant") + "):",
-                ItemValue.format(HuntingTracker.perHour()), LABEL_COLOUR, VALUE_COLOUR);
-        panel.pair("Time:", clock(HuntingTracker.uptimeMillis()), LABEL_COLOUR, TIME_COLOUR);
+        if (cfg.timerEnabled) {
+            panel.pair("Profit/h (" + (mode == PriceMode.SELL_ORDER ? "order" : "instant") + "):",
+                    ItemValue.format(HuntingTracker.perHour()), LABEL_COLOUR, VALUE_COLOUR);
+            panel.pair("Time:", clock(HuntingTracker.uptimeMillis()), LABEL_COLOUR, TIME_COLOUR);
+        }
 
         if (!rows.isEmpty()) {
             panel.blank();
@@ -54,6 +58,13 @@ public final class HuntingHud {
             if (rows.size() > limit) {
                 panel.pair("+" + (rows.size() - limit) + " more", "", LABEL_COLOUR, LABEL_COLOUR);
             }
+        }
+
+        // Nur bei offenem Fenster: dort kann man klicken. Die Zeile ist immer die letzte,
+        // darauf verlaesst sich der Klick im NearbyOverlay
+        if (Minecraft.getInstance().screen != null) {
+            panel.blank();
+            panel.line("[ Reset ]", TIME_COLOUR);
         }
         return panel;
     }
