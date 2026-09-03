@@ -1,10 +1,12 @@
 package com.shokiteufel.shokimod.util;
 
+import com.google.common.collect.ImmutableMultimap;
 import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.properties.Property;
 import com.mojang.authlib.properties.PropertyMap;
-import com.google.common.collect.ImmutableMultimap;
+import com.shokiteufel.shokimod.ShokiMod;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
@@ -14,25 +16,36 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.DyedItemColor;
 import net.minecraft.world.item.component.ResolvableProfile;
 
+import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Ein Bild fuer eine SkyBlock-Kennung.
+ * Ein Bild fuer eine SkyBlock-Kennung - so, wie Hypixel es zeigt.
  *
- * Die Mod fuehrt kein Item-Repo mit. Was sie hat, ist Hypixels Item-Liste: die
- * nennt je Item das Material - bei Koepfen dazu die Skin-Textur, bei Lederruestung
- * die Farbe. Daraus laesst sich das Bild bauen, das auch das Spiel zeigen wuerde.
- * Was die Liste nicht kennt (Shards, Buecher), bekommt ein passendes Ersatzbild.
+ * Hypixel baut seine Items aus wenigen Vanilla-Grundlagen: Plasma ist Papier, Sorrow
+ * eine Ghast-Traene, ein Hyperion ein Eisenschwert. Das eigene Aussehen kommt vom
+ * Server-Ressourcenpack, und das Item traegt die Komponente item_model, die auf ein
+ * Modell darin zeigt: hypixel_skyblock:item/uncategorized/plasma. Ohne diese
+ * Komponente zeichnet der Client die Vanilla-Grundlage - also Papier.
  *
- * Die Liste nutzt noch die alten Materialnamen von 1.8 ("SKULL_ITEM", "RAW_FISH").
- * Die haeufigsten werden uebersetzt; der Rest wird kleingeschrieben probiert.
+ * Diese Klasse liest die Modelle aus dem Pack, das der Client gerade geladen hat,
+ * und haengt die Komponente an. Was das Pack nicht kennt, bekommt bei Koepfen die
+ * Skin-Textur aus Hypixels Item-Liste, sonst das Vanilla-Material - und wenn auch
+ * das fehlt, ein Ersatzbild.
  */
 public final class ItemIcons {
 
+    private static final String PACK_NAMESPACE = "hypixel_skyblock";
+    private static final String PACK_ITEM_ROOT = "items/item";
+    /** So lange gilt die gelesene Modellliste; das Pack kommt erst nach dem Beitritt */
+    private static final long INDEX_TTL_MILLIS = 2 * 60 * 1000L;
+
     private static final Map<String, ItemStack> cache = new ConcurrentHashMap<>();
+    private static Map<String, Identifier> modelIndex = new HashMap<>();
+    private static long indexBuiltAt = 0L;
 
     /** Alte Materialnamen, die nicht einfach kleingeschrieben zum heutigen Item werden */
     private static final Map<String, String> LEGACY = Map.ofEntries(
@@ -89,29 +102,34 @@ public final class ItemIcons {
     /** Ein Bild fuer die Kennung - immer eines, notfalls ein Ersatz */
     public static ItemStack stackFor(String itemId) {
         if (itemId == null || itemId.isBlank()) return new ItemStack(Items.NETHER_STAR);
+
         ItemStack cached = cache.get(itemId);
         if (cached != null) return cached.copy();
 
         ItemStack built = build(itemId);
-        // Erst merken, wenn die Liste da war - sonst bliebe der Ersatz fuer immer
-        if (ItemNames.info(itemId) != null || !ItemNames.FEED.ready()) {
-            if (ItemNames.FEED.ready()) cache.put(itemId, built.copy());
-        }
+        // Erst merken, wenn Pack und Liste da waren - sonst bliebe der Ersatz fuer immer
+        if (!modelIndex.isEmpty() && ItemNames.FEED.ready()) cache.put(itemId, built.copy());
         return built;
     }
 
     private static ItemStack build(String itemId) {
         ItemNames.Info info = ItemNames.info(itemId);
-        if (info == null) return fallback(itemId);
+        Identifier model = packModel(itemId);
 
-        Item item = itemFor(info.material());
+        Item item = info == null ? null : itemFor(info.material());
+        // Das Pack braucht irgendeine Grundlage; Papier ist Hypixels haeufigste
+        if (item == null && model != null) item = Items.PAPER;
         if (item == null) return fallback(itemId);
 
         ItemStack stack = new ItemStack(item);
-        if (item == Items.PLAYER_HEAD && info.skin() != null && !info.skin().isBlank()) {
+        if (model != null) {
+            // Das Server-Aussehen: derselbe Verweis, den das echte Item traegt
+            stack.set(DataComponents.ITEM_MODEL, model);
+        } else if (item == Items.PLAYER_HEAD && info != null && info.skin() != null && !info.skin().isBlank()) {
             applySkin(stack, info.skin());
         }
-        Integer colour = parseColour(info.color());
+
+        Integer colour = info == null ? null : parseColour(info.color());
         if (colour != null && item != Items.PLAYER_HEAD) {
             try {
                 stack.set(DataComponents.DYED_COLOR, new DyedItemColor(colour));
@@ -120,6 +138,49 @@ public final class ItemIcons {
             }
         }
         return stack;
+    }
+
+    /**
+     * Das Modell aus dem Server-Pack fuer eine Kennung, oder null.
+     *
+     * Das Pack legt je Item eine Definition unter items/item/<kategorie>/<name>.json
+     * ab; der Name ist die Kennung in Kleinbuchstaben. Die Kategorie laesst sich
+     * nicht raten, deshalb wird die Liste aus dem geladenen Pack gelesen - alle paar
+     * Minuten neu, weil das Pack erst nach dem Beitritt zu Hypixel da ist.
+     */
+    private static Identifier packModel(String itemId) {
+        refreshIndex();
+        return modelIndex.get(itemId.toLowerCase(Locale.ROOT));
+    }
+
+    private static synchronized void refreshIndex() {
+        long now = System.currentTimeMillis();
+        if (now - indexBuiltAt < INDEX_TTL_MILLIS && !modelIndex.isEmpty()) return;
+        indexBuiltAt = now;
+
+        Map<String, Identifier> fresh = new HashMap<>();
+        try {
+            Map<Identifier, ?> found = Minecraft.getInstance().getResourceManager().listResources(PACK_ITEM_ROOT,
+                    id -> PACK_NAMESPACE.equals(id.getNamespace()) && id.getPath().endsWith(".json"));
+            for (Identifier file : found.keySet()) {
+                // items/item/uncategorized/plasma.json -> item/uncategorized/plasma
+                String path = file.getPath();
+                String modelPath = path.substring("items/".length(), path.length() - ".json".length());
+                String name = modelPath.substring(modelPath.lastIndexOf('/') + 1);
+                fresh.putIfAbsent(name, Identifier.fromNamespaceAndPath(PACK_NAMESPACE, modelPath));
+            }
+        } catch (RuntimeException e) {
+            ShokiMod.LOGGER.warn("[ShokiMod] Could not read item models from the server pack: {}", e.toString());
+        }
+
+        if (!fresh.isEmpty() || modelIndex.isEmpty()) {
+            if (fresh.size() != modelIndex.size()) {
+                ShokiMod.LOGGER.info("[ShokiMod] {} item models known from the server pack", fresh.size());
+                // Ein neues Pack heisst neue Bilder: die alten Stapel gelten nicht mehr
+                cache.clear();
+            }
+            modelIndex = fresh;
+        }
     }
 
     private static Item itemFor(String material) {
