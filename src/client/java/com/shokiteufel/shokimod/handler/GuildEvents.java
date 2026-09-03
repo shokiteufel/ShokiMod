@@ -58,17 +58,25 @@ public final class GuildEvents {
     public record Row(String ign, double score, int rank) {
     }
 
-    public record Event(String id, String name, String label, long start, long end, String status, List<Row> standings) {
+    public record Event(String id, String name, String label, String reward, long start, long end, String status,
+                        List<Row> standings) {
     }
 
     public record Upcoming(String id, String name, String label, long start, long end) {
     }
 
-    public record Announcement(String id, String kind, String event, long at) {
+    /** Eine Ankuendigung traegt alles fuers Banner mit: Wertung, Reward, Zeitraum */
+    public record Announcement(String id, String kind, String event, String label, String reward,
+                               long start, long end, long at) {
     }
 
-    public record Feed(long updated, Event event, Upcoming next, List<Row> leaderboard,
+    /** {@code events}: alle laufenden Events; {@code event}: das mit dem naechsten Ende, oder null */
+    public record Feed(long updated, List<Event> events, Upcoming next, List<Row> leaderboard,
                        List<Announcement> announcements, String origin) {
+
+        public Event event() {
+            return events.isEmpty() ? null : events.get(0);
+        }
     }
 
     private static final AtomicReference<Feed> pending = new AtomicReference<>(null);
@@ -173,11 +181,14 @@ public final class GuildEvents {
         JsonObject root = GSON.fromJson(body, JsonObject.class);
         if (root == null) return null;
 
-        Event event = null;
-        if (root.has("event") && root.get("event").isJsonObject()) {
-            JsonObject e = root.getAsJsonObject("event");
-            event = new Event(str(e, "id"), str(e, "name"), str(e, "label"), lng(e, "start"), lng(e, "end"),
-                    str(e, "status"), rows(e.getAsJsonArray("standings"), "score"));
+        List<Event> events = new ArrayList<>();
+        if (root.has("events") && root.get("events").isJsonArray()) {
+            for (JsonElement element : root.getAsJsonArray("events")) {
+                if (element.isJsonObject()) events.add(eventOf(element.getAsJsonObject()));
+            }
+        } else if (root.has("event") && root.get("event").isJsonObject()) {
+            // Aeltere Bot-Staende kennen nur ein Event
+            events.add(eventOf(root.getAsJsonObject("event")));
         }
         Upcoming next = null;
         if (root.has("next") && root.get("next").isJsonObject()) {
@@ -189,12 +200,18 @@ public final class GuildEvents {
             for (JsonElement element : root.getAsJsonArray("announcements")) {
                 if (!element.isJsonObject()) continue;
                 JsonObject a = element.getAsJsonObject();
-                announcements.add(new Announcement(str(a, "id"), str(a, "kind"), str(a, "event"), lng(a, "at")));
+                announcements.add(new Announcement(str(a, "id"), str(a, "kind"), str(a, "event"), str(a, "label"),
+                        str(a, "reward"), lng(a, "start"), lng(a, "end"), lng(a, "at")));
             }
         }
-        return new Feed(lng(root, "updated"), event, next,
+        return new Feed(lng(root, "updated"), Collections.unmodifiableList(events), next,
                 rows(root.has("leaderboard") ? root.getAsJsonArray("leaderboard") : null, "points"),
                 Collections.unmodifiableList(announcements), from);
+    }
+
+    private static Event eventOf(JsonObject e) {
+        return new Event(str(e, "id"), str(e, "name"), str(e, "label"), str(e, "reward"), lng(e, "start"),
+                lng(e, "end"), str(e, "status"), rows(e.getAsJsonArray("standings"), "score"));
     }
 
     private static List<Row> rows(JsonArray array, String valueField) {
@@ -245,22 +262,41 @@ public final class GuildEvents {
             cfg.seenAnnouncements.add(a.id());
             changed = true;
             // Beim allerersten Kontakt nicht die ganze Vergangenheit nachspielen -
-            // nur, was noch zum laufenden Event gehoert
-            if (firstContact && (feed.event() == null || !a.id().startsWith(feed.event().id() + ":"))) continue;
+            // nur, was noch zu einem laufenden Event gehoert
+            if (firstContact && !belongsToRunning(a, feed)) continue;
             showAnnouncement(client, a, feed);
         }
         while (cfg.seenAnnouncements.size() > REMEMBERED_ANNOUNCEMENTS) cfg.seenAnnouncements.remove(0);
         if (changed) ModConfig.INSTANCE.saveNow();
     }
 
+    private static boolean belongsToRunning(Announcement a, Feed feed) {
+        for (Event e : feed.events()) {
+            if (a.id().startsWith(e.id() + ":")) return true;
+        }
+        return false;
+    }
+
+    private static Event eventNamed(Feed feed, String name) {
+        for (Event e : feed.events()) {
+            if (e.name().equalsIgnoreCase(name)) return e;
+        }
+        return null;
+    }
+
+    /**
+     * Das grosse Banner: Name in der Ueberschrift, darunter Wertung und Reward, in der
+     * dritten Zeile die Dauer. Am Ende stattdessen der eigene Platz.
+     */
     private static void showAnnouncement(Minecraft client, Announcement a, Feed feed) {
         GuildEventsCategory cfg = cfg();
+        String reward = a.reward().isBlank() ? "" : "  |  Reward: " + a.reward();
         if ("start".equals(a.kind()) && cfg.startBanner) {
-            banner("Guild '" + a.event() + "' Event Start", feed.event() == null ? "" : feed.event().label(), "Guild Event");
+            banner("Guild Event: " + a.event(), a.label() + reward, "Duration: " + span(a.start(), a.end()));
         } else if ("end".equals(a.kind()) && cfg.endBanner) {
-            Row own = ownRow(client, feed.event());
-            String place = own == null ? "" : "Your place: #" + own.rank();
-            banner("Guild '" + a.event() + "' Event End", place, "Guild Event");
+            Row own = ownRow(client, eventNamed(feed, a.event()));
+            String place = own == null ? a.label() : "Your place: #" + own.rank();
+            banner("Guild Event ended: " + a.event(), place + reward, "Results in Discord");
         }
     }
 
@@ -269,9 +305,18 @@ public final class GuildEvents {
         DropBanner.show(design, headline, line, tag, BANNER_COLOUR, new ItemStack(Items.DRAGON_HEAD));
     }
 
+    /** "5d 2h", "3h 30m", "45m" */
+    public static String span(long startSeconds, long endSeconds) {
+        long left = Math.max(0, endSeconds - startSeconds);
+        long days = left / 86400, hours = (left % 86400) / 3600, minutes = (left % 3600) / 60;
+        if (days > 0) return days + "d" + (hours > 0 ? " " + hours + "h" : "");
+        if (hours > 0) return hours + "h" + (minutes > 0 ? " " + minutes + "m" : "");
+        return Math.max(1, minutes) + "m";
+    }
+
     /** Knopf in den Einstellungen: das Start-Banner mit einem Beispiel */
     public static void testBanner() {
-        banner("Guild 'Kill Ender Dragon' Event Start", "Mob kills ender_dragon", "Guild Event");
+        banner("Guild Event: Kill Ender Dragon", "Mob kills: Dragon  |  Reward: 10M Coins", "Duration: 5d");
     }
 
     /** Der eigene Platz im laufenden Event, oder null wenn nicht dabei */

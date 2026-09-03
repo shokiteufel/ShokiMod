@@ -12,7 +12,8 @@ import net.minecraft.client.Minecraft;
 import java.util.List;
 
 /**
- * Der Kasten zum Gilden-Event: Name, Restzeit, die vordersten Plaetze und der eigene.
+ * Der Kasten zu den Gilden-Events: je laufendem Event Name, Wertung, Reward, Restzeit,
+ * die vordersten Plaetze und der eigene.
  *
  * Nichts wird hier geholt; {@link GuildEvents} liefert den Stand, der Kasten ordnet
  * ihn nur an. Ohne Daten steht drin, woran es liegt - der Tester sieht das Spiel,
@@ -40,8 +41,8 @@ public final class GuildEventHud {
             return panel;
         }
 
-        Event event = feed.event();
-        if (event == null) {
+        List<Event> events = feed.events();
+        if (events.isEmpty()) {
             panel.line("No event running", MUTED);
             if (feed.next() != null) {
                 panel.pair("Next:", feed.next().name(), LABEL_COLOUR, NAME_COLOUR);
@@ -50,17 +51,24 @@ public final class GuildEventHud {
             return panel;
         }
 
+        int limit = Math.max(1, ModConfig.INSTANCE.guild.events.topRows);
+        for (int i = 0; i < events.size(); i++) {
+            if (i > 0) panel.blank();
+            addEvent(panel, events.get(i), limit);
+        }
+        return panel;
+    }
+
+    private static void addEvent(HudPanel panel, Event event, int limit) {
         panel.line(event.name(), NAME_COLOUR);
         if (!event.label().isEmpty()) panel.line(event.label(), MUTED);
+        if (!event.reward().isEmpty()) panel.pair("Reward:", event.reward(), LABEL_COLOUR, NAME_COLOUR);
         panel.pair("Ends in:", countdown(event.end()), LABEL_COLOUR, TIME_COLOUR);
 
         List<Row> rows = event.standings();
-        int limit = Math.max(1, ModConfig.INSTANCE.guild.events.topRows);
         if (rows.isEmpty()) {
-            panel.blank();
             panel.line("Nobody joined yet", MUTED);
         } else {
-            panel.blank();
             for (int i = 0; i < rows.size() && i < limit; i++) {
                 Row row = rows.get(i);
                 panel.pair("#" + row.rank() + " " + row.ign(), score(row.score()), LABEL_COLOUR, VALUE_COLOUR);
@@ -68,13 +76,11 @@ public final class GuildEventHud {
         }
 
         Row own = GuildEvents.ownRow(Minecraft.getInstance(), event);
-        panel.blank();
         if (own == null) {
             panel.pair("You:", "not joined", LABEL_COLOUR, MUTED);
         } else {
             panel.pair("You: #" + own.rank(), score(own.score()), OWN_COLOUR, VALUE_COLOUR);
         }
-        return panel;
     }
 
     /** Ganze Zahlen ohne Nachkommastellen, grosse gekuerzt wie Coins */
@@ -87,9 +93,6 @@ public final class GuildEventHud {
     private static String countdown(long unixSeconds) {
         long left = unixSeconds - System.currentTimeMillis() / 1000L;
         if (left <= 0) return "ended";
-        long days = left / 86400, hours = (left % 86400) / 3600, minutes = (left % 3600) / 60;
-        if (days > 0) return days + "d " + hours + "h";
-        if (hours > 0) return hours + "h " + minutes + "m";
-        return Math.max(1, minutes) + "m";
+        return GuildEvents.span(0, left);
     }
 }
