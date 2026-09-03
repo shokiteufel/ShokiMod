@@ -79,7 +79,9 @@ public class BannerDesignScreen extends Screen {
         for (int i = 0; i < rowsPerPage && start + i < designs().size(); i++) {
             int index = start + i;
             BannerDesign entry = designs().get(index);
-            Button row = Button.builder(Component.literal(index == selected ? "▶ " + entry.name : entry.name), button -> {
+            String tiers = HudEditorScreen.tiersUsing(entry.name);
+            String rowText = (index == selected ? "▶ " : "") + entry.name + (tiers.isEmpty() ? "" : "  [" + tiers.replace("Tier ", "T") + "]");
+            Button row = Button.builder(Component.literal(rowText), button -> {
                 selected = index;
                 rebuild();
             }).bounds(LIST_LEFT, LIST_TOP + i * ROW, LIST_WIDTH, 20).build();
@@ -213,7 +215,10 @@ public class BannerDesignScreen extends Screen {
         field.setMaxLength(maxLength);
         field.setValue(value == null ? "" : value);
         field.setHint(Component.literal(label).withStyle(ChatFormatting.DARK_GRAY));
-        field.setResponder(apply);
+        field.setResponder(typed -> {
+            apply.accept(typed);
+            DropBanner.preview(design());
+        });
         addRenderableWidget(field);
         labels.add(new Label(x, y + 6, label));
         return field;
@@ -227,6 +232,7 @@ public class BannerDesignScreen extends Screen {
             int next = (index + 1) % values.length;
             set.accept(values[next]);
             b.setMessage(Component.literal(label + ": " + text.apply(values[next])));
+            DropBanner.preview(design());
         }).bounds(x, y, COLUMN_WIDTH, 20).build();
         button.setTooltip(Tooltip.create(Component.literal("Click to step through the options")));
         addRenderableWidget(button);
@@ -237,6 +243,7 @@ public class BannerDesignScreen extends Screen {
             boolean next = !get.get();
             set.accept(next);
             b.setMessage(toggleText(label, next));
+            DropBanner.preview(design());
         }).bounds(x, y, COLUMN_WIDTH, 20).build();
         addRenderableWidget(button);
     }
@@ -251,7 +258,7 @@ public class BannerDesignScreen extends Screen {
         addRenderableWidget(new ValueSlider(x, y, COLUMN_WIDTH, label, min, max, get, set, format, displayFactor));
     }
 
-    private static class ValueSlider extends AbstractSliderButton {
+    private class ValueSlider extends AbstractSliderButton {
         private final String label;
         private final float min;
         private final float max;
@@ -284,6 +291,7 @@ public class BannerDesignScreen extends Screen {
         protected void applyValue() {
             set.accept(current());
             updateMessage();
+            DropBanner.preview(design());
         }
     }
 
@@ -314,7 +322,9 @@ public class BannerDesignScreen extends Screen {
         for (Label label : labels) {
             graphics.text(font, label.text(), label.x(), label.y(), 0xFFCCCCCC, true);
         }
-        // Die Vorschau zuletzt, also ueber dem Fenster - der HUD-Durchgang laesst sie hier aus
+        // Die Vorschau steht, solange das Fenster offen ist, und zuletzt gezeichnet liegt sie
+        // ueber dem Fenster - der HUD-Durchgang laesst sie hier aus
+        DropBanner.keepPreview(design());
         DropBanner.render(graphics);
     }
 

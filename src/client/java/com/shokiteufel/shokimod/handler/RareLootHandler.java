@@ -2,6 +2,7 @@ package com.shokiteufel.shokimod.handler;
 
 import com.shokiteufel.shokimod.ShokiMod;
 import com.shokiteufel.shokimod.data.GameState;
+import com.shokiteufel.shokimod.data.BannerDesign;
 import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.data.ModConfig.RareLootCategory;
 import com.shokiteufel.shokimod.data.ModConfig.RareLootCategory.Tier;
@@ -214,7 +215,17 @@ public final class RareLootHandler {
         Tier tier = cfg().tier(number);
         double threshold = ItemValue.parseAmount(tier.threshold());
         Minecraft client = Minecraft.getInstance();
-        client.execute(() -> announce(client, tier, "Test: 3x Ghost Shard", Math.max(threshold, 0), "SHARD_GHOST"));
+        client.execute(() -> {
+            announce(client, tier, "Test: 3x Ghost Shard", Math.max(threshold, 0), "SHARD_GHOST");
+            // Beim Testen soll man sehen, welches Design wirklich gezogen wird - und ob es eine
+            // eigene Farbe hat oder die der Stufe nimmt
+            BannerDesign used = ModConfig.INSTANCE.chat.banner.designOrDefault(tier.design());
+            String wanted = tier.design() == null ? "" : tier.design().trim();
+            String colourNote = used.colour == null || used.colour.isBlank() ? "tier colour" : "colour " + used.colour;
+            String match = used.name.equalsIgnoreCase(wanted) ? "" : " (no design named " + wanted + " - took the first one)";
+            if (client.player != null) client.player.sendSystemMessage(Component.literal(
+                    "[ShokiMod] Tier " + number + " banner: " + used.name + ", " + colourNote + match));
+        });
     }
 
     private static void announce(Minecraft client, Tier tier, String headline, double coins, String itemId) {
@@ -375,6 +386,18 @@ public final class RareLootHandler {
                 .append(" shardPrice=").append(cfg.shardPriceMode)
                 .append(" bazaarPrice=").append(cfg.bazaarPriceMode)
                 .append(" alertVolume=").append(AlertVolume.factor()).append('\n');
+        out.append("tier1Design=").append(cfg.tier1Design)
+                .append(" tier2Design=").append(cfg.tier2Design)
+                .append(" tier3Design=").append(cfg.tier3Design).append("\n\n");
+
+        out.append("[banners]\n");
+        List<BannerDesign> designs = ModConfig.INSTANCE.chat.banner.designs;
+        if (designs == null || designs.isEmpty()) out.append("(none)\n");
+        else for (BannerDesign d : designs) {
+            out.append(d.name).append(": colour=").append(d.colour == null || d.colour.isBlank() ? "tier" : d.colour)
+                    .append(" anchor=").append(d.anchor).append(" bg=").append(d.background)
+                    .append(" x=").append(d.x).append(" y=").append(d.y).append(" scale=").append(d.scale).append('\n');
+        }
         for (Tier tier : cfg.tiers()) {
             out.append("tier").append(tier.number())
                     .append(": enabled=").append(tier.enabled())

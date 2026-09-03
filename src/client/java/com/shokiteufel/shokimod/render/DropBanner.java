@@ -76,6 +76,17 @@ public final class DropBanner {
         displayMillis = Math.max(displayMillis, 4500L);
     }
 
+    /**
+     * Der Sandbox: die Vorschau bleibt stehen, solange das Fenster offen ist.
+     *
+     * Kurz bevor sie ausblenden wuerde, faengt sie von vorn an - so laufen auch die
+     * Animationen immer wieder, und man sieht, was man gerade eingestellt hat.
+     */
+    public static void keepPreview(BannerDesign chosen) {
+        long age = System.currentTimeMillis() - shownAtMillis;
+        if (shownAtMillis == 0L || design != chosen || age > displayMillis - FADE_MILLIS) preview(chosen);
+    }
+
     public static boolean visible() {
         return shownAtMillis != 0L;
     }

@@ -142,7 +142,21 @@ public class HudEditorScreen extends Screen {
     }
 
     private Component designLabel() {
-        return Component.literal(design().name);
+        BannerDesign d = design();
+        String tiers = tiersUsing(d.name);
+        return Component.literal(tiers.isEmpty() ? d.name : d.name + "  -  " + tiers);
+    }
+
+    /** "Tier 1, 3" wenn diese Stufen das Design ziehen, sonst leer - damit man nicht das falsche Design faerbt */
+    static String tiersUsing(String name) {
+        ModConfig.RareLootCategory rare = ModConfig.INSTANCE.chat.rareLoot;
+        StringBuilder out = new StringBuilder();
+        for (int tier = 1; tier <= 3; tier++) {
+            String used = rare.designFor(tier);
+            if (used == null || name == null || !used.trim().equalsIgnoreCase(name.trim())) continue;
+            out.append(out.length() == 0 ? "Tier " : ", ").append(tier);
+        }
+        return out.toString();
     }
 
     private void rebuildContent() {
