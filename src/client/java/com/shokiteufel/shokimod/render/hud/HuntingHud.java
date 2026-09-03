@@ -31,8 +31,8 @@ public final class HuntingHud {
         HudPanel panel = new HudPanel();
         PriceMode mode = HuntingTracker.mode();
         List<HuntingTracker.Row> rows = HuntingTracker.rows(mode);
-        if (rows.isEmpty() && HuntingTracker.uptimeMillis() <= 0L && Minecraft.getInstance().screen == null) return panel;
-
+        // Auch leer bleibt der Kasten stehen: nach einem Reset soll er nicht verschwinden,
+        // sondern mit Nullen weiterlaufen, bis der naechste Shard faellt
         ModConfig.HuntingTrackerCategory cfg = ModConfig.INSTANCE.hunting.tracker;
         panel.title("Hunting Tracker" + (HuntingTracker.isPaused() ? " (paused)" : ""), TITLE_COLOUR);
 
