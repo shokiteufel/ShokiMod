@@ -90,11 +90,11 @@ public final class CollectionHud {
         return panel;
     }
 
-    /** Grosse Zahlen mit Trennzeichen, sehr grosse gekuerzt */
+    /** Grosse Zahlen mit Trennzeichen, sehr grosse gekuerzt. Immer mit Punkt, wie im Spiel */
     private static String amount(long value) {
-        if (value >= 1_000_000) return String.format("%.2fM", value / 1_000_000.0);
-        if (value >= 10_000) return String.format("%.1fk", value / 1_000.0);
-        return String.format("%,d", value);
+        if (value >= 1_000_000) return String.format(java.util.Locale.ROOT, "%.2fM", value / 1_000_000.0);
+        if (value >= 10_000) return String.format(java.util.Locale.ROOT, "%.1fk", value / 1_000.0);
+        return String.format(java.util.Locale.ROOT, "%,d", value);
     }
 
     private static String clock(long millis) {

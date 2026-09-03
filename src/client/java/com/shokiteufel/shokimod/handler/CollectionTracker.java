@@ -19,6 +19,7 @@ import net.minecraft.network.chat.HoverEvent;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -44,9 +45,12 @@ import java.util.regex.Pattern;
  */
 public final class CollectionTracker {
 
-    /** "+38 Enchanted Helix Log (Enchanted Foraging Sack)" - Anzahl und Name */
-    private static final Pattern ADDED = Pattern.compile("^\\+\\s*([\\d,.]+)\\s+(.+?)\\s*\\(");
+    /** "+38 Enchanted Helix Log (...)" oder "-80,900 Ender Pearl (...)" - Vorzeichen, Anzahl, Name */
+    private static final Pattern ITEM_LINE = Pattern.compile("^([+-])\\s*([\\d,.]+)\\s+(.+?)\\s*\\(");
     private static final Pattern TOTAL_COLLECTED = Pattern.compile("Total Collected:\\s*([\\d,.]+)");
+    private static final Pattern COOP_HEADER = Pattern.compile("(?i)co-?op contributions");
+    /** "[MVP+] SchiggyMobil: 1.1M" - Name und Anteil, gekuerzt wie im Spiel */
+    private static final Pattern COOP_LINE = Pattern.compile("([A-Za-z0-9_]{3,16}):\\s*([\\d,.]+)\\s*([kKmMbB])?\\s*$");
     private static final String SACK_MARKER = "[Sacks]";
     private static final String ADDED_HEADER = "added items";
     private static final String REMOVED_HEADER = "removed items";
@@ -99,8 +103,11 @@ public final class CollectionTracker {
         collectHoverText(message, hover);
         if (hover.isEmpty()) return;
 
+        // Erst die ganze Nachricht zusammenrechnen, dann buchen. Wer hochcraftet, nimmt rohe
+        // Perlen heraus und legt verzauberte hinein - erst zusammen ergibt das die Wahrheit,
+        // und die Reihenfolge der Zeilen spielt keine Rolle mehr
+        Map<String, Integer> deltas = new LinkedHashMap<>();
         boolean adding = false;
-        boolean counted = false;
         for (String line : hover) {
             String clean = line.replaceAll("§.", "").trim();
             String lower = clean.toLowerCase(Locale.ROOT);
@@ -109,17 +116,22 @@ public final class CollectionTracker {
                 continue;
             }
             if (lower.startsWith(REMOVED_HEADER)) {
-                // Was man aus dem Sack holt, ist kein Zuwachs
                 adding = false;
                 continue;
             }
-            if (!adding) continue;
 
-            Matcher matcher = ADDED.matcher(clean);
+            Matcher matcher = ITEM_LINE.matcher(clean);
             if (!matcher.find()) continue;
-            int amount = number(matcher.group(1));
+            int amount = number(matcher.group(2));
             if (amount <= 0) continue;
-            if (count(matcher.group(2).trim(), amount)) counted = true;
+            boolean minus = "-".equals(matcher.group(1)) || !adding;
+            deltas.merge(matcher.group(3).trim(), minus ? -amount : amount, Integer::sum);
+        }
+
+        boolean counted = false;
+        for (Map.Entry<String, Integer> entry : deltas.entrySet()) {
+            if (entry.getValue() == 0) continue;
+            if (count(entry.getKey(), entry.getValue())) counted = true;
         }
 
         if (counted) {
@@ -128,7 +140,12 @@ public final class CollectionTracker {
         }
     }
 
-    /** Ein Posten aus dem Sack-Hinweis. true, wenn er gezaehlt oder vorgemerkt wurde */
+    /**
+     * Ein Posten aus dem Sack-Hinweis, mit Vorzeichen. true, wenn er gezaehlt oder vorgemerkt wurde.
+     *
+     * Negative Posten ziehen ab, aber nie unter null: wer aus dem Sack nimmt, was er vor dem
+     * Reset gesammelt hat, soll keinen Minusstand bekommen.
+     */
     private static boolean count(String displayName, int amount) {
         List<String> ids = ItemNames.idsFor(displayName);
         if (ids.isEmpty()) {
@@ -154,11 +171,15 @@ public final class CollectionTracker {
         Yield yield = CollectionData.yieldOf(itemId);
         if (yield == null) return false;
 
-        cfg().gains.merge(yield.collectionId(), yield.amount() * amount, Long::sum);
-        Value value = ItemValue.resolve(List.of(itemId), amount, PriceMode.INSTANT_SELL, cfg().priceMode);
-        if (value != null) cfg().values.merge(yield.collectionId(), value.coins(), Double::sum);
-        ShokiMod.LOGGER.info("[Collections] +{} {} -> {} x {}", amount, itemId,
-                yield.amount() * amount, yield.collectionId());
+        long units = yield.amount() * amount;
+        cfg().gains.merge(yield.collectionId(), units, (a, b) -> Math.max(0L, a + b));
+        Value value = ItemValue.resolve(List.of(itemId), Math.abs(amount), PriceMode.INSTANT_SELL, cfg().priceMode);
+        if (value != null) {
+            double coins = amount < 0 ? -value.coins() : value.coins();
+            cfg().values.merge(yield.collectionId(), coins, (a, b) -> Math.max(0.0, a + b));
+        }
+        ShokiMod.LOGGER.info("[Collections] {}{} {} -> {} x {}", amount < 0 ? "" : "+", amount, itemId,
+                units, yield.collectionId());
         return true;
     }
 
@@ -267,20 +288,62 @@ public final class CollectionTracker {
             net.minecraft.world.item.component.ItemLore lore =
                     stack.get(net.minecraft.core.component.DataComponents.LORE);
             if (lore == null) continue;
-            for (Component line : lore.lines()) {
-                Matcher matcher = TOTAL_COLLECTED.matcher(line.getString().replaceAll("§.", ""));
-                if (!matcher.find()) continue;
-                long total = number(matcher.group(1));
-                if (total <= 0) continue;
-                Long known = cfg().totals.get(collectionId);
-                if (known == null || known != total) {
-                    cfg().totals.put(collectionId, total);
-                    changed = true;
-                }
-                break;
+            long total = readOwnTotal(client, lore.lines());
+            if (total <= 0) continue;
+            Long known = cfg().totals.get(collectionId);
+            if (known == null || known != total) {
+                cfg().totals.put(collectionId, total);
+                changed = true;
             }
         }
         if (changed) dirty = true;
+    }
+
+    /**
+     * Was man selbst gesammelt hat.
+     *
+     * "Total Collected" ist auf einem Co-op-Profil die Summe aller Mitspieler. Steht darunter
+     * die Aufstellung "Co-op Contributions", zaehlt nur die eigene Zeile. Die ist gekuerzt
+     * ("1.1M"), also auf hunderttausend genau - besser eine grobe eigene Zahl als eine genaue,
+     * die drei Leuten gehoert.
+     */
+    private static long readOwnTotal(Minecraft client, List<Component> lines) {
+        String me = client.getUser() == null ? "" : client.getUser().getName();
+        long total = 0;
+        boolean coop = false;
+        for (Component component : lines) {
+            String line = component.getString().replaceAll("§.", "").trim();
+            if (COOP_HEADER.matcher(line).find()) {
+                coop = true;
+                continue;
+            }
+            if (!coop) {
+                Matcher matcher = TOTAL_COLLECTED.matcher(line);
+                if (matcher.find()) total = number(matcher.group(1));
+                continue;
+            }
+            Matcher matcher = COOP_LINE.matcher(line);
+            if (matcher.find() && matcher.group(1).equalsIgnoreCase(me)) return shortNumber(matcher.group(2), matcher.group(3));
+        }
+        return total;
+    }
+
+    /** "1.1M" oder "133.4k" in eine ganze Zahl */
+    private static long shortNumber(String digits, String suffix) {
+        try {
+            double value = Double.parseDouble(digits.replace(",", ""));
+            if (suffix != null) {
+                value *= switch (Character.toLowerCase(suffix.charAt(0))) {
+                    case 'k' -> 1_000d;
+                    case 'm' -> 1_000_000d;
+                    case 'b' -> 1_000_000_000d;
+                    default -> 1d;
+                };
+            }
+            return Math.round(value);
+        } catch (NumberFormatException e) {
+            return 0;
+        }
     }
 
     private static int number(String text) {
