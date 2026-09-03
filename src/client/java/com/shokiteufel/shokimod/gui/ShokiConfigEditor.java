@@ -24,8 +24,14 @@ import java.util.LinkedHashMap;
  */
 public class ShokiConfigEditor extends MoulConfigEditor<ModConfig> {
 
-    /** Genau so eingetippt holt den versteckten Reiter hervor */
-    private static final String SECRET = "ikohS";
+    /**
+     * Der SHA-256 des Codeworts, nicht das Codewort selbst.
+     *
+     * Wer den Quelltext oder die Jar liest, findet hier nur den Hash - und aus dem
+     * laesst sich das Wort nicht zurueckrechnen. Geprueft wird, indem die Eingabe
+     * gehasht und mit diesem Wert verglichen wird.
+     */
+    private static final String SECRET_SHA256 = "a1fff415837736c26b3f69c1c49ef08667ebc0226cbcb3e24295b986b6d12916";
 
     /** Das Feld in {@link ModConfig}, dessen Reiter verborgen bleibt */
     private static final String HIDDEN_FIELD = "mobVisuals";
@@ -63,7 +69,20 @@ public class ShokiConfigEditor extends MoulConfigEditor<ModConfig> {
     private boolean secretTyped() {
         if (searchText == null) return false;
         String typed = searchText.get();
-        return typed != null && SECRET.equals(typed.trim());
+        if (typed == null) return false;
+        return SECRET_SHA256.equals(sha256(typed.trim()));
+    }
+
+    private static String sha256(String text) {
+        try {
+            java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(text.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder hex = new StringBuilder(hash.length * 2);
+            for (byte b : hash) hex.append(String.format("%02x", b));
+            return hex.toString();
+        } catch (java.security.NoSuchAlgorithmException e) {
+            return "";
+        }
     }
 
     private static String hiddenId() {
