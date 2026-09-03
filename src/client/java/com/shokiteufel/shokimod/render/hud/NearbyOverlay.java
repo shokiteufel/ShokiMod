@@ -1,6 +1,7 @@
 package com.shokiteufel.shokimod.render.hud;
 
 import com.shokiteufel.shokimod.data.ModConfig;
+import com.shokiteufel.shokimod.gui.BannerDesignScreen;
 import com.shokiteufel.shokimod.gui.HudEditorScreen;
 import com.shokiteufel.shokimod.handler.HuntingTracker;
 import net.minecraft.client.Minecraft;
@@ -45,7 +46,8 @@ public final class NearbyOverlay {
     public static void draw(GuiGraphicsExtractor graphics) {
         // Im Einrichtungsfenster nicht: dort werden die Kaesten schon selbst gezeichnet,
         // an der Stelle, an die man sie gerade zieht
-        if (Minecraft.getInstance().screen instanceof HudEditorScreen) return;
+        if (Minecraft.getInstance().screen instanceof HudEditorScreen
+                || Minecraft.getInstance().screen instanceof BannerDesignScreen) return;
         // Dieselbe Auswahl wie beim Spielen - was eingeschaltet ist und hierher gehoert
         SafariHud.render(graphics);
     }

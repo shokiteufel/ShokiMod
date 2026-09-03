@@ -314,6 +314,8 @@ public class BannerDesignScreen extends Screen {
         for (Label label : labels) {
             graphics.text(font, label.text(), label.x(), label.y(), 0xFFCCCCCC, true);
         }
+        // Die Vorschau zuletzt, also ueber dem Fenster - der HUD-Durchgang laesst sie hier aus
+        DropBanner.render(graphics);
     }
 
     @Override
