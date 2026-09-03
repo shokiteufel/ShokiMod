@@ -188,10 +188,34 @@ public final class CollectionData {
         return null;
     }
 
+    /**
+     * Sammel-Collections: viele Items, eine Collection.
+     *
+     * Gemstones sind der Fall dafuer. Saphir, Bernstein, Jade und die anderen zahlen alle
+     * auf dieselbe Collection ein, und keiner ihrer Baeuplaene fuehrt dorthin. Die Regel
+     * gilt nur fuer die unterste Stufe (Rough); die hoeheren finden von selbst dorthin,
+     * weil ihr Bauplan sie in Rough zerlegt.
+     */
+    private static final Map<java.util.regex.Pattern, String> BASE_ALIASES = Map.of(
+            java.util.regex.Pattern.compile("^ROUGH_[A-Z]+_GEM$"), "GEMSTONE_COLLECTION");
+
+    /** Die Collection, auf die ein Item ohne eigenen Bauplan einzahlt, oder null */
+    private static String aliasCollection(String itemId) {
+        for (Map.Entry<java.util.regex.Pattern, String> entry : BASE_ALIASES.entrySet()) {
+            if (entry.getKey().matcher(itemId).matches() && collections.containsKey(entry.getValue())) {
+                return entry.getValue();
+            }
+        }
+        return null;
+    }
+
     /** Holt den Bauplan und geht ihn hinunter, bis eine Collection erreicht ist */
     private static Yield fetchYield(String itemId, int depth) {
         if (depth >= MAX_DEPTH) return null;
         if (collections.containsKey(itemId)) return new Yield(itemId, 1);
+
+        String alias = aliasCollection(itemId);
+        if (alias != null) return new Yield(alias, 1);
 
         JsonObject item = fetchItem(itemId);
         if (item == null) return null;

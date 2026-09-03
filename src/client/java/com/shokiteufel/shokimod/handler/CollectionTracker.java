@@ -125,7 +125,9 @@ public final class CollectionTracker {
             int amount = number(matcher.group(2));
             if (amount <= 0) continue;
             boolean minus = "-".equals(matcher.group(1)) || !adding;
-            deltas.merge(matcher.group(3).trim(), minus ? -amount : amount, Integer::sum);
+            String name = itemName(matcher.group(3));
+            if (name.isEmpty()) continue;
+            deltas.merge(name, minus ? -amount : amount, Integer::sum);
         }
 
         boolean counted = false;
@@ -197,6 +199,17 @@ public final class CollectionTracker {
         }
         waiting.clear();
         waiting.addAll(keep);
+    }
+
+    /**
+     * Der reine Name eines Postens.
+     *
+     * Vor manchen Namen steht ein Zeichen aus dem Ressourcenpaket - Gemstones haben ihr
+     * eigenes Symbol. Es gehoert nicht zum Namen und wuerde jede Suche verfehlen, also
+     * faellt alles weg, was vorn und hinten kein Buchstabe und keine Ziffer ist.
+     */
+    private static String itemName(String raw) {
+        return raw.replaceAll("^[^\\p{L}\\p{N}]+", "").replaceAll("[^\\p{L}\\p{N}]+$", "").trim();
     }
 
     /** Der Text am Mauszeiger, Zeile fuer Zeile - auch aus allen Anhaengseln der Nachricht */
