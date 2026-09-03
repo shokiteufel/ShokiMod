@@ -51,15 +51,31 @@ public final class CollectionHud {
 
         if (!rows.isEmpty()) panel.blank();
         int limit = Math.max(1, cfg.maxRows);
+        String order = cfg.lineOrder == null ? "TGH" : cfg.lineOrder.code;
         for (int i = 0; i < rows.size() && i < limit; i++) {
             Row row = rows.get(i);
             panel.line(row.name(), LABEL_COLOUR);
-            if (row.total() > 0) {
-                panel.pair("  Total:", amount(row.total()), MUTED, LABEL_COLOUR);
-            }
-            panel.pair("  Gained:", "+" + amount(row.gained()), MUTED, VALUE_COLOUR);
-            if (cfg.timerEnabled) {
-                panel.pair("  Per hour:", amount((long) CollectionTracker.perHour(row.gained())), MUTED, VALUE_COLOUR);
+            // Die drei Zeilen in der eingestellten Reihenfolge
+            for (char line : order.toCharArray()) {
+                switch (line) {
+                    case 'T' -> {
+                        if (cfg.showTotal) {
+                            // Ohne einmal geoeffnetes Collections-Menue kennt die Mod den Stand nicht
+                            panel.pair("  Total:", row.total() > 0 ? amount(row.total()) : "?", MUTED,
+                                    row.total() > 0 ? LABEL_COLOUR : MUTED);
+                        }
+                    }
+                    case 'G' -> {
+                        if (cfg.showGained) panel.pair("  Gained:", "+" + amount(row.gained()), MUTED, VALUE_COLOUR);
+                    }
+                    case 'H' -> {
+                        if (cfg.showPerHour && cfg.timerEnabled) {
+                            panel.pair("  Per hour:", amount((long) CollectionTracker.perHour(row.gained())), MUTED, VALUE_COLOUR);
+                        }
+                    }
+                    default -> {
+                    }
+                }
             }
         }
         if (rows.size() > limit) {

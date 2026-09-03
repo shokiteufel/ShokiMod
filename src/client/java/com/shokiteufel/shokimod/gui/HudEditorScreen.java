@@ -55,6 +55,7 @@ public class HudEditorScreen extends Screen {
     private ColorSwatchButton swatch;
     private Button colourReset;
     private Button modeButton;
+    private Button showsButton;
 
     public HudEditorScreen(Screen parent, boolean bannerMode) {
         super(Component.literal("HUD editor"));
@@ -92,6 +93,16 @@ public class HudEditorScreen extends Screen {
                 .bounds(width / 2 + 85, height - 78, 20, 20).build();
         addRenderableWidget(nextDesign);
 
+        showsButton = Button.builder(showsLabel(), button -> {
+            ModConfig.INSTANCE.hud.editorShowsAll = !showsAll();
+            ModConfig.INSTANCE.saveNow();
+            button.setMessage(showsLabel());
+            rebuildContent();
+        }).bounds(width / 2 - 105, height - 54, 210, 20).build();
+        showsButton.setTooltip(Tooltip.create(Component.literal(
+                "All panels: place them before switching them on.\nActive only: what is really on screen right now.")));
+        addRenderableWidget(showsButton);
+
         swatch = new ColorSwatchButton(width / 2 - 105, height - 54, 100, 20,
                 this::bannerColour, () -> 255, this::openBannerColour);
         swatch.setTooltip(Tooltip.create(Component.literal("Colour of this design")));
@@ -127,6 +138,8 @@ public class HudEditorScreen extends Screen {
         }
         swatch.visible = bannerMode;
         swatch.active = bannerMode;
+        showsButton.visible = !bannerMode;
+        showsButton.active = !bannerMode;
         modeButton.setMessage(modeLabel());
         if (bannerMode) refreshColourReset();
     }
@@ -159,9 +172,29 @@ public class HudEditorScreen extends Screen {
         return out.toString();
     }
 
+    /**
+     * Welche Kaesten der Editor zeigt.
+     *
+     * Alle: auch die abgeschalteten, damit man sie vorher an ihren Platz legen kann.
+     * Nur aktive: was gerade wirklich auf dem Bildschirm steht.
+     */
+    private boolean showsAll() {
+        return ModConfig.INSTANCE.hud.editorShowsAll;
+    }
+
+    private Component showsLabel() {
+        return Component.literal(showsAll() ? "Show: All panels" : "Show: Active only");
+    }
+
     private void rebuildContent() {
+        content.clear();
         for (SafariHud.Panel panel : SafariHud.Panel.values()) {
+            if (!showsAll() && !panel.visible()) continue;
             content.put(panel, panel.build());
+        }
+        // Der ausgewaehlte Kasten darf nicht auf einen liegen, den man gerade nicht sieht
+        if (!content.containsKey(selectedPanel)) {
+            selectedPanel = content.isEmpty() ? SafariHud.Panel.PROGRESS : content.keySet().iterator().next();
         }
     }
 

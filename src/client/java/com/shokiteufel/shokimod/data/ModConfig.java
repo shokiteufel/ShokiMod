@@ -98,6 +98,7 @@ public class ModConfig extends Config {
         if (collectionTracker.values == null) collectionTracker.values = new HashMap<>();
         if (collectionTracker.totals == null) collectionTracker.totals = new HashMap<>();
         if (collectionTracker.priceMode == null) collectionTracker.priceMode = ItemValue.PriceMode.INSTANT_SELL;
+        if (collectionTracker.lineOrder == null) collectionTracker.lineOrder = CollectionTrackerCategory.LineOrder.TOTAL_GAINED_HOUR;
         if (INSTANCE.fishing.hotspot == null) INSTANCE.fishing.hotspot = new HotspotCategory();
         if (INSTANCE.chat.reminder == null) INSTANCE.chat.reminder = new ReminderCategory();
         if (INSTANCE.chat.reminder.cakes == null) INSTANCE.chat.reminder.cakes = new HashMap<>();
@@ -451,6 +452,50 @@ public class ModConfig extends Config {
         public ItemValue.PriceMode priceMode = ItemValue.PriceMode.INSTANT_SELL;
 
         @Expose
+        @ConfigOption(name = "Show total", desc = "The collection you already have. Open the collections menu once so the mod can read it.")
+        @ConfigEditorBoolean
+        public boolean showTotal = true;
+
+        @Expose
+        @ConfigOption(name = "Show gained", desc = "What came in since the last reset.")
+        @ConfigEditorBoolean
+        public boolean showGained = true;
+
+        @Expose
+        @ConfigOption(name = "Show per hour", desc = "The pace, from the tracked time.")
+        @ConfigEditorBoolean
+        public boolean showPerHour = true;
+
+        @Expose
+        @ConfigOption(name = "Line order", desc = "In which order Total, Gained and Per hour stand under each collection.")
+        @ConfigEditorDropdown
+        public LineOrder lineOrder = LineOrder.TOTAL_GAINED_HOUR;
+
+        /** Die drei Zeilen unter einer Collection, in jeder moeglichen Reihenfolge */
+        public enum LineOrder {
+            TOTAL_GAINED_HOUR("Total, Gained, Per hour", "TGH"),
+            TOTAL_HOUR_GAINED("Total, Per hour, Gained", "THG"),
+            GAINED_TOTAL_HOUR("Gained, Total, Per hour", "GTH"),
+            GAINED_HOUR_TOTAL("Gained, Per hour, Total", "GHT"),
+            HOUR_TOTAL_GAINED("Per hour, Total, Gained", "HTG"),
+            HOUR_GAINED_TOTAL("Per hour, Gained, Total", "HGT");
+
+            public final String label;
+            /** T = Total, G = Gained, H = Per hour */
+            public final String code;
+
+            LineOrder(String label, String code) {
+                this.label = label;
+                this.code = code;
+            }
+
+            @Override
+            public String toString() {
+                return label;
+            }
+        }
+
+        @Expose
         @ConfigOption(name = "Pause after", desc = "Seconds without anything collected before the timer pauses. The idle time is taken off again.")
         @ConfigEditorSlider(minValue = 10f, maxValue = 600f, minStep = 5f)
         public int pauseAfterSeconds = 120;
@@ -745,6 +790,11 @@ public class ModConfig extends Config {
         @ConfigEditorButton(buttonText = "Open")
         public transient Runnable openHudEditor = () -> {
         };
+
+        @Expose
+        @ConfigOption(name = "Editor shows", desc = "In /shoki hud: all panels, so you can place them before switching them on - or only the ones that are on right now.")
+        @ConfigEditorBoolean
+        public boolean editorShowsAll = true;
 
         @Expose
         @ConfigOption(name = "Glowing text", desc = "Draws the panel text with a dark outline in its own colour, the way Minecraft draws signs written with glow ink.\nOff: plain text with a drop shadow.")
