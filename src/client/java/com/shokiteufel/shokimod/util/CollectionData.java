@@ -197,15 +197,18 @@ public final class CollectionData {
         if (item == null) return null;
 
         Map<String, Long> ingredients = new HashMap<>();
+        long output = 1;
         collectIngredients(item.getAsJsonObject("recipe"), ingredients);
-        if (item.has("recipes") && item.get("recipes").isJsonArray()) {
+        if (ingredients.isEmpty() && item.has("recipes") && item.get("recipes").isJsonArray()) {
             for (JsonElement element : item.getAsJsonArray("recipes")) {
                 if (!element.isJsonObject()) continue;
+                JsonObject recipe = element.getAsJsonObject();
                 Map<String, Long> single = new HashMap<>();
-                collectIngredients(element.getAsJsonObject(), single);
+                collectIngredients(recipe, single);
                 // Das erste brauchbare Rezept genuegt; mehrere Wege enden beim selben Rohstoff
                 if (!single.isEmpty()) {
                     ingredients = single;
+                    output = outputCount(recipe);
                     break;
                 }
             }
@@ -220,7 +223,20 @@ public final class CollectionData {
         if (main == null || main.getKey().equals(itemId)) return null;
 
         Yield base = fetchYield(main.getKey(), depth + 1);
-        return base == null ? null : new Yield(base.collectionId(), base.amount() * main.getValue());
+        if (base == null) return null;
+        // Ein Bauplan, der zwei Stueck auswirft, bringt je Stueck nur die Haelfte
+        long perPiece = Math.max(1, base.amount() * main.getValue() / Math.max(1, output));
+        return new Yield(base.collectionId(), perPiece);
+    }
+
+    /** Wie viele Stueck ein Bauplan auswirft. Ohne Angabe eines */
+    private static long outputCount(JsonObject recipe) {
+        try {
+            return recipe.has("count") && recipe.get("count").isJsonPrimitive()
+                    ? Math.max(1, recipe.get("count").getAsLong()) : 1;
+        } catch (RuntimeException e) {
+            return 1;
+        }
     }
 
     /** Die neun Felder eines Bauplans zusammenzaehlen: "HELIX_LOG:32" fuenfmal ergibt 160 */
