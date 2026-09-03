@@ -39,6 +39,8 @@ public class NetworkHandler {
             HuntingTracker.onChatMessage(unformattedMsg);
             // Der Kuchen-Alarm merkt sich, wann welcher Kuchen gegessen wurde
             CakeReminder.onChatMessage(unformattedMsg);
+            // Der Collection-Tracker braucht die Nachricht selbst: die Aufstellung haengt am Mauszeiger
+            CollectionTracker.onChatMessage(message, unformattedMsg);
 
             // Ein "false" blendet die Originalzeile aus
             return ChatRuleHandler.handleMessage(message, msg, unformattedMsg);

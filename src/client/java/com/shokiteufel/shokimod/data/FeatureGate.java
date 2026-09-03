@@ -80,6 +80,11 @@ public final class FeatureGate {
         return ModConfig.INSTANCE.fishing.hotspot.enabled;
     }
 
+    /** Der Collection-Tracker liest Sack-Hinweise und das Collections-Menue */
+    public static boolean collectionTracker() {
+        return ModConfig.INSTANCE.collections.tracker.enabled;
+    }
+
     /** Seltene Funde: Alarm oder Teilen. Aus heisst: kein Preis, kein Request */
     public static boolean rareLoot() {
         ModConfig.RareLootCategory c = ModConfig.INSTANCE.chat.rareLoot;
@@ -95,6 +100,6 @@ public final class FeatureGate {
      */
     public static boolean location() {
         return contest() || safari() || nearbyPanel() || rareLoot() || huntingTracker() || mobMarkers() || chatRules()
-                || cakeReminder() || hotspots();
+                || cakeReminder() || hotspots() || collectionTracker();
     }
 }

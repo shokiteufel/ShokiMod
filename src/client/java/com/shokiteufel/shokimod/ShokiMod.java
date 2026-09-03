@@ -8,6 +8,7 @@ import com.shokiteufel.shokimod.gui.ShokiConfigEditor;
 import com.shokiteufel.shokimod.handler.FloorDropHandler;
 import com.shokiteufel.shokimod.handler.NetworkHandler;
 import com.shokiteufel.shokimod.handler.CakeReminder;
+import com.shokiteufel.shokimod.handler.CollectionTracker;
 import com.shokiteufel.shokimod.handler.GuildEvents;
 import com.shokiteufel.shokimod.handler.HotspotTracker;
 import com.shokiteufel.shokimod.handler.HuntingTracker;
@@ -63,6 +64,7 @@ public class ShokiMod implements ClientModInitializer {
         GuildEvents.register();
         CakeReminder.register();
         HotspotTracker.register();
+        CollectionTracker.register();
         NestTracker.register();
         ContestState.register();
         SessionManager.register();

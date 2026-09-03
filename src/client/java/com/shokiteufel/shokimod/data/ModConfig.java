@@ -12,7 +12,9 @@ import com.shokiteufel.shokimod.gui.CustomMobScreen;
 import com.shokiteufel.shokimod.gui.MarkerSettingsScreen;
 import com.shokiteufel.shokimod.gui.BannerDesignScreen;
 import com.shokiteufel.shokimod.gui.SoundPickerScreen;
+import com.shokiteufel.shokimod.gui.CollectionPickerScreen;
 import com.shokiteufel.shokimod.handler.CakeReminder;
+import com.shokiteufel.shokimod.handler.CollectionTracker;
 import com.shokiteufel.shokimod.handler.GuildEvents;
 import com.shokiteufel.shokimod.handler.HuntingTracker;
 import com.shokiteufel.shokimod.handler.RareLootHandler;
@@ -88,6 +90,14 @@ public class ModConfig extends Config {
         if (INSTANCE.guild.events == null) INSTANCE.guild.events = new GuildEventsCategory();
         if (INSTANCE.guild.events.seenAnnouncements == null) INSTANCE.guild.events.seenAnnouncements = new ArrayList<>();
         if (INSTANCE.fishing == null) INSTANCE.fishing = new FishingCategory();
+        if (INSTANCE.collections == null) INSTANCE.collections = new CollectionsCategory();
+        if (INSTANCE.collections.tracker == null) INSTANCE.collections.tracker = new CollectionTrackerCategory();
+        CollectionTrackerCategory collectionTracker = INSTANCE.collections.tracker;
+        if (collectionTracker.selected == null) collectionTracker.selected = new ArrayList<>();
+        if (collectionTracker.gains == null) collectionTracker.gains = new HashMap<>();
+        if (collectionTracker.values == null) collectionTracker.values = new HashMap<>();
+        if (collectionTracker.totals == null) collectionTracker.totals = new HashMap<>();
+        if (collectionTracker.priceMode == null) collectionTracker.priceMode = ItemValue.PriceMode.INSTANT_SELL;
         if (INSTANCE.fishing.hotspot == null) INSTANCE.fishing.hotspot = new HotspotCategory();
         if (INSTANCE.chat.reminder == null) INSTANCE.chat.reminder = new ReminderCategory();
         if (INSTANCE.chat.reminder.cakes == null) INSTANCE.chat.reminder.cakes = new HashMap<>();
@@ -180,6 +190,9 @@ public class ModConfig extends Config {
         INSTANCE.chat.testAlertVolume = () -> Minecraft.getInstance().execute(AlertVolume::test);
         INSTANCE.hunting.tracker.resetTracker = () -> Minecraft.getInstance().execute(HuntingTracker::reset);
         INSTANCE.guild.events.testBanner = () -> Minecraft.getInstance().execute(GuildEvents::testBanner);
+        INSTANCE.collections.tracker.resetTracker = () -> Minecraft.getInstance().execute(CollectionTracker::reset);
+        INSTANCE.collections.tracker.openPicker = () -> Minecraft.getInstance().execute(() ->
+                Minecraft.getInstance().setScreen(new CollectionPickerScreen(Minecraft.getInstance().screen)));
         INSTANCE.chat.reminder.testCake = () -> Minecraft.getInstance().execute(CakeReminder::test);
         INSTANCE.chat.reminder.clearCakes = () -> Minecraft.getInstance().execute(CakeReminder::clear);
         INSTANCE.chat.banner.openEditor = () -> Minecraft.getInstance().execute(() ->
@@ -385,6 +398,99 @@ public class ModConfig extends Config {
     @Expose
     @Category(name = "Fishing", desc = "Fishing helpers.")
     public FishingCategory fishing = new FishingCategory();
+
+    @Expose
+    @Category(name = "Collections", desc = "What your collections gain while you play.")
+    public CollectionsCategory collections = new CollectionsCategory();
+
+    public static class CollectionsCategory {
+
+        @ConfigOption(name = "Collections", desc = "The tracker lives in the sub tab on the left.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @Category(name = "Tracker", desc = "Counts what your sacks collect, in collection units: total, gained, per hour and worth.")
+        public CollectionTrackerCategory tracker = new CollectionTrackerCategory();
+    }
+
+    /**
+     * Der Collection-Tracker. Gezaehlt wird aus dem Sack-Hinweis im Chat; verzauberte
+     * Items zaehlen mit ihrem Bauplan (ein Enchanted Helix Log ist 160 Helix Log).
+     */
+    public static class CollectionTrackerCategory {
+
+        @Expose
+        @ConfigOption(name = "Enabled", desc = "Read the sack messages and count collections. Off means nothing is read or counted.")
+        @ConfigEditorBoolean
+        public boolean enabled = false;
+
+        @ConfigOption(name = "Collections", desc = "Which collections the panel lists. Nothing chosen: everything that comes in.")
+        @ConfigEditorButton(buttonText = "Choose")
+        public transient Runnable openPicker = () -> {
+        };
+
+        @Expose
+        @ConfigOption(name = "Show panel", desc = "The tracker panel on screen. Move it with /shoki hud.")
+        @ConfigEditorBoolean
+        public boolean showHud = true;
+
+        @Expose
+        @ConfigOption(name = "Timer", desc = "Track time for the per hour numbers. Off counts only the amounts.")
+        @ConfigEditorBoolean
+        public boolean timerEnabled = true;
+
+        @Expose
+        @ConfigOption(name = "Show worth", desc = "Also show what the collected items are worth on the bazaar.")
+        @ConfigEditorBoolean
+        public boolean showValue = true;
+
+        @Expose
+        @ConfigOption(name = "Price", desc = "Instant Sell is what selling right now pays; Sell Order is what a listed order brings once it fills.")
+        @ConfigEditorDropdown
+        public ItemValue.PriceMode priceMode = ItemValue.PriceMode.INSTANT_SELL;
+
+        @Expose
+        @ConfigOption(name = "Pause after", desc = "Seconds without anything collected before the timer pauses. The idle time is taken off again.")
+        @ConfigEditorSlider(minValue = 10f, maxValue = 600f, minStep = 5f)
+        public int pauseAfterSeconds = 120;
+
+        @Expose
+        @ConfigOption(name = "Rows", desc = "How many collections the panel lists.")
+        @ConfigEditorSlider(minValue = 1f, maxValue = 10f, minStep = 1f)
+        public int maxRows = 4;
+
+        @ConfigOption(name = "Reset", desc = "Clears the gained amounts and the timer. The totals from the collections menu stay.")
+        @ConfigEditorButton(buttonText = "Reset")
+        public transient Runnable resetTracker = () -> {
+        };
+
+        /** Kennungen der gewaehlten Collections */
+        @Expose
+        public List<String> selected = new ArrayList<>();
+        /** Zuwachs seit dem Reset, in Einheiten der Collection */
+        @Expose
+        public Map<String, Long> gains = new HashMap<>();
+        /** Was die dafuer eingesammelten Items wert waren */
+        @Expose
+        public Map<String, Double> values = new HashMap<>();
+        /** Gesamtstand aus dem Collections-Menue, sobald es einmal offen war */
+        @Expose
+        public Map<String, Long> totals = new HashMap<>();
+        @Expose
+        public long uptimeMillis = 0L;
+        @Expose
+        public long startedAt = 0L;
+
+        @Expose
+        public float hudX = 0.75f;
+        @Expose
+        public float hudY = 0.12f;
+        @Expose
+        public float hudScale = 1.0f;
+        @Expose
+        public float hudAlpha = 1.0f;
+    }
 
     public static class FishingCategory {
 

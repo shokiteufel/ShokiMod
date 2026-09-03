@@ -19,7 +19,7 @@ public final class SafariHud {
 
     /** Ein Kasten auf dem Bildschirm. Traegt seine eigene Lage und Groesse in der Config */
     public enum Panel {
-        PROGRESS, MISSING, CONTEST, NEARBY, HUNTING, GUILD;
+        PROGRESS, MISSING, CONTEST, NEARBY, HUNTING, GUILD, COLLECTION;
 
         public boolean visible() {
             ModConfig.SafariCategory c = ModConfig.INSTANCE.safari;
@@ -30,6 +30,7 @@ public final class SafariHud {
                 case NEARBY -> ModConfig.INSTANCE.mobVisuals.masterEnabled && ModConfig.INSTANCE.mobVisuals.showNearbyHud;
                 case HUNTING -> ModConfig.INSTANCE.hunting.tracker.enabled && ModConfig.INSTANCE.hunting.tracker.showHud;
                 case GUILD -> ModConfig.INSTANCE.guild.events.enabled && ModConfig.INSTANCE.guild.events.showHud;
+                case COLLECTION -> ModConfig.INSTANCE.collections.tracker.enabled && ModConfig.INSTANCE.collections.tracker.showHud;
             };
         }
 
@@ -52,6 +53,7 @@ public final class SafariHud {
                 case NEARBY -> ModConfig.INSTANCE.mobVisuals.nearbyHudX;
                 case HUNTING -> ModConfig.INSTANCE.hunting.tracker.hudX;
                 case GUILD -> ModConfig.INSTANCE.guild.events.hudX;
+                case COLLECTION -> ModConfig.INSTANCE.collections.tracker.hudX;
             };
         }
 
@@ -64,6 +66,7 @@ public final class SafariHud {
                 case NEARBY -> ModConfig.INSTANCE.mobVisuals.nearbyHudY;
                 case HUNTING -> ModConfig.INSTANCE.hunting.tracker.hudY;
                 case GUILD -> ModConfig.INSTANCE.guild.events.hudY;
+                case COLLECTION -> ModConfig.INSTANCE.collections.tracker.hudY;
             };
         }
 
@@ -76,6 +79,7 @@ public final class SafariHud {
                 case NEARBY -> ModConfig.INSTANCE.mobVisuals.nearbyHudScale;
                 case HUNTING -> ModConfig.INSTANCE.hunting.tracker.hudScale;
                 case GUILD -> ModConfig.INSTANCE.guild.events.hudScale;
+                case COLLECTION -> ModConfig.INSTANCE.collections.tracker.hudScale;
             };
         }
 
@@ -106,6 +110,10 @@ public final class SafariHud {
                     ModConfig.INSTANCE.guild.events.hudX = x;
                     ModConfig.INSTANCE.guild.events.hudY = y;
                 }
+                case COLLECTION -> {
+                    ModConfig.INSTANCE.collections.tracker.hudX = x;
+                    ModConfig.INSTANCE.collections.tracker.hudY = y;
+                }
             }
         }
 
@@ -119,6 +127,7 @@ public final class SafariHud {
                 case NEARBY -> ModConfig.INSTANCE.mobVisuals.nearbyHudAlpha;
                 case HUNTING -> ModConfig.INSTANCE.hunting.tracker.hudAlpha;
                 case GUILD -> ModConfig.INSTANCE.guild.events.hudAlpha;
+                case COLLECTION -> ModConfig.INSTANCE.collections.tracker.hudAlpha;
             };
         }
 
@@ -133,6 +142,7 @@ public final class SafariHud {
                 case NEARBY -> ModConfig.INSTANCE.mobVisuals.nearbyHudAlpha = clamped;
                 case HUNTING -> ModConfig.INSTANCE.hunting.tracker.hudAlpha = clamped;
                 case GUILD -> ModConfig.INSTANCE.guild.events.hudAlpha = clamped;
+                case COLLECTION -> ModConfig.INSTANCE.collections.tracker.hudAlpha = clamped;
             }
         }
 
@@ -146,6 +156,7 @@ public final class SafariHud {
                 case NEARBY -> ModConfig.INSTANCE.mobVisuals.nearbyHudScale = clamped;
                 case HUNTING -> ModConfig.INSTANCE.hunting.tracker.hudScale = clamped;
                 case GUILD -> ModConfig.INSTANCE.guild.events.hudScale = clamped;
+                case COLLECTION -> ModConfig.INSTANCE.collections.tracker.hudScale = clamped;
             }
         }
 
@@ -178,6 +189,7 @@ public final class SafariHud {
                 case NEARBY -> NearbyHud.build();
                 case HUNTING -> HuntingHud.build();
                 case GUILD -> GuildEventHud.build();
+                case COLLECTION -> CollectionHud.build();
             };
         }
     }

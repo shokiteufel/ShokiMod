@@ -14,6 +14,7 @@ import com.shokiteufel.shokimod.util.AlertVolume;
 import com.shokiteufel.shokimod.util.CustomSoundPlayer;
 import com.shokiteufel.shokimod.util.ItemIcons;
 import com.shokiteufel.shokimod.util.ItemNames;
+import com.shokiteufel.shokimod.util.CollectionData;
 import com.shokiteufel.shokimod.util.ItemValue;
 import com.shokiteufel.shokimod.util.ItemValue.Value;
 
@@ -391,6 +392,9 @@ public final class RareLootHandler {
                 .append(" tier3Design=").append(cfg.tier3Design).append("\n\n");
 
         out.append("[guild]\n").append(GuildEvents.status()).append("\n\n");
+
+        out.append("[collections]\n").append(CollectionTracker.status()).append("\n")
+                .append(CollectionData.status()).append("\n\n");
 
         out.append("[banners]\n");
         List<BannerDesign> designs = ModConfig.INSTANCE.chat.banner.designs;

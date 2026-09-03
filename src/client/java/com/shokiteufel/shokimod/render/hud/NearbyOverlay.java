@@ -3,6 +3,7 @@ package com.shokiteufel.shokimod.render.hud;
 import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.gui.BannerDesignScreen;
 import com.shokiteufel.shokimod.gui.HudEditorScreen;
+import com.shokiteufel.shokimod.handler.CollectionTracker;
 import com.shokiteufel.shokimod.handler.HuntingTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -54,7 +55,7 @@ public final class NearbyOverlay {
 
     /** Gibt es bei offenem Fenster ueberhaupt etwas Anklickbares? */
     public static boolean anyClickable() {
-        return shown() || SafariHud.Panel.HUNTING.visible();
+        return shown() || SafariHud.Panel.HUNTING.visible() || SafariHud.Panel.COLLECTION.visible();
     }
 
     /** Sitzt der Zeiger auf einer Zeile? Dann handeln und den Klick schlucken */
@@ -67,6 +68,18 @@ public final class NearbyOverlay {
             int row = content.rowAt(Minecraft.getInstance().font,
                     SafariHud.originX(panel), SafariHud.originY(panel), panel.scale(), mouseX, mouseY);
             if (row >= 0 && NearbyHud.click(row)) return true;
+        }
+
+        if (SafariHud.Panel.COLLECTION.visible()) {
+            SafariHud.Panel panel = SafariHud.Panel.COLLECTION;
+            HudPanel content = panel.build();
+            int row = content.rowAt(Minecraft.getInstance().font,
+                    SafariHud.originX(panel), SafariHud.originY(panel), panel.scale(), mouseX, mouseY);
+            if (row >= 0 && row == content.rowCount() - 1) {
+                CollectionTracker.reset();
+                SafariHud.invalidate(panel);
+                return true;
+            }
         }
 
         if (SafariHud.Panel.HUNTING.visible()) {
