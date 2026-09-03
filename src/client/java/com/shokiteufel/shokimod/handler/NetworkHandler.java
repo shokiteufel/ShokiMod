@@ -36,6 +36,8 @@ public class NetworkHandler {
             ShinyAlert.onChatMessage(unformattedMsg);
             // Der Hunting Tracker zaehlt dieselben Shard-Zeilen mit
             HuntingTracker.onChatMessage(unformattedMsg);
+            // Der Kuchen-Alarm merkt sich, wann welcher Kuchen gegessen wurde
+            CakeReminder.onChatMessage(unformattedMsg);
 
             // Ein "false" blendet die Originalzeile aus
             return ChatRuleHandler.handleMessage(message, msg, unformattedMsg);

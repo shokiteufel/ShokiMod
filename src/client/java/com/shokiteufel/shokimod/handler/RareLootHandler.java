@@ -390,6 +390,8 @@ public final class RareLootHandler {
                 .append(" tier2Design=").append(cfg.tier2Design)
                 .append(" tier3Design=").append(cfg.tier3Design).append("\n\n");
 
+        out.append("[guild]\n").append(GuildEvents.status()).append("\n\n");
+
         out.append("[banners]\n");
         List<BannerDesign> designs = ModConfig.INSTANCE.chat.banner.designs;
         if (designs == null || designs.isEmpty()) out.append("(none)\n");

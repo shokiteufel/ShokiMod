@@ -12,6 +12,8 @@ import com.shokiteufel.shokimod.gui.CustomMobScreen;
 import com.shokiteufel.shokimod.gui.MarkerSettingsScreen;
 import com.shokiteufel.shokimod.gui.BannerDesignScreen;
 import com.shokiteufel.shokimod.gui.SoundPickerScreen;
+import com.shokiteufel.shokimod.handler.CakeReminder;
+import com.shokiteufel.shokimod.handler.GuildEvents;
 import com.shokiteufel.shokimod.handler.HuntingTracker;
 import com.shokiteufel.shokimod.handler.RareLootHandler;
 import com.google.gson.Gson;
@@ -82,6 +84,11 @@ public class ModConfig extends Config {
         if (INSTANCE.chat.banner == null) INSTANCE.chat.banner = new BannerCategory();
         migrateBanners();
         if (INSTANCE.hunting == null) INSTANCE.hunting = new HuntingCategory();
+        if (INSTANCE.guild == null) INSTANCE.guild = new GuildCategory();
+        if (INSTANCE.guild.events == null) INSTANCE.guild.events = new GuildEventsCategory();
+        if (INSTANCE.guild.events.seenAnnouncements == null) INSTANCE.guild.events.seenAnnouncements = new ArrayList<>();
+        if (INSTANCE.chat.reminder == null) INSTANCE.chat.reminder = new ReminderCategory();
+        if (INSTANCE.chat.reminder.cakes == null) INSTANCE.chat.reminder.cakes = new HashMap<>();
         if (INSTANCE.hunting.tracker == null) INSTANCE.hunting.tracker = new HuntingTrackerCategory();
         if (INSTANCE.hunting.tracker.counts == null) INSTANCE.hunting.tracker.counts = new HashMap<>();
         if (INSTANCE.hunting.tracker.priceMode == null) INSTANCE.hunting.tracker.priceMode = ItemValue.PriceMode.INSTANT_SELL;
@@ -165,6 +172,9 @@ public class ModConfig extends Config {
         INSTANCE.chat.rareLoot.openDiagnostics = () -> Minecraft.getInstance().execute(RareLootHandler::writeDiagnostics);
         INSTANCE.chat.testAlertVolume = () -> Minecraft.getInstance().execute(AlertVolume::test);
         INSTANCE.hunting.tracker.resetTracker = () -> Minecraft.getInstance().execute(HuntingTracker::reset);
+        INSTANCE.guild.events.testBanner = () -> Minecraft.getInstance().execute(GuildEvents::testBanner);
+        INSTANCE.chat.reminder.testCake = () -> Minecraft.getInstance().execute(CakeReminder::test);
+        INSTANCE.chat.reminder.clearCakes = () -> Minecraft.getInstance().execute(CakeReminder::clear);
         INSTANCE.chat.banner.openEditor = () -> Minecraft.getInstance().execute(() ->
                 Minecraft.getInstance().setScreen(new HudEditorScreen(Minecraft.getInstance().screen, true)));
         INSTANCE.chat.banner.openSandbox = () -> Minecraft.getInstance().execute(() ->
@@ -360,6 +370,98 @@ public class ModConfig extends Config {
     @Expose
     @Category(name = "Hunting", desc = "Shard hunting.")
     public HuntingCategory hunting = new HuntingCategory();
+
+    @Expose
+    @Category(name = "Guild", desc = "Guild events from the ShokiTeufelBot: a banner when one starts, the live ranking in a panel.")
+    public GuildCategory guild = new GuildCategory();
+
+    public static class GuildCategory {
+
+        @ConfigOption(name = "Guild", desc = "Everything about guild events lives in the sub tab on the left.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @Category(name = "Events", desc = "Live ranking of the running guild event and a banner when one starts. The data comes from the ShokiTeufelBot.")
+        public GuildEventsCategory events = new GuildEventsCategory();
+    }
+
+    /**
+     * Die Anbindung an den ShokiTeufelBot.
+     *
+     * Zwei Adressen, feste Reihenfolge: erst der PC des Bot-Betreibers (mit dem
+     * gemeinsamen Schluessel im Header), dann der Gist als Reserve. Beide leer: aus.
+     */
+    public static class GuildEventsCategory {
+
+        @Expose
+        @ConfigOption(name = "Enabled", desc = "Fetch the event feed from the bot. Off means no request at all.")
+        @ConfigEditorBoolean
+        public boolean enabled = false;
+
+        @Expose
+        @ConfigOption(name = "Show panel", desc = "The event panel: name, time left, top places and your own. Move it with /shoki hud.")
+        @ConfigEditorBoolean
+        public boolean showHud = true;
+
+        @Expose
+        @ConfigOption(name = "Top rows", desc = "How many places the panel lists.")
+        @ConfigEditorSlider(minValue = 1f, maxValue = 10f, minStep = 1f)
+        public int topRows = 3;
+
+        @Expose
+        @ConfigOption(name = "Start banner", desc = "Banner when an event starts: Guild 'Kill Ender Dragon' Event Start.")
+        @ConfigEditorBoolean
+        public boolean startBanner = true;
+
+        @Expose
+        @ConfigOption(name = "End banner", desc = "Banner when an event ends, with your final place.")
+        @ConfigEditorBoolean
+        public boolean endBanner = true;
+
+        @Expose
+        @ConfigOption(name = "Banner design", desc = "Name of a design from Alerts > Banner.")
+        @ConfigEditorText
+        public String bannerDesign = "Classic band";
+
+        @ConfigOption(name = "Test banner", desc = "Shows the start banner with an example event.")
+        @ConfigEditorButton(buttonText = "Test")
+        public transient Runnable testBanner = () -> {
+        };
+
+        @Expose
+        @ConfigOption(name = "Primary URL", desc = "The bot on ShokiTeufel's PC, e.g. https://xyz.trycloudflare.com/shokimod/events.json. Asked first. Empty: skipped.")
+        @ConfigEditorText
+        public String primaryUrl = "";
+
+        @Expose
+        @ConfigOption(name = "Fallback URL", desc = "Raw URL of the GitHub Gist the bot keeps updated. Asked when the primary does not answer. Empty: skipped.")
+        @ConfigEditorText
+        public String fallbackUrl = "";
+
+        @Expose
+        @ConfigOption(name = "Shared key", desc = "The same word as shokimod_key in the bot's config.json. Sent to the primary URL as X-ShokiMod-Key.")
+        @ConfigEditorText
+        public String sharedKey = "";
+
+        @Expose
+        @ConfigOption(name = "Refresh seconds", desc = "How often to ask. 60 is plenty - the bot itself updates every ten minutes.")
+        @ConfigEditorSlider(minValue = 30f, maxValue = 600f, minStep = 10f)
+        public int refreshSeconds = 60;
+
+        /** Ankuendigungen, die schon als Banner liefen - jede genau einmal */
+        @Expose
+        public List<String> seenAnnouncements = new ArrayList<>();
+
+        @Expose
+        public float hudX = 0.75f;
+        @Expose
+        public float hudY = 0.65f;
+        @Expose
+        public float hudScale = 1.0f;
+        @Expose
+        public float hudAlpha = 1.0f;
+    }
 
     public static class HuntingCategory {
 
@@ -673,6 +775,10 @@ public class ModConfig extends Config {
         @Category(name = "Banner", desc = "How the drop banners look: try all twenty, then place, size and colour each tier in the HUD editor.")
         public BannerCategory banner = new BannerCategory();
 
+        @Expose
+        @Category(name = "Reminder", desc = "Reminders read from chat: expired cakes, with one click to get new ones.")
+        public ReminderCategory reminder = new ReminderCategory();
+
         /**
          * Die uebernommene Schwelle aus den alten Chatregeln.
          *
@@ -727,6 +833,47 @@ public class ModConfig extends Config {
             if (designs != null && !designs.isEmpty() && designs.get(0) != null) return designs.get(0);
             return BannerDesign.presets().get(0);
         }
+    }
+
+    /**
+     * Erinnerungen. Bisher eine: der Kuchen-Alarm aus RiccioFishingUtils, ergaenzt um
+     * den anklickbaren Text, der zum Kuchenholen teleportiert.
+     */
+    public static class ReminderCategory {
+
+        @Expose
+        @ConfigOption(name = "Outdated cake alert", desc = "Reads the Yum! line when you eat a cake and warns in chat once its 48 hours are over. Ported from RiccioFishingUtils.")
+        @ConfigEditorBoolean
+        public boolean cakeAlert = false;
+
+        @Expose
+        @ConfigOption(name = "Get Cakes command", desc = "Runs when you click [Get Cakes!] in the reminder.")
+        @ConfigEditorText
+        public String cakeCommand = "/visit SchiggyMobil";
+
+        @Expose
+        @ConfigOption(name = "Repeat minutes", desc = "How often the reminder repeats while a cake stays expired. 0: only once per expired cake.")
+        @ConfigEditorSlider(minValue = 0f, maxValue = 60f, minStep = 1f)
+        public int cakeRepeatMinutes = 5;
+
+        @Expose
+        @ConfigOption(name = "Sound", desc = "A short ping with the reminder, at the alert volume.")
+        @ConfigEditorBoolean
+        public boolean cakeSound = true;
+
+        @ConfigOption(name = "Test", desc = "Shows the reminder line with the clickable [Get Cakes!].")
+        @ConfigEditorButton(buttonText = "Test")
+        public transient Runnable testCake = () -> {
+        };
+
+        @ConfigOption(name = "Clear cakes", desc = "Forgets every remembered cake - for example after eating on another profile.")
+        @ConfigEditorButton(buttonText = "Clear")
+        public transient Runnable clearCakes = () -> {
+        };
+
+        /** Kuchen und wann er gegessen wurde (Millisekunden) */
+        @Expose
+        public Map<String, Long> cakes = new HashMap<>();
     }
 
     /**

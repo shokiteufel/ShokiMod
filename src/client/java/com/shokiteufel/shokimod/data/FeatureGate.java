@@ -65,6 +65,16 @@ public final class FeatureGate {
         return ModConfig.INSTANCE.hunting.tracker.enabled;
     }
 
+    /** Die Gilden-Events: aus heisst kein Request und kein Kasten */
+    public static boolean guildEvents() {
+        return ModConfig.INSTANCE.guild.events.enabled;
+    }
+
+    /** Der Kuchen-Alarm liest Chat und Tab-Liste - nur wenn er an ist */
+    public static boolean cakeReminder() {
+        return ModConfig.INSTANCE.chat.reminder.cakeAlert;
+    }
+
     /** Seltene Funde: Alarm oder Teilen. Aus heisst: kein Preis, kein Request */
     public static boolean rareLoot() {
         ModConfig.RareLootCategory c = ModConfig.INSTANCE.chat.rareLoot;
@@ -79,6 +89,7 @@ public final class FeatureGate {
      * reine Verschwendung. Billige Schalter stehen deshalb vorn.
      */
     public static boolean location() {
-        return contest() || safari() || nearbyPanel() || rareLoot() || huntingTracker() || mobMarkers() || chatRules();
+        return contest() || safari() || nearbyPanel() || rareLoot() || huntingTracker() || mobMarkers() || chatRules()
+                || cakeReminder();
     }
 }

@@ -19,7 +19,7 @@ public final class SafariHud {
 
     /** Ein Kasten auf dem Bildschirm. Traegt seine eigene Lage und Groesse in der Config */
     public enum Panel {
-        PROGRESS, MISSING, CONTEST, NEARBY, HUNTING;
+        PROGRESS, MISSING, CONTEST, NEARBY, HUNTING, GUILD;
 
         public boolean visible() {
             ModConfig.SafariCategory c = ModConfig.INSTANCE.safari;
@@ -29,6 +29,7 @@ public final class SafariHud {
                 case CONTEST -> c.showContestHud;
                 case NEARBY -> ModConfig.INSTANCE.mobVisuals.masterEnabled && ModConfig.INSTANCE.mobVisuals.showNearbyHud;
                 case HUNTING -> ModConfig.INSTANCE.hunting.tracker.enabled && ModConfig.INSTANCE.hunting.tracker.showHud;
+                case GUILD -> ModConfig.INSTANCE.guild.events.enabled && ModConfig.INSTANCE.guild.events.showHud;
             };
         }
 
@@ -50,6 +51,7 @@ public final class SafariHud {
                 case CONTEST -> c.contestHudX;
                 case NEARBY -> ModConfig.INSTANCE.mobVisuals.nearbyHudX;
                 case HUNTING -> ModConfig.INSTANCE.hunting.tracker.hudX;
+                case GUILD -> ModConfig.INSTANCE.guild.events.hudX;
             };
         }
 
@@ -61,6 +63,7 @@ public final class SafariHud {
                 case CONTEST -> c.contestHudY;
                 case NEARBY -> ModConfig.INSTANCE.mobVisuals.nearbyHudY;
                 case HUNTING -> ModConfig.INSTANCE.hunting.tracker.hudY;
+                case GUILD -> ModConfig.INSTANCE.guild.events.hudY;
             };
         }
 
@@ -72,6 +75,7 @@ public final class SafariHud {
                 case CONTEST -> c.contestHudScale;
                 case NEARBY -> ModConfig.INSTANCE.mobVisuals.nearbyHudScale;
                 case HUNTING -> ModConfig.INSTANCE.hunting.tracker.hudScale;
+                case GUILD -> ModConfig.INSTANCE.guild.events.hudScale;
             };
         }
 
@@ -98,6 +102,10 @@ public final class SafariHud {
                     ModConfig.INSTANCE.hunting.tracker.hudX = x;
                     ModConfig.INSTANCE.hunting.tracker.hudY = y;
                 }
+                case GUILD -> {
+                    ModConfig.INSTANCE.guild.events.hudX = x;
+                    ModConfig.INSTANCE.guild.events.hudY = y;
+                }
             }
         }
 
@@ -110,6 +118,7 @@ public final class SafariHud {
                 case CONTEST -> c.contestHudAlpha;
                 case NEARBY -> ModConfig.INSTANCE.mobVisuals.nearbyHudAlpha;
                 case HUNTING -> ModConfig.INSTANCE.hunting.tracker.hudAlpha;
+                case GUILD -> ModConfig.INSTANCE.guild.events.hudAlpha;
             };
         }
 
@@ -123,6 +132,7 @@ public final class SafariHud {
                 case CONTEST -> c.contestHudAlpha = clamped;
                 case NEARBY -> ModConfig.INSTANCE.mobVisuals.nearbyHudAlpha = clamped;
                 case HUNTING -> ModConfig.INSTANCE.hunting.tracker.hudAlpha = clamped;
+                case GUILD -> ModConfig.INSTANCE.guild.events.hudAlpha = clamped;
             }
         }
 
@@ -135,6 +145,7 @@ public final class SafariHud {
                 case CONTEST -> c.contestHudScale = clamped;
                 case NEARBY -> ModConfig.INSTANCE.mobVisuals.nearbyHudScale = clamped;
                 case HUNTING -> ModConfig.INSTANCE.hunting.tracker.hudScale = clamped;
+                case GUILD -> ModConfig.INSTANCE.guild.events.hudScale = clamped;
             }
         }
 
@@ -166,6 +177,7 @@ public final class SafariHud {
                 case CONTEST -> ContestHud.build();
                 case NEARBY -> NearbyHud.build();
                 case HUNTING -> HuntingHud.build();
+                case GUILD -> GuildEventHud.build();
             };
         }
     }
