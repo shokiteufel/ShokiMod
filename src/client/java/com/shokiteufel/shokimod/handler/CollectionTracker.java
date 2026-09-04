@@ -130,6 +130,19 @@ public final class CollectionTracker {
             deltas.merge(name, minus ? -amount : amount, Integer::sum);
         }
 
+        // Nur Abgaenge heisst: verkauft oder zu etwas anderem verarbeitet. Beides ist kein
+        // Verlust an Collection - die zaehlt, was man je gesammelt hat, nicht was im Sack liegt.
+        // Abgezogen wird nur, wo in derselben Nachricht auch etwas hineinkommt: dann wurde
+        // hochgecraftet, und beide Seiten gehoeren zusammen
+        boolean anyPlus = false;
+        for (int delta : deltas.values()) {
+            if (delta > 0) {
+                anyPlus = true;
+                break;
+            }
+        }
+        if (!anyPlus) return;
+
         boolean counted = false;
         for (Map.Entry<String, Integer> entry : deltas.entrySet()) {
             if (entry.getValue() == 0) continue;
