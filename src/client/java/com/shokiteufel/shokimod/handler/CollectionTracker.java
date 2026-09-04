@@ -316,19 +316,52 @@ public final class CollectionTracker {
             net.minecraft.world.item.component.ItemLore lore =
                     stack.get(net.minecraft.core.component.DataComponents.LORE);
             if (lore == null) continue;
-            long total = readOwnTotal(client, lore.lines());
-            if (total <= 0) continue;
-            // Der Stand im Menue ist der sichere: er ersetzt den mitgezaehlten, und der
-            // Aufschlag faengt bei null wieder an
-            Long known = cfg().totals.get(collectionId);
-            Long counted = cfg().sinceRead.get(collectionId);
-            if (known == null || known != total || (counted != null && counted != 0L)) {
-                cfg().totals.put(collectionId, total);
-                cfg().sinceRead.put(collectionId, 0L);
+            TotalRead read = readOwnTotal(client, lore.lines());
+            if (read == null || read.value() <= 0) continue;
+            if (applyMenuTotal(collectionId, read)) changed = true;
+        }
+        if (changed) dirty = true;
+    }
+
+    /**
+     * Der Stand aus dem Menue wird uebernommen, und der Zuwachs wird nachgerechnet.
+     *
+     * Zwischen zwei Blicken ins Menue ist wirklich passiert: neuer Stand minus alter Stand.
+     * Mitgezaehlt hat die Mod {@code sinceRead}. Die Differenz wandert auf den Zuwachs -
+     * so stimmt Gained hinterher, egal ob die Mod etwas verpasst oder zu viel gezaehlt hat,
+     * und Per hour folgt von selbst.
+     *
+     * Nur bei genauen Staenden. Auf einem Co-op-Profil steht die eigene Zeile gerundet da
+     * ("1.1M"); aus zwei gerundeten Zahlen laesst sich keine Differenz rechnen, die Korrektur
+     * waere geraten. Dann wird nur der Stand aufgefrischt.
+     */
+    private static boolean applyMenuTotal(String collectionId, TotalRead read) {
+        CollectionTrackerCategory cfg = cfg();
+        Long known = cfg.totals.get(collectionId);
+        boolean knownExact = Boolean.TRUE.equals(cfg.totalExact.get(collectionId));
+        long counted = cfg.sinceRead.getOrDefault(collectionId, 0L);
+
+        boolean changed = false;
+        if (known != null && knownExact && read.exact()) {
+            long correction = (read.value() - known) - counted;
+            if (correction != 0) {
+                cfg.gains.merge(collectionId, correction, (a, b) -> Math.max(0L, a + b));
+                ShokiMod.LOGGER.info("[Collections] {}: Menue sagt {}, gezaehlt waren {} - Zuwachs um {} berichtigt",
+                        collectionId, read.value() - known, counted, correction);
                 changed = true;
             }
         }
-        if (changed) dirty = true;
+        if (known == null || known != read.value() || counted != 0L || knownExact != read.exact()) {
+            cfg.totals.put(collectionId, read.value());
+            cfg.sinceRead.put(collectionId, 0L);
+            cfg.totalExact.put(collectionId, read.exact());
+            changed = true;
+        }
+        return changed;
+    }
+
+    /** Ein abgelesener Stand und ob er genau war */
+    private record TotalRead(long value, boolean exact) {
     }
 
     /**
@@ -339,7 +372,7 @@ public final class CollectionTracker {
      * ("1.1M"), also auf hunderttausend genau - besser eine grobe eigene Zahl als eine genaue,
      * die drei Leuten gehoert.
      */
-    private static long readOwnTotal(Minecraft client, List<Component> lines) {
+    private static TotalRead readOwnTotal(Minecraft client, List<Component> lines) {
         String me = client.getUser() == null ? "" : client.getUser().getName();
         long total = 0;
         boolean coop = false;
@@ -355,9 +388,13 @@ public final class CollectionTracker {
                 continue;
             }
             Matcher matcher = COOP_LINE.matcher(line);
-            if (matcher.find() && matcher.group(1).equalsIgnoreCase(me)) return shortNumber(matcher.group(2), matcher.group(3));
+            if (matcher.find() && matcher.group(1).equalsIgnoreCase(me)) {
+                // Eine Kurzform wie "1.1M" ist gerundet; eine ausgeschriebene Zahl nicht
+                boolean exact = matcher.group(3) == null;
+                return new TotalRead(shortNumber(matcher.group(2), matcher.group(3)), exact);
+            }
         }
-        return total;
+        return total > 0 ? new TotalRead(total, true) : null;
     }
 
     /** "1.1M" oder "133.4k" in eine ganze Zahl */
