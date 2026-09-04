@@ -188,6 +188,8 @@ public final class CollectionTracker {
 
         long units = yield.amount() * amount;
         cfg().gains.merge(yield.collectionId(), units, (a, b) -> Math.max(0L, a + b));
+        // Zaehlt auf den Stand aus dem Menue drauf, bis das Menue ihn wieder genau sagt
+        cfg().sinceRead.merge(yield.collectionId(), units, (a, b) -> Math.max(0L, a + b));
         Value value = ItemValue.resolve(List.of(itemId), Math.abs(amount), PriceMode.INSTANT_SELL, cfg().priceMode);
         if (value != null) {
             double coins = amount < 0 ? -value.coins() : value.coins();
@@ -316,9 +318,13 @@ public final class CollectionTracker {
             if (lore == null) continue;
             long total = readOwnTotal(client, lore.lines());
             if (total <= 0) continue;
+            // Der Stand im Menue ist der sichere: er ersetzt den mitgezaehlten, und der
+            // Aufschlag faengt bei null wieder an
             Long known = cfg().totals.get(collectionId);
-            if (known == null || known != total) {
+            Long counted = cfg().sinceRead.get(collectionId);
+            if (known == null || known != total || (counted != null && counted != 0L)) {
                 cfg().totals.put(collectionId, total);
+                cfg().sinceRead.put(collectionId, 0L);
                 changed = true;
             }
         }
@@ -392,7 +398,9 @@ public final class CollectionTracker {
         List<Row> out = new ArrayList<>();
         for (String id : wanted) {
             long gained = cfg.gains.getOrDefault(id, 0L);
-            long total = cfg.totals.getOrDefault(id, 0L);
+            long known = cfg.totals.getOrDefault(id, 0L);
+            // Der Stand aus dem Menue plus alles, was seitdem hereinkam
+            long total = known <= 0 ? 0L : known + cfg.sinceRead.getOrDefault(id, 0L);
             double value = cfg.values.getOrDefault(id, 0.0);
             out.add(new Row(id, CollectionData.nameOf(id), gained, total, value));
         }

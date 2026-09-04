@@ -97,6 +97,7 @@ public class ModConfig extends Config {
         if (collectionTracker.gains == null) collectionTracker.gains = new HashMap<>();
         if (collectionTracker.values == null) collectionTracker.values = new HashMap<>();
         if (collectionTracker.totals == null) collectionTracker.totals = new HashMap<>();
+        if (collectionTracker.sinceRead == null) collectionTracker.sinceRead = new HashMap<>();
         if (collectionTracker.priceMode == null) collectionTracker.priceMode = ItemValue.PriceMode.INSTANT_SELL;
         if (collectionTracker.lineOrder == null) collectionTracker.lineOrder = CollectionTrackerCategory.LineOrder.TOTAL_GAINED_HOUR;
         if (INSTANCE.fishing.hotspot == null) INSTANCE.fishing.hotspot = new HotspotCategory();
@@ -522,6 +523,9 @@ public class ModConfig extends Config {
         /** Gesamtstand aus dem Collections-Menue, sobald es einmal offen war */
         @Expose
         public Map<String, Long> totals = new HashMap<>();
+        /** Zuwachs seit genau diesem Stand - so waechst Total mit, ohne doppelt zu zaehlen */
+        @Expose
+        public Map<String, Long> sinceRead = new HashMap<>();
         @Expose
         public long uptimeMillis = 0L;
         @Expose
