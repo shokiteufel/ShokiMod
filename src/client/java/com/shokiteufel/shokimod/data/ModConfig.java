@@ -670,7 +670,12 @@ public class ModConfig extends Config {
         public String sharedKey = "";
 
         @Expose
-        @ConfigOption(name = "Refresh seconds", desc = "How often to ask. 60 is plenty - the bot itself updates every ten minutes.")
+        @ConfigOption(name = "Follow the bot", desc = "Ask exactly when the bot has fresh numbers: every ten minutes at xx:x4:50, ten seconds before Discord shows them. Off: the interval below.")
+        @ConfigEditorBoolean
+        public boolean syncToBot = true;
+
+        @Expose
+        @ConfigOption(name = "Refresh seconds", desc = "Only without Follow the bot: how often to ask.")
         @ConfigEditorSlider(minValue = 15f, maxValue = 600f, minStep = 5f)
         public int refreshSeconds = 30;
 

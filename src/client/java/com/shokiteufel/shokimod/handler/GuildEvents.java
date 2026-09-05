@@ -52,6 +52,13 @@ public final class GuildEvents {
     private static final Duration PRIMARY_TIMEOUT = Duration.ofSeconds(3);
     private static final Duration FALLBACK_TIMEOUT = Duration.ofSeconds(6);
     private static final long RETRY_MILLIS = 30_000L;
+    /** Der Zehn-Minuten-Block des Bots und der Platz der Mod darin: xx:x4:50 */
+    private static final long SLOT_BLOCK_SECONDS = 600L;
+    private static final long SLOT_OFFSET_SECONDS = 290L;
+    /** So lange nach dem Zeitpunkt wird er noch nachgeholt */
+    private static final long SLOT_GRACE_SECONDS = 120L;
+    /** Sicherheitsnetz: laenger als das war der Stand nie ohne Grund alt */
+    private static final long STALE_MILLIS = 12 * 60 * 1000L;
     private static final int REMEMBERED_ANNOUNCEMENTS = 60;
     private static final int BANNER_COLOUR = 0x55FFFF;
 
@@ -90,6 +97,7 @@ public final class GuildEvents {
     private static final AtomicBoolean fetching = new AtomicBoolean(false);
     private static volatile Feed current = null;
     private static volatile long attemptedAt = 0L;
+    private static volatile long lastSlotSeconds = 0L;
     private static volatile long succeededAt = 0L;
     private static volatile String lastError = null;
     private static volatile String origin = "nothing loaded";
@@ -122,8 +130,7 @@ public final class GuildEvents {
         startDueEvents(client);
 
         long now = System.currentTimeMillis();
-        long wait = current == null && lastError != null ? RETRY_MILLIS : Math.max(15, cfg().refreshSeconds) * 1000L;
-        if (now - attemptedAt < wait) return;
+        if (!due(now)) return;
         if (!fetching.compareAndSet(false, true)) return;
         attemptedAt = now;
 
@@ -138,6 +145,32 @@ public final class GuildEvents {
         Thread worker = new Thread(() -> fetch(primary, fallback, key), "ShokiMod guild events");
         worker.setDaemon(true);
         worker.start();
+    }
+
+    /**
+     * Ist es Zeit fuer eine neue Abfrage?
+     *
+     * Im Takt des Bots: der schreibt seinen Stand jede zehnte Minute bei xx:x4:40 und
+     * aktualisiert Discord bei xx:x5:00. Die Mod holt dazwischen, bei xx:x4:50 - zehn
+     * Sekunden vor dem Kanal, und mit frischen Zahlen. Verpasst sie den Zeitpunkt (Spiel
+     * pausiert, Server neu geladen), greift nach zwoelf Minuten das Sicherheitsnetz.
+     *
+     * Ohne Takt-Bindung gilt schlicht der eingestellte Abstand.
+     */
+    private static boolean due(long now) {
+        if (current == null && lastError != null && now - attemptedAt < RETRY_MILLIS) return false;
+        if (!cfg().syncToBot) {
+            return now - attemptedAt >= Math.max(15, cfg().refreshSeconds) * 1000L;
+        }
+
+        long seconds = now / 1000L;
+        long slot = (seconds / SLOT_BLOCK_SECONDS) * SLOT_BLOCK_SECONDS + SLOT_OFFSET_SECONDS;
+        if (slot > seconds) slot -= SLOT_BLOCK_SECONDS;
+        if (lastSlotSeconds < slot && seconds - slot <= SLOT_GRACE_SECONDS) {
+            lastSlotSeconds = slot;
+            return true;
+        }
+        return now - attemptedAt >= STALE_MILLIS;
     }
 
     /** Erst der PC, dann der Gist - der erste, der antwortet, gewinnt */
