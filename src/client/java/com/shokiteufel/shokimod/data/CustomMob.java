@@ -20,6 +20,24 @@ import java.util.Locale;
  */
 public class CustomMob implements MobVisual {
 
+    /**
+     * Die Muster fuer das Aufraeumen von Namen, einmal gebaut.
+     *
+     * String.replaceAll kompiliert sein Muster bei jedem Aufruf neu. Das faellt hier
+     * je Mob, je Regel und je Tick an - gemessen dreimal so teuer wie noetig.
+     */
+    private static final java.util.regex.Pattern COLOUR_CODE = java.util.regex.Pattern.compile("§.");
+    private static final java.util.regex.Pattern INVISIBLE_CHARS = java.util.regex.Pattern.compile("[\\p{Cf}\\p{Co}]");
+    private static final java.util.regex.Pattern WHITESPACE = java.util.regex.Pattern.compile("\\s+");
+    private static final java.util.regex.Pattern LEADING_BRACKET = java.util.regex.Pattern.compile("^\\s*\\[[^\\]]*\\]\\s*");
+    private static final java.util.regex.Pattern HEALTH_FRACTION = java.util.regex.Pattern.compile("\\s*[\\d.,]+\\s*/\\s*[\\d.,]+.*$");
+    private static final java.util.regex.Pattern HEALTH_VALUE = java.util.regex.Pattern.compile("\\s*[\\d.,]+[kKmM]?\\s*[❤♥].*$");
+    private static final java.util.regex.Pattern HEART = java.util.regex.Pattern.compile("[❤♥]");
+
+    /** Das aufbereitete eigene Muster und der Rohtext, aus dem es stammt */
+    private transient String needleSource = null;
+    private transient String needleCache = "";
+
     public static final int DEFAULT_COLOR = 0xFF5555;
 
     public enum Mode {
@@ -181,14 +199,17 @@ public class CustomMob implements MobVisual {
      * この書き方は crittermod の SafariLocation.strip() から借りた。
      */
     public static String normalize(String raw) {
-        if (raw == null) {
+        if (raw == null || raw.isEmpty()) {
             return "";
         }
-        return raw.replaceAll("§.", "")
-                .replaceAll("[\\p{Cf}\\p{Co}]", "")
-                .replace(' ', ' ')
-                .replaceAll("\\s+", " ")
-                .trim();
+        // Dieselben Schritte wie zuvor, nur mit vorbereiteten Mustern: String.replaceAll
+        // baut sein Muster bei jedem Aufruf neu, und das faellt je Mob und Tick an
+        String out = raw;
+        if (out.indexOf('§') >= 0) out = COLOUR_CODE.matcher(out).replaceAll("");
+        out = INVISIBLE_CHARS.matcher(out).replaceAll("");
+        if (out.indexOf(' ') >= 0) out = out.replace(' ', ' ');
+        out = WHITESPACE.matcher(out).replaceAll(" ");
+        return out.trim();
     }
 
     /**
@@ -197,21 +218,36 @@ public class CustomMob implements MobVisual {
      */
     public static String cleanPattern(String rawName) {
         String s = normalize(rawName);
-        s = s.replaceAll("^\\s*\\[[^\\]]*\\]\\s*", "");
-        s = s.replaceAll("\\s*[\\d.,]+\\s*/\\s*[\\d.,]+.*$", "");
-        s = s.replaceAll("\\s*[\\d.,]+[kKmM]?\\s*[❤♥].*$", "");
-        s = s.replaceAll("[❤♥]", "");
+        s = LEADING_BRACKET.matcher(s).replaceAll("");
+        s = HEALTH_FRACTION.matcher(s).replaceAll("");
+        s = HEALTH_VALUE.matcher(s).replaceAll("");
+        s = HEART.matcher(s).replaceAll("");
         return s.trim();
     }
 
-    /** NAME モードの照合。両辺を同じ土俵に載せてから比べる */
+    /**
+     * NAME モードの照合。両辺を同じ土俵に載せてから比べる
+     *
+     * Das eigene Muster aendert sich nur, wenn man es in den Einstellungen anfasst -
+     * aufbereitet wird es deshalb einmal und nicht bei jedem Mob in jedem Tick.
+     */
     public boolean matches(String rawName) {
-        String needle = normalize(pattern);
+        String needle = preparedNeedle();
         if (needle.isEmpty()) {
             return false;
         }
-        return normalize(rawName).toLowerCase(Locale.ROOT)
-                .contains(needle.toLowerCase(Locale.ROOT));
+        return normalize(rawName).toLowerCase(Locale.ROOT).contains(needle);
+    }
+
+    /** Das eigene Muster, normalisiert und kleingeschrieben - gemerkt, bis es sich aendert */
+    private String preparedNeedle() {
+        String raw = pattern == null ? "" : pattern;
+        // Referenzvergleich reicht nicht: Gson legt beim Laden einen neuen String an
+        if (!raw.equals(needleSource)) {
+            needleSource = raw;
+            needleCache = normalize(raw).toLowerCase(Locale.ROOT);
+        }
+        return needleCache;
     }
 
     /** TYPE モードの照合。型・透明条件・追加条件をすべて満たすか */

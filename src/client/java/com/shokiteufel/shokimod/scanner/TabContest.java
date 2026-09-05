@@ -17,6 +17,8 @@ import java.util.regex.Pattern;
  */
 public final class TabContest {
 
+    private static final java.util.regex.Pattern COLOUR_CODE = java.util.regex.Pattern.compile("§.");
+
     /** Wessen Contest dieses Panel fuehrt. Alles andere wird ueberlesen */
     public static final String HOST = "Miria";
 
@@ -99,7 +101,7 @@ public final class TabContest {
      */
     public static void processSidebar(List<String> lines) {
         for (String raw : lines) {
-            String line = raw.replaceAll("§.", "").trim();
+            String line = COLOUR_CODE.matcher(raw).replaceAll("").trim();
             Matcher header = SIDEBAR_HEADER.matcher(line);
             if (header.matches() && HOST.equalsIgnoreCase(header.group("who"))) {
                 time = header.group("time").trim();

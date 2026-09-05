@@ -30,10 +30,16 @@ public class NestTracker {
     private static final int SCAN_INTERVAL_TICKS = 40;
     private static final int SCAN_RADIUS = 24;
     private static final int SCAN_HEIGHT = 12;
+    /** In so viele Streifen zerfaellt ein Durchgang - einer je Tick */
+    private static final int SCAN_SLICES = 8;
 
     private static final Set<BlockPos> known = new LinkedHashSet<>();
     private static final Set<BlockPos> punched = new LinkedHashSet<>();
     private static int ticks = 0;
+    /** -1: gerade kein Durchgang. Sonst der Streifen, der als naechstes drankommt */
+    private static int slice = -1;
+    /** Der Mittelpunkt des laufenden Durchgangs, damit der Kasten nicht mitwandert */
+    private static BlockPos scanCentre = BlockPos.ZERO;
 
     /** Ein gefundener Stock mit Entfernung, damit die Liste sinnvoll sortiert werden kann */
     public record Nest(BlockPos pos, boolean unpunched, double distance) {
@@ -63,25 +69,58 @@ public class NestTracker {
         punched.add(immutable);
     }
 
+    /**
+     * Der Suchlauf, in Scheiben.
+     *
+     * Der Kasten umfasst 49 mal 25 mal 49 Bloecke, also gut sechzigtausend. Die alle in
+     * einem Tick abzufragen war ein Ruckler alle zwei Sekunden. Jetzt wird je Tick eine
+     * Scheibe abgearbeitet; nach {@value #SCAN_SLICES} Ticks ist derselbe Kasten
+     * durchsucht, nur ohne Spitze.
+     *
+     * Der Mittelpunkt wird beim Start eines Durchgangs festgehalten. Sonst verschoebe
+     * sich der Kasten waehrend des Laufens mit dem Spieler, und zwischen den Scheiben
+     * blieben Luecken.
+     */
     private static void tick() {
-        if (++ticks < SCAN_INTERVAL_TICKS) return;
-        ticks = 0;
+        if (slice < 0) {
+            // Zwischen zwei Durchgaengen: warten, bis die Pause um ist
+            if (++ticks < SCAN_INTERVAL_TICKS) return;
+            ticks = 0;
 
-        if (!ModConfig.INSTANCE.safari.highlightNests) return;
-        if (!GameState.Server.isSafari()) return;
+            if (!ModConfig.INSTANCE.safari.highlightNests) return;
+            if (!GameState.Server.isSafari()) return;
 
+            Minecraft client = Minecraft.getInstance();
+            if (client.level == null || client.player == null) return;
+
+            scanCentre = client.player.blockPosition();
+            slice = 0;
+        }
+
+        if (!ModConfig.INSTANCE.safari.highlightNests || !GameState.Server.isSafari()) {
+            slice = -1;
+            return;
+        }
         Minecraft client = Minecraft.getInstance();
-        if (client.level == null || client.player == null) return;
+        if (client.level == null || client.player == null) {
+            slice = -1;
+            return;
+        }
 
-        BlockPos centre = client.player.blockPosition();
-        BlockPos from = centre.offset(-SCAN_RADIUS, -SCAN_HEIGHT, -SCAN_RADIUS);
-        BlockPos to = centre.offset(SCAN_RADIUS, SCAN_HEIGHT, SCAN_RADIUS);
+        // Die Scheibe dieses Ticks: ein Streifen in X, ueber die volle Hoehe und Tiefe
+        int width = SCAN_RADIUS * 2 + 1;
+        int fromOffset = -SCAN_RADIUS + slice * width / SCAN_SLICES;
+        int toOffset = -SCAN_RADIUS + (slice + 1) * width / SCAN_SLICES - 1;
+        BlockPos from = scanCentre.offset(fromOffset, -SCAN_HEIGHT, -SCAN_RADIUS);
+        BlockPos to = scanCentre.offset(toOffset, SCAN_HEIGHT, SCAN_RADIUS);
 
         for (BlockPos pos : BlockPos.betweenClosed(from, to)) {
             if (!client.level.isLoaded(pos)) continue;
             if (client.level.getBlockState(pos).getBlock() != Blocks.BEE_NEST) continue;
             known.add(pos.immutable());
         }
+
+        if (++slice >= SCAN_SLICES) slice = -1;
     }
 
     /** Alle bekannten Stoecke: unberuehrte zuerst, danach nach Entfernung */

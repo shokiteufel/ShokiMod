@@ -10,6 +10,9 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 /** Serverwechsel und eingehende Chatnachrichten. */
 public class NetworkHandler {
 
+    /** Farbcodes einer Chatzeile. Vorbereitet, weil jede Nachricht hier durchlaeuft */
+    private static final java.util.regex.Pattern COLOUR_CODE = java.util.regex.Pattern.compile("§[0-9a-fk-or]");
+
     public static void init() {
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
             GameState.resetAll();
@@ -27,7 +30,7 @@ public class NetworkHandler {
             if (overlay) return true;
 
             String msg = message.getString();
-            String unformattedMsg = msg.replaceAll("§[0-9a-fk-or]", "");
+            String unformattedMsg = COLOUR_CODE.matcher(msg).replaceAll("");
 
             // Die Lauf-Mitschrift liest nur mit und aendert an der Zeile nichts
             SessionManager.onChatMessage(msg);

@@ -45,6 +45,11 @@ import java.util.regex.Pattern;
  */
 public final class CollectionTracker {
 
+    private static final java.util.regex.Pattern COLOUR_CODE = java.util.regex.Pattern.compile("§.");
+    private static final java.util.regex.Pattern LEADING_SYMBOLS = java.util.regex.Pattern.compile("^[^\\p{L}\\p{N}]+");
+    private static final java.util.regex.Pattern TRAILING_SYMBOLS = java.util.regex.Pattern.compile("[^\\p{L}\\p{N}]+$");
+    private static final java.util.regex.Pattern GROUPING = java.util.regex.Pattern.compile("[.,]");
+
     /** "+38 Enchanted Helix Log (...)" oder "-80,900 Ender Pearl (...)" - Vorzeichen, Anzahl, Name */
     private static final Pattern ITEM_LINE = Pattern.compile("^([+-])\\s*([\\d,.]+)\\s+(.+?)\\s*\\(");
     private static final Pattern TOTAL_COLLECTED = Pattern.compile("Total Collected:\\s*([\\d,.]+)");
@@ -109,7 +114,7 @@ public final class CollectionTracker {
         Map<String, Integer> deltas = new LinkedHashMap<>();
         boolean adding = false;
         for (String line : hover) {
-            String clean = line.replaceAll("§.", "").trim();
+            String clean = COLOUR_CODE.matcher(line).replaceAll("").trim();
             String lower = clean.toLowerCase(Locale.ROOT);
             if (lower.startsWith(ADDED_HEADER)) {
                 adding = true;
@@ -224,7 +229,7 @@ public final class CollectionTracker {
      * faellt alles weg, was vorn und hinten kein Buchstabe und keine Ziffer ist.
      */
     private static String itemName(String raw) {
-        return raw.replaceAll("^[^\\p{L}\\p{N}]+", "").replaceAll("[^\\p{L}\\p{N}]+$", "").trim();
+        return TRAILING_SYMBOLS.matcher(LEADING_SYMBOLS.matcher(raw).replaceAll("")).replaceAll("").trim();
     }
 
     /** Der Text am Mauszeiger, Zeile fuer Zeile - auch aus allen Anhaengseln der Nachricht */
@@ -304,7 +309,7 @@ public final class CollectionTracker {
         for (net.minecraft.world.inventory.Slot slot : screen.getMenu().slots) {
             net.minecraft.world.item.ItemStack stack = slot.getItem();
             if (stack.isEmpty()) continue;
-            String name = stack.getHoverName().getString().replaceAll("§.", "").trim();
+            String name = COLOUR_CODE.matcher(stack.getHoverName().getString()).replaceAll("").trim();
             // "Helix Log" oder "Helix Log I" - die Stufe steht als roemische Zahl dahinter
             String collectionId = CollectionData.idForName(name);
             if (collectionId == null) {
@@ -377,7 +382,7 @@ public final class CollectionTracker {
         long total = 0;
         boolean coop = false;
         for (Component component : lines) {
-            String line = component.getString().replaceAll("§.", "").trim();
+            String line = COLOUR_CODE.matcher(component.getString()).replaceAll("").trim();
             if (COOP_HEADER.matcher(line).find()) {
                 coop = true;
                 continue;
@@ -417,7 +422,7 @@ public final class CollectionTracker {
 
     private static int number(String text) {
         try {
-            return (int) Math.min(Integer.MAX_VALUE, Long.parseLong(text.replaceAll("[.,]", "")));
+            return (int) Math.min(Integer.MAX_VALUE, Long.parseLong(GROUPING.matcher(text).replaceAll("")));
         } catch (NumberFormatException e) {
             return 0;
         }

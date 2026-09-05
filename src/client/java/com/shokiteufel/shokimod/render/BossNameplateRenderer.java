@@ -22,6 +22,9 @@ import java.util.Map;
 //
 // 表示対象と文字列の組み立ては tick 側(EntityHighlightManager)で行い、ここでは毎フレームの描画のみを担当する。
 public class BossNameplateRenderer {
+
+    /** Beschriftung auf ihre Zeilen - gefuellt beim ersten Bild, danach nur gelesen */
+    private static final java.util.Map<String, String[]> SPLIT_CACHE = new java.util.HashMap<>();
     // 行の区切り
     private static final String LINE_SEPARATOR = "\n";
     // ネームプレートの基準GUIスケール。実際のGUIスケールでこの値を割った倍率で描画することで、
@@ -59,7 +62,7 @@ public class BossNameplateRenderer {
             float centerX = (float) (ndc.x * 0.5 + 0.5) * screenWidth;
             float centerY = (float) (0.5 - ndc.y * 0.5) * screenHeight;
 
-            String[] lines = entry.getValue().split(LINE_SEPARATOR);
+            String[] lines = splitLines(entry.getValue());
 
             graphics.pose().pushMatrix();
             // 先にモブの中心へ移動してから縮小する。順序が逆だと表示位置までスケールされてずれる
@@ -138,5 +141,22 @@ public class BossNameplateRenderer {
         } catch (NumberFormatException e) {
             return 0;
         }
+    }
+
+    /**
+     * Die Zeilen eines Namensschilds, einmal zerlegt.
+     *
+     * Diese Schleife laeuft in jedem Bild ueber jedes markierte Ziel. Der Text aendert
+     * sich dabei so gut wie nie, das Zerlegen aber kostete jedes Mal ein neues Array.
+     */
+    private static String[] splitLines(String label) {
+        String[] cached = SPLIT_CACHE.get(label);
+        if (cached != null) return cached;
+        // Mehr als eine Handvoll verschiedener Beschriftungen gibt es nie; laeuft es doch
+        // voll, faengt der Zwischenspeicher von vorn an statt zu wachsen
+        if (SPLIT_CACHE.size() > 64) SPLIT_CACHE.clear();
+        String[] lines = label.split(LINE_SEPARATOR);
+        SPLIT_CACHE.put(label, lines);
+        return lines;
     }
 }

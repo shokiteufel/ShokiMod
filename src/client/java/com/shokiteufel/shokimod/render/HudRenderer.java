@@ -2,7 +2,6 @@ package com.shokiteufel.shokimod.render;
 
 import com.shokiteufel.shokimod.data.GameState;
 import com.shokiteufel.shokimod.gui.BannerDesignScreen;
-import com.shokiteufel.shokimod.gui.HudEditorScreen;
 import com.shokiteufel.shokimod.render.hud.SafariHud;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
@@ -27,8 +26,10 @@ public class HudRenderer {
         // so liegen sie sicher vor dem Glow-Nacheffekt
         BossNameplateRenderer.render(graphics, client, deltaTracker.getGameTimeDeltaPartialTick(true));
 
-        // Waehrend man Banner oder Kaesten einrichtet, sollen die Kaesten nicht dazwischenliegen
-        if (client.screen instanceof HudEditorScreen || client.screen instanceof BannerDesignScreen) return;
+        // Waehrend man Banner oder Kaesten einrichtet, sollen die Kaesten nicht dazwischenliegen.
+        // Bei jedem anderen offenen Fenster zeichnet sie der NearbyOverlayMixin darueber -
+        // hier noch einmal zu zeichnen kostet dieselbe Arbeit und verschwindet hinter dem Fenster
+        if (client.screen != null) return;
         SafariHud.render(graphics);
     }
 }

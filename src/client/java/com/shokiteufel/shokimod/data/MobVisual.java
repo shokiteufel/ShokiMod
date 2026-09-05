@@ -14,13 +14,16 @@ package com.shokiteufel.shokimod.data;
  */
 public interface MobVisual {
 
+    /** Farbcodes in der Beschriftung */
+    java.util.regex.Pattern COLOUR_CODE = java.util.regex.Pattern.compile("§.");
+
     String label();
 
     int glowColorRGB();
 
     /** Anzeigename ohne Farbcodes, für Stellen die die Farbe selbst setzen */
     default String plainLabel() {
-        return label().replaceAll("§.", "");
+        return COLOUR_CODE.matcher(label()).replaceAll("");
     }
 
     default int tracerColorARGB() {

@@ -18,6 +18,9 @@ import java.util.List;
 
 public class TabListScanner {
 
+    /** Farbcodes einer Tab-Zeile. Achtzig Zeilen mal zwanzig Ticks - das lohnt vorbereitet */
+    private static final java.util.regex.Pattern COLOUR_CODE = java.util.regex.Pattern.compile("(?i)§[0-9A-FK-OR]");
+
     private static List<String> previousUnformattedLines = null;
     private static List<String> previousFormattedLines = null;
 
@@ -64,7 +67,7 @@ public class TabListScanner {
 
             String legacyStr = toLegacyString(decoratedText);
             formattedLines.add(legacyStr);
-            unformattedLines.add(legacyStr.replaceAll("(?i)§[0-9A-FK-OR]", "").trim());
+            unformattedLines.add(COLOUR_CODE.matcher(legacyStr).replaceAll("").trim());
         }
 
         if (previousUnformattedLines != null && previousFormattedLines != null &&

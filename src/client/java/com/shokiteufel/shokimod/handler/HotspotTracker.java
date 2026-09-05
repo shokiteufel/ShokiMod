@@ -51,6 +51,8 @@ import java.util.regex.Pattern;
  */
 public final class HotspotTracker {
 
+    private static final java.util.regex.Pattern COLOUR_CODE = java.util.regex.Pattern.compile("§[0-9a-fk-or]");
+
     public enum Type {
         SEA_CREATURE("\\+\\d+. Sea Creature Chance", 0x00AAAA, "Sea Creature Chance"),
         FISHING_SPEED("\\+\\d+. Fishing Speed", 0x55FFFF, "Fishing Speed"),
@@ -136,7 +138,7 @@ public final class HotspotTracker {
 
         for (Entity entity : client.level.entitiesForRendering()) {
             if (!(entity instanceof ArmorStand stand) || stand.getCustomName() == null) continue;
-            String text = stand.getCustomName().getString().replaceAll("§[0-9a-fk-or]", "").trim();
+            String text = COLOUR_CODE.matcher(stand.getCustomName().getString()).replaceAll("").trim();
             Type type = Type.of(text);
             if (type == null) continue;
 
