@@ -150,7 +150,7 @@ public final class GuildEvents {
     /**
      * Ist es Zeit fuer eine neue Abfrage?
      *
-     * Im Takt des Bots: der schreibt seinen Stand jede zehnte Minute bei xx:x4:40 und
+     * Im Takt des Bots: der schreibt seinen Stand jede zehnte Minute bei xx:x4:00 und
      * aktualisiert Discord bei xx:x5:00. Die Mod holt dazwischen, bei xx:x4:50 - zehn
      * Sekunden vor dem Kanal, und mit frischen Zahlen. Verpasst sie den Zeitpunkt (Spiel
      * pausiert, Server neu geladen), greift nach zwoelf Minuten das Sicherheitsnetz.
