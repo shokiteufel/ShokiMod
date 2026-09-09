@@ -89,6 +89,11 @@ public class ModConfig extends Config {
         if (INSTANCE.guild == null) INSTANCE.guild = new GuildCategory();
         if (INSTANCE.guild.events == null) INSTANCE.guild.events = new GuildEventsCategory();
         if (INSTANCE.guild.events.seenAnnouncements == null) INSTANCE.guild.events.seenAnnouncements = new ArrayList<>();
+        // Wer die Mod schon vor 1.2.11 hatte, hat das Feld leer gespeichert. Der Gist ist die
+        // oeffentliche Quelle und soll auch in alten Dateien ohne Zutun greifen
+        if (INSTANCE.guild.events.fallbackUrl == null || INSTANCE.guild.events.fallbackUrl.isBlank()) {
+            INSTANCE.guild.events.fallbackUrl = GuildEventsCategory.DEFAULT_FALLBACK_URL;
+        }
         if (INSTANCE.fishing == null) INSTANCE.fishing = new FishingCategory();
         if (INSTANCE.collections == null) INSTANCE.collections = new CollectionsCategory();
         if (INSTANCE.collections.tracker == null) INSTANCE.collections.tracker = new CollectionTrackerCategory();
@@ -406,6 +411,181 @@ public class ModConfig extends Config {
     @Category(name = "Collections", desc = "What your collections gain while you play.")
     public CollectionsCategory collections = new CollectionsCategory();
 
+    @Expose
+    @Category(name = "Mining", desc = "Helpers for the mining islands: commissions, your pickaxe ability and the Sky Mall buff of the day.")
+    public MiningCategory mining = new MiningCategory();
+
+    /**
+     * Der Tageszaehler, wie ihn GanKura hatte.
+     *
+     * Gezaehlt wird die Weltzeit geteilt durch 24000. Das alte GanKura fing die Zahl per
+     * Mixin direkt vom Server ab; diesen Mixin gibt es hier nicht mehr, deshalb kommt sie
+     * aus der Welt des Clients. In der Praxis ist das dieselbe Zahl - Hypixel haelt beide
+     * gleich - nur direkt nach dem Betreten kann sie einen Augenblick hinterherhinken.
+     */
+    public static class DayHudCategory {
+
+        @Expose
+        @ConfigOption(name = "Show panel", desc = "The day counter on screen. Move it with /shoki hud.")
+        @ConfigEditorBoolean
+        public boolean showHud = false;
+
+        @Expose
+        @ConfigOption(name = "Where", desc = "Mining islands only, or everywhere in SkyBlock. Areas in the HUD editor override this.")
+        @ConfigEditorDropdown
+        public HudVisibility visibility = HudVisibility.EVERYWHERE;
+
+        @Expose
+        public float hudX = 0.02f;
+        @Expose
+        public float hudY = 0.28f;
+        @Expose
+        public float hudScale = 1.0f;
+        @Expose
+        public float hudOpacity = 0.5f;
+    }
+
+    public static class MiningCategory {
+
+        @Expose
+        @Category(name = "Mining HUD", desc = "One panel with what matters underground: commissions, the pickaxe ability with its cooldown, the Sky Mall buff. The numbers come from the tab list.")
+        public MiningHudCategory hud = new MiningHudCategory();
+    }
+
+    /** Welche gefrorenen Leichen im Mining-HUD stehen sollen */
+    public enum CorpseFilter {
+        OFF("Off"),
+        LAPIS_ONLY("Lapis only"),
+        ALL("Lapis, Umber, Tungsten");
+
+        private final String label;
+
+        CorpseFilter(String label) {
+            this.label = label;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
+    }
+
+    /** Ab wie vielen Lapis-Leichen die Party benachrichtigt wird */
+    public enum CorpseCall {
+        OFF("Off"),
+        FROM_TWO("From 2 Lapis"),
+        FROM_THREE("From 3 Lapis");
+
+        private final String label;
+
+        CorpseCall(String label) {
+            this.label = label;
+        }
+
+        /** Wie viele Lapis-Leichen es mindestens braucht. 0 heisst: nie rufen */
+        public int threshold() {
+            return switch (this) {
+                case OFF -> 0;
+                case FROM_TWO -> 2;
+                case FROM_THREE -> 3;
+            };
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
+    }
+
+    /** Wo ein Kasten erscheinen darf - dieselbe Wahl, die auch SkyHanni beim Sky Mall bietet */
+    public enum HudVisibility {
+        MINING_ISLANDS("Mining islands"),
+        EVERYWHERE("Everywhere");
+
+        private final String label;
+
+        HudVisibility(String label) {
+            this.label = label;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
+    }
+
+    /**
+     * Das Mining-HUD.
+     *
+     * Die Werte stammen aus der Tab-Liste, und die fuehrt sie nur auf den Mining-Inseln.
+     * Deshalb bleibt der zuletzt gelesene Stand stehen, wenn man die Insel verlaesst -
+     * sonst waere die Einstellung "Everywhere" wertlos, weil der Kasten dort leer bliebe.
+     */
+    public static class MiningHudCategory {
+
+        @Expose
+        @ConfigOption(name = "Show panel", desc = "The mining panel on screen. Move it with /shoki hud.")
+        @ConfigEditorBoolean
+        public boolean showHud = false;
+
+        @Expose
+        @ConfigOption(name = "Show where", desc = "Mining islands: only in the Dwarven Mines, Crystal Hollows, Glacite Mineshafts and the Gold Mine. Everywhere: keeps showing the last numbers wherever you are.")
+        @ConfigEditorDropdown
+        public HudVisibility visibility = HudVisibility.MINING_ISLANDS;
+
+        @Expose
+        @ConfigOption(name = "Commissions", desc = "The running commissions with their progress.")
+        @ConfigEditorBoolean
+        public boolean showCommissions = true;
+
+        @Expose
+        @ConfigOption(name = "Ability name", desc = "Which pickaxe ability is equipped.")
+        @ConfigEditorBoolean
+        public boolean showAbility = true;
+
+        @Expose
+        @ConfigOption(name = "Ability cooldown", desc = "How long until the pickaxe ability is ready again.")
+        @ConfigEditorBoolean
+        public boolean showCooldown = true;
+
+        @Expose
+        @ConfigOption(name = "Sky Mall", desc = "The Sky Mall buff of the day. Read from the chat message that announces it, so it appears once the day rolls over.")
+        @ConfigEditorBoolean
+        public boolean showSkyMall = true;
+
+        @Expose
+        @ConfigOption(name = "Frozen corpses", desc = "The frozen corpses of the mineshaft you are in, and how many of each are still unlooted. Only mineshafts carry them. Vanguard is never listed.")
+        @ConfigEditorDropdown
+        public CorpseFilter corpses = CorpseFilter.OFF;
+
+        @Expose
+        @ConfigOption(name = "Ready alert", desc = "Shows a banner the moment the pickaxe ability comes off cooldown, so you do not have to watch the panel.")
+        @ConfigEditorBoolean
+        public boolean readyAlert = false;
+
+        @Expose
+        @ConfigOption(name = "Tell the party", desc = "Writes the corpses of a mineshaft into the party chat, once per shaft, as soon as they show up. Only fires when there are at least this many Lapis corpses.")
+        @ConfigEditorDropdown
+        public CorpseCall corpseCall = CorpseCall.OFF;
+
+        @Expose
+        public float hudX = 0.02f;
+        @Expose
+        public float hudY = 0.35f;
+        @Expose
+        public float hudScale = 1.0f;
+        @Expose
+        public float hudOpacity = 0.5f;
+
+        /** Der zuletzt gelesene Stand, damit der Kasten ausserhalb der Minen nicht leer wird */
+        @Expose
+        public List<String> lastCommissions = new ArrayList<>();
+        @Expose
+        public String lastAbility = "";
+        @Expose
+        public String lastSkyMall = "";
+    }
+
     public static class CollectionsCategory {
 
         @ConfigOption(name = "Collections", desc = "The tracker lives in the sub tab on the left.")
@@ -654,6 +834,11 @@ public class ModConfig extends Config {
         public transient Runnable testBanner = () -> {
         };
 
+        /** Der Gist, den der Bot schreibt - Voreinstellung, damit es ohne Zutun laeuft */
+        public static final String DEFAULT_FALLBACK_URL =
+                "https://gist.githubusercontent.com/shokiteufel/645fc250482ee832e484a56e328db125"
+                        + "/raw/shokimod-events.json";
+
         @Expose
         @ConfigOption(name = "Primary URL", desc = "The bot on ShokiTeufel's PC, e.g. https://xyz.trycloudflare.com/shokimod/events.json. Asked first. Empty: skipped.")
         @ConfigEditorText
@@ -662,7 +847,9 @@ public class ModConfig extends Config {
         @Expose
         @ConfigOption(name = "Fallback URL", desc = "Raw URL of the GitHub Gist the bot keeps updated. Asked when the primary does not answer. Empty: skipped.")
         @ConfigEditorText
-        public String fallbackUrl = "";
+        // Voreingestellt, damit die Events ohne jede Einrichtung ankommen: der Gist steht
+        // oeffentlich und wird vom Bot im Zehn-Minuten-Takt geschrieben
+        public String fallbackUrl = DEFAULT_FALLBACK_URL;
 
         @Expose
         @ConfigOption(name = "Shared key", desc = "The same word as shokimod_key in the bot's config.json. Sent to the primary URL as X-ShokiMod-Key.")
@@ -808,6 +995,39 @@ public class ModConfig extends Config {
         @ConfigOption(name = "Editor shows", desc = "In /shoki hud: all panels, so you can place them before switching them on - or only the ones that are on right now.")
         @ConfigEditorBoolean
         public boolean editorShowsAll = true;
+
+        @Expose
+        @Category(name = "Day", desc = "A small panel with the SkyBlock day count, like the one GanKura had.")
+        public DayHudCategory day = new DayHudCategory();
+
+        /**
+         * Je Kasten die Gebiete, in denen er erscheinen darf. Leere oder fehlende Liste
+         * heisst: die eingebaute Vorgabe gilt (Safari-Kaesten nur auf der Safari, der Rest
+         * ueberall). Eingestellt wird das im HUD-Editor, Knopf "Areas".
+         *
+         * Bewusst eine Tabelle statt je Kasten ein Feld: neue Kaesten brauchen dann keine
+         * neue Einstellung, sie stehen sofort mit drin.
+         */
+        @Expose
+        public Map<String, List<String>> panelAreas = new HashMap<>();
+
+        /** Die Liste eines Kastens, immer vorhanden - zum Bearbeiten im Waehler */
+        public List<String> areasFor(String panel) {
+            if (panelAreas == null) panelAreas = new HashMap<>();
+            return panelAreas.computeIfAbsent(panel, key -> new ArrayList<>());
+        }
+
+        /** Darf der Kasten hier erscheinen? Null heisst: keine eigene Wahl getroffen */
+        public Boolean allowsHere(String panel, String area) {
+            if (panelAreas == null) return null;
+            List<String> chosen = panelAreas.get(panel);
+            if (chosen == null || chosen.isEmpty()) return null;
+            if (area == null || area.isBlank()) return false;
+            for (String entry : chosen) {
+                if (entry.equalsIgnoreCase(area)) return true;
+            }
+            return false;
+        }
 
         @Expose
         @ConfigOption(name = "Glowing text", desc = "Draws the panel text with a dark outline in its own colour, the way Minecraft draws signs written with glow ink.\nOff: plain text with a drop shadow.")

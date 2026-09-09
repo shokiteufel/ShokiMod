@@ -24,13 +24,32 @@ public class AreaPickerScreen extends Screen {
     private static final int LIST_TOP = 56;
 
     private final Screen parent;
-    private final ChatRule rule;
+    /** Die Liste, die bearbeitet wird - bei Chatregeln die der Regel, beim HUD die des Kastens */
+    private final List<String> selection;
+    private final String emptyHint;
+    private final Runnable onChange;
     private int page;
 
     public AreaPickerScreen(Screen parent, ChatRule rule) {
-        super(Component.literal("Areas"));
+        this(parent, "Areas", rule.areas, "Nothing selected - the rule works everywhere", null);
+    }
+
+    /**
+     * Derselbe Waehler fuer jede Gebietsliste.
+     *
+     * @param onChange wird nach jeder Aenderung gerufen - dort gehoert das Speichern hin
+     */
+    public AreaPickerScreen(Screen parent, String title, List<String> selection,
+                            String emptyHint, Runnable onChange) {
+        super(Component.literal(title));
         this.parent = parent;
-        this.rule = rule;
+        this.selection = selection;
+        this.emptyHint = emptyHint;
+        this.onChange = onChange;
+    }
+
+    private void changed() {
+        if (onChange != null) onChange.run();
     }
 
     private int rowsPerPage() {
@@ -69,7 +88,8 @@ public class AreaPickerScreen extends Screen {
 
         int y = height - 30;
         addRenderableWidget(Button.builder(Component.literal("Clear all"), button -> {
-            rule.areas.clear();
+            selection.clear();
+            changed();
             rebuild();
         }).bounds(left, y, 90, 20).build());
 
@@ -89,12 +109,12 @@ public class AreaPickerScreen extends Screen {
     }
 
     private void toggle(String area) {
-        if (rule.areas.removeIf(entry -> entry.equalsIgnoreCase(area))) return;
-        rule.areas.add(area);
+        if (!selection.removeIf(entry -> entry.equalsIgnoreCase(area))) selection.add(area);
+        changed();
     }
 
     private Component areaLabel(String area) {
-        boolean selected = rule.areas.stream().anyMatch(entry -> entry.equalsIgnoreCase(area));
+        boolean selected = selection.stream().anyMatch(entry -> entry.equalsIgnoreCase(area));
         boolean here = area.equals(GameState.Server.map);
 
         Component name = Component.literal((here ? "▸ " : "") + area)
@@ -115,11 +135,9 @@ public class AreaPickerScreen extends Screen {
         int centerX = width / 2;
         graphics.centeredText(font, this.title, centerX, 14, 0xFFFFFFFF);
 
-        String hint = rule.areas.isEmpty()
-                ? "Nothing selected - the rule works everywhere"
-                : rule.areas.size() + " area(s) selected";
+        String hint = selection.isEmpty() ? emptyHint : selection.size() + " area(s) selected";
         graphics.centeredText(font, Component.literal(hint).withStyle(
-                        rule.areas.isEmpty() ? ChatFormatting.GRAY : ChatFormatting.GREEN),
+                        selection.isEmpty() ? ChatFormatting.GRAY : ChatFormatting.GREEN),
                 centerX, 28, 0xFFAAAAAA);
 
         graphics.centeredText(font, Component.literal(

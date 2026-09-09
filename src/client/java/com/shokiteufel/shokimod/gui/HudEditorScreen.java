@@ -56,6 +56,7 @@ public class HudEditorScreen extends Screen {
     private Button colourReset;
     private Button modeButton;
     private Button showsButton;
+    private Button areasButton;
 
     public HudEditorScreen(Screen parent, boolean bannerMode) {
         super(Component.literal("HUD editor"));
@@ -98,10 +99,14 @@ public class HudEditorScreen extends Screen {
             ModConfig.INSTANCE.saveNow();
             button.setMessage(showsLabel());
             rebuildContent();
-        }).bounds(width / 2 - 105, height - 54, 210, 20).build();
+        }).bounds(width / 2 - 105, height - 54, 103, 20).build();
         showsButton.setTooltip(Tooltip.create(Component.literal(
                 "All panels: place them before switching them on.\nActive only: what is really on screen right now.")));
         addRenderableWidget(showsButton);
+
+        areasButton = Button.builder(areasLabel(), button -> openAreas())
+                .bounds(width / 2 + 2, height - 54, 103, 20).build();
+        addRenderableWidget(areasButton);
 
         swatch = new ColorSwatchButton(width / 2 - 105, height - 54, 100, 20,
                 this::bannerColour, () -> 255, this::openBannerColour);
@@ -140,6 +145,9 @@ public class HudEditorScreen extends Screen {
         swatch.active = bannerMode;
         showsButton.visible = !bannerMode;
         showsButton.active = !bannerMode;
+        areasButton.visible = !bannerMode;
+        areasButton.active = !bannerMode;
+        refreshAreasButton();
         modeButton.setMessage(modeLabel());
         if (bannerMode) refreshColourReset();
     }
@@ -180,6 +188,39 @@ public class HudEditorScreen extends Screen {
      */
     private boolean showsAll() {
         return ModConfig.INSTANCE.hud.editorShowsAll;
+    }
+
+    /**
+     * Wo der gewaehlte Kasten erscheinen darf.
+     *
+     * Ohne Auswahl gilt die eingebaute Vorgabe - der Knopf sagt dann "default", damit
+     * niemand denkt, der Kasten laufe garantiert ueberall.
+     */
+    private void openAreas() {
+        if (minecraft == null || selectedPanel == null) return;
+        java.util.List<String> chosen = ModConfig.INSTANCE.hud.areasFor(selectedPanel.name());
+        minecraft.setScreen(new AreaPickerScreen(this, "Areas: " + label(selectedPanel), chosen,
+                "Nothing selected - the panel follows its default", ModConfig.INSTANCE::saveNow));
+    }
+
+    private Component areasLabel() {
+        if (selectedPanel == null) return Component.literal("Areas");
+        int n = ModConfig.INSTANCE.hud.areasFor(selectedPanel.name()).size();
+        return Component.literal(n == 0 ? "Areas: default" : "Areas: " + n);
+    }
+
+    private void refreshAreasButton() {
+        if (areasButton == null) return;
+        areasButton.setMessage(areasLabel());
+        areasButton.setTooltip(Tooltip.create(Component.literal(selectedPanel == null
+                ? "Pick a panel first"
+                : "Where the panel " + label(selectedPanel) + " may appear. "
+                  + "Nothing selected: it keeps its built-in default.")));
+    }
+
+    private static String label(SafariHud.Panel panel) {
+        String raw = panel.name().toLowerCase(java.util.Locale.ROOT).replace('_', ' ');
+        return Character.toUpperCase(raw.charAt(0)) + raw.substring(1);
     }
 
     private Component showsLabel() {
@@ -292,6 +333,7 @@ public class HudEditorScreen extends Screen {
             if (!isOver(panel, event.x(), event.y())) continue;
             draggingPanel = panel;
             selectedPanel = panel;
+            refreshAreasButton();
             opacity.sync();
             grabX = (int) event.x() - SafariHud.originX(panel);
             grabY = (int) event.y() - SafariHud.originY(panel);

@@ -53,7 +53,27 @@ public final class RareLootParser {
     private static final Pattern CAUGHT = Pattern.compile(
             "^You caught (?:x(?<amount>\\d+) |an? )?(?<shard>.+?) Shards?!(?:\\s*\\(\\d+\\))?$",
             Pattern.CASE_INSENSITIVE);
+    /**
+     * Geteilte Beute: "LOOT SHARE You received 3 Silkbreeze Shards for assisting Outyc!"
+     *
+     * Bei Shards ist diese Zeile die einzige Meldung - es folgt kein eigener Fund. Wer sie
+     * uebergeht, verliert die Shards fuer Anzeige und Jagd-Zaehler.
+     */
+    private static final Pattern LOOT_SHARE = Pattern.compile(
+            "^LOOT SHARE +You received (?<amount>[0-9]+|an?) (?<shard>.+?) Shards? "
+                    + "for assisting [A-Za-z0-9_]{1,16}!?(?: *[(][0-9]+[)])?$",
+            Pattern.CASE_INSENSITIVE);
     private static final String SHARD_PREFIX = "SHARD_";
+
+    /**
+     * Prismarin ist kein Jagd-Shard, sondern gewoehnliches Material.
+     *
+     * Ohne diese Ausnahme wuerde "Enchanted Prismarine Shard" zu SHARD_ENCHANTED_PRISMARINE
+     * und damit im Jagd-Zaehler landen. Mit ihr bekommt es seine normale Kennung: der Fund
+     * wird weiterhin gemeldet und bewertet, nur eben nicht als Jagdbeute gezaehlt.
+     */
+    private static final java.util.Set<String> NOT_HUNTING = java.util.Set.of(
+            "PRISMARINE", "ENCHANTED_PRISMARINE");
 
     private static final Pattern COLOUR_CODE = Pattern.compile("§.");
     private static final Pattern NOT_ID_CHARS = Pattern.compile("[^A-Z0-9]+");
@@ -80,6 +100,9 @@ public final class RareLootParser {
 
         Matcher caught = CAUGHT.matcher(clean);
         if (caught.matches()) return shardDrop(caught.group("amount"), caught.group("shard"));
+
+        Matcher shared = LOOT_SHARE.matcher(clean);
+        if (shared.matches()) return shardDrop(shared.group("amount"), shared.group("shard"));
 
         Matcher dug = DUG_OUT.matcher(clean);
         if (dug.matches()) {
@@ -148,7 +171,10 @@ public final class RareLootParser {
         String name = shardName.trim();
         String key = trimUnderscores(NOT_ID_CHARS.matcher(name.toUpperCase(Locale.US)).replaceAll("_"));
         List<String> candidates = new ArrayList<>(1);
-        if (!key.isEmpty()) candidates.add(SHARD_PREFIX + key);
+        if (!key.isEmpty()) {
+            // Prismarin bekommt seine gewoehnliche Kennung, damit der Jagd-Zaehler es auslaesst
+            candidates.add(NOT_HUNTING.contains(key) ? key + "_SHARD" : SHARD_PREFIX + key);
+        }
         return new Drop(name + " Shard", amount, null, candidates);
     }
 

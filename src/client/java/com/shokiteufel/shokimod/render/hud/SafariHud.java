@@ -19,7 +19,7 @@ public final class SafariHud {
 
     /** Ein Kasten auf dem Bildschirm. Traegt seine eigene Lage und Groesse in der Config */
     public enum Panel {
-        PROGRESS, MISSING, CONTEST, NEARBY, HUNTING, GUILD, COLLECTION;
+        PROGRESS, MISSING, CONTEST, NEARBY, HUNTING, GUILD, COLLECTION, MINING, DAY;
 
         public boolean visible() {
             ModConfig.SafariCategory c = ModConfig.INSTANCE.safari;
@@ -31,16 +31,31 @@ public final class SafariHud {
                 case HUNTING -> ModConfig.INSTANCE.hunting.tracker.enabled && ModConfig.INSTANCE.hunting.tracker.showHud;
                 case GUILD -> ModConfig.INSTANCE.guild.events.enabled && ModConfig.INSTANCE.guild.events.showHud;
                 case COLLECTION -> ModConfig.INSTANCE.collections.tracker.enabled && ModConfig.INSTANCE.collections.tracker.showHud;
+                case MINING -> ModConfig.INSTANCE.mining.hud.showHud;
+                case DAY -> ModConfig.INSTANCE.hud.day.showHud;
             };
         }
 
         /**
          * Gehoert der Kasten hierher?
          *
-         * Die beiden Safari-Kaesten haben ausserhalb nichts zu sagen. Der Contest laeuft
-         * dagegen ueberall in SkyBlock und soll auch ueberall zu sehen sein.
+         * Zuerst zaehlt, was im HUD-Editor unter "Areas" gewaehlt wurde. Ist dort nichts
+         * gesetzt, gilt die eingebaute Vorgabe: die beiden Safari-Kaesten haben ausserhalb
+         * der Safari nichts zu sagen, der Rest laeuft ueberall in SkyBlock.
          */
         public boolean showsHere() {
+            Boolean chosen = ModConfig.INSTANCE.hud.allowsHere(name(), GameState.Server.map);
+            if (chosen != null) return chosen;
+            // Der Mining-Kasten folgt seiner eigenen Einstellung: nur in den Minen, oder
+            // ueberall mit dem zuletzt gelesenen Stand
+            if (this == MINING) {
+                return ModConfig.INSTANCE.mining.hud.visibility == ModConfig.HudVisibility.EVERYWHERE
+                        || com.shokiteufel.shokimod.scanner.MiningState.onMiningIsland();
+            }
+            if (this == DAY) {
+                return ModConfig.INSTANCE.hud.day.visibility == ModConfig.HudVisibility.EVERYWHERE
+                        || com.shokiteufel.shokimod.scanner.MiningState.onMiningIsland();
+            }
             return this != PROGRESS && this != MISSING || GameState.Server.isSafari();
         }
 
@@ -54,6 +69,8 @@ public final class SafariHud {
                 case HUNTING -> ModConfig.INSTANCE.hunting.tracker.hudX;
                 case GUILD -> ModConfig.INSTANCE.guild.events.hudX;
                 case COLLECTION -> ModConfig.INSTANCE.collections.tracker.hudX;
+                case MINING -> ModConfig.INSTANCE.mining.hud.hudX;
+                case DAY -> ModConfig.INSTANCE.hud.day.hudX;
             };
         }
 
@@ -67,6 +84,8 @@ public final class SafariHud {
                 case HUNTING -> ModConfig.INSTANCE.hunting.tracker.hudY;
                 case GUILD -> ModConfig.INSTANCE.guild.events.hudY;
                 case COLLECTION -> ModConfig.INSTANCE.collections.tracker.hudY;
+                case MINING -> ModConfig.INSTANCE.mining.hud.hudY;
+                case DAY -> ModConfig.INSTANCE.hud.day.hudY;
             };
         }
 
@@ -80,6 +99,8 @@ public final class SafariHud {
                 case HUNTING -> ModConfig.INSTANCE.hunting.tracker.hudScale;
                 case GUILD -> ModConfig.INSTANCE.guild.events.hudScale;
                 case COLLECTION -> ModConfig.INSTANCE.collections.tracker.hudScale;
+                case MINING -> ModConfig.INSTANCE.mining.hud.hudScale;
+                case DAY -> ModConfig.INSTANCE.hud.day.hudScale;
             };
         }
 
@@ -114,6 +135,14 @@ public final class SafariHud {
                     ModConfig.INSTANCE.collections.tracker.hudX = x;
                     ModConfig.INSTANCE.collections.tracker.hudY = y;
                 }
+                case MINING -> {
+                    ModConfig.INSTANCE.mining.hud.hudX = x;
+                    ModConfig.INSTANCE.mining.hud.hudY = y;
+                }
+                case DAY -> {
+                    ModConfig.INSTANCE.hud.day.hudX = x;
+                    ModConfig.INSTANCE.hud.day.hudY = y;
+                }
             }
         }
 
@@ -128,6 +157,8 @@ public final class SafariHud {
                 case HUNTING -> ModConfig.INSTANCE.hunting.tracker.hudAlpha;
                 case GUILD -> ModConfig.INSTANCE.guild.events.hudAlpha;
                 case COLLECTION -> ModConfig.INSTANCE.collections.tracker.hudAlpha;
+                case MINING -> ModConfig.INSTANCE.mining.hud.hudOpacity;
+                case DAY -> ModConfig.INSTANCE.hud.day.hudOpacity;
             };
         }
 
@@ -143,6 +174,8 @@ public final class SafariHud {
                 case HUNTING -> ModConfig.INSTANCE.hunting.tracker.hudAlpha = clamped;
                 case GUILD -> ModConfig.INSTANCE.guild.events.hudAlpha = clamped;
                 case COLLECTION -> ModConfig.INSTANCE.collections.tracker.hudAlpha = clamped;
+                case MINING -> ModConfig.INSTANCE.mining.hud.hudOpacity = clamped;
+                case DAY -> ModConfig.INSTANCE.hud.day.hudOpacity = clamped;
             }
         }
 
@@ -157,6 +190,8 @@ public final class SafariHud {
                 case HUNTING -> ModConfig.INSTANCE.hunting.tracker.hudScale = clamped;
                 case GUILD -> ModConfig.INSTANCE.guild.events.hudScale = clamped;
                 case COLLECTION -> ModConfig.INSTANCE.collections.tracker.hudScale = clamped;
+                case MINING -> ModConfig.INSTANCE.mining.hud.hudScale = clamped;
+                case DAY -> ModConfig.INSTANCE.hud.day.hudScale = clamped;
             }
         }
 
@@ -190,6 +225,8 @@ public final class SafariHud {
                 case HUNTING -> HuntingHud.build();
                 case GUILD -> GuildEventHud.build();
                 case COLLECTION -> CollectionHud.build();
+                case MINING -> MiningHud.build();
+                case DAY -> DayHud.build();
             };
         }
     }

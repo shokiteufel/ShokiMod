@@ -124,6 +124,10 @@ public final class GuildEvents {
 
     private static void tick(Minecraft client) {
         if (!FeatureGate.guildEvents()) return;
+        // Der Tick laeuft schon im Hauptmenue, wo Minecraft die Item-Registry noch bindet.
+        // Ein Banner waere dort nicht nur sinnlos - es hat den Client abgeschossen
+        // ("Components not bound yet" beim Bau des Drachenkopfs). Erst in der Welt arbeiten
+        if (client.level == null || client.player == null) return;
 
         Feed fresh = pending.getAndSet(null);
         if (fresh != null) apply(client, fresh);
@@ -375,7 +379,22 @@ public final class GuildEvents {
 
     private static void banner(String headline, String line, String tag) {
         BannerDesign design = ModConfig.INSTANCE.chat.banner.designOrDefault(cfg().bannerDesign);
-        DropBanner.show(design, headline, line, tag, BANNER_COLOUR, new ItemStack(Items.DRAGON_HEAD));
+        DropBanner.show(design, headline, line, tag, BANNER_COLOUR, dragonHead());
+    }
+
+    /**
+     * Der Drachenkopf fuers Banner, oder null.
+     *
+     * Zweite Sicherung neben der Pruefung in {@link #tick}: Ein Bild ist ein Bild - es darf
+     * unter keinen Umstaenden den Client beenden. Ohne Bild zeichnet das Banner nur den Text.
+     */
+    private static ItemStack dragonHead() {
+        try {
+            return new ItemStack(Items.DRAGON_HEAD);
+        } catch (RuntimeException e) {
+            ShokiMod.LOGGER.warn("[ShokiMod] Banner icon not ready yet: {}", e.toString());
+            return null;
+        }
     }
 
     /** "5d 2h", "3h 30m", "45m" */

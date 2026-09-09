@@ -1,4 +1,36 @@
-# GanKura
+# ShokiMod
+
+Fabric-Mod fuer **Hypixel Skyblock** auf **Minecraft 26.1.2**, gepflegt von
+[shokiteufel](https://github.com/shokiteufel). Fork von
+[GanKura](https://github.com/GanKuraDee/GanKura) mit zusaetzlichen Funktionen
+(Guild-Events, Fishing-Hotspots, Collection-Tracker, Mining-HUD, Rare-Loot-Tracker
+und mehr).
+
+## Download
+
+Die fertige `.jar` liegt bei den **[Releases](https://github.com/shokiteufel/ShokiMod/releases)** —
+immer die oberste Version nehmen, `shokimod-<version>+26.1.x.jar` herunterladen und in den
+`mods/`-Ordner legen. Die `-sources.jar` wird **nicht** gebraucht, die ist nur der Quelltext.
+
+Voraussetzungen: Minecraft 26.1.2, Fabric Loader 0.19.3+, Fabric API.
+
+## Ist das sicher?
+
+Der komplette Quelltext liegt hier offen — jede Zeile ist einsehbar und die Jar wird
+genau daraus gebaut. Wer nachsehen will, was die Mod tut, findet den Code unter
+[`src/client/java/com/shokiteufel/shokimod/`](src/client/java/com/shokiteufel/shokimod).
+Nach draussen redet die Mod nur mit oeffentlichen Skyblock-APIs (`api.hypixel.net`,
+`hysky.de`, das NotEnoughUpdates-Item-Repo). Selber bauen geht mit `./gradlew build`,
+die Jar landet dann in `build/libs/`.
+
+## Lizenz
+
+LGPL-3.0, geerbt vom Upstream-Projekt GanKura. Siehe [LICENSE](LICENSE).
+
+---
+
+# Upstream-Dokumentation (GanKura)
+
 GanKura is a Hypixel Skyblock Mod focused on Area Mini-bosses. 
 
 - **Commands**

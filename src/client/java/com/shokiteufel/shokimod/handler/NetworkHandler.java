@@ -2,6 +2,7 @@ package com.shokiteufel.shokimod.handler;
 
 import com.shokiteufel.shokimod.data.GameState;
 import com.shokiteufel.shokimod.render.ShinyAlert;
+import com.shokiteufel.shokimod.scanner.MiningState;
 import com.shokiteufel.shokimod.scanner.NestTracker;
 import com.shokiteufel.shokimod.session.SessionManager;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
@@ -42,6 +43,10 @@ public class NetworkHandler {
             HuntingTracker.onChatMessage(unformattedMsg);
             // Der Kuchen-Alarm merkt sich, wann welcher Kuchen gegessen wurde
             CakeReminder.onChatMessage(unformattedMsg);
+
+            // Der Sky-Mall-Buff wird nur einmal am Tag angekuendigt - diese Zeile ist
+            // die einzige Gelegenheit, ihn mitzubekommen
+            MiningState.onChatMessage(unformattedMsg);
             // Der Collection-Tracker braucht die Nachricht selbst: die Aufstellung haengt am Mauszeiger
             CollectionTracker.onChatMessage(message, unformattedMsg);
 

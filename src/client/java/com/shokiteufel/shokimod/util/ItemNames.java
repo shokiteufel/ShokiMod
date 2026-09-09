@@ -29,12 +29,12 @@ public final class ItemNames {
     private static final Pattern COLOUR_CODE = Pattern.compile("§.");
 
     /** Was die Liste je Kennung sonst noch weiss - fuer das Bild eines Items */
-    public record Info(String material, String skin, String color) {
+    public record Info(String material, String skin, String color, String itemModel) {
     }
 
     private static final Map<String, Info> byId = new ConcurrentHashMap<>();
 
-    /** Material, Skin und Farbe einer Kennung, oder null wenn die Liste sie nicht kennt */
+    /** Material, Skin, Farbe und Modellverweis einer Kennung, oder null wenn die Liste sie nicht kennt */
     public static Info info(String itemId) {
         if (itemId == null) return null;
         FEED.prefetch();
@@ -98,7 +98,8 @@ public final class ItemNames {
             if (id.isBlank() || name.isBlank()) continue;
 
             out.computeIfAbsent(name, key -> new ArrayList<>(1)).add(id);
-            byId.put(id, new Info(text(item, "material"), skinOf(item), text(item, "color")));
+            byId.put(id, new Info(text(item, "material"), skinOf(item), text(item, "color"),
+                    text(item, "item_model")));
         }
         return out;
     }

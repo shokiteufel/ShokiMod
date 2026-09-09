@@ -126,7 +126,7 @@ public final class ItemIcons {
         }
 
         ItemNames.Info info = ItemNames.info(itemId);
-        Identifier model = packModel(itemId);
+        Identifier model = modelFor(itemId, info);
 
         Item item = info == null ? null : itemFor(info.material());
         // Das Pack braucht irgendeine Grundlage; Papier ist Hypixels haeufigste
@@ -150,6 +150,38 @@ public final class ItemIcons {
             }
         }
         return stack;
+    }
+
+    /**
+     * Das Modell fuer eine Kennung: erst der Verweis, den Hypixel selbst nennt, sonst geraten.
+     *
+     * Hypixels Item-Liste fuehrt zu jedem Item das Feld item_model - genau den Verweis, den
+     * das echte Item traegt. Ueber den Dateinamen im Pack zu gehen ist nur die Notloesung und
+     * geht schief, sobald er abweicht: ENCHANTED_RUBY_VEILSHROOM zeigt auf
+     * .../resources/ruby_veilshroom, also ohne das "enchanted_". Bisher blieb dann die
+     * Papier-Grundlage stehen, und im Banner erschien ein Blatt Papier statt des Pilzes.
+     *
+     * Verwendet wird der genannte Verweis nur, wenn das Pack ihn auch fuehrt - sonst zeichnet
+     * der Client ein fehlendes Modell, was schlimmer aussieht als die Grundlage.
+     */
+    private static Identifier modelFor(String itemId, ItemNames.Info info) {
+        String named = info == null ? null : info.itemModel();
+        if (named != null && !named.isBlank()) {
+            Identifier parsed = Identifier.tryParse(named.trim());
+            if (parsed != null && packKnows(parsed)) return parsed;
+        }
+        return packModel(itemId);
+    }
+
+    /** Kennt der Client dieses Modell? Vanilla immer, alles andere nur aus dem Pack. */
+    private static boolean packKnows(Identifier model) {
+        // Ein Teil der Verweise zeigt auf Vanilla (minecraft:bamboo) - die sind immer da
+        if ("minecraft".equals(model.getNamespace())) return true;
+        refreshIndex();
+        if (modelIndex.isEmpty()) return false;
+        String path = model.getPath();
+        String name = path.substring(path.lastIndexOf('/') + 1);
+        return modelIndex.containsKey(name);
     }
 
     /**

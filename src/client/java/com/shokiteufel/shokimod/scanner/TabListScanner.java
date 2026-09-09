@@ -1,6 +1,7 @@
 package com.shokiteufel.shokimod.scanner;
 
 import com.shokiteufel.shokimod.data.FeatureGate;
+import com.shokiteufel.shokimod.data.ModConfig;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
@@ -14,6 +15,7 @@ import net.minecraft.ChatFormatting;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 
 public class TabListScanner {
@@ -35,7 +37,12 @@ public class TabListScanner {
     }
 
     public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(client -> scanTabList(client));
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            scanTabList(client);
+            // Der Bereit-Alarm haengt an der lokalen Uhr, nicht an der Tab-Liste - er muss
+            // also auch dann laufen, wenn sich dort gerade nichts ruehrt
+            if (client.level != null && client.player != null) MiningState.tick();
+        });
     }
 
     private static void scanTabList(Minecraft client) {
@@ -48,10 +55,19 @@ public class TabListScanner {
 
         // 26.1.2 における修正ポイント1:
         // getListedPlayers() -> getListedPlayerInfos() への変更
-        Collection<PlayerInfo> entries = networkHandler.getListedOnlinePlayers();
-        if (entries == null || entries.isEmpty()) return;
+        Collection<PlayerInfo> unsorted = networkHandler.getListedOnlinePlayers();
+        if (unsorted == null || unsorted.isEmpty()) return;
 
         Scoreboard scoreboard = client.level.getScoreboard();
+
+        // Die Sammlung kommt in beliebiger Reihenfolge; erst beim Zeichnen sortiert
+        // Minecraft sie. Wer die Zeilen in Abschnitten liest - "Commissions:" und dann
+        // die Auftraege darunter - braucht aber genau die Reihenfolge vom Bildschirm.
+        // Hypixel steuert sie ueber die Team-Namen der unsichtbaren Eintraege.
+        List<PlayerInfo> entries = new ArrayList<>(unsorted);
+        entries.sort(Comparator
+                .comparing((PlayerInfo info) -> teamName(scoreboard, info))
+                .thenComparing(info -> info.getProfile().name(), String.CASE_INSENSITIVE_ORDER));
         List<String> unformattedLines = new ArrayList<>();
         List<String> formattedLines = new ArrayList<>();
 
@@ -80,11 +96,19 @@ public class TabListScanner {
 
         // Gebiet und Server-ID stehen in der Tab-Liste
         LocationScanner.processTabList(unformattedLines);
+        // Auftraege und Spitzhacken-Faehigkeit stehen dort ebenfalls - aber nur in den Minen
+        if (ModConfig.INSTANCE.mining.hud.showHud) MiningState.processTabList(unformattedLines);
         // Die Contest-Zeilen nur auswerten, solange sie jemand anzeigt
         if (FeatureGate.contest()) {
             TabContest.processTabList(unformattedLines);
             ContestState.observe();
         }
+    }
+
+    /** Der Team-Name eines Eintrags - danach ordnet Minecraft die Tab-Liste */
+    private static String teamName(Scoreboard scoreboard, PlayerInfo info) {
+        PlayerTeam team = scoreboard.getPlayersTeam(info.getProfile().name());
+        return team == null ? "" : team.getName();
     }
 
     private static String toLegacyString(Component text) {

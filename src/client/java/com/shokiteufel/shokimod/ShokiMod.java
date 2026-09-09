@@ -135,8 +135,13 @@ public class ShokiMod implements ClientModInitializer {
                             for (int i = 0; i < lines.size(); i++) {
                                 LOGGER.info("[ShokiMod]   {}: {}", i, lines.get(i));
                             }
+                            // Was der Mining-Leser daraus gemacht hat, gehoert daneben:
+                            // sonst sieht man die Zeilen, aber nicht, warum sie nicht ankamen
+                            String mining = com.shokiteufel.shokimod.scanner.MiningState.diagnostics();
+                            LOGGER.info("[ShokiMod] Mining: {}", mining);
                             context.getSource().sendFeedback(Component.literal(
                                     "Wrote " + lines.size() + " tab lines to the log."));
+                            context.getSource().sendFeedback(Component.literal(mining));
                             return 1;
                         }))));
 

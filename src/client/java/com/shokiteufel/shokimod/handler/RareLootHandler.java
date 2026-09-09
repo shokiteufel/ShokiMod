@@ -129,7 +129,9 @@ public final class RareLootHandler {
         long now = System.currentTimeMillis();
         if (LOOTSHARE_RECEIPT.matcher(clean).matches()) {
             lastLootShareAt = now;
-            return;
+            // Sonst nur ein Vermerk fuer den folgenden Fund. Bei Shards aber ist diese Zeile
+            // die einzige Meldung - dann zaehlt sie selbst als Fund und laeuft weiter
+            if (RareLootParser.parse(clean) == null) return;
         }
 
         Drop drop = RareLootParser.parse(clean);
@@ -235,7 +237,7 @@ public final class RareLootHandler {
 
         if (tier.banner()) {
             DropBanner.show(ModConfig.INSTANCE.chat.banner.designOrDefault(tier.design()),
-                    "+ " + headline, "(" + worth + ")", "Tier " + tier.number(), colour, ItemIcons.stackFor(itemId));
+                    headline, "(" + worth + ")", "Tier " + tier.number(), colour, ItemIcons.stackFor(itemId));
         }
 
         if (tier.toast() && client.getToastManager() != null) {
@@ -245,7 +247,7 @@ public final class RareLootHandler {
 
         if (tier.chat() && client.player != null) {
             client.player.sendSystemMessage(Component.literal(
-                    "§6+ " + headline + " §e(" + worth + ") §8Tier " + tier.number()));
+                    "§6" + headline + " §e(" + worth + ") §8Tier " + tier.number()));
         }
 
         String sound = tier.sound();
