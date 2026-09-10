@@ -73,6 +73,11 @@ public final class PetHud {
     private PetHud() {
     }
 
+    /** Die Beschriftung vor einem Wert - leer, wenn sie abgeschaltet ist */
+    private static String label(ModConfig.PetHudCategory c, String text) {
+        return c.showLabels ? text : "";
+    }
+
     private static ModConfig.PetHudCategory cfg() {
         return ModConfig.INSTANCE.hud.pet;
     }
@@ -126,9 +131,9 @@ public final class PetHud {
         for (Part part : order(c)) {
             if (!part.enabled(c)) continue;
             if (part == Part.ICON) {
-                // Untereinander bekommt das Bild eine eigene Zeile, sonst traegt es die erste
-                if (bildOffen && !c.sameLine) {
-                    panel.icon(bild, "Pet:", "", LABEL_COLOUR, VALUE_COLOUR);
+                // Auf eigener Zeile - oder untereinander, wo jede Zeile fuer sich steht
+                if (bildOffen && (c.iconPlace == ModConfig.IconPlace.OWN_LINE || !c.sameLine)) {
+                    panel.icon(bild, label(c, "Pet:"), "", LABEL_COLOUR, VALUE_COLOUR);
                     bildOffen = false;
                 }
                 continue;
@@ -136,7 +141,7 @@ public final class PetHud {
             if (part == Part.PROGRESS) {
                 // Der Balken passt in keine gemeinsame Zeile und steht immer fuer sich
                 if (zeile != null && zeile.length() > 0) {
-                    bildOffen = flush(panel, bild, bildOffen, zeile.toString());
+                    bildOffen = flush(panel, c, bild, bildOffen, zeile.toString());
                     zeile.setLength(0);
                 }
                 addProgress(panel, c);
@@ -148,12 +153,14 @@ public final class PetHud {
                 if (zeile.length() > 0) zeile.append(' ');
                 zeile.append(text);
             } else {
-                panel.pair(part.label + ":", text, LABEL_COLOUR, colourOf(part));
+                panel.pair(label(c, part.label + ":"), text, LABEL_COLOUR, colourOf(part));
             }
         }
-        if (zeile != null && zeile.length() > 0) flush(panel, bild, bildOffen, zeile.toString());
+        if (zeile != null && zeile.length() > 0) flush(panel, c, bild, bildOffen, zeile.toString());
         // Wer alles abschaltet, soll trotzdem sehen, welches Pet draussen ist
-        if (panel.isEmpty()) panel.pair("Pet:", PetState.name(), LABEL_COLOUR, colour(PetState.rarity()));
+        if (panel.isEmpty()) {
+            panel.pair(label(c, "Pet:"), PetState.name(), LABEL_COLOUR, colour(PetState.rarity()));
+        }
         return panel;
     }
 
@@ -162,12 +169,20 @@ public final class PetHud {
      *
      * @return ob danach noch ein Bild aussteht
      */
-    private static boolean flush(HudPanel panel, ItemStack bild, boolean bildOffen, String text) {
+    private static boolean flush(HudPanel panel, ModConfig.PetHudCategory c, ItemStack bild,
+                                 boolean bildOffen, String text) {
+        String vorne = label(c, "Pet:");
         if (bildOffen) {
-            panel.icon(bild, "Pet:", text, LABEL_COLOUR, colour(PetState.rarity()));
+            // Hinten heisst: der Text steht links, das Bild rechts davon
+            if (c.iconPlace == ModConfig.IconPlace.RIGHT) {
+                panel.icon(bild, vorne.isEmpty() ? text : vorne + " " + text, "",
+                           LABEL_COLOUR, colour(PetState.rarity()));
+            } else {
+                panel.icon(bild, vorne, text, LABEL_COLOUR, colour(PetState.rarity()));
+            }
             return false;
         }
-        panel.pair("Pet:", text, LABEL_COLOUR, colour(PetState.rarity()));
+        panel.pair(vorne, text, LABEL_COLOUR, colour(PetState.rarity()));
         return false;
     }
 

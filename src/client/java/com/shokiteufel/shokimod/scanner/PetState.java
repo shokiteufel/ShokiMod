@@ -60,6 +60,12 @@ public final class PetState {
     /** Die Stufen, die Hypixel fuer Pets vergibt - in dieser Schreibweise */
     private static final java.util.Set<String> RARITIES = java.util.Set.of(
             "COMMON", "UNCOMMON", "RARE", "EPIC", "LEGENDARY", "MYTHIC", "DIVINE");
+    /**
+     * Was andere Mods dem Namen voranstellen, etwa "[332*]" fuer ihre eigene
+     * Ueberschuss-Stufe. Ohne das Abstreifen hiesse das Pet spaeter so, die eigene
+     * Rechnung liefe daneben, und im Kasten staende die Zahl doppelt.
+     */
+    private static final Pattern FOREIGN_TAG = Pattern.compile("^(?:\\[[^\\]]*\\]\\s*)+");
     /** Nur beim aktiven Pet steht das in der Beschreibung */
     private static final String ACTIVE_HINT = "click to despawn";
     private static final Pattern COLOUR_CODE = Pattern.compile("§.");
@@ -197,7 +203,7 @@ public final class PetState {
     public static void onChatMessage(String plain) {
         Matcher m = AUTOPET.matcher(plain.trim());
         if (!m.matches()) return;
-        String neu = clean(m.group("name"));
+        String neu = cleanName(m.group("name"));
         int stufe = parseInt(m.group("lvl"));
         if (neu.isEmpty() || stufe <= 0) return;
         // Ein anderes Pet heisst: der alte Fortschritt gehoert nicht mehr dazu
@@ -228,8 +234,11 @@ public final class PetState {
         if (now - lastMenuLook < MENU_GAP_MILLIS) return;
         lastMenuLook = now;
 
+        // Nur das Pet-Menue selbst, nicht jedes Fenster mit "Pet" im Titel: der
+        // Pet-Sitter und der Haendler zeigen ebenfalls Pets, aber fremde - daher ist
+        // dort auch kein "Click to despawn", und ein Fehlgriff faellt nicht auf
         String title = clean(screen.getTitle().getString()).toLowerCase(Locale.ROOT);
-        if (!title.contains("pet")) return;
+        if (!title.startsWith("pets")) return;
 
         for (Slot slot : screen.getMenu().slots) {
             ItemStack stack = slot.getItem();
@@ -259,11 +268,17 @@ public final class PetState {
             String text = clean(zeile.getString()).trim();
             String klein = text.toLowerCase(Locale.ROOT);
             if (klein.contains(ACTIVE_HINT)) active = true;
-            // Die Seltenheit steht als letzte fette Zeile. Nur die bekannten Stufen
-            // zaehlen: "MAX LEVEL" und "CLICK TO DESPAWN" sind ebenfalls in
-            // Grossbuchstaben und wuerden sonst als Seltenheit durchgehen - dann
-            // rechnet der Ueberschuss mit dem Versatz von COMMON und liegt weit daneben
-            if (RARITIES.contains(text)) seltenheit = text;
+            // Die Seltenheit steht als eine der letzten Zeilen. Gesucht wird sie als
+            // ganzes Wort, nicht als ganze Zeile: andere Mods haengen dort gern etwas
+            // an ("LEGENDARY PET"), und eine Zeile, die nur auf Grossbuchstaben prueft,
+            // schluckte auch "MAX LEVEL" - dann rechnete der Ueberschuss mit dem
+            // Versatz von COMMON und laege weit daneben
+            for (String stufe : RARITIES) {
+                if (text.equals(stufe) || text.startsWith(stufe + " ") || text.endsWith(" " + stufe)) {
+                    seltenheit = stufe;
+                    break;
+                }
+            }
 
             if (MAX_LEVEL.matcher(text).matches()) {
                 maxErreicht = true;
@@ -299,7 +314,7 @@ public final class PetState {
         }
         if (!active) return false;
 
-        name = clean(named.group("name"));
+        name = cleanName(named.group("name"));
         level = parseInt(named.group("lvl"));
         if (!seltenheit.isEmpty()) rarity = seltenheit;
         percent = prozent;
@@ -347,6 +362,11 @@ public final class PetState {
 
     private static String clean(String text) {
         return COLOUR_CODE.matcher(text == null ? "" : text).replaceAll("").trim();
+    }
+
+    /** Der blosse Name, ohne was andere Mods davorgesetzt haben */
+    private static String cleanName(String text) {
+        return FOREIGN_TAG.matcher(clean(text)).replaceFirst("").trim();
     }
 
     private static int parseInt(String raw) {

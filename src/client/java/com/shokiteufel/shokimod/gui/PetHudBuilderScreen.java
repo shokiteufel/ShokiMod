@@ -90,24 +90,37 @@ public class PetHudBuilderScreen extends Screen {
                     rebuild();
                 }).bounds(left, unten, LIST_WIDTH, 20).build());
 
+        addRenderableWidget(Button.builder(
+                Component.literal(c.showLabels ? "Labels: on" : "Labels: off"), b -> {
+                    c.showLabels = !c.showLabels;
+                    rebuild();
+                }).bounds(left, unten + 24, LIST_WIDTH / 2 - 2, 20).build());
+
+        addRenderableWidget(Button.builder(
+                Component.literal("Icon: " + c.iconPlace.label), b -> {
+                    ModConfig.IconPlace[] alle = ModConfig.IconPlace.values();
+                    c.iconPlace = alle[(c.iconPlace.ordinal() + 1) % alle.length];
+                    rebuild();
+                }).bounds(left + LIST_WIDTH / 2 + 2, unten + 24, LIST_WIDTH / 2 - 2, 20).build());
+
         // Groesse in Schritten von einem Zehntel - feiner braucht es niemand
         addRenderableWidget(Button.builder(Component.literal("−"), b -> {
             c.hudScale = clamp(Math.round((c.hudScale - 0.1f) * 10f) / 10f);
             rebuild();
-        }).bounds(left, unten + 24, 20, 20).build());
+        }).bounds(left, unten + 48, 20, 20).build());
         addRenderableWidget(Button.builder(
                 Component.literal(String.format(Locale.US, "Size: %.1fx", c.hudScale)), b -> {
                     c.hudScale = 1.0f;
                     rebuild();
-                }).bounds(left + 24, unten + 24, LIST_WIDTH - 48, 20).build());
+                }).bounds(left + 24, unten + 48, LIST_WIDTH - 48, 20).build());
         addRenderableWidget(Button.builder(Component.literal("+"), b -> {
             c.hudScale = clamp(Math.round((c.hudScale + 0.1f) * 10f) / 10f);
             rebuild();
-        }).bounds(left + LIST_WIDTH - 20, unten + 24, 20, 20).build());
+        }).bounds(left + LIST_WIDTH - 20, unten + 48, 20, 20).build());
 
         addRenderableWidget(Button.builder(Component.literal("Move on screen"), b -> {
             if (minecraft != null) minecraft.setScreen(new HudEditorScreen(this, false));
-        }).bounds(left, unten + 48, LIST_WIDTH, 20).build());
+        }).bounds(left, unten + 72, LIST_WIDTH, 20).build());
 
         addRenderableWidget(Button.builder(Component.literal("Done"), b -> onClose())
                 .bounds(left, height - 28, LIST_WIDTH, 20).build());

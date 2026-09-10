@@ -445,6 +445,22 @@ public class ModConfig extends Config {
         public float hudOpacity = 0.5f;
     }
 
+    /** Wo das Bild des Pets sitzt */
+    public enum IconPlace {
+        LEFT("In front"), RIGHT("Behind"), OWN_LINE("Own line");
+
+        public final String label;
+
+        IconPlace(String label) {
+            this.label = label;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
+    }
+
     public static class PetHudCategory {
 
         @Expose
@@ -504,6 +520,16 @@ public class ModConfig extends Config {
         @ConfigOption(name = "Side by side", desc = "All parts in one line, or each on its own line below the other.")
         @ConfigEditorBoolean
         public boolean sameLine = true;
+
+        @Expose
+        @ConfigOption(name = "Labels", desc = "The words in front: Pet:, Level:, Name:. Off shows only the values.")
+        @ConfigEditorBoolean
+        public boolean showLabels = true;
+
+        @Expose
+        @ConfigOption(name = "Icon position", desc = "Where the pet image sits: in front of the first line, behind it, or on a line of its own.")
+        @ConfigEditorDropdown
+        public IconPlace iconPlace = IconPlace.LEFT;
 
         @Expose
         public float hudX = 0.02f;

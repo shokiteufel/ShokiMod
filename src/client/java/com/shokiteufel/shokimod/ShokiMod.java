@@ -94,6 +94,9 @@ public class ShokiMod implements ClientModInitializer {
             // Der Fortschritt des Pets steht nur im Pet-Menue; solange es offen ist,
             // wird er mitgelesen
             com.shokiteufel.shokimod.scanner.PetState.tick(client);
+            // Die Gewinnliste im Hintergrund holen, damit sie beim Oeffnen dasteht
+            // und nicht erst beim ersten Blick angefordert wird
+            if (com.shokiteufel.shokimod.data.GameState.Server.isSkyblock()) PetProfitData.prefetch();
         });
 
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
