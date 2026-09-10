@@ -7,6 +7,7 @@ import com.shokiteufel.shokimod.util.PetProfitData.Row;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
@@ -108,6 +109,37 @@ public class PetProfitScreen extends Screen {
                 .bounds(left + LIST_WIDTH - 90, unten, 90, 20).build());
     }
 
+    /**
+     * Ein Klick auf eine Zeile oeffnet die Auktion im Spiel.
+     *
+     * Hypixel kennt dafuer /viewauction mit der Kennung der Auktion - die steht in den
+     * Daten. Das Fenster schliesst sich davor, sonst laege es ueber dem, was der Server
+     * gleich aufmacht. Ist die Auktion inzwischen verkauft, sagt das der Server selbst;
+     * die Liste ist bis zu eine halbe Stunde alt.
+     */
+    @Override
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        if (PetProfitData.ready()) {
+            List<Row> zeilen = visible();
+            int start = page * perPage();
+            int left = left();
+            double x = event.x();
+            double y = event.y();
+            if (x >= left && x <= left + LIST_WIDTH) {
+                int index = (int) ((y - LIST_TOP + 3) / ROW_HEIGHT);
+                if (index >= 0 && index < perPage() && start + index < zeilen.size()) {
+                    Row row = zeilen.get(start + index);
+                    if (!row.auction().isEmpty() && minecraft != null && minecraft.player != null) {
+                        minecraft.setScreen(null);
+                        minecraft.player.connection.sendCommand("viewauction " + row.auction());
+                        return true;
+                    }
+                }
+            }
+        }
+        return super.mouseClicked(event, doubleClick);
+    }
+
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
@@ -126,7 +158,8 @@ public class PetProfitScreen extends Screen {
         String stand = PetProfitData.updatedAt();
         graphics.centeredText(font, Component.literal(
                         PetProfitData.auctionsSeen() + " auctions checked"
-                        + (stand.isEmpty() ? "" : " - " + stand))
+                        + (stand.isEmpty() ? "" : " - " + stand)
+                        + " - click a row to open the auction")
                 .withStyle(ChatFormatting.DARK_GRAY), centerX, 28, 0xFF888888);
 
         // Spaltenkoepfe: dieselben x-Werte wie die Zeilen darunter, damit beides nie

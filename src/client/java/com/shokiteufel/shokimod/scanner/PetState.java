@@ -310,11 +310,12 @@ public final class PetState {
         if (now - lastMenuLook < MENU_GAP_MILLIS) return;
         lastMenuLook = now;
 
-        // Nur das Pet-Menue selbst, nicht jedes Fenster mit "Pet" im Titel: der
-        // Pet-Sitter und der Haendler zeigen ebenfalls Pets, aber fremde - daher ist
-        // dort auch kein "Click to despawn", und ein Fehlgriff faellt nicht auf
+        // Das Pet-Menue heisst "(1/5) Pets" - die Seitenzahl steht VOR dem Namen, ein
+        // Anfangsvergleich geht deshalb ins Leere und schloss ab 1.3.13 das ganze Menue
+        // aus. Der Plural genuegt zur Abgrenzung: der Pet-Sitter heisst "Pet Sitter"
+        // und traegt kein s, taucht hier also nicht auf
         String title = clean(screen.getTitle().getString()).toLowerCase(Locale.ROOT);
-        if (!title.startsWith("pets")) return;
+        if (!title.contains("pets")) return;
 
         boolean aktivesGefunden = false;
         for (Slot slot : screen.getMenu().slots) {

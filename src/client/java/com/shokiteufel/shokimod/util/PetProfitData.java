@@ -47,7 +47,7 @@ public final class PetProfitData {
     /** Ein Angebot mit dem, was das Hochziehen einbringen wuerde */
     public record Row(String id, String name, String category, String rarity, int level,
                       long price, long targetPrice, int targetLevel, long profit, long xp,
-                      double perXp) {
+                      double perXp, String auction) {
     }
 
     private static volatile List<Row> rows = List.of();
@@ -188,7 +188,8 @@ public final class PetProfitData {
                     number(o, "zielstufe").intValue(),
                     number(o, "gewinn").longValue(),
                     number(o, "xp").longValue(),
-                    number(o, "proXp").doubleValue()));
+                    number(o, "proXp").doubleValue(),
+                    string(o, "auktion")));
         }
         if (parsed.isEmpty()) return false;
 
