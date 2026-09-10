@@ -272,6 +272,8 @@ public final class PetState {
                 atMax = false;
                 heldItem = "";
                 icon = com.shokiteufel.shokimod.util.PetIcons.iconFor(neuerName);
+                overflowLevel = com.shokiteufel.shokimod.util.PetIcons.overflowLevelFor(neuerName);
+                overflowXp = com.shokiteufel.shokimod.util.PetIcons.overflowXpFor(neuerName);
             }
             name = neuerName;
             level = stufe;
@@ -295,6 +297,17 @@ public final class PetState {
                 if (schritt > 0) {
                     overflowLevel = (int) Math.floor(overflowXp / schritt);
                     atMax = atMax || overflowLevel > 0;
+                }
+            }
+            if (overflowLevel > 0) {
+                com.shokiteufel.shokimod.util.PetIcons.rememberOverflow(name, overflowLevel, overflowXp);
+            } else {
+                // Die Tab-Liste sagt gerade nichts dazu - dann gilt der letzte Stand,
+                // statt eine Luecke zu zeigen, wo eben noch eine Zahl war
+                int gemerkt = com.shokiteufel.shokimod.util.PetIcons.overflowLevelFor(name);
+                if (gemerkt > 0) {
+                    overflowLevel = gemerkt;
+                    overflowXp = com.shokiteufel.shokimod.util.PetIcons.overflowXpFor(name);
                 }
             }
             seenAt = System.currentTimeMillis();
@@ -455,6 +468,9 @@ public final class PetState {
         if (ueber <= 0) return;
         overflowXp = ueber;
         overflowLevel = (int) Math.floor(ueber / schritt);
+        if (overflowLevel > 0) {
+            com.shokiteufel.shokimod.util.PetIcons.rememberOverflow(name, overflowLevel, overflowXp);
+        }
     }
 
     private static String clean(String text) {

@@ -356,7 +356,7 @@ public class HudEditorScreen extends Screen {
             if (drin) {
                 if (zeile == MENU_ROWS.length - 1) {
                     ModConfig.INSTANCE.saveNow();
-                    if (minecraft != null) ShokiMod.openConfigScreen();
+                    if (minecraft != null) ShokiMod.openConfigScreen(panel.settingsSearch());
                 } else {
                     ModConfig.INSTANCE.hud.setWhen(panel.name(),
                             ModConfig.HudCategory.HudWhen.values()[zeile]);

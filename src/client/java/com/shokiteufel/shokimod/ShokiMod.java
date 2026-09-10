@@ -182,12 +182,22 @@ public class ShokiMod implements ClientModInitializer {
     }
 
     public static void openConfigScreen() {
+        openConfigScreen(null);
+    }
+
+    /**
+     * Das Einstellungsfenster oeffnen, wahlweise gleich bei einer Funktion.
+     *
+     * @param suche Text fuer das Suchfeld, etwa "Mining HUD" - null zeigt alles
+     */
+    public static void openConfigScreen(String suche) {
         try {
             MoulConfigProcessor<ModConfig> processor = MoulConfigProcessor.withDefaults(ModConfig.INSTANCE);
             ConfigProcessorDriver driver = new ConfigProcessorDriver(processor);
             driver.processConfig(ModConfig.INSTANCE);
 
             ShokiConfigEditor editor = new ShokiConfigEditor(processor);
+            editor.preset(suche);
             GuiElementComponent editorComponent = new GuiElementComponent(editor);
             GuiContext guiContext = new GuiContext(editorComponent);
 

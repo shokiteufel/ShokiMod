@@ -45,10 +45,15 @@ public final class NearbyOverlay {
     }
 
     public static void draw(GuiGraphicsExtractor graphics) {
-        // Im Einrichtungsfenster nicht: dort werden die Kaesten schon selbst gezeichnet,
-        // an der Stelle, an die man sie gerade zieht
-        if (Minecraft.getInstance().screen instanceof HudEditorScreen
-                || Minecraft.getInstance().screen instanceof BannerDesignScreen) return;
+        // Ueber einem Spielmenue gehoeren die Kaesten hin - ueber einem Fenster einer
+        // Mod nicht. Wer die Gewinnliste oder die Einstellungen offen hat, will sie
+        // lesen und nicht durch Kaesten hindurchschauen; im Einrichtungsfenster
+        // zeichnen sie sich ohnehin selbst, an der Stelle, an die man sie zieht.
+        net.minecraft.client.gui.screens.Screen offen = Minecraft.getInstance().screen;
+        if (offen != null
+                && !(offen instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?>)) {
+            return;
+        }
         // Dieselbe Auswahl wie beim Spielen - was eingeschaltet ist und hierher gehoert
         SafariHud.render(graphics);
     }

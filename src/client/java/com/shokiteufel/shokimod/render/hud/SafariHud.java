@@ -50,6 +50,21 @@ public final class SafariHud {
          * Manche Angaben will man nur beim Blick ins Inventar sehen, andere nur
          * draussen. Ohne eigene Wahl gilt: immer.
          */
+        /** Wonach im Einstellungsfenster gesucht wird, um bei diesem Kasten zu landen */
+        public String settingsSearch() {
+            return switch (this) {
+                case PROGRESS, MISSING -> "Safari";
+                case CONTEST -> "Contest";
+                case NEARBY -> "Mob";
+                case HUNTING -> "Hunting";
+                case GUILD -> "Guild";
+                case COLLECTION -> "Collection";
+                case MINING -> "Mining HUD";
+                case DAY -> "Day";
+                case PET -> "Pet";
+            };
+        }
+
         public boolean showsNow() {
             ModConfig.HudCategory.HudWhen when = ModConfig.INSTANCE.hud.whenFor(name());
             if (when == ModConfig.HudCategory.HudWhen.ALWAYS) return true;

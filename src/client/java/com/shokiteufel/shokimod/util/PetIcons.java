@@ -41,8 +41,28 @@ public final class PetIcons {
     private static final String FILE = "pet-icons.json";
     private static final Gson GSON = new Gson();
 
-    /** Pet-Name in Grossbuchstaben -> was daraus ein Bild macht */
-    private record Recipe(String item, String texture) {
+    /**
+     * Pet-Name in Grossbuchstaben -> was daraus ein Bild macht, und was zuletzt
+     * darueber bekannt war.
+     *
+     * Die Ueberschuss-Stufe steht nur in der Tab-Liste. Wer sie ausgeblendet hat oder
+     * gerade in einem Menue steht, saehe sonst eine Luecke, wo eben noch eine Zahl war -
+     * deshalb wird der letzte bekannte Stand behalten.
+     */
+    private record Recipe(String item, String texture, int overflowLevel, double overflowXp) {
+
+        Recipe(String item, String texture) {
+            this(item, texture, 0, 0d);
+        }
+
+        Recipe withOverflow(int level, double xp) {
+            return new Recipe(item, texture, level, xp);
+        }
+
+        /** Nur das Bild - fuer den Vergleich, ob sich am Bild etwas geaendert hat */
+        boolean sameImage(Recipe other) {
+            return other != null && item.equals(other.item()) && texture.equals(other.texture());
+        }
     }
 
     private static final Map<String, Recipe> recipes = new ConcurrentHashMap<>();
@@ -79,13 +99,50 @@ public final class PetIcons {
         if (petName == null || petName.isBlank() || stack == null || stack.isEmpty()) return;
         load();
         String key = key(petName);
+        Recipe vorher = recipes.get(key);
         Recipe recipe = new Recipe(itemId(stack), texture(stack));
-        if (recipe.equals(recipes.get(key))) return;
+        if (recipe.sameImage(vorher)) return;
+        // Was ueber den Ueberschuss bekannt war, bleibt erhalten
+        if (vorher != null) recipe = recipe.withOverflow(vorher.overflowLevel(), vorher.overflowXp());
 
         recipes.put(key, recipe);
         built.put(key, stack.copy());
         dirty = true;
         save();
+    }
+
+    /**
+     * Den zuletzt bekannten Ueberschuss festhalten.
+     *
+     * Gilt nur fuer Zahlen groesser null: eine Null waere keine Auskunft, sondern das
+     * Fehlen einer - und wuerde die gemerkte Zahl zerstoeren.
+     */
+    public static void rememberOverflow(String petName, int level, double xp) {
+        if (petName == null || petName.isBlank() || level <= 0) return;
+        load();
+        String key = key(petName);
+        Recipe vorher = recipes.get(key);
+        Recipe recipe = (vorher == null ? new Recipe("", "") : vorher).withOverflow(level, xp);
+        if (recipe.equals(vorher)) return;
+        recipes.put(key, recipe);
+        dirty = true;
+        save();
+    }
+
+    /** Die zuletzt bekannte Ueberschuss-Stufe, oder 0 */
+    public static int overflowLevelFor(String petName) {
+        if (petName == null || petName.isBlank()) return 0;
+        load();
+        Recipe recipe = recipes.get(key(petName));
+        return recipe == null ? 0 : recipe.overflowLevel();
+    }
+
+    /** Die zuletzt bekannte Ueberschuss-Erfahrung, oder 0 */
+    public static double overflowXpFor(String petName) {
+        if (petName == null || petName.isBlank()) return 0d;
+        load();
+        Recipe recipe = recipes.get(key(petName));
+        return recipe == null ? 0d : recipe.overflowXp();
     }
 
     /** Wie viele Bilder gemerkt sind - fuer den Diagnosebericht */
@@ -151,9 +208,11 @@ public final class PetIcons {
                 if (!entry.getValue().isJsonObject()) continue;
                 JsonObject o = entry.getValue().getAsJsonObject();
                 String item = o.has("item") ? o.get("item").getAsString() : "";
-                if (item.isBlank()) continue;
+                if (item.isBlank() && !o.has("overflow")) continue;
                 String texture = o.has("texture") ? o.get("texture").getAsString() : "";
-                recipes.put(entry.getKey(), new Recipe(item, texture));
+                int over = o.has("overflow") ? o.get("overflow").getAsInt() : 0;
+                double overXp = o.has("overflowXp") ? o.get("overflowXp").getAsDouble() : 0d;
+                recipes.put(entry.getKey(), new Recipe(item, texture, over, overXp));
             }
         } catch (IOException | RuntimeException e) {
             ShokiMod.LOGGER.warn("[ShokiMod] Could not read remembered pet icons: {}", e.toString());
@@ -170,6 +229,10 @@ public final class PetIcons {
                 o.addProperty("item", entry.getValue().item());
                 if (!entry.getValue().texture().isBlank()) {
                     o.addProperty("texture", entry.getValue().texture());
+                }
+                if (entry.getValue().overflowLevel() > 0) {
+                    o.addProperty("overflow", entry.getValue().overflowLevel());
+                    o.addProperty("overflowXp", entry.getValue().overflowXp());
                 }
                 root.add(entry.getKey(), o);
             }

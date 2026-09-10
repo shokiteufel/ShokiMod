@@ -96,6 +96,19 @@ public class ShokiConfigEditor extends MoulConfigEditor<ModConfig> {
         }
     }
 
+    /**
+     * Das Suchfeld vorbelegen, damit gleich die richtige Ecke dasteht.
+     *
+     * MoulConfig filtert die Kategorien nach dem, was im Suchfeld steht - wer aus dem
+     * Kasten-Editor heraus "Einstellungen" waehlt, landet damit direkt bei seiner
+     * Funktion statt auf der ersten Seite.
+     */
+    public void preset(String text) {
+        if (text == null || text.isBlank()) return;
+        GetSetter<String> feld = findSearchField();
+        if (feld != null) feld.set(text);
+    }
+
     @SuppressWarnings("unchecked")
     private GetSetter<String> findSearchField() {
         try {

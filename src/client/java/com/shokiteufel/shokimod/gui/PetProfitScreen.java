@@ -104,8 +104,10 @@ public class PetProfitScreen extends Screen {
             x += breite + 2;
         }
 
-        // Unter dem letzten Reiter faengt die Liste an
-        listTop = y + 28;
+        // Unter dem letzten Reiter faengt die Liste an. Die Reiter sind achtzehn hoch,
+        // darunter brauchen die Spaltenkoepfe noch eine Zeile - sonst haengen sie in
+        // den Knoepfen
+        listTop = y + 40;
 
         int unten = height - 28;
         if (pageCount() > 1) {
