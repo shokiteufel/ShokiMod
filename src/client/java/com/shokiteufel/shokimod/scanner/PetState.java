@@ -216,7 +216,16 @@ public final class PetState {
         }
         if (!heldItem.isEmpty()) out.append(", holding ").append(heldItem);
         out.append(icon.isEmpty() ? ", NO ICON" : ", icon ok");
-        out.append(", ").append(com.shokiteufel.shokimod.util.PetIcons.size()).append(" icon(s) remembered");
+        out.append(", ").append(com.shokiteufel.shokimod.util.PetIcons.withImage())
+           .append(" image(s) of ").append(com.shokiteufel.shokimod.util.PetIcons.size())
+           .append(" entries remembered");
+        // Fehlt das Bild, sagt die blosse Anzahl nichts darueber, woran es liegt:
+        // ob der Eintrag fehlt, ob er nur die Ueberschuss-Stufe traegt, oder ob er
+        // da ist und sich bloss nicht bauen laesst. Das steht hier
+        if (icon.isEmpty() && !name.isEmpty()) {
+            out.append(", stored: ")
+               .append(com.shokiteufel.shokimod.util.PetIcons.describe(name));
+        }
         out.append(", from ").append(from);
         if (seenAt > 0) {
             long seconds = Math.max(0, (System.currentTimeMillis() - seenAt) / 1000L);

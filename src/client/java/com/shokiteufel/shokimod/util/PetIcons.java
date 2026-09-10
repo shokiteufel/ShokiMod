@@ -166,10 +166,42 @@ public final class PetIcons {
         return recipe == null ? 0d : recipe.overflowXp();
     }
 
-    /** Wie viele Bilder gemerkt sind - fuer den Diagnosebericht */
+    /** Wie viele Eintraege gemerkt sind - fuer den Diagnosebericht */
     public static int size() {
         load();
         return recipes.size();
+    }
+
+    /**
+     * Wie viele davon wirklich ein Bild tragen.
+     *
+     * Nicht jeder Eintrag ist eines: rememberOverflow legt auch dann einen an, wenn
+     * nur die Ueberschuss-Stufe bekannt ist. "59 gemerkt" hiess deshalb bisher nicht
+     * "59 Bilder" - genau diese Verwechslung soll die Diagnose nicht mehr zulassen.
+     */
+    public static int withImage() {
+        load();
+        int n = 0;
+        for (Recipe r : recipes.values()) if (!r.item().isBlank()) n++;
+        return n;
+    }
+
+    /** Was ueber dieses eine Pet gemerkt ist, im Klartext - fuer die Diagnose */
+    public static String describe(String petName) {
+        if (petName == null || petName.isBlank()) return "no pet name";
+        load();
+        String key = key(petName);
+        Recipe recipe = recipes.get(key);
+        if (recipe == null) return "\"" + key + "\" not in the file at all";
+        if (recipe.item().isBlank()) {
+            return "\"" + key + "\" has no image, only overflow "
+                    + recipe.overflowLevel();
+        }
+        String kopf = recipe.texture().isBlank() ? "no skin texture"
+                : "skin texture " + recipe.texture().length() + " chars";
+        return "\"" + key + "\" = " + recipe.item() + ", " + kopf
+                + (recipe.fromActive() ? ", from the worn pet" : ", from the menu")
+                + ", builds to " + (build(recipe).isEmpty() ? "NOTHING" : "an item");
     }
 
     private static String key(String petName) {
@@ -193,6 +225,11 @@ public final class PetIcons {
     }
 
     private static ItemStack build(Recipe recipe) {
+        // Ein Eintrag ohne Material ist kein Bild, sondern ein Platzhalter:
+        // rememberOverflow legt einen an, wenn die Ueberschuss-Stufe frueher
+        // bekannt ist als das Bild. Ohne diese Schranke ginge er als Kennung
+        // in die Registry - mit ungewissem Ausgang
+        if (recipe.item().isBlank()) return ItemStack.EMPTY;
         Item item = BuiltInRegistries.ITEM.getOptional(Identifier.tryParse(recipe.item()))
                 .orElse(null);
         if (item == null) return ItemStack.EMPTY;
