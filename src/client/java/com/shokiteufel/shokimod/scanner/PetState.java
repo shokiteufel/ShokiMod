@@ -232,15 +232,18 @@ public final class PetState {
             rarity = "";
             totalXp = -1.0;
             atMax = false;
-            overflowLevel = 0;
-            overflowXp = 0.0;
             heldItem = "";
-            icon = net.minecraft.world.item.ItemStack.EMPTY;
+            // Was ueber das neue Pet schon bekannt war, gilt sofort. Beim Angeln mit
+            // Pet-Regeln wechselt es im Sekundentakt, und die Tab-Liste braucht laenger
+            // als der Chat - ohne das stuende der Kasten nach jedem Wechsel kurz ohne
+            // Ueberschuss da
+            icon = com.shokiteufel.shokimod.util.PetIcons.iconFor(neu);
+            overflowLevel = com.shokiteufel.shokimod.util.PetIcons.overflowLevelFor(neu);
+            overflowXp = com.shokiteufel.shokimod.util.PetIcons.overflowXpFor(neu);
+            atMax = overflowLevel > 0;
         }
         name = neu;
         level = stufe;
-        // Das Menue ist jetzt nicht offen - das gemerkte Bild springt ein
-        if (icon.isEmpty()) icon = com.shokiteufel.shokimod.util.PetIcons.iconFor(neu);
         seenAt = System.currentTimeMillis();
         from = "autopet";
     }

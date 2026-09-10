@@ -4,6 +4,7 @@ import com.shokiteufel.shokimod.ShokiMod;
 import com.shokiteufel.shokimod.data.ModConfig;
 
 import io.github.notenoughupdates.moulconfig.gui.MoulConfigEditor;
+import io.github.notenoughupdates.moulconfig.processor.ProcessedCategory;
 import io.github.notenoughupdates.moulconfig.observer.GetSetter;
 import io.github.notenoughupdates.moulconfig.processor.MoulConfigProcessor;
 import io.github.notenoughupdates.moulconfig.processor.ProcessedCategory;
@@ -97,16 +98,33 @@ public class ShokiConfigEditor extends MoulConfigEditor<ModConfig> {
     }
 
     /**
-     * Das Suchfeld vorbelegen, damit gleich die richtige Ecke dasteht.
+     * Gleich die richtige Ecke aufschlagen.
      *
-     * MoulConfig filtert die Kategorien nach dem, was im Suchfeld steht - wer aus dem
-     * Kasten-Editor heraus "Einstellungen" waehlt, landet damit direkt bei seiner
-     * Funktion statt auf der ersten Seite.
+     * Zwei Schritte, denn eines allein genuegt nicht: Die Suche blendet aus, was nicht
+     * passt, laesst aber die zuletzt gewaehlte Kategorie stehen - und die ist beim
+     * Oeffnen die erste. Deshalb wird zusaetzlich die Kategorie ausgewaehlt, deren
+     * Anzeigename gesucht wurde.
      */
     public void preset(String text) {
         if (text == null || text.isBlank()) return;
-        GetSetter<String> feld = findSearchField();
-        if (feld != null) feld.set(text);
+        try {
+            search(text);
+            for (ProcessedCategory kategorie : getCurrentlySearchedCategories().values()) {
+                String name = kategorie.getDisplayName().getText();
+                if (name != null && name.trim().equalsIgnoreCase(text.trim())) {
+                    setSelectedCategory(kategorie);
+                    return;
+                }
+            }
+            // Kein genauer Treffer: dann wenigstens die erste der gefilterten Liste
+            for (ProcessedCategory kategorie : getCurrentlySearchedCategories().values()) {
+                setSelectedCategory(kategorie);
+                return;
+            }
+        } catch (RuntimeException e) {
+            // Die Suche ist Beiwerk - ein Fenster ohne Vorauswahl ist besser als keines
+            ShokiMod.LOGGER.warn("Could not preselect config category '{}'", text, e);
+        }
     }
 
     @SuppressWarnings("unchecked")
