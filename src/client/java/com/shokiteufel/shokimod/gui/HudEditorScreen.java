@@ -1,5 +1,6 @@
 package com.shokiteufel.shokimod.gui;
 
+import com.shokiteufel.shokimod.ShokiMod;
 import com.shokiteufel.shokimod.data.BannerDesign;
 import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.render.DropBanner;
@@ -230,7 +231,7 @@ public class HudEditorScreen extends Screen {
     private void rebuildContent() {
         content.clear();
         for (SafariHud.Panel panel : SafariHud.Panel.values()) {
-            if (!showsAll() && !panel.visible()) continue;
+            if (!editorShows(panel)) continue;
             content.put(panel, panel.build());
         }
         // Der ausgewaehlte Kasten darf nicht auf einen liegen, den man gerade nicht sieht
@@ -308,6 +309,19 @@ public class HudEditorScreen extends Screen {
                 && mouseY >= top && mouseY <= top + bannerHeight();
     }
 
+    /**
+     * Zeigt der Editor diesen Kasten gerade?
+     *
+     * "Alle Kaesten zeigen" hilft beim Einrichten, soll aber nichts vorspiegeln: Der
+     * Mob-Kasten haengt an den Mob-Visuals, und wer die aus hat, soll ihn hier nicht
+     * sehen und sich fragen, warum er im Spiel fehlt.
+     */
+    private static boolean editorShows(SafariHud.Panel panel) {
+        if (panel.visible()) return true;
+        if (!ModConfig.INSTANCE.hud.editorShowsAll) return false;
+        return panel != SafariHud.Panel.NEARBY;
+    }
+
     private boolean isOver(SafariHud.Panel panel, double mouseX, double mouseY) {
         if (bannerMode) return false;
         HudPanel built = content.get(panel);
@@ -319,10 +333,38 @@ public class HudEditorScreen extends Screen {
                 && mouseY >= top && mouseY <= top + SafariHud.scaledHeight(panel, built);
     }
 
+    /** Der Kasten, fuer den gerade das kleine Menue offen ist - null heisst: keines */
+    private SafariHud.Panel menuPanel = null;
+    private int menuX = 0;
+    private int menuY = 0;
+
+    private static final int MENU_WIDTH = 108;
+    private static final int MENU_ROW = 14;
+    /** Die Zeilen des Menues: die drei Zeitpunkte, dann der Weg zu den Einstellungen */
+    private static final String[] MENU_ROWS = {"Always", "Outside only", "Inventory only", "Settings ..."};
+
     // ---- Maus ----
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        if (menuPanel != null) {
+            int zeile = (int) ((event.y() - menuY) / MENU_ROW);
+            boolean drin = event.x() >= menuX && event.x() <= menuX + MENU_WIDTH
+                    && zeile >= 0 && zeile < MENU_ROWS.length;
+            SafariHud.Panel panel = menuPanel;
+            menuPanel = null;   // ein Klick schliesst das Menue in jedem Fall
+            if (drin) {
+                if (zeile == MENU_ROWS.length - 1) {
+                    ModConfig.INSTANCE.saveNow();
+                    if (minecraft != null) ShokiMod.openConfigScreen();
+                } else {
+                    ModConfig.INSTANCE.hud.setWhen(panel.name(),
+                            ModConfig.HudCategory.HudWhen.values()[zeile]);
+                    ModConfig.INSTANCE.saveNow();
+                }
+                return true;
+            }
+        }
         if (isOverBanner(event.x(), event.y())) {
             draggingBanner = freeAnchor();
             grabX = (int) event.x() - bannerCentreX();
@@ -331,6 +373,16 @@ public class HudEditorScreen extends Screen {
         }
         for (SafariHud.Panel panel : SafariHud.Panel.values()) {
             if (!isOver(panel, event.x(), event.y())) continue;
+            // Rechtsklick fragt, wann und wo der Kasten erscheinen soll
+            if (event.button() == 1) {
+                selectedPanel = panel;
+                refreshAreasButton();
+                opacity.sync();
+                menuPanel = panel;
+                menuX = (int) event.x();
+                menuY = (int) event.y();
+                return true;
+            }
             draggingPanel = panel;
             selectedPanel = panel;
             refreshAreasButton();
@@ -402,6 +454,7 @@ public class HudEditorScreen extends Screen {
                 : "Anchor " + design().anchor.label + " has a fixed place  ·  scroll to resize  ·  pick the design below")
                 : "Drag to move  ·  scroll to resize  ·  slider below for the background";
         graphics.centeredText(font, Component.literal(hint).withStyle(ChatFormatting.GRAY), width / 2, 26, 0xFFAAAAAA);
+        drawPanelMenu(graphics);
     }
 
     private void drawPanels(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
@@ -472,6 +525,23 @@ public class HudEditorScreen extends Screen {
         protected void applyValue() {
             selectedPanel.setAlpha((float) (0.1 + value * 0.9));
             updateMessage();
+        }
+    }
+
+    /** Das kleine Menue nach einem Rechtsklick auf einen Kasten */
+    private void drawPanelMenu(GuiGraphicsExtractor graphics) {
+        if (menuPanel == null) return;
+        int hoehe = MENU_ROWS.length * MENU_ROW + 4;
+        graphics.fill(menuX - 2, menuY - 2, menuX + MENU_WIDTH, menuY + hoehe, 0xE0101010);
+        graphics.fill(menuX - 2, menuY - 2, menuX + MENU_WIDTH, menuY - 1, 0xFF808080);
+
+        ModConfig.HudCategory.HudWhen jetzt = ModConfig.INSTANCE.hud.whenFor(menuPanel.name());
+        for (int i = 0; i < MENU_ROWS.length; i++) {
+            boolean gewaehlt = i < 3 && ModConfig.HudCategory.HudWhen.values()[i] == jetzt;
+            int farbe = i == MENU_ROWS.length - 1 ? 0xFF55FFFF
+                    : (gewaehlt ? 0xFFFFAA00 : 0xFFCCCCCC);
+            graphics.text(font, (gewaehlt ? "> " : "  ") + MENU_ROWS[i],
+                    menuX + 2, menuY + i * MENU_ROW + 2, farbe, false);
         }
     }
 

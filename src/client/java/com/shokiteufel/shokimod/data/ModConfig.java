@@ -1122,6 +1122,43 @@ public class ModConfig extends Config {
             return panelAreas.computeIfAbsent(panel, key -> new ArrayList<>());
         }
 
+        /**
+         * Wann ein Kasten zu sehen ist: draussen, bei offenem Fenster, oder immer.
+         *
+         * Gedacht fuer Kaesten, die nur beim Blick ins Inventar interessieren - eine
+         * Aufstellung, die im Kampf nur Platz wegnimmt, gehoert nicht dauernd aufs Bild.
+         */
+        public enum HudWhen {
+            ALWAYS("Always"), WORLD("Outside only"), INVENTORY("Inventory only");
+
+            public final String label;
+
+            HudWhen(String label) {
+                this.label = label;
+            }
+        }
+
+        /** Je Kasten, wann er erscheinen darf. Fehlt der Eintrag, gilt ALWAYS */
+        @Expose
+        public Map<String, String> panelWhen = new HashMap<>();
+
+        public HudWhen whenFor(String panel) {
+            if (panelWhen == null) panelWhen = new HashMap<>();
+            String stored = panelWhen.get(panel);
+            if (stored == null) return HudWhen.ALWAYS;
+            try {
+                return HudWhen.valueOf(stored);
+            } catch (IllegalArgumentException e) {
+                return HudWhen.ALWAYS;
+            }
+        }
+
+        public void setWhen(String panel, HudWhen when) {
+            if (panelWhen == null) panelWhen = new HashMap<>();
+            if (when == HudWhen.ALWAYS) panelWhen.remove(panel);
+            else panelWhen.put(panel, when.name());
+        }
+
         /** Darf der Kasten hier erscheinen? Null heisst: keine eigene Wahl getroffen */
         public Boolean allowsHere(String panel, String area) {
             if (panelAreas == null) return null;

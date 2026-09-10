@@ -181,7 +181,7 @@ public class ShokiMod implements ClientModInitializer {
         LOGGER.info("ShokiMod initialized (Mojang Mapping).");
     }
 
-    private static void openConfigScreen() {
+    public static void openConfigScreen() {
         try {
             MoulConfigProcessor<ModConfig> processor = MoulConfigProcessor.withDefaults(ModConfig.INSTANCE);
             ConfigProcessorDriver driver = new ConfigProcessorDriver(processor);

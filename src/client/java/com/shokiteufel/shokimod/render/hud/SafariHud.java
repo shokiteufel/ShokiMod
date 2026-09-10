@@ -44,6 +44,19 @@ public final class SafariHud {
          * gesetzt, gilt die eingebaute Vorgabe: die beiden Safari-Kaesten haben ausserhalb
          * der Safari nichts zu sagen, der Rest laeuft ueberall in SkyBlock.
          */
+        /**
+         * Passt der Kasten zu dem, was gerade auf dem Bildschirm ist?
+         *
+         * Manche Angaben will man nur beim Blick ins Inventar sehen, andere nur
+         * draussen. Ohne eigene Wahl gilt: immer.
+         */
+        public boolean showsNow() {
+            ModConfig.HudCategory.HudWhen when = ModConfig.INSTANCE.hud.whenFor(name());
+            if (when == ModConfig.HudCategory.HudWhen.ALWAYS) return true;
+            boolean fensterOffen = net.minecraft.client.Minecraft.getInstance().screen != null;
+            return when == ModConfig.HudCategory.HudWhen.INVENTORY ? fensterOffen : !fensterOffen;
+        }
+
         public boolean showsHere() {
             Boolean chosen = ModConfig.INSTANCE.hud.allowsHere(name(), GameState.Server.map);
             if (chosen != null) return chosen;
@@ -279,7 +292,7 @@ public final class SafariHud {
         if (!GameState.Server.isSkyblock()) return;
 
         for (Panel panel : PANELS) {
-            if (!panel.visible() || !panel.showsHere()) continue;
+            if (!panel.visible() || !panel.showsHere() || !panel.showsNow()) continue;
             draw(graphics, client.font, panel, panel.build());
         }
     }
