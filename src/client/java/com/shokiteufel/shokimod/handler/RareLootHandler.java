@@ -285,8 +285,10 @@ public final class RareLootHandler {
         int colour = TIER_COLOURS[Math.min(Math.max(tier.number() - 1, 0), TIER_COLOURS.length - 1)];
 
         if (tier.banner()) {
+            // Der Wert geht mit: Fallen mehrere auf einmal, reiht die Einblendung danach
             DropBanner.show(ModConfig.INSTANCE.chat.banner.designOrDefault(tier.design()),
-                    headline, "(" + worth + ")", "Tier " + tier.number(), colour, ItemIcons.stackFor(itemId));
+                    headline, "(" + worth + ")", "Tier " + tier.number(), colour,
+                    ItemIcons.stackFor(itemId), coins);
         }
 
         if (tier.toast() && client.getToastManager() != null) {

@@ -1444,6 +1444,32 @@ public class ModConfig extends Config {
         public transient Runnable openEditor = () -> {
         };
 
+        /**
+         * Was geschieht, wenn mehrere Funde gleichzeitig kommen.
+         *
+         * Aus einem Nucleus-Bundle fallen vier, fuenf Sachen auf einmal. Frueher hielt
+         * die Einblendung nur einen einzigen Zustand: Jeder neue Fund ueberschrieb den
+         * laufenden, und uebrig blieb, wen die Reihenfolge zufaellig zuletzt brachte -
+         * nicht etwa der wertvollste.
+         */
+        public enum MultiDrop {
+            CHEAP_FIRST("One by one, cheap first"),
+            RICH_FIRST("One by one, rich first"),
+            STACKED("All at once, under each other"),
+            NEWEST("Only the newest");
+
+            public final String label;
+
+            MultiDrop(String label) {
+                this.label = label;
+            }
+        }
+
+        @Expose
+        @ConfigOption(name = "Several at once", desc = "What happens when a bundle drops more than one thing worth showing: one banner after the other, all of them under each other, or only the newest.")
+        @ConfigEditorDropdown
+        public MultiDrop multiDrop = MultiDrop.CHEAP_FIRST;
+
         /** Alle Designs, die einundzwanzig Vorlagen eingeschlossen. Name ist der Schluessel */
         @Expose
         public List<BannerDesign> designs = new ArrayList<>();

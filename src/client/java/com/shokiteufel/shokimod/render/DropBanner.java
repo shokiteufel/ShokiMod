@@ -1,6 +1,7 @@
 package com.shokiteufel.shokimod.render;
 
 import com.shokiteufel.shokimod.data.BannerDesign;
+import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.data.BannerDesign.Accent;
 import com.shokiteufel.shokimod.data.BannerDesign.Anchor;
 import com.shokiteufel.shokimod.data.BannerDesign.Animation;
@@ -40,40 +41,133 @@ public final class DropBanner {
     private static final long FLASH_MILLIS = 160L;
     private static final int PADDING = 10;
 
-    private static BannerDesign design = null;
-    private static String headline = "";
-    private static String worth = "";
-    private static String tierLabel = "";
-    private static int tint = 0xFFFFFF;
-    private static ItemStack icon = null;
-    private static long displayMillis = 3000L;
-    private static long shownAtMillis = 0L;
+    /**
+     * So lange wird auf Nachzuegler gewartet, bevor abgespielt wird.
+     *
+     * Aus einem Bundle kommen die Zeilen dicht hintereinander, aber nicht im selben
+     * Augenblick. Ohne diese Pause liefe der erste schon, waehrend die anderen noch
+     * eintreffen - und "von billig nach teuer" waere nicht mehr zu halten, weil der
+     * erste eben schon laeuft. Ein Fuenftel einer Sekunde faellt niemandem auf.
+     */
+    private static final long GRACE_MILLIS = 200L;
+    /** Mehr als das ueberdeckt den halben Bildschirm */
+    private static final int MAX_STACK = 5;
+    /** Luft zwischen zwei gestapelten Einblendungen */
+    private static final int STACK_GAP = 6;
+    /** So viele duerfen hoechstens anstehen */
+    private static final int MAX_WAITING = 20;
+
+    /** Eine Einblendung mit allem, was sie braucht - frueher waren das statische Felder */
+    private static final class Shown {
+        BannerDesign design;
+        String headline = "";
+        String worth = "";
+        String tierLabel = "";
+        int tint = 0xFFFFFF;
+        ItemStack icon;
+        long displayMillis = 3000L;
+        /** Wonach gereiht wird. Bei allem ausser Beute egal */
+        double value;
+        /** 0 heisst: wartet noch */
+        long startedAt;
+    }
+
+    /** Eingetroffen, aber noch nicht angefangen - in der Reihenfolge des Eintreffens */
+    private static final java.util.List<Shown> waiting = new java.util.ArrayList<>();
+    /** Laeuft gerade auf dem Bild */
+    private static final java.util.List<Shown> running = new java.util.ArrayList<>();
+    private static long lastArrival = 0L;
 
     private DropBanner() {
     }
 
     /**
-     * Blendet ein Banner ein. Ein zweiter Aufruf ersetzt das laufende.
+     * Blendet ein Banner ein.
      *
      * @param chosen das Design; null nimmt die erste Vorlage
      * @param rgb    die Farbe der Stufe - gilt, wenn das Design keine eigene hat
      */
     public static void show(BannerDesign chosen, String headlineText, String worthText, String tierText,
                             int rgb, ItemStack iconStack) {
-        design = chosen == null ? BannerDesign.presets().get(0) : chosen;
-        headline = headlineText == null ? "" : headlineText;
-        worth = worthText == null ? "" : worthText;
-        tierLabel = tierText == null ? "" : tierText;
-        tint = rgb & 0xFFFFFF;
-        icon = iconStack;
-        displayMillis = Math.max(design.durationMillis, FADE_MILLIS + 300L);
-        shownAtMillis = System.currentTimeMillis();
+        show(chosen, headlineText, worthText, tierText, rgb, iconStack, 0d);
+    }
+
+    /**
+     * Dasselbe, mit dem Wert des Fundes - danach wird gereiht.
+     *
+     * Eingereiht statt gezeigt: Was daraus wird, entscheidet sich einen Augenblick
+     * spaeter in {@link #start}, wenn feststeht, ob noch etwas nachkommt.
+     */
+    public static void show(BannerDesign chosen, String headlineText, String worthText, String tierText,
+                            int rgb, ItemStack iconStack, double value) {
+        Shown s = new Shown();
+        s.design = chosen == null ? BannerDesign.presets().get(0) : chosen;
+        s.headline = headlineText == null ? "" : headlineText;
+        s.worth = worthText == null ? "" : worthText;
+        s.tierLabel = tierText == null ? "" : tierText;
+        s.tint = rgb & 0xFFFFFF;
+        s.icon = iconStack;
+        s.displayMillis = Math.max(s.design.durationMillis, FADE_MILLIS + 300L);
+        s.value = value;
+        waiting.add(s);
+        // Wer so lange ansteht, dass niemand mehr weiss wofuer, hilft keinem mehr
+        while (waiting.size() > MAX_WAITING) waiting.remove(0);
+        lastArrival = System.currentTimeMillis();
+    }
+
+    /**
+     * Was aus den Wartenden wird - die eine Stelle, an der die Einstellung zaehlt.
+     *
+     * Gereiht wird hier und nicht beim Eintreffen: Erst wenn eine Weile nichts mehr
+     * kam, steht fest, was zusammengehoert.
+     */
+    private static void start(long now) {
+        ModConfig.BannerCategory.MultiDrop wie = ModConfig.INSTANCE.chat.banner.multiDrop;
+        switch (wie) {
+            case NEWEST -> {
+                Shown neuestes = waiting.get(waiting.size() - 1);
+                neuestes.startedAt = now;
+                running.clear();
+                running.add(neuestes);
+                waiting.clear();
+            }
+            case STACKED -> {
+                waiting.sort(java.util.Comparator.comparingDouble(s -> s.value));
+                // Nur die entnehmen, die auch wirklich anfangen: Wer nicht mehr auf den
+                // Bildschirm passt, bleibt stehen und rueckt nach, sobald oben einer
+                // ablaeuft. Ein pauschales Leeren haette ihn verschluckt
+                java.util.Iterator<Shown> es = waiting.iterator();
+                while (es.hasNext() && running.size() < MAX_STACK) {
+                    Shown s = es.next();
+                    s.startedAt = now;
+                    running.add(s);
+                    es.remove();
+                }
+            }
+            // Einer nach dem anderen: Der naechste kommt erst, wenn der laufende durch ist
+            default -> {
+                if (!running.isEmpty()) return;
+                waiting.sort(wie == ModConfig.BannerCategory.MultiDrop.RICH_FIRST
+                        ? java.util.Comparator.comparingDouble((Shown s) -> s.value).reversed()
+                        : java.util.Comparator.comparingDouble(s -> s.value));
+                Shown naechstes = waiting.remove(0);
+                naechstes.startedAt = now;
+                running.add(naechstes);
+            }
+        }
     }
 
     /** Sandbox und Befehl: ein Beispiel im gewuenschten Design, laenger als im Spiel */
     public static void preview(BannerDesign chosen) {
+        // Die Vorschau steht fuer sich - was noch wartet, hat hier nichts zu suchen
+        waiting.clear();
+        running.clear();
         show(chosen, "+ 3x Ghost Shard", "(10.5k)", "Tier 1", 0xFFD700, ItemIcons.stackFor("SHARD_GHOST"));
-        displayMillis = Math.max(displayMillis, 4500L);
+        Shown s = waiting.get(0);
+        s.displayMillis = Math.max(s.displayMillis, 4500L);
+        s.startedAt = System.currentTimeMillis();
+        running.add(s);
+        waiting.clear();
     }
 
     /**
@@ -83,22 +177,42 @@ public final class DropBanner {
      * Animationen immer wieder, und man sieht, was man gerade eingestellt hat.
      */
     public static void keepPreview(BannerDesign chosen) {
-        long age = System.currentTimeMillis() - shownAtMillis;
-        if (shownAtMillis == 0L || design != chosen || age > displayMillis - FADE_MILLIS) preview(chosen);
+        Shown s = running.isEmpty() ? null : running.get(0);
+        if (s == null || s.design != chosen
+                || System.currentTimeMillis() - s.startedAt > s.displayMillis - FADE_MILLIS) {
+            preview(chosen);
+        }
     }
 
     public static boolean visible() {
-        return shownAtMillis != 0L;
+        return !running.isEmpty();
     }
 
+    /**
+     * Zeichnet, was gerade laeuft - und laesst nachruecken, was wartet.
+     *
+     * Gestapelt wird nach unten, in der Reihenfolge, in der {@link #start} sie gereiht
+     * hat: Die erste sitzt an der Stelle, an der frueher die einzige sass, jede
+     * weitere darunter.
+     */
     public static void render(GuiGraphicsExtractor g) {
-        if (shownAtMillis == 0L || design == null) return;
+        long now = System.currentTimeMillis();
+        running.removeIf(s -> now - s.startedAt > s.displayMillis);
+        if (!waiting.isEmpty() && now - lastArrival >= GRACE_MILLIS) start(now);
+        if (running.isEmpty()) return;
 
-        long age = System.currentTimeMillis() - shownAtMillis;
-        if (age > displayMillis) {
-            shownAtMillis = 0L;
-            return;
+        int offset = 0;
+        for (Shown s : running) {
+            offset += renderOne(g, s, offset) + STACK_GAP;
         }
+    }
+
+    /** Eine einzelne Einblendung. Gibt ihre Hoehe zurueck, damit die naechste darunter passt */
+    private static int renderOne(GuiGraphicsExtractor g, Shown banner, int offsetY) {
+        if (banner.design == null) return 0;
+
+        long age = System.currentTimeMillis() - banner.startedAt;
+        long displayMillis = banner.displayMillis;
 
         float alpha = 1.0f;
         long fadeStart = displayMillis - FADE_MILLIS;
@@ -107,14 +221,14 @@ public final class DropBanner {
         Font font = Minecraft.getInstance().font;
         int width = g.guiWidth();
         int height = g.guiHeight();
-        BannerDesign d = design;
-        int colour = parseColour(d.colour, tint);
+        BannerDesign d = banner.design;
+        int colour = parseColour(d.colour, banner.tint);
         float scale = clamp(d.scale, 0.3f, 4.0f);
 
         // ---- Texte und Groessen ----
-        String head = d.prefix + headline + d.suffix;
-        String value = d.showValue ? worth : "";
-        String tier = d.showTier ? tierLabel : "";
+        String head = d.prefix + banner.headline + d.suffix;
+        String value = d.showValue ? banner.worth : "";
+        String tier = d.showTier ? banner.tierLabel : "";
         float hs = clamp(d.headlineSize, 0.5f, 6.0f) * scale;
         float vs = clamp(d.valueSize, 0.5f, 6.0f) * scale;
         float ts = Math.max(0.8f, scale);
@@ -139,7 +253,7 @@ public final class DropBanner {
         int valueH = value.isEmpty() ? 0 : (int) (10 * vs);
         int tierW = tier.isEmpty() ? 0 : (int) (font.width(tier) * ts);
         int tierH = tier.isEmpty() ? 0 : (int) (10 * ts);
-        int iconSize = d.icon == Icon.NONE || icon == null ? 0 : (int) (16 * clamp(d.iconScale, 0.5f, 6.0f) * scale);
+        int iconSize = d.icon == Icon.NONE || banner.icon == null ? 0 : (int) (16 * clamp(d.iconScale, 0.5f, 6.0f) * scale);
         int gap = (int) (4 * scale);
 
         // Der Textblock: Ueberschrift, (Bild), Wert, Stufe untereinander
@@ -192,6 +306,9 @@ public final class DropBanner {
             }
         }
 
+        // Gestapelt: jede weitere sitzt unter der vorigen
+        cy += offsetY;
+
         float slide = Math.min(1.0f, age / (float) SLIDE_MILLIS);
         if (d.animation == Animation.SLIDE_RIGHT) cx += (int) ((1.0f - slide) * (width - cx + boxW));
         if (d.animation == Animation.DROP) cy -= (int) ((1.0f - slide) * (cy + boxH));
@@ -233,7 +350,7 @@ public final class DropBanner {
         int textLeft = contentLeft;
         int textTop = top + PADDING;
         if (d.icon == Icon.LEFT && iconSize > 0) {
-            drawIcon(g, contentLeft, top + (boxH - iconSize) / 2, iconSize);
+            drawIcon(g, banner.icon, contentLeft, top + (boxH - iconSize) / 2, iconSize);
             textLeft = contentLeft + iconSize + gap * 2;
             textTop = top + (boxH - textH) / 2;
         }
@@ -254,7 +371,7 @@ public final class DropBanner {
         }
         if (d.icon == Icon.MIDDLE && iconSize > 0) {
             y += gap;
-            drawIcon(g, textCentreX - iconSize / 2, y, iconSize);
+            drawIcon(g, banner.icon, textCentreX - iconSize / 2, y, iconSize);
             y += iconSize;
         }
         if (valueH > 0 && !typing) {
@@ -272,6 +389,7 @@ public final class DropBanner {
             y += gap;
             drawText(g, font, tier, textCentreX, y, ts, 0xAAAAAA, TextEffect.PLAIN, alpha, colour);
         }
+        return boxH;
     }
 
     // ---- Helfer ----
@@ -284,7 +402,7 @@ public final class DropBanner {
         };
     }
 
-    private static void drawIcon(GuiGraphicsExtractor g, int x, int y, int size) {
+    private static void drawIcon(GuiGraphicsExtractor g, ItemStack icon, int x, int y, int size) {
         if (icon == null) return;
         float s = size / 16f;
         g.pose().pushMatrix();
