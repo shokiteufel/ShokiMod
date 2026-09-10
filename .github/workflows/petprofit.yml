@@ -1,0 +1,51 @@
+# Sucht im Auktionshaus die Pets, bei denen sich das Hochleveln lohnt, und legt das
+# Ergebnis als kleine Datei ab. Die Rechenarbeit passiert hier und nicht auf dem
+# Rechner des Spielers - die Mod holt nur noch die fertige Liste.
+#
+# Das Ergebnis liegt im Zweig "data", der bei jedem Lauf ueberschrieben wird. So
+# waechst die Geschichte des Hauptzweigs nicht um zweitausend Eintraege im Monat.
+name: petprofit
+
+on:
+  schedule:
+    # Alle dreissig Minuten. Genauer geht es nicht: GitHub haelt sich bei geplanten
+    # Laeufen nicht auf die Minute genau, und haeufiger waere fuer Auktionen unnoetig.
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: petprofit
+  cancel-in-progress: false
+
+jobs:
+  sammeln:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Quelltext holen
+        uses: actions/checkout@v6
+
+      - name: Python bereitstellen
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Auktionshaus auswerten
+        run: python tools/petprofit.py ausgabe/petprofit.json
+
+      - name: Ergebnis veroeffentlichen
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Ein Zweig ohne Vorgeschichte: jeder Lauf ersetzt den vorigen Stand
+          git checkout --orphan data
+          git rm -rf --cached . >/dev/null
+          find . -maxdepth 1 -mindepth 1 -not -name .git -not -name ausgabe -exec rm -rf {} +
+          mv ausgabe/petprofit.json petprofit.json
+          rmdir ausgabe
+          git add petprofit.json
+          git commit -m "Pet-Gewinnliste vom $(date -u '+%Y-%m-%d %H:%M UTC')"
+          git push --force origin data
