@@ -42,7 +42,19 @@ public final class PetState {
     private static final Pattern AUTOPET = Pattern.compile(
             "^(?:Autopet equipped your|You summoned your) \\[Lvl (?<lvl>\\d+)\\] (?<name>.+?)!.*$", Pattern.CASE_INSENSITIVE);
     /** Dieselbe Angabe im Namen eines Pet-Feldes: "[Lvl 42] Ender Dragon" */
-    private static final Pattern MENU_NAME = Pattern.compile("^\\[Lvl (?<lvl>\\d+)\\] (?<name>.+)$");
+    /**
+     * Der Name eines Feldes im Pet-Menue: "[Lvl 87] Enderman".
+     *
+     * Zwischen Zahl und Klammer darf noch etwas stehen. Bei Pets auf Hoechststufe
+     * setzen Hypixel und andere Mods dort ein Zeichen ("[Lvl 100\u2726]"), und ein
+     * Muster, das nur Ziffern duldet, uebersprang das Feld stillschweigend. Getroffen
+     * hat das genau ein Pet - das getragene mit Ueberschuss - waehrend alle anderen
+     * sauber gemerkt wurden: Deshalb standen dort siebenundachtzig Bilder und
+     * ausgerechnet das gesuchte fehlte. Die Tab-Liste war laengst so tolerant;
+     * das Menue blieb streng, obwohl es dieselben Namen liest.
+     */
+    private static final Pattern MENU_NAME = Pattern.compile(
+            "^\\[Lvl (?<lvl>\\d+)[^\\]]*\\]\\s*(?<name>.+)$");
     /** "Progress to Level 41: 79.9%" */
     private static final Pattern PROGRESS = Pattern.compile(
             "^Progress to Level (?<next>\\d+): (?<percent>[\\d.,]+)%$", Pattern.CASE_INSENSITIVE);
