@@ -110,6 +110,9 @@ def sammle_pets() -> tuple[list[dict], int]:
                 continue
             sparte = SPARTE.search(a.get("item_lore", ""))
             gefunden.append({
+                # Die Kennung der Auktion - damit laesst sie sich im Spiel direkt
+                # oeffnen (/viewauction), ohne im Auktionshaus zu suchen
+                "auktion": str(a.get("uuid") or ""),
                 "id": pet_id(treffer.group("name")),
                 "name": FARBE.sub("", treffer.group("name")).strip(),
                 "stufe": int(treffer.group("lvl")),
@@ -156,6 +159,7 @@ def rechne(pets: list[dict], xp: Erfahrung) -> list[dict]:
             if gewinn <= 0:
                 continue
             ergebnis.append({
+                "auktion": p.get("auktion", ""),
                 "id": kennung,
                 "name": p["name"],
                 "sparte": sparte_von(p, kennung, xp),
