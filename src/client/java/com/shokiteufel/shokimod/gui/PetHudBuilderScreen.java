@@ -118,9 +118,24 @@ public class PetHudBuilderScreen extends Screen {
             rebuild();
         }).bounds(left + LIST_WIDTH - 20, unten + 48, 20, 20).build());
 
+        // Die Bildgroesse getrennt von der Textgroesse
+        addRenderableWidget(Button.builder(Component.literal("−"), b -> {
+            c.iconScale = clamp(Math.round((c.iconScale - 0.1f) * 10f) / 10f);
+            rebuild();
+        }).bounds(left, unten + 72, 20, 20).build());
+        addRenderableWidget(Button.builder(
+                Component.literal(String.format(Locale.US, "Icon size: %.1fx", c.iconScale)), b -> {
+                    c.iconScale = 1.0f;
+                    rebuild();
+                }).bounds(left + 24, unten + 72, LIST_WIDTH - 48, 20).build());
+        addRenderableWidget(Button.builder(Component.literal("+"), b -> {
+            c.iconScale = clamp(Math.round((c.iconScale + 0.1f) * 10f) / 10f);
+            rebuild();
+        }).bounds(left + LIST_WIDTH - 20, unten + 72, 20, 20).build());
+
         addRenderableWidget(Button.builder(Component.literal("Move on screen"), b -> {
             if (minecraft != null) minecraft.setScreen(new HudEditorScreen(this, false));
-        }).bounds(left, unten + 72, LIST_WIDTH, 20).build());
+        }).bounds(left, unten + 96, LIST_WIDTH, 20).build());
 
         addRenderableWidget(Button.builder(Component.literal("Done"), b -> onClose())
                 .bounds(left, height - 28, LIST_WIDTH, 20).build());

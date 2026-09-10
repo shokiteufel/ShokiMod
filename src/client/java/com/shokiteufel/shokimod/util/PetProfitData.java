@@ -50,7 +50,13 @@ public final class PetProfitData {
                       double perXp, String auction) {
     }
 
+    /** Ein fertiges Pet auf Hoechststufe, mit dem Preis, den es gerade kostet */
+    public record Ready(String id, String name, String category, String rarity,
+                        int level, long price, String auction) {
+    }
+
     private static volatile List<Row> rows = List.of();
+    private static volatile List<Ready> ready = List.of();
     private static volatile String updated = "";
     private static volatile long auctions = 0L;
     private static final AtomicBoolean fetching = new AtomicBoolean(false);
@@ -69,10 +75,17 @@ public final class PetProfitData {
         return rows;
     }
 
+    /** Die guenstigsten Angebote auf Hoechststufe, billigstes zuerst */
+    public static List<Ready> readyPets() {
+        prefetch();
+        return ready;
+    }
+
     /** Die Sparten, die in den Daten wirklich vorkommen - fuer die Auswahl im Fenster */
     public static List<String> categories() {
         Set<String> found = new LinkedHashSet<>();
         for (Row row : rows) found.add(row.category());
+        for (Ready r : ready) found.add(r.category());
         List<String> out = new ArrayList<>(found);
         out.sort(String::compareTo);
         return out;
@@ -195,6 +208,27 @@ public final class PetProfitData {
 
         parsed.sort((a, b) -> Double.compare(b.perXp(), a.perXp()));
         rows = List.copyOf(parsed);
+
+        // Die zweite Liste: was ein fertiges Exemplar gerade kostet
+        List<Ready> fertige = new ArrayList<>();
+        JsonArray auchFertig = root.getAsJsonArray("fertige");
+        if (auchFertig != null) {
+            for (JsonElement element : auchFertig) {
+                if (!element.isJsonObject()) continue;
+                JsonObject o = element.getAsJsonObject();
+                String name = string(o, "name");
+                if (name.isEmpty()) continue;
+                fertige.add(new Ready(
+                        string(o, "id"), name,
+                        string(o, "sparte").toUpperCase(Locale.ROOT),
+                        string(o, "seltenheit").toUpperCase(Locale.ROOT),
+                        number(o, "stufe").intValue(),
+                        number(o, "preis").longValue(),
+                        string(o, "auktion")));
+            }
+        }
+        fertige.sort((a, b) -> Long.compare(a.price(), b.price()));
+        ready = List.copyOf(fertige);
         updated = string(root, "aktualisiert");
         auctions = number(root, "angebote").longValue();
         origin = from;

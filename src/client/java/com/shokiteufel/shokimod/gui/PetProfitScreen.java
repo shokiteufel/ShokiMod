@@ -26,10 +26,13 @@ import java.util.Locale;
 public class PetProfitScreen extends Screen {
 
     private static final int ROW_HEIGHT = 20;
-    private static final int LIST_TOP = 74;
+    /** Wo die Liste beginnt - wird bei zwei Reihen Reiter nach unten geschoben */
+    private int listTop = 74;
     private static final int LIST_WIDTH = 420;
     /** Die Sparte, die zuletzt gewaehlt war - ueberdauert das Schliessen des Fensters */
     private static String category = "";
+    /** Falsch = was sich zu leveln lohnt, wahr = was ein fertiges Exemplar kostet */
+    private static boolean showReady = false;
 
     private final Screen parent;
     private int page;
@@ -44,7 +47,7 @@ public class PetProfitScreen extends Screen {
     }
 
     private int perPage() {
-        return Math.max(1, (height - 40 - LIST_TOP) / ROW_HEIGHT);
+        return Math.max(1, (height - 40 - listTop) / ROW_HEIGHT);
     }
 
     /** Die Zeilen der gewaehlten Sparte, beste zuerst */
@@ -56,8 +59,21 @@ public class PetProfitScreen extends Screen {
         return out;
     }
 
+    /** Dasselbe fuer die Preisliste der fertigen Exemplare */
+    private List<PetProfitData.Ready> visibleReady() {
+        List<PetProfitData.Ready> out = new ArrayList<>();
+        for (PetProfitData.Ready r : PetProfitData.readyPets()) {
+            if (category.isEmpty() || category.equals(r.category())) out.add(r);
+        }
+        return out;
+    }
+
+    private int rowCount() {
+        return showReady ? visibleReady().size() : visible().size();
+    }
+
     private int pageCount() {
-        return Math.max(1, (visible().size() + perPage() - 1) / perPage());
+        return Math.max(1, (rowCount() + perPage() - 1) / perPage());
     }
 
     private void rebuild() {
@@ -79,7 +95,12 @@ public class PetProfitScreen extends Screen {
         for (String sparte : sparten) {
             String beschriftung = sparte.isEmpty() ? "All" : pretty(sparte);
             int breite = Math.max(38, font.width(beschriftung) + 12);
-            if (x + breite > left + LIST_WIDTH) break;  // was nicht mehr passt, faellt weg
+            // Was nicht mehr in die Zeile passt, kommt in die naechste. Vorher fiel es
+            // weg - und damit fehlte ausgerechnet Mining, der letzte in der Reihe
+            if (x + breite > left + LIST_WIDTH) {
+                x = left;
+                y += 20;
+            }
             boolean gewaehlt = sparte.equals(category);
             Button knopf = Button.builder(
                     Component.literal(beschriftung).withStyle(
@@ -94,6 +115,9 @@ public class PetProfitScreen extends Screen {
             x += breite + 2;
         }
 
+        // Unter dem letzten Reiter faengt die Liste an
+        listTop = y + 28;
+
         int unten = height - 28;
         if (pageCount() > 1) {
             addRenderableWidget(Button.builder(Component.literal("◀"), button -> {
@@ -105,6 +129,14 @@ public class PetProfitScreen extends Screen {
                 rebuild();
             }).bounds(left + 24, unten, 20, 20).build());
         }
+        addRenderableWidget(Button.builder(
+                Component.literal(showReady ? "View: level 100 prices" : "View: worth levelling"),
+                button -> {
+                    showReady = !showReady;
+                    page = 0;
+                    rebuild();
+                }).bounds(left + 52, unten, 170, 20).build());
+
         addRenderableWidget(Button.builder(Component.literal("Done"), button -> onClose())
                 .bounds(left + LIST_WIDTH - 90, unten, 90, 20).build());
     }
@@ -119,25 +151,30 @@ public class PetProfitScreen extends Screen {
      */
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        // Erst die Knoepfe fragen. Sonst faengt die Liste einen Klick ab, der einem
+        // Reiter galt - und statt der Sparte oeffnete sich die oberste Auktion
+        if (super.mouseClicked(event, doubleClick)) return true;
         if (PetProfitData.ready()) {
-            List<Row> zeilen = visible();
             int start = page * perPage();
+            List<?> zeilen = showReady ? visibleReady() : visible();
             int left = left();
             double x = event.x();
             double y = event.y();
             if (x >= left && x <= left + LIST_WIDTH) {
-                int index = (int) ((y - LIST_TOP + 3) / ROW_HEIGHT);
+                int index = (int) ((y - listTop + 3) / ROW_HEIGHT);
                 if (index >= 0 && index < perPage() && start + index < zeilen.size()) {
-                    Row row = zeilen.get(start + index);
-                    if (!row.auction().isEmpty() && minecraft != null && minecraft.player != null) {
+                    String auktion = showReady
+                            ? visibleReady().get(start + index).auction()
+                            : visible().get(start + index).auction();
+                    if (!auktion.isEmpty() && minecraft != null && minecraft.player != null) {
                         minecraft.setScreen(null);
-                        minecraft.player.connection.sendCommand("viewauction " + row.auction());
+                        minecraft.player.connection.sendCommand("viewauction " + auktion);
                         return true;
                     }
                 }
             }
         }
-        return super.mouseClicked(event, doubleClick);
+        return false;
     }
 
     @Override
@@ -151,7 +188,7 @@ public class PetProfitScreen extends Screen {
 
         if (!PetProfitData.ready()) {
             graphics.centeredText(font, Component.literal("Loading the list ...")
-                    .withStyle(ChatFormatting.GRAY), centerX, LIST_TOP + 20, 0xFFAAAAAA);
+                    .withStyle(ChatFormatting.GRAY), centerX, listTop + 20, 0xFFAAAAAA);
             return;
         }
 
@@ -164,17 +201,24 @@ public class PetProfitScreen extends Screen {
 
         // Spaltenkoepfe: dieselben x-Werte wie die Zeilen darunter, damit beides nie
         // auseinanderlaeuft
-        graphics.text(font, "Pet", left + 4, LIST_TOP - 12, 0xFF888888, false);
-        graphics.text(font, "Lvl", left + 196, LIST_TOP - 12, 0xFF888888, false);
-        graphics.text(font, "Buy", left + 226, LIST_TOP - 12, 0xFF888888, false);
-        graphics.text(font, "Profit", left + 296, LIST_TOP - 12, 0xFF888888, false);
-        graphics.text(font, "per XP", left + 372, LIST_TOP - 12, 0xFF888888, false);
+        graphics.text(font, "Pet", left + 4, listTop - 12, 0xFF888888, false);
+        graphics.text(font, "Lvl", left + 196, listTop - 12, 0xFF888888, false);
+        if (showReady) {
+            graphics.text(font, "Rarity", left + 226, listTop - 12, 0xFF888888, false);
+            graphics.text(font, "Cheapest", left + 330, listTop - 12, 0xFF888888, false);
+            drawReady(graphics, left);
+            drawFooter(graphics, centerX);
+            return;
+        }
+        graphics.text(font, "Buy", left + 226, listTop - 12, 0xFF888888, false);
+        graphics.text(font, "Profit", left + 296, listTop - 12, 0xFF888888, false);
+        graphics.text(font, "per XP", left + 372, listTop - 12, 0xFF888888, false);
 
         List<Row> zeilen = visible();
         int start = page * perPage();
         for (int i = 0; i < perPage() && start + i < zeilen.size(); i++) {
             Row row = zeilen.get(start + i);
-            int y = LIST_TOP + i * ROW_HEIGHT;
+            int y = listTop + i * ROW_HEIGHT;
             if ((i & 1) == 0) graphics.fill(left, y - 3, left + LIST_WIDTH, y + ROW_HEIGHT - 4, 0x30000000);
 
             graphics.text(font, cut(row.name(), 30), left + 4, y, colour(row.rarity()), false);
@@ -184,9 +228,31 @@ public class PetProfitScreen extends Screen {
             graphics.text(font, String.format(Locale.US, "%.2f", row.perXp()), left + 372, y, 0xFFFFAA00, false);
         }
 
-        if (zeilen.isEmpty()) {
-            graphics.centeredText(font, Component.literal("Nothing worth levelling here right now")
-                    .withStyle(ChatFormatting.GRAY), centerX, LIST_TOP + 20, 0xFFAAAAAA);
+        drawFooter(graphics, centerX);
+    }
+
+    /** Die Preisliste der fertigen Exemplare */
+    private void drawReady(GuiGraphicsExtractor graphics, int left) {
+        List<PetProfitData.Ready> zeilen = visibleReady();
+        int start = page * perPage();
+        for (int i = 0; i < perPage() && start + i < zeilen.size(); i++) {
+            PetProfitData.Ready row = zeilen.get(start + i);
+            int y = listTop + i * ROW_HEIGHT;
+            if ((i & 1) == 0) graphics.fill(left, y - 3, left + LIST_WIDTH, y + ROW_HEIGHT - 4, 0x30000000);
+
+            graphics.text(font, cut(row.name(), 30), left + 4, y, colour(row.rarity()), false);
+            graphics.text(font, String.valueOf(row.level()), left + 196, y, 0xFFCCCCCC, false);
+            graphics.text(font, pretty(row.rarity()), left + 226, y, colour(row.rarity()), false);
+            graphics.text(font, ItemValue.format(row.price()), left + 330, y, 0xFF55FF55, false);
+        }
+    }
+
+    private void drawFooter(GuiGraphicsExtractor graphics, int centerX) {
+        if (rowCount() == 0) {
+            graphics.centeredText(font, Component.literal(showReady
+                            ? "No finished pets on the auction house right now"
+                            : "Nothing worth levelling here right now")
+                    .withStyle(ChatFormatting.GRAY), centerX, listTop + 20, 0xFFAAAAAA);
         }
         if (pageCount() > 1) {
             graphics.centeredText(font, Component.literal((page + 1) + " / " + pageCount())

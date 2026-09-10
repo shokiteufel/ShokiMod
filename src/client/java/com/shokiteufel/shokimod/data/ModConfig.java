@@ -532,6 +532,11 @@ public class ModConfig extends Config {
         public IconPlace iconPlace = IconPlace.LEFT;
 
         @Expose
+        @ConfigOption(name = "Icon size", desc = "Only the pet image, without changing the text. 1.0 is the usual sixteen pixels.")
+        @ConfigEditorSlider(minValue = 0.5f, maxValue = 3.0f, minStep = 0.1f)
+        public float iconScale = 1.0f;
+
+        @Expose
         public float hudX = 0.02f;
         @Expose
         public float hudY = 0.40f;

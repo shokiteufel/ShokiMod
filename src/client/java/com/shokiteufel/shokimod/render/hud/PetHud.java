@@ -116,6 +116,7 @@ public final class PetHud {
     public static HudPanel build() {
         HudPanel panel = new HudPanel();
         ModConfig.PetHudCategory c = cfg();
+        panel.iconScale(c.iconScale);
 
         if (!PetState.known()) {
             panel.pair("Pet:", "-", LABEL_COLOUR, HudColours.GRAY);

@@ -48,6 +48,24 @@ public class HudPanel {
     /** Kantenlaenge des Gegenstandsbildes; es ist hoeher als eine gewoehnliche Zeile */
     private static final int ICON_SIZE = 16;
 
+    /**
+     * Wie gross das Bild gezeichnet wird, im Verhaeltnis zu den sechzehn Pixeln.
+     *
+     * Steht hier, weil Hoehe und Breite des Kastens davon abhaengen - wer nur das Bild
+     * groesser stellt, soll keinen abgeschnittenen Kasten bekommen.
+     */
+    private float iconScale = 1.0f;
+
+    public HudPanel iconScale(float scale) {
+        this.iconScale = Math.max(0.25f, Math.min(4.0f, scale));
+        measuredWidth = -1;   // die Breite muss neu ausgemessen werden
+        return this;
+    }
+
+    private int iconSize() {
+        return Math.max(4, Math.round(ICON_SIZE * iconScale));
+    }
+
     private final List<Row> rows = new ArrayList<>();
 
     /**
@@ -120,8 +138,8 @@ public class HudPanel {
         return sum + PADDING * 2;
     }
 
-    private static int rowHeight(Row row) {
-        return row.kind() == Kind.ICON ? ICON_SIZE : LINE_HEIGHT;
+    private int rowHeight(Row row) {
+        return row.kind() == Kind.ICON ? Math.max(iconSize(), LINE_HEIGHT) : LINE_HEIGHT;
     }
 
     private int contentWidth(Font font) {
@@ -147,7 +165,7 @@ public class HudPanel {
                 case PAIR -> font.width(row.label()) + GUTTER + valueWidths[i];
                 case BAR -> font.width(row.label()) + GUTTER + BAR_WIDTH + GUTTER + valueWidths[i];
                 case BLANK -> 0;
-                case ICON -> ICON_SIZE + GUTTER + font.width(row.label())
+                case ICON -> iconSize() + GUTTER + font.width(row.label())
                              + (valueWidths[i] == 0 ? 0 : GUTTER + valueWidths[i]);
             };
             widest = Math.max(widest, width);
@@ -289,10 +307,23 @@ public class HudPanel {
             case BLANK -> {
             }
             case ICON -> {
-                if (!row.icon().isEmpty()) graphics.fakeItem(row.icon(), x, y);
+                int size = iconSize();
+                if (!row.icon().isEmpty()) {
+                    if (iconScale == 1.0f) {
+                        graphics.fakeItem(row.icon(), x, y);
+                    } else {
+                        // Gegenstandsbilder gibt es nur in einer Groesse - vergroessert
+                        // wird ueber die Zeichenflaeche, sonst bliebe es bei sechzehn
+                        graphics.pose().pushMatrix();
+                        graphics.pose().translate(x, y);
+                        graphics.pose().scale(iconScale, iconScale);
+                        graphics.fakeItem(row.icon(), 0, 0);
+                        graphics.pose().popMatrix();
+                    }
+                }
                 // Der Text sitzt mittig zur Bildhoehe, sonst klebte er am oberen Rand
-                int textY = y + (ICON_SIZE - LINE_HEIGHT) / 2 + 1;
-                int textX = x + ICON_SIZE + GUTTER;
+                int textY = y + (size - LINE_HEIGHT) / 2 + 1;
+                int textX = x + size + GUTTER;
                 text(graphics, font, row.label(), labelOutline[index], textX, textY, row.labelColour());
                 if (!row.value().isEmpty()) {
                     text(graphics, font, row.value(), valueOutline[index],

@@ -85,9 +85,19 @@ class Erfahrung:
         return self.tabelle(pet_id, seltenheit)[2]
 
 
+# Was Hypixel dem Namen voranstellt, etwa "[119*]" fuer die Stufen ueber der
+# Hoechststufe. Gehoert nicht zum Namen und hat in der Liste nichts verloren.
+VORSATZ = re.compile(r"^(?:\[[^\]]*\]\s*)+")
+
+
+def blosser_name(anzeigename: str) -> str:
+    """Der Name ohne Farben und ohne vorangestellte Klammerangaben."""
+    return VORSATZ.sub("", FARBE.sub("", anzeigename or "").strip()).strip()
+
+
 def pet_id(anzeigename: str) -> str:
     """Aus "Rose Dragon Egg" wird ROSE_DRAGON - so heisst es in den Pet-Daten."""
-    name = FARBE.sub("", anzeigename).strip()
+    name = blosser_name(anzeigename)
     name = re.sub(r"\s+Egg$", "", name, flags=re.IGNORECASE)
     return re.sub(r"[^A-Z0-9]+", "_", name.upper()).strip("_")
 
@@ -114,7 +124,7 @@ def sammle_pets() -> tuple[list[dict], int]:
                 # oeffnen (/viewauction), ohne im Auktionshaus zu suchen
                 "auktion": str(a.get("uuid") or ""),
                 "id": pet_id(treffer.group("name")),
-                "name": FARBE.sub("", treffer.group("name")).strip(),
+                "name": blosser_name(treffer.group("name")),
                 "stufe": int(treffer.group("lvl")),
                 "seltenheit": (a.get("tier") or "").upper(),
                 "preis": int(a.get("starting_bid") or 0),
@@ -131,6 +141,34 @@ def sparte_von(pet: dict, kennung: str, xp: Erfahrung) -> str:
     """Die Sparte des Pets, auf die bekannten Namen gebracht."""
     roh = (pet.get("sparte") or xp.sparten.get(kennung, "") or "").upper()
     return roh if roh in SPARTEN else SONSTIGE
+
+
+def fertige(pets: list[dict], xp: Erfahrung) -> list[dict]:
+    """Das guenstigste Angebot je Pet-Art auf Hoechststufe.
+
+    Beantwortet die Frage "was kostet das billigste fertige Exemplar" - unabhaengig
+    davon, ob sich das Hochziehen gerade lohnt.
+    """
+    beste: dict[tuple[str, str], dict] = {}
+    for p in pets:
+        if p["preis"] <= 0 or not p["seltenheit"]:
+            continue
+        hoechste = xp.hoechststufe(p["id"], p["seltenheit"])
+        if p["stufe"] < hoechste:
+            continue
+        schluessel = (p["id"], p["seltenheit"])
+        vorher = beste.get(schluessel)
+        if vorher is None or p["preis"] < vorher["preis"]:
+            beste[schluessel] = {
+                "auktion": p.get("auktion", ""),
+                "id": p["id"],
+                "name": p["name"],
+                "sparte": sparte_von(p, p["id"], xp),
+                "seltenheit": p["seltenheit"],
+                "stufe": p["stufe"],
+                "preis": p["preis"],
+            }
+    return sorted(beste.values(), key=lambda e: e["preis"])
 
 
 def rechne(pets: list[dict], xp: Erfahrung) -> list[dict]:
@@ -191,12 +229,15 @@ def main() -> int:
     print(f"  {gesamt:,} Angebote gesehen, {len(pets):,} davon Pets zum Sofortkauf")
     reihen = rechne(pets, xp)
     print(f"  {len(reihen):,} Pets mit Gewinnaussicht")
+    fertig = fertige(pets, xp)
+    print(f"  {len(fertig):,} Pet-Arten mit einem Angebot auf Hoechststufe")
 
     ziel.parent.mkdir(parents=True, exist_ok=True)
     ziel.write_text(json.dumps({
         "aktualisiert": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "angebote": gesamt,
         "pets": reihen[:100],
+        "fertige": fertig[:150],
     }, ensure_ascii=False, indent=1), encoding="utf-8")
     print(f"geschrieben: {ziel} ({ziel.stat().st_size:,} Bytes)")
     return 0
