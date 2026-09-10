@@ -8,9 +8,12 @@ name: petprofit
 
 on:
   schedule:
-    # Alle dreissig Minuten. Genauer geht es nicht: GitHub haelt sich bei geplanten
-    # Laeufen nicht auf die Minute genau, und haeufiger waere fuer Auktionen unnoetig.
-    - cron: "*/30 * * * *"
+    # Alle zehn Minuten. Die Minuten stehen einzeln statt als */10: GitHub reiht
+    # geplante Laeufe in eine gemeinsame Warteschlange ein und laesst sie bei Andrang
+    # aus - je mehr Termine, desto eher kommt einer davon durch. Ein Lauf dauert
+    # zwanzig Sekunden, kostet bei einem oeffentlichen Verzeichnis nichts und fragt
+    # Hypixel sechsunddreissig Mal, was der offene Auktions-Zugang gut vertraegt.
+    - cron: "0,10,20,30,40,50 * * * *"
   workflow_dispatch:
 
 permissions:

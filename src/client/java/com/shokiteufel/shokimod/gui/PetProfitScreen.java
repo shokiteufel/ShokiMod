@@ -176,10 +176,10 @@ public class PetProfitScreen extends Screen {
             return;
         }
 
-        String stand = PetProfitData.updatedAt();
+        String stand = PetProfitData.age();
         graphics.centeredText(font, Component.literal(
                         PetProfitData.auctionsSeen() + " auctions checked"
-                        + (stand.isEmpty() ? "" : " - " + stand)
+                        + (stand.isEmpty() ? "" : " - updated " + stand)
                         + " - click a row to open the auction")
                 .withStyle(ChatFormatting.DARK_GRAY), centerX, 28, 0xFF888888);
 

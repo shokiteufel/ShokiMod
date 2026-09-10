@@ -38,8 +38,14 @@ public final class PetProfitData {
     private static final String ENDPOINT =
             "https://raw.githubusercontent.com/shokiteufel/ShokiMod/data/petprofit.json";
     private static final String CACHE_FILE = "petprofit.json";
-    /** Neu gerechnet wird alle dreissig Minuten - oefter zu fragen bringt nichts */
-    private static final long REFRESH_MILLIS = 15 * 60 * 1000L;
+    /**
+     * So oft wird nachgesehen, ob es einen neuen Stand gibt.
+     *
+     * Gerechnet wird alle zehn Minuten; wer alle fuenf nachsieht, hat den neuen Stand
+     * spaetestens fuenf Minuten nach seiner Entstehung. Die Datei ist fuenfundzwanzig
+     * Kilobyte gross - das kostet nichts.
+     */
+    private static final long REFRESH_MILLIS = 5 * 60 * 1000L;
     private static final long RETRY_MILLIS = 2 * 60 * 1000L;
     private static final Duration TIMEOUT = Duration.ofSeconds(15);
     private static final Gson GSON = new Gson();
@@ -94,6 +100,27 @@ public final class PetProfitData {
     /** Wann die Liste gerechnet wurde, wie sie es selbst angibt */
     public static String updatedAt() {
         return updated;
+    }
+
+    /**
+     * Wie alt der Stand ist, in Worten: "vor 3 Minuten".
+     *
+     * Der Zeitstempel in der Datei ist nach UTC und liest sich im Spiel schlecht -
+     * interessant ist ohnehin nur, wie frisch die Zahlen sind.
+     */
+    public static String age() {
+        if (updated.isEmpty()) return "";
+        try {
+            java.time.Instant stand = java.time.Instant.parse(updated);
+            long minuten = java.time.Duration.between(stand, java.time.Instant.now()).toMinutes();
+            if (minuten < 1) return "just now";
+            if (minuten == 1) return "1 minute ago";
+            if (minuten < 60) return minuten + " minutes ago";
+            long stunden = minuten / 60;
+            return stunden == 1 ? "1 hour ago" : stunden + " hours ago";
+        } catch (RuntimeException e) {
+            return updated;   // ein unerwartetes Format lieber roh zeigen als gar nicht
+        }
     }
 
     /** Wie viele Angebote dafuer durchgesehen wurden */
