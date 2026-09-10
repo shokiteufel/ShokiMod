@@ -50,8 +50,13 @@ public final class NearbyOverlay {
         // lesen und nicht durch Kaesten hindurchschauen; im Einrichtungsfenster
         // zeichnen sie sich ohnehin selbst, an der Stelle, an die man sie zieht.
         net.minecraft.client.gui.screens.Screen offen = Minecraft.getInstance().screen;
+        // Der Chat gehoert dazu: Bei ihm hoert der gewoehnliche Weg auf zu zeichnen
+        // (dort zaehlt jedes offene Fenster), und hier kam er bisher auch nicht durch,
+        // weil er kein Behaelter-Fenster ist. So fielen die Kaesten zwischen beiden
+        // Wegen hindurch und verschwanden, sobald jemand etwas tippen wollte
         if (offen != null
-                && !(offen instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?>)) {
+                && !(offen instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?>)
+                && !(offen instanceof net.minecraft.client.gui.screens.ChatScreen)) {
             return;
         }
         // Dieselbe Auswahl wie beim Spielen - was eingeschaltet ist und hierher gehoert

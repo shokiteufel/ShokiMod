@@ -93,12 +93,25 @@ public final class MiningState {
     /**
      * "Gain +100 Mining Speed" - Hypixels Wortlaut fuer die beiden Stat-Buffs.
      *
-     * Das "Gain" am Zeilenanfang ist Absicht: ohne es hielte die Mod auch ein
-     * "hab grad 200 Mining Speed lol" aus dem Gildenchat fuer den Buff des Tages.
+     * Angekuendigt wird der Buff aber nicht nackt, sondern eingeleitet:
+     *
+     *     New day! Your Sky Mall buff changed!
+     *     New buff: Gain +100\u2618 Mining Speed.
+     *
+     * Ein Muster, das "Gain" am Zeilenanfang verlangte, fand das nie. Betroffen waren
+     * allein die beiden Stat-Buffs - die vier uebrigen erkennt die Mod an einer
+     * Textstelle mitten im Satz und liefen deshalb immer. Genau daran lag es, dass im
+     * Kasten der Buff von gestern stehenblieb.
+     *
+     * Erlaubt ist jetzt beides: "Gain" am Zeilenanfang oder hinter "New buff:".
+     * Mehrzeilig gelesen, denn Hypixel schickt die Ankuendigung mal als eine
+     * Nachricht, mal als zwei. Der Schutz gegen den Gildenchat bleibt: Ein "hab grad
+     * 200 Mining Speed lol" traegt keines von beidem vor sich her - und Zeilen mit
+     * einem Spielernamen sortiert PLAYER_LINE ohnehin vorher aus.
      */
     private static final Pattern SKY_MALL_STAT = Pattern.compile(
-            "^Gain [+]?(?<amount>[0-9]{1,4})[^A-Za-z0-9]{0,4} *Mining +(?<stat>Speed|Fortune)",
-            Pattern.CASE_INSENSITIVE);
+            "^(?:.*New buff: )?Gain [+]?(?<amount>[0-9]{1,4})[^A-Za-z0-9]{0,4} *Mining +(?<stat>Speed|Fortune)",
+            Pattern.CASE_INSENSITIVE | Pattern.MULTILINE);
 
     /**
      * Die Spitzhacken-Faehigkeiten von Hypixel.

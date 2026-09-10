@@ -70,7 +70,7 @@ public final class SafariHud {
         public boolean showsNow() {
             ModConfig.HudCategory.HudWhen when = ModConfig.INSTANCE.hud.whenFor(name());
             if (when == ModConfig.HudCategory.HudWhen.ALWAYS) return true;
-            boolean fensterOffen = net.minecraft.client.Minecraft.getInstance().screen != null;
+            boolean fensterOffen = menuOpen();
             return when == ModConfig.HudCategory.HudWhen.INVENTORY ? fensterOffen : !fensterOffen;
         }
 
@@ -310,6 +310,21 @@ public final class SafariHud {
     /** Die Kaesten, ohne bei jedem Aufruf eine neue Kopie anzulegen */
     public static Panel[] panels() {
         return PANELS;
+    }
+
+    /**
+     * Verdeckt das, was gerade offen ist, die Sicht?
+     *
+     * Der Chat nicht: Er legt sich in eine Ecke, die Welt bleibt sichtbar, und wer
+     * etwas tippt, will die Kaesten weiter sehen. Ein Inventar oder ein Menue schon.
+     *
+     * Diese eine Stelle beantwortet die Frage fuer alle - sonst laufen die
+     * Zeichenwege auseinander, und ein Kasten faellt zwischen ihnen hindurch.
+     */
+    public static boolean menuOpen() {
+        net.minecraft.client.gui.screens.Screen offen = Minecraft.getInstance().screen;
+        return offen != null
+                && !(offen instanceof net.minecraft.client.gui.screens.ChatScreen);
     }
 
     /** Nach einer Aenderung stimmt der gepufferte Kasten nicht mehr */
