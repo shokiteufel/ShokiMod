@@ -41,9 +41,14 @@ public final class PetHud {
         }
 
         String zeile = headline(c);
+        // Das zuletzt gesehene Bild, sonst das gemerkte aus frueheren Sitzungen
+        net.minecraft.world.item.ItemStack bild = PetState.icon();
+        if (bild.isEmpty()) {
+            bild = com.shokiteufel.shokimod.util.PetIcons.iconFor(PetState.name());
+        }
         // Das Bild traegt die Zeile mit; ohne Bild bleibt es bei der gewohnten Paarzeile
-        if (c.showIcon && !PetState.icon().isEmpty()) {
-            panel.icon(PetState.icon(), "Pet:", zeile, LABEL_COLOUR, colour(PetState.rarity()));
+        if (c.showIcon && !bild.isEmpty()) {
+            panel.icon(bild, "Pet:", zeile, LABEL_COLOUR, colour(PetState.rarity()));
         } else {
             panel.pair("Pet:", zeile, LABEL_COLOUR, colour(PetState.rarity()));
         }
@@ -82,7 +87,8 @@ public final class PetHud {
         }
         if (c.showOverflowLevel && PetState.overflowLevel() > 0) {
             if (out.length() > 0) out.append(' ');
-            out.append('[').append(PetState.overflowLevel()).append(STAR).append(']');
+            // Stufe und Ueberschuss zusammen: aus 200 und 332 darueber wird 532
+            out.append('[').append(PetState.combinedLevel()).append(STAR).append(']');
         }
         if (c.showName && !PetState.name().isEmpty()) {
             if (out.length() > 0) out.append(' ');

@@ -473,7 +473,7 @@ public class ModConfig extends Config {
         public boolean showLevel = true;
 
         @Expose
-        @ConfigOption(name = "Overflow level", desc = "Levels beyond the maximum, counted from the leftover experience. Hypixel does not show these - they are a calculation.")
+        @ConfigOption(name = "Overflow level", desc = "Level plus the levels beyond the maximum, added up: a level 200 dragon with 332 extra shows [532]. Hypixel does not show these - they are a calculation.")
         @ConfigEditorBoolean
         public boolean showOverflowLevel = true;
 

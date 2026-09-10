@@ -135,6 +135,16 @@ public final class PetState {
         return overflowXp;
     }
 
+    /**
+     * Stufe und Ueberschuss zusammengezaehlt: aus [Lvl 200] und 332 darueber wird 532.
+     *
+     * Gilt fuer jedes Pet gleich - die Drachen zaehlen ab ihrer Hoechststufe 200
+     * weiter, alle anderen ab 100.
+     */
+    public static int combinedLevel() {
+        return level + overflowLevel;
+    }
+
     /** Der Gegenstand, den das Pet traegt, oder leer */
     public static String heldItem() {
         return heldItem;
@@ -174,6 +184,7 @@ public final class PetState {
         if (overflowLevel > 0) out.append(", +").append(overflowLevel).append(" overflow");
         if (!heldItem.isEmpty()) out.append(", holding ").append(heldItem);
         if (!icon.isEmpty()) out.append(", icon ok");
+        out.append(", ").append(com.shokiteufel.shokimod.util.PetIcons.size()).append(" icon(s) remembered");
         out.append(", from ").append(from);
         if (seenAt > 0) {
             long seconds = Math.max(0, (System.currentTimeMillis() - seenAt) / 1000L);
@@ -204,6 +215,8 @@ public final class PetState {
         }
         name = neu;
         level = stufe;
+        // Das Menue ist jetzt nicht offen - das gemerkte Bild springt ein
+        if (icon.isEmpty()) icon = com.shokiteufel.shokimod.util.PetIcons.iconFor(neu);
         seenAt = System.currentTimeMillis();
         from = "autopet";
     }
@@ -296,6 +309,9 @@ public final class PetState {
         totalXp = gesamt;
         heldItem = getragen;
         icon = stack.copy();
+        // Damit der Kasten sein Bild auch nach einem Neustart hat, ohne dass jemand
+        // erst wieder das Pet-Menue oeffnen muss
+        com.shokiteufel.shokimod.util.PetIcons.remember(name, icon);
         computeOverflow();
         seenAt = System.currentTimeMillis();
         from = "pet menu";
