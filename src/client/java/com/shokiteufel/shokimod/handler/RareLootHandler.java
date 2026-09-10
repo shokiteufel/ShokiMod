@@ -81,6 +81,17 @@ public final class RareLootHandler {
     /** Zeilen anderer Spieler und eigene geteilte Meldungen */
     private static final String[] SKIPPED_PREFIXES = {"Party >", "Guild >", "Co-op >", "From ", "To "};
 
+    /**
+     * Solange laeuft ein angefangenes Beutebuendel aus dem Nucleus. Alle Zeilen fallen in
+     * derselben Sekunde; die Frist ist nur das Netz fuer den Fall, dass die Schlusszeile
+     * ausbleibt - sonst wuerde die naechste Chatzeile Stunden spaeter noch als Fund gelten.
+     */
+    private static final long BUNDLE_WINDOW_MILLIS = 10_000L;
+    /** Und so viele Zeilen hoechstens, falls Hypixel die Schlusszeile einmal aendert */
+    private static final int BUNDLE_MAX_LINES = 40;
+    private static long bundleUntil = 0L;
+    private static int bundleLines = 0;
+
     private static final DateTimeFormatter CLOCK = DateTimeFormatter.ofPattern("HH:mm:ss");
 
     private static final Deque<String> events = new ArrayDeque<>();
@@ -112,6 +123,8 @@ public final class RareLootHandler {
     /** Nach einem Weltwechsel gilt kein Lootshare-Beleg mehr */
     public static void reset() {
         lastLootShareAt = 0L;
+        bundleUntil = 0L;
+        bundleLines = 0;
     }
 
     /**
@@ -122,11 +135,37 @@ public final class RareLootHandler {
         if (!GameState.Server.isSkyblock()) return;
 
         String clean = plain.trim();
+        long now = System.currentTimeMillis();
+
+        // Das Beutebuendel aus dem Crystal Nucleus meldet seine Funde nicht einzeln,
+        // sondern als Liste unter einer Ueberschrift. Diese Zeilen tragen keines der
+        // Kennzeichen ("RARE DROP!", "You dug out"), auf die der Parser sonst hoert.
+        if (RareLootParser.isBundleStart(clean)) {
+            bundleUntil = now + BUNDLE_WINDOW_MILLIS;
+            bundleLines = 0;
+            note("nucleus bundle: start");
+            return;
+        }
+        if (bundleUntil > 0L) {
+            if (now > bundleUntil || RareLootParser.isBundleEnd(clean) || ++bundleLines > BUNDLE_MAX_LINES) {
+                note("nucleus bundle: end after " + bundleLines + " line(s)");
+                bundleUntil = 0L;
+                bundleLines = 0;
+            } else {
+                Drop bundled = RareLootParser.parseBundleLine(clean);
+                if (bundled != null) {
+                    evaluate(bundled, clean, now);
+                    return;
+                }
+                // Ueberschrift oder Leerzeile: das Buendel laeuft weiter, die Zeile ist
+                // aber auch fuer die uebrigen Regeln keine - hier ist Schluss
+                return;
+            }
+        }
+
         for (String prefix : SKIPPED_PREFIXES) {
             if (clean.startsWith(prefix)) return;
         }
-
-        long now = System.currentTimeMillis();
         if (LOOTSHARE_RECEIPT.matcher(clean).matches()) {
             lastLootShareAt = now;
             // Sonst nur ein Vermerk fuer den folgenden Fund. Bei Shards aber ist diese Zeile
@@ -136,7 +175,17 @@ public final class RareLootHandler {
 
         Drop drop = RareLootParser.parse(clean);
         if (drop == null) return;
+        evaluate(drop, clean, now);
+    }
 
+    /**
+     * Einen erkannten Fund bewerten und melden.
+     *
+     * Steht bewusst fuer sich: Ein Fund aus dem Nucleus-Buendel soll durch dieselben
+     * Preise, Stufen und Meldungen laufen wie ein einzeln gemeldeter, damit beide nie
+     * auseinanderlaufen koennen.
+     */
+    private static void evaluate(Drop drop, String clean, long now) {
         RareLootCategory cfg = cfg();
         List<String> candidates = candidatesFor(drop);
         Value value = ItemValue.resolve(candidates, drop.amount(), cfg.shardPriceMode, cfg.bazaarPriceMode);

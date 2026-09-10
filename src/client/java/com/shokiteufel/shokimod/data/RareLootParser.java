@@ -90,6 +90,81 @@ public final class RareLootParser {
     }
 
     /** Der Fund aus der Zeile, oder null wenn sie keiner ist */
+    /**
+     * Die Ueberschrift des Beutebuendels aus dem Crystal Nucleus.
+     *
+     * Der Fund faellt dort nicht als einzelne "RARE DROP!"-Zeile, sondern als Liste:
+     * eine Ueberschrift, dann je eine Zeile pro Gegenstand. Ohne diese Erkennung sieht
+     * die Mod dort nie einen Fund, wie wertvoll er auch sei.
+     */
+    private static final Pattern BUNDLE_START = Pattern.compile(
+            "^CRYSTAL NUCLEUS LOOT BUNDLE$", Pattern.CASE_INSENSITIVE);
+    /** Die Zwischenzeile ueber der Liste - kein Gegenstand */
+    private static final Pattern BUNDLE_HEADING = Pattern.compile(
+            "^REWARDS$", Pattern.CASE_INSENSITIVE);
+    /**
+     * Das Symbol der Edelsteinsorte vor dem Namen. Statt die zwoelf Sorten aufzuzaehlen,
+     * faellt jedes Zeichen aus Hypixels eigenem Zeichenvorrat weg - dann traegt die
+     * Erkennung auch eine Sorte, die es heute noch nicht gibt.
+     */
+    private static final Pattern BUNDLE_LEAD = Pattern.compile("^[\\uE000-\\uF8FF\\s]+");
+    /**
+     * Die Stueckzahl am Ende: "Flawed Ruby Gemstone x58", auch "Mithril Powder x6,387".
+     *
+     * Das Leerzeichen vor dem x ist entscheidend - ohne es wuerde die Zeile
+     * "Fine Onyx Gemstone" mitten im Namen zerschnitten.
+     */
+    private static final Pattern BUNDLE_AMOUNT = Pattern.compile(
+            "^(?<drop>.*?)\\s+x(?<amount>[0-9][0-9,.]*)$");
+    /** Woran das Buendel endet: die Trennlinie oder der Hinweis darunter */
+    private static final Pattern BUNDLE_END = Pattern.compile(
+            "^(?:[\\u25AC\\u2500-\\u257F=-]{4,}|Pick it up near the Nucleus Vault!.*)$",
+            Pattern.CASE_INSENSITIVE);
+    /** Ein Gegenstandsname faengt mit einem Buchstaben oder einer Ziffer an */
+    private static final Pattern BUNDLE_NAME = Pattern.compile("^[A-Za-z0-9].*");
+
+    /** Beginnt hier das Beutebuendel aus dem Nucleus? */
+    public static boolean isBundleStart(String clean) {
+        return BUNDLE_START.matcher(clean).matches();
+    }
+
+    /** Ist das die Zeile, hinter der das Buendel sicher zu Ende ist? */
+    public static boolean isBundleEnd(String clean) {
+        return BUNDLE_END.matcher(clean).matches();
+    }
+
+    /**
+     * Eine Zeile aus dem Buendel als Fund - oder null, wenn sie keiner ist.
+     *
+     * Die Ueberschrift und die Leerzeile in der Mitte liefern null, ohne dass das
+     * Buendel deshalb zu Ende waere; darueber entscheidet allein der Aufrufer.
+     */
+    public static Drop parseBundleLine(String clean) {
+        if (clean == null) return null;
+        String rest = BUNDLE_LEAD.matcher(clean).replaceFirst("").trim();
+        if (rest.isEmpty() || BUNDLE_HEADING.matcher(rest).matches()) return null;
+
+        int amount = 1;
+        Matcher counted = BUNDLE_AMOUNT.matcher(rest);
+        if (counted.matches()) {
+            try {
+                amount = Integer.parseInt(counted.group("amount").replace(",", "").replace(".", ""));
+            } catch (NumberFormatException e) {
+                return null;
+            }
+            if (amount < 1) return null;
+            rest = counted.group("drop").trim();
+        }
+        if (rest.length() < 3 || !BUNDLE_NAME.matcher(rest).matches()) return null;
+
+        // Denselben Weg gehen wie ein einzelner Fund: so gelten hier dieselben Kennungen,
+        // Buecher und Shard-Namen, ohne dass die Regeln ein zweites Mal dastehen
+        Drop base = build(rest, null);
+        if (base == null) return null;
+        return amount == 1 ? base
+                : new Drop(base.displayName(), amount, base.context(), base.itemIdCandidates());
+    }
+
     public static Drop parse(String plain) {
         if (plain == null) return null;
         String clean = plain.trim();
