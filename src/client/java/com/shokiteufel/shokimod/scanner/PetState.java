@@ -273,6 +273,8 @@ public final class PetState {
             }
             name = neuerName;
             level = stufe;
+            // Nach einem Neustart ist noch kein Bild da - das gemerkte springt ein
+            if (icon.isEmpty()) icon = com.shokiteufel.shokimod.util.PetIcons.iconFor(neuerName);
 
             String ueber = pet.group("over");
             overflowLevel = ueber == null ? 0 : parseInt(ueber);
@@ -282,6 +284,16 @@ public final class PetState {
             if (i + 2 < lines.size()) {
                 Matcher xp = TAB_XP.matcher(clean(lines.get(i + 2)));
                 if (xp.matches()) overflowXp = parseAmount(xp.group("xp"));
+            }
+            // Fuer die drei Drachen nennt die Tab-Liste die Ueberschuss-Stufe selbst.
+            // Fuer alle anderen steht dort nur die Erfahrung - die Stufe ergibt sich
+            // daraus nach derselben Regel: je volle Kosten der letzten Stufe eine mehr.
+            if (overflowLevel <= 0 && overflowXp > 0) {
+                int schritt = overflowStep();
+                if (schritt > 0) {
+                    overflowLevel = (int) Math.floor(overflowXp / schritt);
+                    atMax = atMax || overflowLevel > 0;
+                }
             }
             seenAt = System.currentTimeMillis();
             from = "tab list";
@@ -302,14 +314,21 @@ public final class PetState {
         String title = clean(screen.getTitle().getString()).toLowerCase(Locale.ROOT);
         if (!title.startsWith("pets")) return;
 
+        boolean aktivesGefunden = false;
         for (Slot slot : screen.getMenu().slots) {
             ItemStack stack = slot.getItem();
             if (stack.isEmpty()) continue;
             Matcher named = MENU_NAME.matcher(clean(stack.getHoverName().getString()));
             if (!named.matches()) continue;
+
+            // Jedes Pet im Menue merken, nicht nur das aktive: Wer spaeter ein anderes
+            // ausruestet, haette sonst wieder kein Bild und muesste das Menue erneut
+            // oeffnen - genau das soll das Merken ja ersparen
+            com.shokiteufel.shokimod.util.PetIcons.remember(cleanName(named.group("name")), stack);
+
             ItemLore lore = stack.get(DataComponents.LORE);
             if (lore == null) continue;
-            if (readActive(named, lore, stack)) return;  // das aktive Pet ist gefunden
+            if (!aktivesGefunden && readActive(named, lore, stack)) aktivesGefunden = true;
         }
     }
 
@@ -394,6 +413,24 @@ public final class PetState {
         seenAt = System.currentTimeMillis();
         from = "pet menu";
         return true;
+    }
+
+    /**
+     * Was eine Ueberschuss-Stufe kostet.
+     *
+     * Steht die Seltenheit fest, gilt die letzte regulaere Stufe dieses Pets. Ist sie
+     * unbekannt - das Pet-Menue war noch nie offen -, gilt der Wert der hoechsten
+     * Stufen (1.886.700, wie bei Legendary, Mythic und den drei Drachen). Das ist der
+     * haeufigste Fall und liegt bei den selteneren Pets richtig; ein Common-Pet mit
+     * Ueberschuss waere die Ausnahme, und sobald jemand einmal ins Menue schaut,
+     * stimmt auch dort die Zahl.
+     */
+    private static int overflowStep() {
+        if (!rarity.isEmpty()) {
+            PetLevels.Table table = PetLevels.tableFor(PetLevels.idFor(name), rarity);
+            if (table != null && table.lastStep() > 0) return table.lastStep();
+        }
+        return 1_886_700;
     }
 
     /**
