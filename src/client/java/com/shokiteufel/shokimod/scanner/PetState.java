@@ -295,11 +295,37 @@ public final class PetState {
             overflowLevel = ueber == null ? 0 : parseInt(ueber);
             atMax = overflowLevel > 0 || atMax;
 
-            // Die Erfahrungszeile steht direkt darunter, kann aber fehlen
-            if (i + 2 < lines.size()) {
-                Matcher xp = TAB_XP.matcher(clean(lines.get(i + 2)));
-                if (xp.matches()) overflowXp = parseAmount(xp.group("xp"));
+            // Die Erfahrungszeile steht darunter - aber nicht immer unmittelbar.
+            //
+            // Haelt das Pet ein Item, schiebt sich dessen Name dazwischen:
+            //
+            //     Pet:
+            //     [Lvl 100] Black Cat
+            //     Lucky Clover          <- nur bei Pets mit Item
+            //     +31,545,449.2 XP
+            //
+            // Nachgesehen wurde bisher allein in der Zeile direkt darunter. Bei
+            // einem Pet ohne Item stand die Erfahrung genau dort und alles stimmte;
+            // mit Item stand dort das Item, und die Ueberschuss-Stufe fehlte immer.
+            // Gesucht wird deshalb ueber die naechsten Zeilen, bis die Zahl kommt
+            // oder der Abschnitt endet ("Pet Training:" faengt den naechsten an).
+            double gefundeneXp = -1.0;
+            String gefundenesItem = "";
+            for (int j = i + 2; j < lines.size() && j <= i + 4; j++) {
+                String zeile = clean(lines.get(j));
+                if (zeile.isEmpty() || zeile.endsWith(":")) break;
+                Matcher xp = TAB_XP.matcher(zeile);
+                if (xp.matches()) {
+                    gefundeneXp = parseAmount(xp.group("xp"));
+                    break;
+                }
+                // Weder Zahl noch Ueberschrift: das ist der Name des Items
+                if (gefundenesItem.isEmpty()) gefundenesItem = zeile;
             }
+            if (gefundeneXp > 0) overflowXp = gefundeneXp;
+            // Das Item nur setzen, nicht loeschen - beim Pet-Wechsel raeumt der
+            // Block weiter oben ohnehin auf, und das Menue weiss es manchmal besser
+            if (!gefundenesItem.isEmpty()) heldItem = gefundenesItem;
             // Fuer die drei Drachen nennt die Tab-Liste die Ueberschuss-Stufe selbst.
             // Fuer alle anderen steht dort nur die Erfahrung - die Stufe ergibt sich
             // daraus nach derselben Regel: je volle Kosten der letzten Stufe eine mehr.
