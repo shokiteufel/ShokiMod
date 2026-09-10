@@ -57,6 +57,9 @@ public final class PetState {
     /** Der Gegenstand, den das Pet traegt: "Held Item: Textbook" */
     private static final Pattern HELD_ITEM = Pattern.compile(
             "^Held Item:\\s*(?<item>.+)$", Pattern.CASE_INSENSITIVE);
+    /** Die Stufen, die Hypixel fuer Pets vergibt - in dieser Schreibweise */
+    private static final java.util.Set<String> RARITIES = java.util.Set.of(
+            "COMMON", "UNCOMMON", "RARE", "EPIC", "LEGENDARY", "MYTHIC", "DIVINE");
     /** Nur beim aktiven Pet steht das in der Beschreibung */
     private static final String ACTIVE_HINT = "click to despawn";
     private static final Pattern COLOUR_CODE = Pattern.compile("§.");
@@ -243,8 +246,11 @@ public final class PetState {
             String text = clean(zeile.getString()).trim();
             String klein = text.toLowerCase(Locale.ROOT);
             if (klein.contains(ACTIVE_HINT)) active = true;
-            // Die Seltenheit steht als letzte fette Zeile: "LEGENDARY"
-            if (text.matches("^[A-Z ]{4,}$")) seltenheit = text.trim();
+            // Die Seltenheit steht als letzte fette Zeile. Nur die bekannten Stufen
+            // zaehlen: "MAX LEVEL" und "CLICK TO DESPAWN" sind ebenfalls in
+            // Grossbuchstaben und wuerden sonst als Seltenheit durchgehen - dann
+            // rechnet der Ueberschuss mit dem Versatz von COMMON und liegt weit daneben
+            if (RARITIES.contains(text)) seltenheit = text;
 
             if (MAX_LEVEL.matcher(text).matches()) {
                 maxErreicht = true;
@@ -308,6 +314,8 @@ public final class PetState {
         overflowLevel = 0;
         overflowXp = 0.0;
         if (!atMax || totalXp < 0) return;
+        // Ohne Seltenheit stimmt der Versatz nicht, und die Zahl waere frei erfunden
+        if (rarity.isEmpty()) return;
 
         PetLevels.Table table = PetLevels.tableFor(PetLevels.idFor(name), rarity);
         if (table == null) return;   // die Tabellen sind noch nicht geladen

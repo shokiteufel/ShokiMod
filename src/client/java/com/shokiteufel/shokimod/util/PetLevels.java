@@ -103,13 +103,21 @@ public final class PetLevels {
             JsonElement eigen = custom.getAsJsonObject().get(petId);
             if (eigen != null && eigen.isJsonObject()) {
                 JsonObject o = eigen.getAsJsonObject();
-                if (o.has("pet_levels") && o.get("pet_levels").isJsonArray()) {
-                    steps = toList(o.getAsJsonArray("pet_levels"));
-                    // Eine eigene Tabelle faengt bei ihrer ersten Stufe an
-                    offset = 0;
-                }
-                if (o.has("max_level")) maxLevel = o.get("max_level").getAsInt();
                 if (o.has("rarity_offset")) offset = offsetFor(rarity, o.getAsJsonObject("rarity_offset"));
+                if (o.has("max_level")) maxLevel = o.get("max_level").getAsInt();
+                if (o.has("pet_levels") && o.get("pet_levels").isJsonArray()) {
+                    // Die eigene Tabelle SETZT DIE BASIS FORT, sie ersetzt sie nicht: Die
+                    // Drachen steigen bis Stufe 100 wie jedes Pet ihrer Seltenheit, erst
+                    // darueber gelten ihre eigenen Kosten. Wer sie ersetzt, rechnet mit
+                    // einer Grundlage von fuenf Millionen statt zweihundertvierzehn - und
+                    // bekommt aus 332 Ueberschuss-Stufen die 2179 vom 10.09.
+                    List<Integer> fortsetzung = toList(o.getAsJsonArray("pet_levels"));
+                    List<Integer> zusammen = new ArrayList<>(
+                            steps.subList(Math.min(offset, steps.size()), steps.size()));
+                    zusammen.addAll(fortsetzung);
+                    steps = zusammen;
+                    offset = 0;   // der Versatz steckt schon im Ausschnitt
+                }
             }
         }
         if (steps.isEmpty()) return null;
