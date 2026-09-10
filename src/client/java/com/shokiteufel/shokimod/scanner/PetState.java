@@ -207,7 +207,7 @@ public final class PetState {
         if (atMax) out.append(", MAX");
         if (overflowLevel > 0) out.append(", +").append(overflowLevel).append(" overflow");
         if (!heldItem.isEmpty()) out.append(", holding ").append(heldItem);
-        if (!icon.isEmpty()) out.append(", icon ok");
+        out.append(icon.isEmpty() ? ", NO ICON" : ", icon ok");
         out.append(", ").append(com.shokiteufel.shokimod.util.PetIcons.size()).append(" icon(s) remembered");
         out.append(", from ").append(from);
         if (seenAt > 0) {
@@ -343,7 +343,18 @@ public final class PetState {
             // Jedes Pet im Menue merken, nicht nur das aktive: Wer spaeter ein anderes
             // ausruestet, haette sonst wieder kein Bild und muesste das Menue erneut
             // oeffnen - genau das soll das Merken ja ersparen
-            com.shokiteufel.shokimod.util.PetIcons.remember(cleanName(named.group("name")), stack);
+            String feldName = cleanName(named.group("name"));
+            com.shokiteufel.shokimod.util.PetIcons.remember(feldName, stack);
+
+            // Rueckfall fuer das Bild: Traegt ein Feld den Namen des getragenen Pets und
+            // fehlt uns noch ein Bild, wird es genommen - auch ohne den Hinweis auf das
+            // Absetzen in der Beschreibung. Ein Pet mit Skin sieht dort anders aus als
+            // erwartet, und ein Kasten ohne Bild ist schlechter als eines vom richtigen
+            // Pet mit womoeglich falschem Skin
+            if (icon.isEmpty() && !name.isEmpty() && feldName.equalsIgnoreCase(name)) {
+                icon = stack.copy();
+                com.shokiteufel.shokimod.util.PetIcons.remember(name, icon, true);
+            }
 
             ItemLore lore = stack.get(DataComponents.LORE);
             if (lore == null) continue;
@@ -426,7 +437,7 @@ public final class PetState {
         icon = stack.copy();
         // Damit der Kasten sein Bild auch nach einem Neustart hat, ohne dass jemand
         // erst wieder das Pet-Menue oeffnen muss
-        com.shokiteufel.shokimod.util.PetIcons.remember(name, icon);
+        com.shokiteufel.shokimod.util.PetIcons.remember(name, icon, true);
         // Nur selbst rechnen, wenn die Tab-Liste nichts geliefert hat - sie ist genauer
         if (overflowLevel <= 0) computeOverflow();
         seenAt = System.currentTimeMillis();

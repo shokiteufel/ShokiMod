@@ -49,14 +49,19 @@ public final class PetIcons {
      * gerade in einem Menue steht, saehe sonst eine Luecke, wo eben noch eine Zahl war -
      * deshalb wird der letzte bekannte Stand behalten.
      */
-    private record Recipe(String item, String texture, int overflowLevel, double overflowXp) {
+    private record Recipe(String item, String texture, int overflowLevel, double overflowXp,
+                          boolean fromActive) {
 
         Recipe(String item, String texture) {
-            this(item, texture, 0, 0d);
+            this(item, texture, 0, 0d, false);
         }
 
         Recipe withOverflow(int level, double xp) {
-            return new Recipe(item, texture, level, xp);
+            return new Recipe(item, texture, level, xp, fromActive);
+        }
+
+        Recipe asActive(boolean aktiv) {
+            return new Recipe(item, texture, overflowLevel, overflowXp, aktiv);
         }
 
         /** Nur das Bild - fuer den Vergleich, ob sich am Bild etwas geaendert hat */
@@ -96,12 +101,28 @@ public final class PetIcons {
      * verschwendet.
      */
     public static void remember(String petName, ItemStack stack) {
+        remember(petName, stack, false);
+    }
+
+    /**
+     * Ein Bild behalten - und dabei wissen, ob es vom getragenen Pet stammt.
+     *
+     * Zwei Pets koennen denselben Namen tragen und trotzdem verschieden aussehen: wer
+     * ein Ammonite mit Skin traegt und ein zweites ohne, hat beide unter "Ammonite"
+     * stehen. Weil der Name der einzige Schluessel ist, gewinnt sonst das letzte im
+     * Menue - und das ist selten das getragene. Deshalb hat das getragene Vorrang und
+     * wird von einem gleichnamigen aus der Liste nicht mehr ueberschrieben.
+     */
+    public static void remember(String petName, ItemStack stack, boolean active) {
         if (petName == null || petName.isBlank() || stack == null || stack.isEmpty()) return;
         load();
         String key = key(petName);
         Recipe vorher = recipes.get(key);
-        Recipe recipe = new Recipe(itemId(stack), texture(stack));
-        if (recipe.sameImage(vorher)) return;
+        // Ein Bild aus der Liste tritt hinter das des getragenen Pets zurueck
+        if (!active && vorher != null && vorher.fromActive()) return;
+
+        Recipe recipe = new Recipe(itemId(stack), texture(stack)).asActive(active);
+        if (recipe.sameImage(vorher) && vorher != null && vorher.fromActive() == active) return;
         // Was ueber den Ueberschuss bekannt war, bleibt erhalten
         if (vorher != null) recipe = recipe.withOverflow(vorher.overflowLevel(), vorher.overflowXp());
 
@@ -212,7 +233,8 @@ public final class PetIcons {
                 String texture = o.has("texture") ? o.get("texture").getAsString() : "";
                 int over = o.has("overflow") ? o.get("overflow").getAsInt() : 0;
                 double overXp = o.has("overflowXp") ? o.get("overflowXp").getAsDouble() : 0d;
-                recipes.put(entry.getKey(), new Recipe(item, texture, over, overXp));
+                boolean aktiv = o.has("active") && o.get("active").getAsBoolean();
+                recipes.put(entry.getKey(), new Recipe(item, texture, over, overXp, aktiv));
             }
         } catch (IOException | RuntimeException e) {
             ShokiMod.LOGGER.warn("[ShokiMod] Could not read remembered pet icons: {}", e.toString());
@@ -230,6 +252,7 @@ public final class PetIcons {
                 if (!entry.getValue().texture().isBlank()) {
                     o.addProperty("texture", entry.getValue().texture());
                 }
+                if (entry.getValue().fromActive()) o.addProperty("active", true);
                 if (entry.getValue().overflowLevel() > 0) {
                     o.addProperty("overflow", entry.getValue().overflowLevel());
                     o.addProperty("overflowXp", entry.getValue().overflowXp());
