@@ -2,8 +2,10 @@ package com.shokiteufel.shokimod;
 
 import com.shokiteufel.shokimod.data.BannerDesign;
 import com.shokiteufel.shokimod.data.ModConfig;
+import com.shokiteufel.shokimod.util.PetProfitData;
 import com.shokiteufel.shokimod.util.BundledSounds;
 import com.shokiteufel.shokimod.gui.HudEditorScreen;
+import com.shokiteufel.shokimod.gui.PetProfitScreen;
 import com.shokiteufel.shokimod.gui.ShokiConfigEditor;
 import com.shokiteufel.shokimod.handler.FloorDropHandler;
 import com.shokiteufel.shokimod.handler.NetworkHandler;
@@ -47,6 +49,7 @@ public class ShokiMod implements ClientModInitializer {
     // sonst schliesst der Chat es sofort wieder. Deshalb erst im naechsten Tick
     private static boolean openConfigNextTick = false;
     private static boolean openHudNextTick = false;
+    private static boolean openPetProfitNextTick = false;
 
 
     @Override
@@ -78,6 +81,10 @@ public class ShokiMod implements ClientModInitializer {
                 openHudNextTick = false;
                 client.setScreen(new HudEditorScreen(null, false));
             }
+            if (openPetProfitNextTick) {
+                openPetProfitNextTick = false;
+                client.setScreen(new PetProfitScreen(null));
+            }
         });
 
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
@@ -101,6 +108,15 @@ public class ShokiMod implements ClientModInitializer {
                         }))
                         .then(ClientCommands.literal("hub").executes(context -> {
                             openHudNextTick = true;
+                            return 1;
+                        }))
+                        // /shoki petprofit -> welche Pets sich zu leveln lohnen.
+                        // Die Liste wird nicht hier gerechnet, sondern alle halbe Stunde
+                        // auf GitHub; das Holen wird schon hier angestossen, damit beim
+                        // Oeffnen im naechsten Tick moeglichst etwas dasteht
+                        .then(ClientCommands.literal("petprofit").executes(context -> {
+                            PetProfitData.prefetch();
+                            openPetProfitNextTick = true;
                             return 1;
                         }))
                         // /shoki tab -> die Tab-Liste ins Log schreiben.

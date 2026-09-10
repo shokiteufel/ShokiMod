@@ -30,6 +30,12 @@ NAME_MUSTER = re.compile(r"^\[Lvl (?<lvl>\d+)\] (?<name>.+)$".replace("?<", "?P<
 # Aus der Beschreibung: "Farming Pet", "Combat Pet" - die Sparte des Pets
 SPARTE = re.compile(r"§8(?P<sparte>[A-Za-z ]+) Pet")
 FARBE = re.compile("§.")
+# Die Sparten, nach denen sich die Liste filtern laesst. Was Hypixel sonst noch an
+# Scherz-Pets fuehrt (etwa GABAGOOL), faellt unter SONSTIGE - sonst stuende in der
+# Auswahl irgendwann ein Knopf fuer ein einziges Pet.
+SPARTEN = {"ALCHEMY", "COMBAT", "ENCHANTING", "FARMING", "FISHING", "FORAGING", "MINING", "TAMING"}
+SONSTIGE = "OTHER"
+
 # Nur diese Stufen gelten als "fertig hochgezogen"
 HOECHSTSTUFE = 100
 # Weniger als das ist kein belastbarer Marktpreis, sondern ein Ausreisser
@@ -118,6 +124,12 @@ def sammle_pets() -> tuple[list[dict], int]:
     return gefunden, gesamt
 
 
+def sparte_von(pet: dict, kennung: str, xp: Erfahrung) -> str:
+    """Die Sparte des Pets, auf die bekannten Namen gebracht."""
+    roh = (pet.get("sparte") or xp.sparten.get(kennung, "") or "").upper()
+    return roh if roh in SPARTEN else SONSTIGE
+
+
 def rechne(pets: list[dict], xp: Erfahrung) -> list[dict]:
     """Je Angebot: was es kostet, was es fertig wert ist, und was dazwischen liegt."""
     nach_art: dict[tuple[str, str], list[dict]] = defaultdict(list)
@@ -146,7 +158,7 @@ def rechne(pets: list[dict], xp: Erfahrung) -> list[dict]:
             ergebnis.append({
                 "id": kennung,
                 "name": p["name"],
-                "sparte": p["sparte"] or xp.sparten.get(kennung, ""),
+                "sparte": sparte_von(p, kennung, xp),
                 "seltenheit": seltenheit,
                 "stufe": p["stufe"],
                 "preis": p["preis"],
