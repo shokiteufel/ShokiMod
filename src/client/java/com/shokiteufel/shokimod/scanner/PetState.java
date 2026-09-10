@@ -205,7 +205,15 @@ public final class PetState {
         if (!rarity.isEmpty()) out.append(" (").append(rarity.toLowerCase(Locale.ROOT)).append(')');
         if (percent >= 0) out.append(String.format(Locale.US, ", %.1f%% to next", percent));
         if (atMax) out.append(", MAX");
-        if (overflowLevel > 0) out.append(", +").append(overflowLevel).append(" overflow");
+        // Auch die Erfahrung nennen, nicht nur die Stufe: Ohne sie laesst sich "keine
+        // Ueberschuss-Zeile im Tab" nicht von "Erfahrung reicht noch nicht" trennen -
+        // und genau diese Frage stellt sich, wenn im Kasten nichts steht
+        if (overflowXp > 0) {
+            out.append(String.format(Locale.US, ", overflow %.0f xp = %d level(s) [%d per level]",
+                    overflowXp, overflowLevel, OVERFLOW_STEP));
+        } else {
+            out.append(", no overflow xp in tab");
+        }
         if (!heldItem.isEmpty()) out.append(", holding ").append(heldItem);
         out.append(icon.isEmpty() ? ", NO ICON" : ", icon ok");
         out.append(", ").append(com.shokiteufel.shokimod.util.PetIcons.size()).append(" icon(s) remembered");

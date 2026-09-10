@@ -205,7 +205,10 @@ public final class PetHud {
         return switch (part) {
             case LEVEL -> PetState.level() > 0 ? "[Lvl " + PetState.level() + "]" : "";
             // Stufe und Ueberschuss zusammen: aus 200 und 332 darueber wird 532
-            case OVERFLOW_LEVEL -> PetState.overflowLevel() > 0
+            // Auch bei null Ueberschuss-Stufen anzeigen, sobald ueberhaupt Erfahrung
+            // darueber gesammelt wurde: Sonst sieht es aus, als waere die Rechnung
+            // ausgefallen, dabei reicht die Erfahrung nur noch nicht fuer eine Stufe
+            case OVERFLOW_LEVEL -> PetState.overflowXp() > 0
                     ? "[" + PetState.combinedLevel() + STAR + "]" : "";
             case NAME -> PetState.name();
             case OVERFLOW_XP -> PetState.overflowXp() > 0
