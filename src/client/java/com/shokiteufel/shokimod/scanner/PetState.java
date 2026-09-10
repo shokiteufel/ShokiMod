@@ -57,6 +57,22 @@ public final class PetState {
     /** Der Gegenstand, den das Pet traegt: "Held Item: Textbook" */
     private static final Pattern HELD_ITEM = Pattern.compile(
             "^Held Item:\\s*(?<item>.+)$", Pattern.CASE_INSENSITIVE);
+    /**
+     * Die Ueberschrift des Pet-Blocks in der Tab-Liste. Darunter stehen zwei Zeilen:
+     * "[Lvl 200] [332*] Golden Dragon" und "+628,040,665.1 XP".
+     *
+     * Diese Quelle ist der Rechnung ueberlegen: Sie ist immer da, solange die
+     * Tab-Liste steht, nennt den Ueberschuss fertig und sagt vor allem, welches Pet
+     * WIRKLICH draussen ist - das Menue zeigt nur, was gerade angeklickt wurde.
+     */
+    private static final Pattern TAB_HEAD = Pattern.compile("^Pet:$", Pattern.CASE_INSENSITIVE);
+    /** Die Zeile mit Stufe, moeglicher Ueberschuss-Stufe und Namen */
+    private static final Pattern TAB_PET = Pattern.compile(
+            "^\\[Lvl (?<lvl>\\d+)\\]\\s*(?:\\[(?<over>\\d+)[^\\]]*\\]\\s*)?(?<name>.+)$");
+    /** Die Erfahrung darunter: "+628,040,665.1 XP" */
+    private static final Pattern TAB_XP = Pattern.compile(
+            "^\\+?(?<xp>[0-9][0-9,.]*)\\s*XP$", Pattern.CASE_INSENSITIVE);
+
     /** Die Stufen, die Hypixel fuer Pets vergibt - in dieser Schreibweise */
     private static final java.util.Set<String> RARITIES = java.util.Set.of(
             "COMMON", "UNCOMMON", "RARE", "EPIC", "LEGENDARY", "MYTHIC", "DIVINE");
@@ -227,6 +243,52 @@ public final class PetState {
         from = "autopet";
     }
 
+    /**
+     * Das aktive Pet aus der Tab-Liste.
+     *
+     * Was hier steht, hat Vorrang vor dem Menue: Die Tab-Liste zeigt immer das Pet,
+     * das gerade draussen ist, waehrend im Menue auch ein anderes angeklickt sein
+     * kann. Genau daran lag es, dass zwischendurch das falsche Pet im Kasten stand.
+     */
+    public static void processTabList(java.util.List<String> lines) {
+        for (int i = 0; i < lines.size() - 1; i++) {
+            if (!TAB_HEAD.matcher(clean(lines.get(i))).matches()) continue;
+
+            Matcher pet = TAB_PET.matcher(clean(lines.get(i + 1)));
+            if (!pet.matches()) return;
+            String neuerName = cleanName(pet.group("name"));
+            int stufe = parseInt(pet.group("lvl"));
+            if (neuerName.isEmpty() || stufe <= 0) return;
+
+            // Ein anderes Pet heisst: alles Gemerkte gehoert nicht mehr dazu
+            if (!neuerName.equalsIgnoreCase(name)) {
+                percent = -1.0;
+                xpHave = -1.0;
+                xpNeed = -1.0;
+                rarity = "";
+                totalXp = -1.0;
+                atMax = false;
+                heldItem = "";
+                icon = com.shokiteufel.shokimod.util.PetIcons.iconFor(neuerName);
+            }
+            name = neuerName;
+            level = stufe;
+
+            String ueber = pet.group("over");
+            overflowLevel = ueber == null ? 0 : parseInt(ueber);
+            atMax = overflowLevel > 0 || atMax;
+
+            // Die Erfahrungszeile steht direkt darunter, kann aber fehlen
+            if (i + 2 < lines.size()) {
+                Matcher xp = TAB_XP.matcher(clean(lines.get(i + 2)));
+                if (xp.matches()) overflowXp = parseAmount(xp.group("xp"));
+            }
+            seenAt = System.currentTimeMillis();
+            from = "tab list";
+            return;
+        }
+    }
+
     /** Der Blick ins offene Pet-Menue: nur dort steht der Fortschritt */
     public static void tick(Minecraft client) {
         if (client == null || !(client.screen instanceof AbstractContainerScreen<?> screen)) return;
@@ -320,14 +382,15 @@ public final class PetState {
         percent = prozent;
         xpHave = haben;
         xpNeed = noetig;
-        atMax = maxErreicht;
+        atMax = maxErreicht || atMax;
         totalXp = gesamt;
         heldItem = getragen;
         icon = stack.copy();
         // Damit der Kasten sein Bild auch nach einem Neustart hat, ohne dass jemand
         // erst wieder das Pet-Menue oeffnen muss
         com.shokiteufel.shokimod.util.PetIcons.remember(name, icon);
-        computeOverflow();
+        // Nur selbst rechnen, wenn die Tab-Liste nichts geliefert hat - sie ist genauer
+        if (overflowLevel <= 0) computeOverflow();
         seenAt = System.currentTimeMillis();
         from = "pet menu";
         return true;

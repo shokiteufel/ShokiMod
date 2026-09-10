@@ -96,6 +96,8 @@ public class TabListScanner {
 
         // Gebiet und Server-ID stehen in der Tab-Liste
         LocationScanner.processTabList(unformattedLines);
+        // Welches Pet draussen ist, samt Ueberschuss - die verlaesslichste Quelle
+        PetState.processTabList(unformattedLines);
         // Auftraege und Spitzhacken-Faehigkeit stehen dort ebenfalls - aber nur in den Minen
         if (ModConfig.INSTANCE.mining.hud.showHud) MiningState.processTabList(unformattedLines);
         // Die Contest-Zeilen nur auswerten, solange sie jemand anzeigt
