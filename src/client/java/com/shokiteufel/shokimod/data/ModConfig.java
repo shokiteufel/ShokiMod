@@ -492,6 +492,19 @@ public class ModConfig extends Config {
         @ConfigEditorBoolean
         public boolean showProgress = true;
 
+        /**
+         * In welcher Reihenfolge die Teile erscheinen. Die Namen stehen in
+         * PetHud.Part; was hier fehlt, wird hinten angehaengt, damit ein neues Teil
+         * nach einem Update nicht unsichtbar bleibt.
+         */
+        @Expose
+        public List<String> order = new ArrayList<>();
+
+        @Expose
+        @ConfigOption(name = "Side by side", desc = "All parts in one line, or each on its own line below the other.")
+        @ConfigEditorBoolean
+        public boolean sameLine = true;
+
         @Expose
         public float hudX = 0.02f;
         @Expose

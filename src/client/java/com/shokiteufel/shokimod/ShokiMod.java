@@ -5,6 +5,7 @@ import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.util.PetProfitData;
 import com.shokiteufel.shokimod.util.BundledSounds;
 import com.shokiteufel.shokimod.gui.HudEditorScreen;
+import com.shokiteufel.shokimod.gui.PetHudBuilderScreen;
 import com.shokiteufel.shokimod.gui.PetProfitScreen;
 import com.shokiteufel.shokimod.gui.ShokiConfigEditor;
 import com.shokiteufel.shokimod.handler.FloorDropHandler;
@@ -50,6 +51,7 @@ public class ShokiMod implements ClientModInitializer {
     private static boolean openConfigNextTick = false;
     private static boolean openHudNextTick = false;
     private static boolean openPetProfitNextTick = false;
+    private static boolean openPetBuilderNextTick = false;
 
 
     @Override
@@ -85,6 +87,10 @@ public class ShokiMod implements ClientModInitializer {
                 openPetProfitNextTick = false;
                 client.setScreen(new PetProfitScreen(null));
             }
+            if (openPetBuilderNextTick) {
+                openPetBuilderNextTick = false;
+                client.setScreen(new PetHudBuilderScreen(null));
+            }
             // Der Fortschritt des Pets steht nur im Pet-Menue; solange es offen ist,
             // wird er mitgelesen
             com.shokiteufel.shokimod.scanner.PetState.tick(client);
@@ -117,6 +123,11 @@ public class ShokiMod implements ClientModInitializer {
                         // Die Liste wird nicht hier gerechnet, sondern alle halbe Stunde
                         // auf GitHub; das Holen wird schon hier angestossen, damit beim
                         // Oeffnen im naechsten Tick moeglichst etwas dasteht
+                        // /shoki pet -> der Baukasten fuer den Pet-Kasten
+                        .then(ClientCommands.literal("pet").executes(context -> {
+                            openPetBuilderNextTick = true;
+                            return 1;
+                        }))
                         .then(ClientCommands.literal("petprofit").executes(context -> {
                             PetProfitData.prefetch();
                             openPetProfitNextTick = true;
