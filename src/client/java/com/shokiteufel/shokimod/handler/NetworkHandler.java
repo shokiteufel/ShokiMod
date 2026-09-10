@@ -24,6 +24,7 @@ public class NetworkHandler {
             SessionManager.onWorldChange();
             RareLootHandler.reset();
             HotspotTracker.reset();
+            com.shokiteufel.shokimod.scanner.PetState.reset();
         });
 
         ClientReceiveMessageEvents.ALLOW_GAME.register((message, overlay) -> {
@@ -43,6 +44,9 @@ public class NetworkHandler {
             HuntingTracker.onChatMessage(unformattedMsg);
             // Der Kuchen-Alarm merkt sich, wann welcher Kuchen gegessen wurde
             CakeReminder.onChatMessage(unformattedMsg);
+            // Der Wechsel per Autopet ist die einzige Meldung ueber das aktive Pet,
+            // die ohne offenes Menue kommt
+            com.shokiteufel.shokimod.scanner.PetState.onChatMessage(unformattedMsg);
 
             // Der Sky-Mall-Buff wird nur einmal am Tag angekuendigt - diese Zeile ist
             // die einzige Gelegenheit, ihn mitzubekommen

@@ -85,6 +85,9 @@ public class ShokiMod implements ClientModInitializer {
                 openPetProfitNextTick = false;
                 client.setScreen(new PetProfitScreen(null));
             }
+            // Der Fortschritt des Pets steht nur im Pet-Menue; solange es offen ist,
+            // wird er mitgelesen
+            com.shokiteufel.shokimod.scanner.PetState.tick(client);
         });
 
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {

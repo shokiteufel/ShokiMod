@@ -19,7 +19,7 @@ public final class SafariHud {
 
     /** Ein Kasten auf dem Bildschirm. Traegt seine eigene Lage und Groesse in der Config */
     public enum Panel {
-        PROGRESS, MISSING, CONTEST, NEARBY, HUNTING, GUILD, COLLECTION, MINING, DAY;
+        PROGRESS, MISSING, CONTEST, NEARBY, HUNTING, GUILD, COLLECTION, MINING, DAY, PET;
 
         public boolean visible() {
             ModConfig.SafariCategory c = ModConfig.INSTANCE.safari;
@@ -33,6 +33,7 @@ public final class SafariHud {
                 case COLLECTION -> ModConfig.INSTANCE.collections.tracker.enabled && ModConfig.INSTANCE.collections.tracker.showHud;
                 case MINING -> ModConfig.INSTANCE.mining.hud.showHud;
                 case DAY -> ModConfig.INSTANCE.hud.day.showHud;
+                case PET -> ModConfig.INSTANCE.hud.pet.showHud;
             };
         }
 
@@ -56,6 +57,10 @@ public final class SafariHud {
                 return ModConfig.INSTANCE.hud.day.visibility == ModConfig.HudVisibility.EVERYWHERE
                         || com.shokiteufel.shokimod.scanner.MiningState.onMiningIsland();
             }
+            if (this == PET) {
+                return ModConfig.INSTANCE.hud.pet.visibility == ModConfig.HudVisibility.EVERYWHERE
+                        || com.shokiteufel.shokimod.scanner.MiningState.onMiningIsland();
+            }
             return this != PROGRESS && this != MISSING || GameState.Server.isSafari();
         }
 
@@ -71,6 +76,7 @@ public final class SafariHud {
                 case COLLECTION -> ModConfig.INSTANCE.collections.tracker.hudX;
                 case MINING -> ModConfig.INSTANCE.mining.hud.hudX;
                 case DAY -> ModConfig.INSTANCE.hud.day.hudX;
+                case PET -> ModConfig.INSTANCE.hud.pet.hudX;
             };
         }
 
@@ -86,6 +92,7 @@ public final class SafariHud {
                 case COLLECTION -> ModConfig.INSTANCE.collections.tracker.hudY;
                 case MINING -> ModConfig.INSTANCE.mining.hud.hudY;
                 case DAY -> ModConfig.INSTANCE.hud.day.hudY;
+                case PET -> ModConfig.INSTANCE.hud.pet.hudY;
             };
         }
 
@@ -101,6 +108,7 @@ public final class SafariHud {
                 case COLLECTION -> ModConfig.INSTANCE.collections.tracker.hudScale;
                 case MINING -> ModConfig.INSTANCE.mining.hud.hudScale;
                 case DAY -> ModConfig.INSTANCE.hud.day.hudScale;
+                case PET -> ModConfig.INSTANCE.hud.pet.hudScale;
             };
         }
 
@@ -143,6 +151,10 @@ public final class SafariHud {
                     ModConfig.INSTANCE.hud.day.hudX = x;
                     ModConfig.INSTANCE.hud.day.hudY = y;
                 }
+                case PET -> {
+                    ModConfig.INSTANCE.hud.pet.hudX = x;
+                    ModConfig.INSTANCE.hud.pet.hudY = y;
+                }
             }
         }
 
@@ -159,6 +171,7 @@ public final class SafariHud {
                 case COLLECTION -> ModConfig.INSTANCE.collections.tracker.hudAlpha;
                 case MINING -> ModConfig.INSTANCE.mining.hud.hudOpacity;
                 case DAY -> ModConfig.INSTANCE.hud.day.hudOpacity;
+                case PET -> ModConfig.INSTANCE.hud.pet.hudOpacity;
             };
         }
 
@@ -176,6 +189,7 @@ public final class SafariHud {
                 case COLLECTION -> ModConfig.INSTANCE.collections.tracker.hudAlpha = clamped;
                 case MINING -> ModConfig.INSTANCE.mining.hud.hudOpacity = clamped;
                 case DAY -> ModConfig.INSTANCE.hud.day.hudOpacity = clamped;
+                case PET -> ModConfig.INSTANCE.hud.pet.hudOpacity = clamped;
             }
         }
 
@@ -192,6 +206,7 @@ public final class SafariHud {
                 case COLLECTION -> ModConfig.INSTANCE.collections.tracker.hudScale = clamped;
                 case MINING -> ModConfig.INSTANCE.mining.hud.hudScale = clamped;
                 case DAY -> ModConfig.INSTANCE.hud.day.hudScale = clamped;
+                case PET -> ModConfig.INSTANCE.hud.pet.hudScale = clamped;
             }
         }
 
@@ -227,6 +242,7 @@ public final class SafariHud {
                 case COLLECTION -> CollectionHud.build();
                 case MINING -> MiningHud.build();
                 case DAY -> DayHud.build();
+                case PET -> PetHud.build();
             };
         }
     }

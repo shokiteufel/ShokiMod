@@ -445,6 +445,28 @@ public class ModConfig extends Config {
         public float hudOpacity = 0.5f;
     }
 
+    public static class PetHudCategory {
+
+        @Expose
+        @ConfigOption(name = "Show panel", desc = "The active pet with its level and progress. Move it with /shoki hud.")
+        @ConfigEditorBoolean
+        public boolean showHud = false;
+
+        @Expose
+        @ConfigOption(name = "Where", desc = "Everywhere in SkyBlock, or only on mining islands. Areas in the HUD editor override this.")
+        @ConfigEditorDropdown
+        public HudVisibility visibility = HudVisibility.EVERYWHERE;
+
+        @Expose
+        public float hudX = 0.02f;
+        @Expose
+        public float hudY = 0.40f;
+        @Expose
+        public float hudScale = 1.0f;
+        @Expose
+        public float hudOpacity = 0.5f;
+    }
+
     public static class MiningCategory {
 
         @Expose
@@ -999,6 +1021,10 @@ public class ModConfig extends Config {
         @Expose
         @Category(name = "Day", desc = "A small panel with the SkyBlock day count, like the one GanKura had.")
         public DayHudCategory day = new DayHudCategory();
+
+        @Expose
+        @Category(name = "Pet", desc = "The active pet: name, level and how far it is to the next one. The progress comes from the pet menu, so it updates whenever you open it.")
+        public PetHudCategory pet = new PetHudCategory();
 
         /**
          * Je Kasten die Gebiete, in denen er erscheinen darf. Leere oder fehlende Liste
