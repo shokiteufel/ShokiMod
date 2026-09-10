@@ -12,7 +12,8 @@
 		"NearbyOverlayMixin",
 		"NearbyClickMixin",
 		"FloorDropParticleMixin",
-		"HotspotParticleMixin"
+		"HotspotParticleMixin",
+		"ServerTimeMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

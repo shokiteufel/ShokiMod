@@ -546,6 +546,43 @@ public class ModConfig extends Config {
         public float hudOpacity = 0.5f;
     }
 
+    public static class PerformanceHudCategory {
+
+        @Expose
+        @ConfigOption(name = "Show panel", desc = "Frames, server ticks and ping on screen. Move it with /shoki hud.")
+        @ConfigEditorBoolean
+        public boolean showHud = false;
+
+        @Expose
+        @ConfigOption(name = "Show FPS", desc = "Frames per second, as Minecraft counts them.")
+        @ConfigEditorBoolean
+        public boolean showFps = true;
+
+        @Expose
+        @ConfigOption(name = "Show TPS", desc = "How fast the server is running. Measured from how often it sends its clock - twenty is full speed.")
+        @ConfigEditorBoolean
+        public boolean showTps = true;
+
+        @Expose
+        @ConfigOption(name = "Show ping", desc = "Round trip to the server, from the player list.")
+        @ConfigEditorBoolean
+        public boolean showPing = true;
+
+        @Expose
+        @ConfigOption(name = "Where", desc = "Everywhere in SkyBlock, or only on mining islands. Areas in the HUD editor override this.")
+        @ConfigEditorDropdown
+        public HudVisibility visibility = HudVisibility.EVERYWHERE;
+
+        @Expose
+        public float hudX = 0.02f;
+        @Expose
+        public float hudY = 0.52f;
+        @Expose
+        public float hudScale = 1.0f;
+        @Expose
+        public float hudOpacity = 0.5f;
+    }
+
     public static class MiningCategory {
 
         @Expose
@@ -1104,6 +1141,10 @@ public class ModConfig extends Config {
         @Expose
         @Category(name = "Pet", desc = "The active pet: name, level and how far it is to the next one. The progress comes from the pet menu, so it updates whenever you open it.")
         public PetHudCategory pet = new PetHudCategory();
+
+        @Expose
+        @Category(name = "Performance", desc = "Frames per second, how fast the server is running, and the ping - each one on its own.")
+        public PerformanceHudCategory performance = new PerformanceHudCategory();
 
         /**
          * Je Kasten die Gebiete, in denen er erscheinen darf. Leere oder fehlende Liste

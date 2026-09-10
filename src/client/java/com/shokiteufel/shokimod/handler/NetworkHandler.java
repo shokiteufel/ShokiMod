@@ -25,6 +25,7 @@ public class NetworkHandler {
             RareLootHandler.reset();
             HotspotTracker.reset();
             com.shokiteufel.shokimod.scanner.PetState.reset();
+            com.shokiteufel.shokimod.scanner.PerformanceState.reset();
         });
 
         ClientReceiveMessageEvents.ALLOW_GAME.register((message, overlay) -> {

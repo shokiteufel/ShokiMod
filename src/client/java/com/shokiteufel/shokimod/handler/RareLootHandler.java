@@ -478,6 +478,9 @@ public final class RareLootHandler {
                 .append(" tier2=\"").append(cfg.shareTemplate2).append("\"")
                 .append(" tier3=\"").append(cfg.shareTemplate3).append("\"\n\n");
 
+        out.append("[performance]\n")
+           .append(com.shokiteufel.shokimod.scanner.PerformanceState.status()).append("\n\n");
+
         out.append("[pets]\n")
            .append(com.shokiteufel.shokimod.scanner.PetState.status()).append("\n")
            .append(com.shokiteufel.shokimod.util.PetProfitData.status()).append("\n\n");
