@@ -73,6 +73,8 @@ public final class PetState {
     private static final Pattern TAB_XP = Pattern.compile(
             "^\\+?(?<xp>[0-9][0-9,.]*)\\s*XP$", Pattern.CASE_INSENSITIVE);
 
+    /** Was eine Stufe oberhalb der Hoechststufe kostet - fuer jedes Pet dasselbe */
+    private static final int OVERFLOW_STEP = 1_886_700;
     /** Die Stufen, die Hypixel fuer Pets vergibt - in dieser Schreibweise */
     private static final java.util.Set<String> RARITIES = java.util.Set.of(
             "COMMON", "UNCOMMON", "RARE", "EPIC", "LEGENDARY", "MYTHIC", "DIVINE");
@@ -416,21 +418,15 @@ public final class PetState {
     }
 
     /**
-     * Was eine Ueberschuss-Stufe kostet.
+     * Was eine Ueberschuss-Stufe kostet: immer 1.886.700 Erfahrung.
      *
-     * Steht die Seltenheit fest, gilt die letzte regulaere Stufe dieses Pets. Ist sie
-     * unbekannt - das Pet-Menue war noch nie offen -, gilt der Wert der hoechsten
-     * Stufen (1.886.700, wie bei Legendary, Mythic und den drei Drachen). Das ist der
-     * haeufigste Fall und liegt bei den selteneren Pets richtig; ein Common-Pet mit
-     * Ueberschuss waere die Ausnahme, und sobald jemand einmal ins Menue schaut,
-     * stimmt auch dort die Zahl.
+     * Das ist die Vorgabe von ShokiTeufel (10.09.2026) und gilt fuer jedes Pet gleich,
+     * unabhaengig von der Seltenheit - so wie es auch bei den drei Drachen gerechnet
+     * wird. Die Seltenheit spielt nur bis zur Hoechststufe eine Rolle; was darueber
+     * gesammelt wird, zaehlt fuer alle nach demselben Mass.
      */
     private static int overflowStep() {
-        if (!rarity.isEmpty()) {
-            PetLevels.Table table = PetLevels.tableFor(PetLevels.idFor(name), rarity);
-            if (table != null && table.lastStep() > 0) return table.lastStep();
-        }
-        return 1_886_700;
+        return OVERFLOW_STEP;
     }
 
     /**
@@ -451,8 +447,8 @@ public final class PetState {
         PetLevels.Table table = PetLevels.tableFor(PetLevels.idFor(name), rarity);
         if (table == null) return;   // die Tabellen sind noch nicht geladen
         double bisOben = table.totalTo(table.maxLevel());
-        int schritt = table.lastStep();
-        if (schritt <= 0) return;
+        // Ueber der Hoechststufe zaehlt fuer jedes Pet dasselbe Mass
+        int schritt = OVERFLOW_STEP;
 
         double ueber = totalXp - bisOben;
         if (ueber <= 0) return;
