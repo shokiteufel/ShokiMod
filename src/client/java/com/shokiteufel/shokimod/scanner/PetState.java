@@ -8,6 +8,8 @@ import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.ItemLore;
 
+import com.shokiteufel.shokimod.util.PetLevels;
+
 import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -47,6 +49,14 @@ public final class PetState {
     /** Die Zeile darunter: "18,532.1/23.2k" - erst gesammelt, dann noetig */
     private static final Pattern XP_LINE = Pattern.compile(
             "(?<have>[\\d.,]+[kKmMbB]?)\\s*/\\s*(?<need>[\\d.,]+[kKmMbB]?)\\s*$");
+    /** Steht statt der Fortschrittszeile, sobald das Pet oben angekommen ist */
+    private static final Pattern MAX_LEVEL = Pattern.compile("^MAX LEVEL$", Pattern.CASE_INSENSITIVE);
+    /** Die Zeile darunter nennt die gesamte gesammelte Erfahrung: "> 18,617,563 XP" */
+    private static final Pattern TOTAL_XP = Pattern.compile(
+            "^[^0-9]{0,3}(?<xp>[0-9][0-9,.]*)\\s*XP$", Pattern.CASE_INSENSITIVE);
+    /** Der Gegenstand, den das Pet traegt: "Held Item: Textbook" */
+    private static final Pattern HELD_ITEM = Pattern.compile(
+            "^Held Item:\\s*(?<item>.+)$", Pattern.CASE_INSENSITIVE);
     /** Nur beim aktiven Pet steht das in der Beschreibung */
     private static final String ACTIVE_HINT = "click to despawn";
     private static final Pattern COLOUR_CODE = Pattern.compile("§.");
@@ -59,6 +69,13 @@ public final class PetState {
     private static volatile double percent = -1.0;
     private static volatile double xpHave = -1.0;
     private static volatile double xpNeed = -1.0;
+    private static volatile double totalXp = -1.0;
+    private static volatile boolean atMax = false;
+    private static volatile int overflowLevel = 0;
+    private static volatile double overflowXp = 0.0;
+    private static volatile String heldItem = "";
+    private static volatile net.minecraft.world.item.ItemStack icon =
+            net.minecraft.world.item.ItemStack.EMPTY;
     private static volatile long seenAt = 0L;
     private static volatile String from = "nothing seen yet";
     private static long lastMenuLook = 0L;
@@ -95,6 +112,36 @@ public final class PetState {
         return xpNeed;
     }
 
+    /** Gesamte gesammelte Erfahrung, oder -1 wenn unbekannt */
+    public static double totalXp() {
+        return totalXp;
+    }
+
+    /** Steht das Pet auf seiner Hoechststufe? */
+    public static boolean atMaxLevel() {
+        return atMax;
+    }
+
+    /** Stufen ueber der Hoechststufe - 0, wenn keine oder noch nicht ausgerechnet */
+    public static int overflowLevel() {
+        return overflowLevel;
+    }
+
+    /** Erfahrung oberhalb der Hoechststufe */
+    public static double overflowXp() {
+        return overflowXp;
+    }
+
+    /** Der Gegenstand, den das Pet traegt, oder leer */
+    public static String heldItem() {
+        return heldItem;
+    }
+
+    /** Das Bild des Pets aus dem Menue, oder ein leerer Gegenstand */
+    public static net.minecraft.world.item.ItemStack icon() {
+        return icon;
+    }
+
     /** Nach einem Weltwechsel gilt der alte Stand nicht mehr */
     public static void reset() {
         name = "";
@@ -103,6 +150,12 @@ public final class PetState {
         percent = -1.0;
         xpHave = -1.0;
         xpNeed = -1.0;
+        totalXp = -1.0;
+        atMax = false;
+        overflowLevel = 0;
+        overflowXp = 0.0;
+        heldItem = "";
+        icon = net.minecraft.world.item.ItemStack.EMPTY;
         seenAt = 0L;
         from = "nothing seen yet";
     }
@@ -114,6 +167,10 @@ public final class PetState {
                 .append('[').append(level).append("] ").append(name);
         if (!rarity.isEmpty()) out.append(" (").append(rarity.toLowerCase(Locale.ROOT)).append(')');
         if (percent >= 0) out.append(String.format(Locale.US, ", %.1f%% to next", percent));
+        if (atMax) out.append(", MAX");
+        if (overflowLevel > 0) out.append(", +").append(overflowLevel).append(" overflow");
+        if (!heldItem.isEmpty()) out.append(", holding ").append(heldItem);
+        if (!icon.isEmpty()) out.append(", icon ok");
         out.append(", from ").append(from);
         if (seenAt > 0) {
             long seconds = Math.max(0, (System.currentTimeMillis() - seenAt) / 1000L);
@@ -135,6 +192,12 @@ public final class PetState {
             xpHave = -1.0;
             xpNeed = -1.0;
             rarity = "";
+            totalXp = -1.0;
+            atMax = false;
+            overflowLevel = 0;
+            overflowXp = 0.0;
+            heldItem = "";
+            icon = net.minecraft.world.item.ItemStack.EMPTY;
         }
         name = neu;
         level = stufe;
@@ -159,18 +222,22 @@ public final class PetState {
             if (!named.matches()) continue;
             ItemLore lore = stack.get(DataComponents.LORE);
             if (lore == null) continue;
-            if (readActive(named, lore)) return;  // das aktive Pet ist gefunden
+            if (readActive(named, lore, stack)) return;  // das aktive Pet ist gefunden
         }
     }
 
     /** Liest ein Feld aus, wenn es das aktive Pet ist. Wahr, sobald es passt */
-    private static boolean readActive(Matcher named, ItemLore lore) {
+    private static boolean readActive(Matcher named, ItemLore lore, ItemStack stack) {
         boolean active = false;
         String seltenheit = "";
         double prozent = -1.0;
         double haben = -1.0;
         double noetig = -1.0;
         String vorige = "";
+        boolean maxErreicht = false;
+        boolean naechsteIstGesamt = false;
+        double gesamt = -1.0;
+        String getragen = "";
 
         for (Component zeile : lore.lines()) {
             String text = clean(zeile.getString()).trim();
@@ -178,6 +245,22 @@ public final class PetState {
             if (klein.contains(ACTIVE_HINT)) active = true;
             // Die Seltenheit steht als letzte fette Zeile: "LEGENDARY"
             if (text.matches("^[A-Z ]{4,}$")) seltenheit = text.trim();
+
+            if (MAX_LEVEL.matcher(text).matches()) {
+                maxErreicht = true;
+                naechsteIstGesamt = true;
+                continue;
+            }
+            if (naechsteIstGesamt) {
+                naechsteIstGesamt = false;
+                Matcher t = TOTAL_XP.matcher(text);
+                if (t.matches()) gesamt = parseAmount(t.group("xp"));
+            }
+            Matcher h = HELD_ITEM.matcher(text);
+            if (h.matches()) {
+                getragen = h.group("item").trim();
+                continue;
+            }
 
             Matcher p = PROGRESS.matcher(text);
             if (p.matches()) {
@@ -203,9 +286,39 @@ public final class PetState {
         percent = prozent;
         xpHave = haben;
         xpNeed = noetig;
+        atMax = maxErreicht;
+        totalXp = gesamt;
+        heldItem = getragen;
+        icon = stack.copy();
+        computeOverflow();
         seenAt = System.currentTimeMillis();
         from = "pet menu";
         return true;
+    }
+
+    /**
+     * Stufen und Erfahrung oberhalb der Hoechststufe.
+     *
+     * Hypixel zeigt sie nicht; sie sind eine Rechnung der Mods: Wer oben angekommen ist,
+     * sammelt weiter, und je volle Kosten der letzten Stufe zaehlt eine Stufe darueber.
+     * Nachgerechnet an einem Golden Dragon mit 627.958.704,5 Erfahrung im Ueberschuss -
+     * geteilt durch 1.886.700 ergibt 332,8, und im Spiel stand [332].
+     */
+    private static void computeOverflow() {
+        overflowLevel = 0;
+        overflowXp = 0.0;
+        if (!atMax || totalXp < 0) return;
+
+        PetLevels.Table table = PetLevels.tableFor(PetLevels.idFor(name), rarity);
+        if (table == null) return;   // die Tabellen sind noch nicht geladen
+        double bisOben = table.totalTo(table.maxLevel());
+        int schritt = table.lastStep();
+        if (schritt <= 0) return;
+
+        double ueber = totalXp - bisOben;
+        if (ueber <= 0) return;
+        overflowXp = ueber;
+        overflowLevel = (int) Math.floor(ueber / schritt);
     }
 
     private static String clean(String text) {

@@ -458,6 +458,41 @@ public class ModConfig extends Config {
         public HudVisibility visibility = HudVisibility.EVERYWHERE;
 
         @Expose
+        @ConfigOption(name = "Icon", desc = "The pet's item image, read from the pet menu.")
+        @ConfigEditorBoolean
+        public boolean showIcon = true;
+
+        @Expose
+        @ConfigOption(name = "Pet name", desc = "The name, in the colour of its rarity.")
+        @ConfigEditorBoolean
+        public boolean showName = true;
+
+        @Expose
+        @ConfigOption(name = "Pet level", desc = "The level in brackets, as the game writes it: [Lvl 100].")
+        @ConfigEditorBoolean
+        public boolean showLevel = true;
+
+        @Expose
+        @ConfigOption(name = "Overflow level", desc = "Levels beyond the maximum, counted from the leftover experience. Hypixel does not show these - they are a calculation.")
+        @ConfigEditorBoolean
+        public boolean showOverflowLevel = true;
+
+        @Expose
+        @ConfigOption(name = "Overflow XP", desc = "The experience collected beyond the maximum level.")
+        @ConfigEditorBoolean
+        public boolean showOverflowXp = true;
+
+        @Expose
+        @ConfigOption(name = "Held item", desc = "The item the pet carries, if it has one.")
+        @ConfigEditorBoolean
+        public boolean showHeldItem = false;
+
+        @Expose
+        @ConfigOption(name = "Progress bar", desc = "How far it is to the next level. Only shown below the maximum level.")
+        @ConfigEditorBoolean
+        public boolean showProgress = true;
+
+        @Expose
         public float hudX = 0.02f;
         @Expose
         public float hudY = 0.40f;

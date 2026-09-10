@@ -32,11 +32,21 @@ public class HudPanel {
     /** Feine helle Kante oben, damit der Kasten eine Form hat statt zu verlaufen */
     private static final int TOP_EDGE = 0x50FFFFFF;
 
-    private enum Kind { TITLE, TEXT, PAIR, BAR, BLANK }
+    private enum Kind { TITLE, TEXT, PAIR, BAR, BLANK, ICON }
 
     private record Row(Kind kind, String label, String value,
-                       int labelColour, int valueColour, int current, int max) {
+                       int labelColour, int valueColour, int current, int max,
+                       net.minecraft.world.item.ItemStack icon) {
+
+        /** Alle Zeilen ausser der Bild-Zeile kommen ohne Gegenstand aus */
+        Row(Kind kind, String label, String value, int labelColour, int valueColour, int current, int max) {
+            this(kind, label, value, labelColour, valueColour, current, max,
+                 net.minecraft.world.item.ItemStack.EMPTY);
+        }
     }
+
+    /** Kantenlaenge des Gegenstandsbildes; es ist hoeher als eine gewoehnliche Zeile */
+    private static final int ICON_SIZE = 16;
 
     private final List<Row> rows = new ArrayList<>();
 
@@ -73,6 +83,19 @@ public class HudPanel {
         return this;
     }
 
+    /**
+     * Eine Zeile mit dem Bild des Gegenstands links und Text daneben.
+     *
+     * Das Bild ist sechzehn Pixel hoch und damit hoeher als eine gewoehnliche Zeile -
+     * {@link #height()} rechnet das mit, sonst schnitte der Kasten es unten ab.
+     */
+    public HudPanel icon(net.minecraft.world.item.ItemStack stack, String label, String value,
+                         int labelColour, int valueColour) {
+        rows.add(new Row(Kind.ICON, label, value, labelColour, valueColour, 0, 0,
+                 stack == null ? net.minecraft.world.item.ItemStack.EMPTY : stack));
+        return this;
+    }
+
     public HudPanel blank() {
         rows.add(new Row(Kind.BLANK, "", "", 0, 0, 0, 0));
         return this;
@@ -92,7 +115,13 @@ public class HudPanel {
     }
 
     public int height() {
-        return rows.size() * LINE_HEIGHT + PADDING * 2;
+        int sum = 0;
+        for (Row row : rows) sum += rowHeight(row);
+        return sum + PADDING * 2;
+    }
+
+    private static int rowHeight(Row row) {
+        return row.kind() == Kind.ICON ? ICON_SIZE : LINE_HEIGHT;
     }
 
     private int contentWidth(Font font) {
@@ -118,6 +147,8 @@ public class HudPanel {
                 case PAIR -> font.width(row.label()) + GUTTER + valueWidths[i];
                 case BAR -> font.width(row.label()) + GUTTER + BAR_WIDTH + GUTTER + valueWidths[i];
                 case BLANK -> 0;
+                case ICON -> ICON_SIZE + GUTTER + font.width(row.label())
+                             + (valueWidths[i] == 0 ? 0 : GUTTER + valueWidths[i]);
             };
             widest = Math.max(widest, width);
         }
@@ -247,7 +278,7 @@ public class HudPanel {
         int y = top + PADDING;
         for (int i = 0; i < rows.size(); i++) {
             draw(graphics, font, rows.get(i), x, y, content, i, alpha);
-            y += LINE_HEIGHT;
+            y += rowHeight(rows.get(i));
         }
     }
 
@@ -256,6 +287,17 @@ public class HudPanel {
         int valueWidth = valueWidths[index];
         switch (row.kind()) {
             case BLANK -> {
+            }
+            case ICON -> {
+                if (!row.icon().isEmpty()) graphics.fakeItem(row.icon(), x, y);
+                // Der Text sitzt mittig zur Bildhoehe, sonst klebte er am oberen Rand
+                int textY = y + (ICON_SIZE - LINE_HEIGHT) / 2 + 1;
+                int textX = x + ICON_SIZE + GUTTER;
+                text(graphics, font, row.label(), labelOutline[index], textX, textY, row.labelColour());
+                if (!row.value().isEmpty()) {
+                    text(graphics, font, row.value(), valueOutline[index],
+                         x + content - valueWidth, textY, row.valueColour());
+                }
             }
             case TITLE, TEXT -> text(graphics, font, row.label(), labelOutline[index],
                     x, y, row.labelColour());
