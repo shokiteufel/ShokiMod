@@ -36,6 +36,12 @@ FARBE = re.compile("§.")
 SPARTEN = {"ALCHEMY", "COMBAT", "ENCHANTING", "FARMING", "FISHING", "FORAGING", "MINING", "TAMING"}
 SONSTIGE = "OTHER"
 
+# Ein Pet mit diesem Gegenstand zaehlt eine Seltenheitsstufe hoeher, als es ist - sein
+# Preis gehoert zu einer anderen Ware und verzerrt jeden Vergleich.
+TIER_BOOST = re.compile(r"Held Item:\s*Tier Boost", re.IGNORECASE)
+# "(2/10) Pet Candy Used" - Bonbons treiben die Stufe, nicht die Erfahrung
+PET_CANDY = re.compile(r"\((\d+)/\d+\)\s*Pet Candy Used", re.IGNORECASE)
+
 # Nur diese Stufen gelten als "fertig hochgezogen"
 HOECHSTSTUFE = 100
 # Weniger als das ist kein belastbarer Marktpreis, sondern ein Ausreisser
@@ -118,8 +124,14 @@ def sammle_pets() -> tuple[list[dict], int]:
             treffer = NAME_MUSTER.match(a.get("item_name", ""))
             if not treffer:
                 continue
+            lore = FARBE.sub("", a.get("item_lore", "") or "")
+            # Wer eine geliehene Seltenheit traegt, gehoert nicht in den Vergleich
+            if TIER_BOOST.search(lore):
+                continue
+            bonbons = PET_CANDY.search(lore)
             sparte = SPARTE.search(a.get("item_lore", ""))
             gefunden.append({
+                "candy": int(bonbons.group(1)) if bonbons else 0,
                 # Die Kennung der Auktion - damit laesst sie sich im Spiel direkt
                 # oeffnen (/viewauction), ohne im Auktionshaus zu suchen
                 "auktion": str(a.get("uuid") or ""),
@@ -178,6 +190,15 @@ def rechne(pets: list[dict], xp: Erfahrung) -> list[dict]:
         if p["preis"] > 0 and p["seltenheit"]:
             nach_art[(p["id"], p["seltenheit"])].append(p)
 
+    # Der guenstigste Hundertste je Art - fuer die Drachen, deren Ziel bei 200 liegt
+    hundert: dict[tuple[str, str], int] = {}
+    for p in pets:
+        if p["stufe"] != 100 or p["preis"] <= 0 or not p["seltenheit"]:
+            continue
+        schluessel = (p["id"], p["seltenheit"])
+        if schluessel not in hundert or p["preis"] < hundert[schluessel]:
+            hundert[schluessel] = p["preis"]
+
     ergebnis = []
     for (kennung, seltenheit), angebote in nach_art.items():
         hoechste = xp.hoechststufe(kennung, seltenheit)
@@ -198,6 +219,10 @@ def rechne(pets: list[dict], xp: Erfahrung) -> list[dict]:
                 continue
             ergebnis.append({
                 "auktion": p.get("auktion", ""),
+                "candy": p.get("candy", 0),
+                # Bei den drei Drachen ist die Hoechststufe 200; der Preis eines
+                # Hundertsten interessiert trotzdem, weil dort die meisten einsteigen
+                "preis100": hundert.get((kennung, seltenheit), 0),
                 "id": kennung,
                 "name": p["name"],
                 "sparte": sparte_von(p, kennung, xp),

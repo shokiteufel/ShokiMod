@@ -53,7 +53,12 @@ public final class PetProfitData {
     /** Ein Angebot mit dem, was das Hochziehen einbringen wuerde */
     public record Row(String id, String name, String category, String rarity, int level,
                       long price, long targetPrice, int targetLevel, long profit, long xp,
-                      double perXp, String auction) {
+                      double perXp, String auction, int candy, long price100) {
+
+        /** Bei den drei Drachen liegt das Ziel bei 200 - dann gibt es zwei Preise */
+        public boolean twoTargets() {
+            return targetLevel > 100 && price100 > 0 && price100 != targetPrice;
+        }
     }
 
     /** Ein fertiges Pet auf Hoechststufe, mit dem Preis, den es gerade kostet */
@@ -229,7 +234,9 @@ public final class PetProfitData {
                     number(o, "gewinn").longValue(),
                     number(o, "xp").longValue(),
                     number(o, "proXp").doubleValue(),
-                    string(o, "auktion")));
+                    string(o, "auktion"),
+                    number(o, "candy").intValue(),
+                    number(o, "preis100").longValue()));
         }
         if (parsed.isEmpty()) return false;
 

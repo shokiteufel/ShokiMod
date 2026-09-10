@@ -31,6 +31,10 @@ public class PetProfitScreen extends Screen {
     private static final int LIST_WIDTH = 470;
     /** Die Sparte, die zuletzt gewaehlt war - ueberdauert das Schliessen des Fensters */
     private static String category = "";
+    /** Nur frisch geschluepfte Pets - die ohne Vorgeschichte */
+    private static boolean onlyLevelOne = false;
+    /** Pets ohne Bonbons: die Stufe soll erarbeitet sein, nicht gekauft */
+    private static boolean noCandy = false;
 
     private final Screen parent;
     private int page;
@@ -52,7 +56,10 @@ public class PetProfitScreen extends Screen {
     private List<Row> visible() {
         List<Row> out = new ArrayList<>();
         for (Row row : PetProfitData.rows()) {
-            if (category.isEmpty() || category.equals(row.category())) out.add(row);
+            if (!category.isEmpty() && !category.equals(row.category())) continue;
+            if (onlyLevelOne && row.level() != 1) continue;
+            if (noCandy && row.candy() > 0) continue;
+            out.add(row);
         }
         return out;
     }
@@ -120,6 +127,20 @@ public class PetProfitScreen extends Screen {
                 rebuild();
             }).bounds(left + 24, unten, 20, 20).build());
         }
+        addRenderableWidget(Button.builder(
+                Component.literal((onlyLevelOne ? "☑" : "☐") + " Level 1 only"), button -> {
+                    onlyLevelOne = !onlyLevelOne;
+                    page = 0;
+                    rebuild();
+                }).bounds(left + 52, unten, 110, 20).build());
+
+        addRenderableWidget(Button.builder(
+                Component.literal((noCandy ? "☑" : "☐") + " No pet candy"), button -> {
+                    noCandy = !noCandy;
+                    page = 0;
+                    rebuild();
+                }).bounds(left + 166, unten, 110, 20).build());
+
         addRenderableWidget(Button.builder(Component.literal("Done"), button -> onClose())
                 .bounds(left + LIST_WIDTH - 90, unten, 90, 20).build());
     }
@@ -189,7 +210,7 @@ public class PetProfitScreen extends Screen {
         graphics.text(font, "Lvl", left + 186, listTop - 12, 0xFF888888, false);
         graphics.text(font, "Buy", left + 216, listTop - 12, 0xFF888888, false);
         graphics.text(font, "Profit", left + 280, listTop - 12, 0xFF888888, false);
-        graphics.text(font, "Lv100 Price", left + 344, listTop - 12, 0xFF888888, false);
+        graphics.text(font, "Lv100/200 Price", left + 344, listTop - 12, 0xFF888888, false);
         graphics.text(font, "per XP", left + 424, listTop - 12, 0xFF888888, false);
 
         List<Row> zeilen = visible();
@@ -203,8 +224,12 @@ public class PetProfitScreen extends Screen {
             graphics.text(font, String.valueOf(row.level()), left + 186, y, 0xFFCCCCCC, false);
             graphics.text(font, ItemValue.format(row.price()), left + 216, y, 0xFFCCCCCC, false);
             graphics.text(font, ItemValue.format(row.profit()), left + 280, y, 0xFF55FF55, false);
-            // Was dasselbe Pet auf Hoechststufe kostet - der Preis, gegen den gerechnet wird
-            graphics.text(font, ItemValue.format(row.targetPrice()), left + 344, y, 0xFF55FFFF, false);
+            // Was dasselbe Pet fertig kostet. Die Drachen gehen bis 200, dort steht
+            // zusaetzlich der Preis eines Hundertsten - da steigen die meisten ein
+            String ziel = row.twoTargets()
+                    ? ItemValue.format(row.price100()) + "/" + ItemValue.format(row.targetPrice())
+                    : ItemValue.format(row.targetPrice());
+            graphics.text(font, ziel, left + 344, y, 0xFF55FFFF, false);
             graphics.text(font, String.format(Locale.US, "%.2f", row.perXp()), left + 424, y, 0xFFFFAA00, false);
         }
 
