@@ -71,7 +71,7 @@ public final class RareLootHandler {
     public static final String DEFAULT_SHARE_TEMPLATE = "{prefix} {item} {mf} {value}";
 
     /** Je Stufe eine Farbe, damit man schon am Banner sieht, welche es war */
-    private static final int[] TIER_COLOURS = {0x55FF55, 0xFFD700, 0xFF55FF};
+    private static final int[] TIER_COLOURS = {0x55FF55, 0xFFD700, 0xFF55FF, 0x55FFFF};
 
     private static final Pattern LOOTSHARE_RECEIPT = Pattern.compile(
             "^LOOT SHARE You received(?: .+?)? for assisting (?<player>[A-Za-z0-9_]{1,16})!(?: \\(\\d+\\))?$",

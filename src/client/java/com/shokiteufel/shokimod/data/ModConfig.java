@@ -194,6 +194,13 @@ public class ModConfig extends Config {
                         picked -> INSTANCE.chat.rareLoot.tier3Sound = picked,
                         1.0f)));
         INSTANCE.chat.rareLoot.testTier3 = () -> RareLootHandler.test(3);
+        INSTANCE.chat.rareLoot.openTier4Sound = () -> Minecraft.getInstance().execute(() ->
+                Minecraft.getInstance().setScreen(new SoundPickerScreen(
+                        Minecraft.getInstance().screen,
+                        () -> INSTANCE.chat.rareLoot.tier4Sound,
+                        picked -> INSTANCE.chat.rareLoot.tier4Sound = picked,
+                        1.0f)));
+        INSTANCE.chat.rareLoot.testTier4 = () -> RareLootHandler.test(4);
         INSTANCE.chat.rareLoot.openDiagnostics = () -> Minecraft.getInstance().execute(RareLootHandler::writeDiagnostics);
         INSTANCE.chat.testAlertVolume = () -> Minecraft.getInstance().execute(AlertVolume::test);
         INSTANCE.hunting.tracker.resetTracker = () -> Minecraft.getInstance().execute(HuntingTracker::reset);
@@ -1934,16 +1941,76 @@ public class ModConfig extends Config {
                            boolean toast, boolean chat, String sound, String design) {
         }
 
+        /**
+         * Nur zum Auf- und Zuklappen. MoulConfig haelt den Zustand selbst und schreibt
+         * nie in dieses Feld - ein Schalter darf deshalb nicht am Kopf haengen
+         */
+        @ConfigOption(name = "Tier 4", desc = "The top tier. From the threshold below up; a drop that reaches it fires only this one.")
+        @ConfigEditorAccordion(id = 25)
+        public transient boolean tier4Folder = false;
+
+        @Expose
+        @ConfigOption(name = "Enabled", desc = "Off means this tier never fires, even if the drop reaches its threshold.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 25)
+        public boolean tier4Enabled = false;
+
+        @Expose
+        @ConfigOption(name = "Threshold", desc = "Coins. Short forms work: 500k, 5M, 1.2B. Counted is the whole drop, so 3x counts three times.")
+        @ConfigEditorText
+        @ConfigAccordionId(id = 25)
+        public String tier4Threshold = "250M";
+
+        @Expose
+        @ConfigOption(name = "Banner", desc = "Large text across the screen.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 25)
+        public boolean tier4Banner = true;
+
+        @Expose
+        @ConfigOption(name = "Banner", desc = "Name of the banner design this tier shows. Pick or build one in Alerts > Banner > Sandbox, where Use for Tier sets this for you.")
+        @ConfigEditorText
+        @ConfigAccordionId(id = 25)
+        public String tier4Design = "Classic band";
+
+        @Expose
+        @ConfigOption(name = "Toast", desc = "Small box in the top right corner.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 25)
+        public boolean tier4Toast = true;
+
+        @Expose
+        @ConfigOption(name = "Chat line", desc = "Writes the drop and its value into your chat.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 25)
+        public boolean tier4Chat = false;
+
+        @ConfigOption(name = "Sound", desc = "Your own file from config/shokimod/sounds. Leave empty for silence.")
+        @ConfigEditorButton(buttonText = "Pick")
+        @ConfigAccordionId(id = 25)
+        public transient Runnable openTier4Sound = () -> {
+        };
+
+        @Expose
+        public String tier4Sound = "";
+
+        @ConfigOption(name = "Test", desc = "Fires this tier once with a sample drop, so you can see and hear what you set.")
+        @ConfigEditorButton(buttonText = "Test")
+        @ConfigAccordionId(id = 25)
+        public transient Runnable testTier4 = () -> {
+        };
+
         public Tier tier(int number) {
             return switch (number) {
                 case 1 -> new Tier(1, tier1Enabled, tier1Threshold, tier1Banner, tier1Toast, tier1Chat, tier1Sound, tier1Design);
                 case 2 -> new Tier(2, tier2Enabled, tier2Threshold, tier2Banner, tier2Toast, tier2Chat, tier2Sound, tier2Design);
-                default -> new Tier(3, tier3Enabled, tier3Threshold, tier3Banner, tier3Toast, tier3Chat, tier3Sound, tier3Design);
+                case 3 -> new Tier(3, tier3Enabled, tier3Threshold, tier3Banner, tier3Toast, tier3Chat, tier3Sound, tier3Design);
+                default -> new Tier(4, tier4Enabled, tier4Threshold, tier4Banner, tier4Toast, tier4Chat, tier4Sound, tier4Design);
             };
         }
 
         public List<Tier> tiers() {
-            return List.of(tier(1), tier(2), tier(3));
+            return List.of(tier(1), tier(2), tier(3), tier(4));
         }
     }
 

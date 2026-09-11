@@ -145,6 +145,10 @@ public final class CraftProfitData {
 
         for (Recipe r : recipes) {
             if (!suche.isEmpty() && !matches(r, suche)) continue;
+            // Der Verkaufsort waehlt aus, nicht nur den Preis: Wer auf den Bazaar
+            // schaut, will keine Rezepte sehen, die sich dort gar nicht loswerden
+            // lassen - und umgekehrt
+            if (!tradableAt(r.result(), sellToBazaar)) continue;
 
             long kosten = 0;
             boolean vollstaendig = true;
@@ -178,6 +182,22 @@ public final class CraftProfitData {
             return Long.compare(b.profit(), a.profit());
         });
         return out.size() > limit ? new ArrayList<>(out.subList(0, limit)) : out;
+    }
+
+    /**
+     * Laesst sich das ueberhaupt dort verkaufen?
+     *
+     * Der Bazaar fuehrt seine Waren in einer festen Liste; was nicht darin steht,
+     * geht nur ueber das Auktionshaus - und was dort keinen Tiefstpreis hat, wird
+     * gerade nicht angeboten.
+     */
+    private static boolean tradableAt(String id, boolean bazaar) {
+        if (bazaar) {
+            if (BazaarLive.priceOf(id) != null) return true;
+            return ItemValue.BAZAAR.get(id) != null;
+        }
+        Double bin = ItemValue.LOWEST_BIN.get(id);
+        return bin != null && bin > 0;
     }
 
     private static boolean matches(Recipe r, String suche) {
@@ -218,8 +238,9 @@ public final class CraftProfitData {
      * Auktionshaus mitunter das Doppelte - dafuer einzeln und mit Wartezeit. Welcher
      * Weg gemeint ist, kann nur der Spieler wissen.
      *
-     * Was es am gewaehlten Ort nicht gibt, wird am anderen nachgeschlagen: Eine Zeile
-     * ohne Preis nuetzt niemandem, und die Herkunft steht ohnehin in der Spalte.
+     * Gefragt wird nur am gewaehlten Ort. Frueher wurde am anderen nachgeschlagen,
+     * wenn dort nichts stand - das ergab Zeilen, die im Bazaar standen und sich dort
+     * nicht verkaufen liessen. Die Auswahl sortiert sie jetzt vorher aus.
      */
     private static long sellPrice(String id, boolean instant, boolean bazaarFirst) {
         if (bazaarFirst) {
@@ -233,22 +254,10 @@ public final class CraftProfitData {
                 double wert = instant ? bazaar.instantSell() : bazaar.sellOrder();
                 if (wert > 0) return Math.round(wert);
             }
-            Double bin = ItemValue.LOWEST_BIN.get(id);
-            return bin != null && bin > 0 ? Math.round(bin) : 0;
+            return 0;
         }
         Double bin = ItemValue.LOWEST_BIN.get(id);
-        if (bin != null && bin > 0) return Math.round(bin);
-        long[] live = BazaarLive.priceOf(id);
-        if (live != null) {
-            long wert = instant ? live[1] : live[0];
-            if (wert > 0) return wert;
-        }
-        ItemValue.BazaarPrice bazaar = ItemValue.BAZAAR.get(id);
-        if (bazaar != null) {
-            double wert = instant ? bazaar.instantSell() : bazaar.sellOrder();
-            if (wert > 0) return Math.round(wert);
-        }
-        return 0;
+        return bin != null && bin > 0 ? Math.round(bin) : 0;
     }
 
     /** Holt nach, wenn der Stand alt genug ist */

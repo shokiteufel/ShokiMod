@@ -240,7 +240,8 @@ public class CraftProfitScreen extends Screen {
         List<Row> zeilen = visible();
         graphics.centeredText(font, Component.literal(
                         zeilen.size() + " of " + CraftProfitData.recipeCount()
-                        + " recipes shown"
+                        + (sellToBazaar ? " recipes sellable on the bazaar"
+                                        : " recipes sellable on the auction house")
                         + (search.isBlank() ? " - type an item to narrow it down"
                                             : " - click a row for /recipe"))
                 .withStyle(ChatFormatting.DARK_GRAY), centerX, 28, 0xFF888888);

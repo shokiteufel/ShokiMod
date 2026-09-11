@@ -26,6 +26,7 @@ import hashlib
 import io
 import json
 import os
+import re
 import sys
 import tarfile
 import tempfile
@@ -39,6 +40,8 @@ REPO = ("https://github.com/NotEnoughUpdates/NotEnoughUpdates-REPO"
         "/archive/refs/heads/master.tar.gz")
 KOPF = {"User-Agent": "ShokiMod-craftprofit (+https://github.com/shokiteufel/ShokiMod)"}
 SLOTS = ["A1", "A2", "A3", "B1", "B2", "B3", "C1", "C2", "C3"]
+# "RAW_FISH-1" - alte Minecraft-Kennung mit Schadenswert, im Bazaar "RAW_FISH:1"
+VARIANTE = re.compile(r"^(?P<basis>.+)-(?P<nr>\d+)$")
 # Rezepte mit mehr Zutatenarten als das passen nicht in ein Handwerksfeld und sind
 # meist Sonderformen, die sich nicht rechnen lassen
 MAX_ZUTATEN = 9
@@ -76,6 +79,14 @@ def zutaten(feld: dict) -> dict:
         kennung = teile[0].split(";")[0].strip()
         if not kennung:
             continue
+        # Das Verzeichnis schreibt alte Minecraft-Varianten mit Bindestrich, der
+        # Bazaar mit Doppelpunkt: RAW_FISH-1 dort ist RAW_FISH:1 hier, beides Raw
+        # Salmon. Wer das nicht umschreibt, findet fuer ein Viertel aller Varianten
+        # keinen Preis - bei Whale Bait war genau das der Grund fuer "no price".
+        # Abschneiden waere falsch: RAW_FISH ist Raw Cod und kostet etwas anderes
+        m = VARIANTE.match(kennung)
+        if m:
+            kennung = m.group("basis") + ":" + m.group("nr")
         try:
             anzahl = int(teile[1]) if len(teile) > 1 and teile[1] else 1
         except ValueError:
@@ -99,6 +110,12 @@ def lesen(ordner: Path) -> dict:
         eigen = d.get("internalname")
         if not eigen:
             continue
+        # Auch hier die Varianten-Schreibweise angleichen, sonst steht der Name unter
+        # "RAW_FISH-1" und die Zutat heisst "RAW_FISH:1" - und im Fenster stuende die
+        # nackte Kennung statt "Raw Salmon"
+        m = VARIANTE.match(eigen)
+        if m:
+            eigen = m.group("basis") + ":" + m.group("nr")
         anzeige = d.get("displayname") or eigen
         # Die Farbcodes von Minecraft haben in einer Datenablage nichts zu suchen
         namen[eigen] = "".join(
