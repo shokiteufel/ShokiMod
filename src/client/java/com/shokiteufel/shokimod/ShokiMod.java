@@ -51,6 +51,7 @@ public class ShokiMod implements ClientModInitializer {
     private static boolean openConfigNextTick = false;
     private static boolean openHudNextTick = false;
     private static boolean openPetProfitNextTick = false;
+    private static boolean openShardProfitNextTick = false;
     private static boolean openPetBuilderNextTick = false;
 
 
@@ -86,6 +87,10 @@ public class ShokiMod implements ClientModInitializer {
             if (openPetProfitNextTick) {
                 openPetProfitNextTick = false;
                 client.setScreen(new PetProfitScreen(null));
+            }
+            if (openShardProfitNextTick) {
+                openShardProfitNextTick = false;
+                client.setScreen(new com.shokiteufel.shokimod.gui.ShardProfitScreen(null));
             }
             if (openPetBuilderNextTick) {
                 openPetBuilderNextTick = false;
@@ -136,6 +141,14 @@ public class ShokiMod implements ClientModInitializer {
                         .then(ClientCommands.literal("petprofit").executes(context -> {
                             PetProfitData.prefetch();
                             openPetProfitNextTick = true;
+                            return 1;
+                        }))
+                        // /shoki shardprofit -> welche Shard-Fusionen etwas abwerfen.
+                        // Auch diese Liste kommt fertig aus dem Netz; das Holen faengt
+                        // hier an, damit beim Oeffnen schon etwas dasteht
+                        .then(ClientCommands.literal("shardprofit").executes(context -> {
+                            com.shokiteufel.shokimod.util.ShardProfitData.prefetch();
+                            openShardProfitNextTick = true;
                             return 1;
                         }))
                         // /shoki tab -> die Tab-Liste ins Log schreiben.

@@ -27,6 +27,16 @@ die Jar landet dann in `build/libs/`.
 
 LGPL-3.0, geerbt vom Upstream-Projekt GanKura. Siehe [LICENSE](LICENSE).
 
+### Fremde Daten und Vorlagen
+
+- **Fusions-Rezepte** aus [SkyShards](https://github.com/Campionnn/SkyShards) (MIT).
+  Geholt werden `fusion-data.json` und `fusion-properties.json`; gerechnet wird
+  daraus in `tools/shardprofit.py`. Die Webseite selbst ist eine JavaScript-Anwendung
+  ohne abgreifbare Daten - das Verzeichnis dahinter haelt sie als JSON und traegt die
+  Bazaar-Kennung gleich mit.
+- **Pet-Daten** aus dem [NotEnoughUpdates-Verzeichnis](https://github.com/NotEnoughUpdates/NotEnoughUpdates-REPO).
+- **Hotspot-Anzeige** uebernommen aus SkyOcean (Modified MIT, meowdding).
+
 ---
 
 # Upstream-Dokumentation (GanKura)

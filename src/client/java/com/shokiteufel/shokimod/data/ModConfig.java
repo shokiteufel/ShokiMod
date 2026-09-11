@@ -214,6 +214,13 @@ public class ModConfig extends Config {
                         picked -> INSTANCE.safari.shinyCallSoundFile = picked,
                         1.0f)));
         INSTANCE.safari.testShinyCallSound = () -> Minecraft.getInstance().execute(ShinyAlert::testCallSound);
+        INSTANCE.hunting.fusion.open = () -> Minecraft.getInstance().execute(() -> {
+            // Das Holen anstossen, bevor das Fenster aufgeht - sonst steht dort
+            // im ersten Moment nur "Loading"
+            com.shokiteufel.shokimod.util.ShardProfitData.prefetch();
+            Minecraft.getInstance().setScreen(
+                    new com.shokiteufel.shokimod.gui.ShardProfitScreen(Minecraft.getInstance().screen));
+        });
 
         if (INSTANCE.mobVisuals.customTargets == null) INSTANCE.mobVisuals.customTargets = new ArrayList<>();
         if (INSTANCE.chat.chatRules == null) INSTANCE.chat.chatRules = new ArrayList<>();
@@ -1027,6 +1034,62 @@ public class ModConfig extends Config {
         @Expose
         @Category(name = "Hunting Tracker", desc = "Counts every shard you catch and prices the haul on the bazaar: total, per hour, and the top shards.")
         public HuntingTrackerCategory tracker = new HuntingTrackerCategory();
+
+        @Expose
+        @Category(name = "Fusions", desc = "Which shard fusions pay off right now, from the bazaar. Open the list with /shoki shardprofit.")
+        public FusionCategory fusion = new FusionCategory();
+    }
+
+    /**
+     * Die Fusions-Liste: welche Shards zusammengelegt etwas abwerfen.
+     *
+     * Die Rezepte stammen von SkyShards (MIT), die Preise vom Bazaar; gerechnet wird
+     * auf GitHub, weil es rund 130.000 Kombinationen sind.
+     */
+    public static class FusionCategory {
+
+        /**
+         * Wie die Zutaten beschafft werden.
+         *
+         * Der Unterschied ist kein Rundungsfehler: Bei derselben Fusion liegen zwischen
+         * dem teuersten und dem guenstigsten Weg schon einmal zwei Millionen. Wer sofort
+         * kauft, zahlt den Preis der offenen Angebote; wer einen Auftrag stellt, zahlt
+         * weniger und wartet, bis jemand ihn bedient.
+         */
+        public enum BuyMode {
+            INSTANT_BUY("Instant Buy"),
+            BUY_ORDER("Buy Order");
+
+            private final String label;
+
+            BuyMode(String label) {
+                this.label = label;
+            }
+
+            @Override
+            public String toString() {
+                return label;
+            }
+        }
+
+        @ConfigOption(name = "Fusions", desc = "Cost and profit per fusion, priced on the bazaar. The two settings below are independent: buying the ingredients right away and selling the result through an order is a perfectly ordinary choice.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Ingredients", desc = "How you get the two shards you fuse. Instant Buy takes them from the open offers right now; Buy Order costs less and waits until someone fills it.")
+        @ConfigEditorDropdown
+        public BuyMode ingredientMode = BuyMode.INSTANT_BUY;
+
+        @Expose
+        @ConfigOption(name = "Result", desc = "How you turn the fused shard into coins. Instant Sell pays right now; Sell Order brings more once it fills.")
+        @ConfigEditorDropdown
+        public ItemValue.PriceMode resultMode = ItemValue.PriceMode.INSTANT_SELL;
+
+        @ConfigOption(name = "Open the list", desc = "Same as /shoki shardprofit.")
+        @ConfigEditorButton(buttonText = "Open")
+        public transient Runnable open = () -> {
+        };
     }
 
     /**

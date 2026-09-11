@@ -487,6 +487,9 @@ public final class RareLootHandler {
            .append(com.shokiteufel.shokimod.scanner.PetState.status()).append("\n")
            .append(com.shokiteufel.shokimod.util.PetProfitData.status()).append("\n\n");
 
+        out.append("[shards]\n")
+           .append(com.shokiteufel.shokimod.util.ShardProfitData.status()).append("\n\n");
+
         out.append("[price lists]\n");
         for (String line : ItemValue.statusLines()) out.append(line).append('\n');
         out.append('\n');

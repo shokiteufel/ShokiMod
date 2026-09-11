@@ -1,10 +1,16 @@
-# Sucht im Auktionshaus die Pets, bei denen sich das Hochleveln lohnt, und legt das
-# Ergebnis als kleine Datei ab. Die Rechenarbeit passiert hier und nicht auf dem
-# Rechner des Spielers - die Mod holt nur noch die fertige Liste.
+# Rechnet die Marktdaten, die die Mod anzeigt: welche Pets sich zu leveln lohnen
+# und welche Shard-Fusionen etwas abwerfen. Die Rechenarbeit passiert hier und nicht
+# auf dem Rechner des Spielers - die Mod holt nur noch die fertigen Listen.
 #
 # Das Ergebnis liegt im Zweig "data", der bei jedem Lauf ueberschrieben wird. So
 # waechst die Geschichte des Hauptzweigs nicht um zweitausend Eintraege im Monat.
-name: petprofit
+#
+# Beides laeuft bewusst in EINEM Lauf. Der Zweig wird ohne Vorgeschichte neu gesetzt
+# und mit Gewalt geschoben; ein zweiter Ablaufplan daneben wuerde die Datei des
+# ersten jedes Mal mitloeschen. Die Datei heisst weiterhin petprofit.yml, weil der
+# Bot sie unter diesem Namen anstoesst (petprofit_trigger.py) - der Name ist
+# Geschichte, der Inhalt macht beides.
+name: Marktdaten (Pets und Shards)
 
 on:
   schedule:
@@ -20,7 +26,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: petprofit
+  group: marktdaten
   cancel-in-progress: false
 
 jobs:
@@ -38,6 +44,12 @@ jobs:
       - name: Auktionshaus auswerten
         run: python tools/petprofit.py ausgabe/petprofit.json
 
+      # Zwei Sekunden Arbeit gegen rund 130.000 Kombinationen. Scheitert sie, soll
+      # die Pet-Liste trotzdem erscheinen - deshalb bricht der Lauf hier nicht ab
+      - name: Shard-Fusionen auswerten
+        continue-on-error: true
+        run: python tools/shardprofit.py ausgabe/shardprofit.json
+
       - name: Ergebnis veroeffentlichen
         run: |
           set -euo pipefail
@@ -48,7 +60,13 @@ jobs:
           git rm -rf --cached . >/dev/null
           find . -maxdepth 1 -mindepth 1 -not -name .git -not -name ausgabe -exec rm -rf {} +
           mv ausgabe/petprofit.json petprofit.json
+          # Die Shard-Liste nur, wenn ihr Schritt durchgekommen ist: Ohne diese
+          # Pruefung risse ein Aussetzer bei SkyShards den ganzen Lauf mit
+          if [ -f ausgabe/shardprofit.json ]; then
+            mv ausgabe/shardprofit.json shardprofit.json
+            git add shardprofit.json
+          fi
           rmdir ausgabe
           git add petprofit.json
-          git commit -m "Pet-Gewinnliste vom $(date -u '+%Y-%m-%d %H:%M UTC')"
+          git commit -m "Marktdaten vom $(date -u '+%Y-%m-%d %H:%M UTC')"
           git push --force origin data
