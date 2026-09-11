@@ -50,6 +50,8 @@ public class CraftProfitScreen extends Screen {
     private final Screen parent;
     private EditBox searchBox;
     private List<Row> cached;
+    /** Wie alt der Live-Stand beim letzten Bild war - fuer das Neuberechnen */
+    private int lastLiveAge = -1;
     private int listTop = 74;
     private int page;
 
@@ -224,7 +226,15 @@ public class CraftProfitScreen extends Screen {
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
+        // Solange jemand hinsieht, werden die Preise direkt bei Hypixel geholt
         com.shokiteufel.shokimod.util.BazaarLive.wanted();
+        // Frische Preise heissen andere Zahlen - eine festgehaltene Auswahl zeigte
+        // sonst den Stand vom Oeffnen, waehrend daneben "3s old" steht
+        int alter = com.shokiteufel.shokimod.util.BazaarLive.ageSeconds();
+        if (alter >= 0 && alter != lastLiveAge) {
+            lastLiveAge = alter;
+            if (alter <= 1) invalidate();
+        }
         int left = left();
         int centerX = width / 2;
 
@@ -238,13 +248,22 @@ public class CraftProfitScreen extends Screen {
         }
 
         List<Row> zeilen = visible();
+        // Wie frisch die Zahlen sind, gehoert daneben. Beim Bazaar sind es Sekunden,
+        // beim Auktionshaus Minuten - das ist ein Unterschied, den man kennen sollte
+        boolean live = com.shokiteufel.shokimod.util.BazaarLive.fresh();
+        String stand = sellToBazaar
+                ? (live ? ", live prices " + com.shokiteufel.shokimod.util.BazaarLive.ageSeconds() + "s old"
+                        : ", bazaar prices up to 10 min old")
+                : ", auction prices up to 10 min old";
         graphics.centeredText(font, Component.literal(
                         zeilen.size() + " of " + CraftProfitData.recipeCount()
-                        + (sellToBazaar ? " recipes sellable on the bazaar"
-                                        : " recipes sellable on the auction house")
+                        + (sellToBazaar ? " sellable on the bazaar"
+                                        : " sellable on the auction house")
+                        + stand
                         + (search.isBlank() ? " - type an item to narrow it down"
                                             : " - click a row for /recipe"))
-                .withStyle(ChatFormatting.DARK_GRAY), centerX, 28, 0xFF888888);
+                .withStyle(ChatFormatting.DARK_GRAY), centerX, 28,
+                sellToBazaar && live ? 0xFF77DD77 : 0xFF888888);
 
         graphics.text(font, "Craft", left + 4, listTop - 12, 0xFF888888, false);
         graphics.text(font, "Materials", left + 170, listTop - 12, 0xFF888888, false);
