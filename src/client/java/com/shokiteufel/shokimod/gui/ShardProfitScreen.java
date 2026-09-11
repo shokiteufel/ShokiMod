@@ -73,6 +73,8 @@ public class ShardProfitScreen extends Screen {
     private List<Row> cached;
     /** Wie alt der Live-Stand beim letzten Bild war - fuer das Neuberechnen */
     private int lastLiveAge = -1;
+    /** Wurde die Gewinnschranke uebergangen, weil sonst nichts dastuende? */
+    private boolean fallbackShown = false;
     private int page;
 
     public ShardProfitScreen(Screen parent) {
@@ -116,6 +118,18 @@ public class ShardProfitScreen extends Screen {
                     category, search, searchInputsOnly,
                     onlyOwned ? ShardStock.counts() : null,
                     onlyProfitable, instantBuy(), instantSell(), LIMIT);
+            fallbackShown = false;
+
+            // Was man aus dem eigenen Vorrat machen kann, ist auch dann die Antwort,
+            // wenn nichts davon Gewinn bringt. Der Gewinnfilter laesst die Liste sonst
+            // leer - und "nichts lohnt sich" beantwortet die Frage "was kann ich jetzt
+            // machen" eben nicht. Also noch einmal, ohne ihn
+            if (cached.isEmpty() && onlyOwned && onlyProfitable && ShardStock.known()) {
+                cached = ShardProfitData.select(
+                        category, search, searchInputsOnly,
+                        ShardStock.counts(), false, instantBuy(), instantSell(), LIMIT);
+                fallbackShown = !cached.isEmpty();
+            }
         }
         return cached;
     }
@@ -356,16 +370,23 @@ public class ShardProfitScreen extends Screen {
     }
 
     private void drawFooter(GuiGraphicsExtractor graphics, int centerX) {
+        // Ohne diesen Satz saehe es aus, als waere der Gewinnfilter kaputt
+        if (fallbackShown) {
+            graphics.centeredText(font, Component.literal(
+                            "Nothing from your box pays off - showing what you could make anyway")
+                    .withStyle(ChatFormatting.YELLOW), centerX, listTop - 20, 0xFFFFAA00);
+        }
         if (rowCount() == 0) {
             graphics.centeredText(font, Component.literal(
                             "Nothing pays off on this route right now - try the other one")
                     .withStyle(ChatFormatting.GRAY), centerX, listTop + 20, 0xFFAAAAAA);
         }
         if (pageCount() > 1) {
-            // Fuenfundsiebzig ueber der alten Stelle: Dort lag sie mitten im
-            // Sell-Knopf, der in der Mitte der unteren Reihe sitzt
+            // Knapp ueber der Knopfreihe. Die Knoepfe stehen bei height-28 und sind
+            // zwanzig hoch; zwoelf darueber liegt die Zeile frei, ohne den halben
+            // Bildschirm nach oben zu wandern
             graphics.centeredText(font, Component.literal((page + 1) + " / " + pageCount())
-                    .withStyle(ChatFormatting.GRAY), centerX, height - 97, 0xFFAAAAAA);
+                    .withStyle(ChatFormatting.GRAY), centerX, height - 40, 0xFFAAAAAA);
         }
     }
 
