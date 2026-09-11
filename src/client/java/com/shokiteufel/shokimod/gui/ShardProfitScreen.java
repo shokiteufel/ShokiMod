@@ -2,6 +2,7 @@ package com.shokiteufel.shokimod.gui;
 
 import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.scanner.ShardStock;
+import com.shokiteufel.shokimod.util.BazaarLive;
 import com.shokiteufel.shokimod.util.ItemValue;
 import com.shokiteufel.shokimod.util.ShardProfitData;
 import com.shokiteufel.shokimod.util.ShardProfitData.Row;
@@ -70,6 +71,8 @@ public class ShardProfitScreen extends Screen {
     private final Screen parent;
     private EditBox searchBox;
     private List<Row> cached;
+    /** Wie alt der Live-Stand beim letzten Bild war - fuer das Neuberechnen */
+    private int lastLiveAge = -1;
     private int page;
 
     public ShardProfitScreen(Screen parent) {
@@ -260,6 +263,17 @@ public class ShardProfitScreen extends Screen {
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
+        // Solange jemand hinsieht, werden die Preise direkt bei Hypixel geholt.
+        // Ausserhalb dieses Fensters geschieht das nicht - fuenfhundert Kilobyte
+        // alle fuenfzehn Sekunden fuer Zahlen, die niemand ansieht, waeren Unfug
+        BazaarLive.wanted();
+        // Frische Preise heissen andere Zahlen, also muss die Auswahl neu gerechnet
+        // werden. Der Zeitstempel sagt, wann das noetig ist
+        int alter = BazaarLive.ageSeconds();
+        if (alter >= 0 && alter != lastLiveAge) {
+            lastLiveAge = alter;
+            if (alter <= 1) invalidate();
+        }
         int left = left();
         int centerX = width / 2;
 
@@ -293,12 +307,17 @@ public class ShardProfitScreen extends Screen {
             graphics.text(font, hinweis, left + 456, listTop - 34, farbe, false);
         }
 
-        String stand = ShardProfitData.age();
+        // Woher die Preise gerade kommen. Der Unterschied ist keine Kleinigkeit:
+        // Sekunden gegen Minuten, und bei Shards bewegt sich viel in Minuten
+        int liveAlter = BazaarLive.ageSeconds();
+        String preisStand = BazaarLive.fresh()
+                ? "live prices, " + liveAlter + "s old"
+                : "prices " + ShardProfitData.age();
         graphics.centeredText(font, Component.literal(
                         rowCount() + " of " + ShardProfitData.combinations()
-                        + " combinations shown"
-                        + (stand.isEmpty() ? "" : " - prices " + stand))
-                .withStyle(ChatFormatting.DARK_GRAY), centerX, 28, 0xFF888888);
+                        + " combinations shown - " + preisStand)
+                .withStyle(ChatFormatting.DARK_GRAY), centerX, 28,
+                BazaarLive.fresh() ? 0xFF77DD77 : 0xFF888888);
 
         graphics.text(font, "Fusion", left + 4, listTop - 12, 0xFF888888, false);
         graphics.text(font, "Result", left + 210, listTop - 12, 0xFF888888, false);
@@ -334,8 +353,10 @@ public class ShardProfitScreen extends Screen {
                     .withStyle(ChatFormatting.GRAY), centerX, listTop + 20, 0xFFAAAAAA);
         }
         if (pageCount() > 1) {
+            // Fuenfundsiebzig ueber der alten Stelle: Dort lag sie mitten im
+            // Sell-Knopf, der in der Mitte der unteren Reihe sitzt
             graphics.centeredText(font, Component.literal((page + 1) + " / " + pageCount())
-                    .withStyle(ChatFormatting.GRAY), centerX, height - 22, 0xFFAAAAAA);
+                    .withStyle(ChatFormatting.GRAY), centerX, height - 97, 0xFFAAAAAA);
         }
     }
 

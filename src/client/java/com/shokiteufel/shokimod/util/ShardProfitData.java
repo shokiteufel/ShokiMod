@@ -69,8 +69,27 @@ public final class ShardProfitData {
     private static final Gson GSON = new Gson();
 
     /** Was ein Shard kostet, bringt und wie er heisst */
-    private record Shard(String name, String category, String rarity, int fuseAmount,
-                         long instantBuy, long instantSell, int volume, String area) {
+    private record Shard(String name, String bazaarId, String category, String rarity,
+                         int fuseAmount, long instantBuy, long instantSell,
+                         int volume, String area) {
+
+        /**
+         * Der Preis, der gerade gilt - lieber der frische als der gespeicherte.
+         *
+         * Liegt ein direkt bei Hypixel geholter Stand vor, zaehlt der: Er ist Sekunden
+         * alt statt Minuten. Fehlt er - weil niemand hinsieht oder die Verbindung
+         * klemmt -, gilt weiter, was von GitHub kam. Eine Zahl von vor fuenf Minuten
+         * ist immer noch besser als keine.
+         */
+        long buyNow() {
+            long[] live = BazaarLive.priceOf(bazaarId);
+            return live != null && live[0] > 0 ? live[0] : instantBuy;
+        }
+
+        long sellNow() {
+            long[] live = BazaarLive.priceOf(bazaarId);
+            return live != null && live[1] > 0 ? live[1] : instantSell;
+        }
     }
 
     /**
@@ -225,9 +244,9 @@ public final class ShardProfitData {
             // gerade kein Angebot". Wer das als Zahl nimmt, bekommt eine Fusion ohne
             // Kosten an die Spitze gereiht - das schoenste Geschaeft des Tages, und
             // keines, das sich machen laesst. Solche Zeilen fallen weg
-            long preisA = instantBuy ? a.instantBuy() : a.instantSell();
-            long preisB = instantBuy ? b.instantBuy() : b.instantSell();
-            long preisZiel = instantSell ? ziel.instantSell() : ziel.instantBuy();
+            long preisA = instantBuy ? a.buyNow() : a.sellNow();
+            long preisB = instantBuy ? b.buyNow() : b.sellNow();
+            long preisZiel = instantSell ? ziel.sellNow() : ziel.buyNow();
             if (preisA <= 0 || preisB <= 0 || preisZiel <= 0) continue;
 
             int menge = outAmount[i];
@@ -235,12 +254,15 @@ public final class ShardProfitData {
             long erloes = (long) menge * preisZiel;
             if (onlyGain && erloes - kosten <= 0) continue;
 
+            // Dieselben Zahlen in die Zeile, mit denen eben gerechnet wurde. Nimmt
+            // man hier die gespeicherten, zeigt die Liste andere Kosten an, als sie
+            // zum Reihen benutzt hat - und niemand kaeme darauf, warum
             out.add(new Row(ziel.name(), a.name(), b.name(), menge,
                     a.fuseAmount(), b.fuseAmount(),
                     ziel.rarity(), ziel.category(), ziel.area(),
-                    a.instantBuy(), a.instantSell(),
-                    b.instantBuy(), b.instantSell(),
-                    ziel.instantSell(), ziel.instantBuy(), ziel.volume()));
+                    a.buyNow(), a.sellNow(),
+                    b.buyNow(), b.sellNow(),
+                    ziel.sellNow(), ziel.buyNow(), ziel.volume()));
         }
 
         out.sort((x, y) -> Long.compare(y.profit(instantBuy, instantSell),
@@ -352,7 +374,10 @@ public final class ShardProfitData {
                .append(" shards from ").append(origin)
                .append(", recipes ").append(recipeKey)
                .append(", prices ").append(updated)
-               .append(", ").append(unchangedCount).append(" unchanged replies");
+               .append(", ").append(unchangedCount).append(" unchanged replies")
+               .append(BazaarLive.fresh()
+                       ? ", live prices " + BazaarLive.ageSeconds() + "s old"
+                       : ", no live prices");
         }
         if (succeededAt > 0) out.append(", last success ").append(ago(succeededAt));
         if (attemptedAt > 0) out.append(", last attempt ").append(ago(attemptedAt));
@@ -536,6 +561,7 @@ public final class ShardProfitData {
             if (o == null) continue;
             tabelle[i] = new Shard(
                     string(o, "n"),
+                    string(o, "i"),
                     string(o, "s"),
                     string(o, "r"),
                     Math.max(1, number(o, "f").intValue()),

@@ -103,6 +103,9 @@ def preise_bauen(fusionen: dict, eigenschaften: dict, produkte: dict,
         eig = eigenschaften.get(code, {})
         out[code] = {
             "n": s.get("name", code),
+            # Die Bazaar-Kennung: Mit ihr kann die Mod die Preise auch direkt bei
+            # Hypixel holen, statt auf den naechsten Lauf hier zu warten
+            "i": s["internal_id"],
             "s": (s.get("type") or "").upper(),
             "r": (s.get("rarity") or "").upper(),
             # Wie viele Stueck eine Fusion von diesem Shard nimmt
