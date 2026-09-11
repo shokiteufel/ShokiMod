@@ -42,15 +42,32 @@ public final class ShardStock {
     private static final Pattern COLOUR_CODE = Pattern.compile("§.");
     /** Oefter als das lohnt der Blick ins offene Fenster nicht */
     private static final long GAP_MILLIS = 500L;
+    /**
+     * So lange gilt ein Blick als zur selben Sitzung gehoerig.
+     *
+     * Die Box hat mehrere Seiten. Wer blaettert, oeffnet aus Sicht des Spiels jedes
+     * Mal ein neues Fenster - und wenn jede Seite die vorige ersetzt, bleibt am Ende
+     * nur die letzte uebrig. Gemeldet wurden dreissig von sechzig Sorten, also genau
+     * eine Seite. Innerhalb dieser Spanne wird deshalb ergaenzt statt ersetzt.
+     */
+    private static final long SESSION_MILLIS = 60_000L;
 
     private static final Map<String, Integer> counts = new HashMap<>();
     private static volatile long seenAt = 0L;
     private static volatile String lastTitle = "";
     private static volatile int lastSlots = 0;
     private static volatile String howCounted = "";
+    private static volatile int pages = 0;
+    private static volatile int slotsSeen = 0;
+    private static volatile String lastPage = "";
     private static long lastLook = 0L;
 
     private ShardStock() {
+    }
+
+    /** Der ganze Bestand, klein geschrieben - fuer den Abgleich mit den Fusionen */
+    public static java.util.Map<String, Integer> counts() {
+        return java.util.Collections.unmodifiableMap(counts);
     }
 
     /** Wie viele von diesem Shard im Lager liegen, oder 0 */
@@ -103,6 +120,8 @@ public final class ShardStock {
         }
         if (!passt) return;
 
+        // Eine Seite, die schon einmal gezaehlt wurde, darf nicht doppelt zaehlen -
+        // wer zurueckblaettert, haette sonst die doppelte Menge im Lager
         Map<String, Integer> gefunden = new LinkedHashMap<>();
         int felder = 0;
         boolean ausStapel = false;
@@ -124,11 +143,35 @@ public final class ShardStock {
         }
 
         if (gefunden.isEmpty()) return;
-        counts.clear();
-        counts.putAll(gefunden);
+
+        // Dieselbe Seite noch einmal? Dann aendert sich nichts. Erkannt an dem, was
+        // darauf steht: Seitenzahl und Feldanzahl allein truegen, zwei Seiten koennen
+        // gleich viele Felder haben
+        String fingerabdruck = gefunden.toString();
+        if (fingerabdruck.equals(lastPage) && now - seenAt < SESSION_MILLIS) {
+            seenAt = now;
+            return;
+        }
+
+        // Innerhalb einer Sitzung wird ergaenzt, danach neu angefangen. Sonst bliebe
+        // ein Lagerstand von gestern stehen, den es so laengst nicht mehr gibt
+        if (now - seenAt > SESSION_MILLIS) {
+            counts.clear();
+            pages = 0;
+            slotsSeen = 0;
+        }
+        for (Map.Entry<String, Integer> e : gefunden.entrySet()) {
+            // Die groessere Zahl gewinnt statt zu addieren: Beim Blaettern taucht
+            // derselbe Shard auf zwei Seiten nicht auf, wohl aber beim erneuten
+            // Oeffnen derselben Seite mit geaenderter Menge
+            counts.merge(e.getKey(), e.getValue(), Math::max);
+        }
+        lastPage = fingerabdruck;
+        pages++;
+        slotsSeen += felder;
         seenAt = now;
         lastTitle = clean(screen.getTitle().getString());
-        lastSlots = felder;
+        lastSlots = slotsSeen;
         howCounted = ausText ? (ausStapel ? "lore and stack size" : "lore") : "stack size";
     }
 
@@ -173,8 +216,9 @@ public final class ShardStock {
         if (seenAt == 0L) {
             return "shard stock: never looked into a shard window yet";
         }
-        return "shard stock: " + counts.size() + " kinds from " + lastSlots + " slots of \""
-                + lastTitle + "\", counted by " + howCounted + ", seen " + age();
+        return "shard stock: " + counts.size() + " kinds from " + lastSlots + " slots over "
+                + pages + " page(s) of \"" + lastTitle + "\", counted by " + howCounted
+                + ", seen " + age();
     }
 
     /** Die ersten Eintraege im Klartext - damit sich pruefen laesst, was gelesen wurde */

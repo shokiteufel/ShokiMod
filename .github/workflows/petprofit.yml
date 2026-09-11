@@ -44,11 +44,15 @@ jobs:
       - name: Auktionshaus auswerten
         run: python tools/petprofit.py ausgabe/petprofit.json
 
-      # Zwei Sekunden Arbeit gegen rund 130.000 Kombinationen. Scheitert sie, soll
-      # die Pet-Liste trotzdem erscheinen - deshalb bricht der Lauf hier nicht ab
+      # Eine Sekunde Arbeit. Scheitert sie, soll die Pet-Liste trotzdem erscheinen -
+      # deshalb bricht der Lauf hier nicht ab.
+      #
+      # Herausfallen zwei Dateien: die Rezepte (anderthalb Megabyte, aendern sich nur
+      # bei einem Hypixel-Update) und die Preise (dreissig Kilobyte, jedes Mal neu).
+      # Die Mod holt die grosse nur, wenn sich deren Kennung geaendert hat
       - name: Shard-Fusionen auswerten
         continue-on-error: true
-        run: python tools/shardprofit.py ausgabe/shardprofit.json
+        run: python tools/shardprofit.py ausgabe
 
       - name: Ergebnis veroeffentlichen
         run: |
@@ -60,12 +64,14 @@ jobs:
           git rm -rf --cached . >/dev/null
           find . -maxdepth 1 -mindepth 1 -not -name .git -not -name ausgabe -exec rm -rf {} +
           mv ausgabe/petprofit.json petprofit.json
-          # Die Shard-Liste nur, wenn ihr Schritt durchgekommen ist: Ohne diese
+          # Die Shard-Dateien nur, wenn ihr Schritt durchgekommen ist: Ohne diese
           # Pruefung risse ein Aussetzer bei SkyShards den ganzen Lauf mit
-          if [ -f ausgabe/shardprofit.json ]; then
-            mv ausgabe/shardprofit.json shardprofit.json
-            git add shardprofit.json
-          fi
+          for f in shardrecipes.json shardprices.json; do
+            if [ -f "ausgabe/$f" ]; then
+              mv "ausgabe/$f" "$f"
+              git add "$f"
+            fi
+          done
           rmdir ausgabe
           git add petprofit.json
           git commit -m "Marktdaten vom $(date -u '+%Y-%m-%d %H:%M UTC')"

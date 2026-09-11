@@ -50,8 +50,18 @@ public class ShardProfitScreen extends Screen {
     /** Wonach gesucht wird - leer heisst: alles */
     private static String search = "";
 
+    /**
+     * Mehr Zeilen liest niemand durch.
+     *
+     * Gereiht wird nach Gewinn; was danach kommt, ist entweder schlechter oder
+     * gleich gut. Die Schranke haelt auch das Sortieren klein, wenn jemand ohne
+     * Suchbegriff und ohne Sparte durch alles blaettert
+     */
+    private static final int LIMIT = 2000;
+
     private final Screen parent;
     private EditBox searchBox;
+    private List<Row> cached;
     private int page;
 
     public ShardProfitScreen(Screen parent) {
@@ -81,33 +91,27 @@ public class ShardProfitScreen extends Screen {
         return Math.max(1, (height - 40 - listTop) / ROW_HEIGHT);
     }
 
-    /** Die Zeilen der gewaehlten Sparte, beste zuerst - auf dem gewaehlten Weg */
+    /**
+     * Die Auswahl, festgehalten.
+     *
+     * Dahinter laufen alle 128.000 Kombinationen durch. Das dauert Millisekunden -
+     * aber das Fenster fragt beim Zeichnen mehrfach nach Zeilenzahl, Seitenzahl und
+     * Inhalt, und dreimal je Bild waere aus Millisekunden ein Ruckeln geworden.
+     * Neu gerechnet wird nur, wenn sich an den Vorgaben etwas geaendert hat.
+     */
     private List<Row> visible() {
-        boolean kaufen = instantBuy();
-        boolean verkaufen = instantSell();
-        List<Row> out = new ArrayList<>();
-        for (Row row : ShardProfitData.rows()) {
-            if (!category.isEmpty() && !category.equals(row.category())) continue;
-            if (onlyProfitable && row.profit(kaufen, verkaufen) <= 0) continue;
-            // Gesucht wird in beiden Zutaten und im Ergebnis: Wer einen Shard eintippt,
-            // will wissen, was er damit anfangen kann - und was ihn herstellt
-            if (!search.isBlank() && !row.mentions(search)) continue;
-            if (onlyOwned && !owned(row)) continue;
-            out.add(row);
+        if (cached == null) {
+            cached = ShardProfitData.select(
+                    category, search,
+                    onlyOwned ? ShardStock.counts() : null,
+                    onlyProfitable, instantBuy(), instantSell(), LIMIT);
         }
-        out.sort((a, b) -> Long.compare(b.profit(kaufen, verkaufen), a.profit(kaufen, verkaufen)));
-        return out;
+        return cached;
     }
 
-    /** Liegen beide Zutaten in ausreichender Zahl im Lager? */
-    private static boolean owned(Row row) {
-        if (!ShardStock.known()) return false;
-        // Derselbe Shard zweimal: dann braucht es die Summe beider Mengen
-        if (row.first().equalsIgnoreCase(row.second())) {
-            return ShardStock.have(row.first()) >= row.firstAmount() + row.secondAmount();
-        }
-        return ShardStock.have(row.first()) >= row.firstAmount()
-                && ShardStock.have(row.second()) >= row.secondAmount();
+    /** Nach jeder Aenderung an den Vorgaben gilt die alte Auswahl nicht mehr */
+    private void invalidate() {
+        cached = null;
     }
 
     private int rowCount() {
@@ -149,6 +153,7 @@ public class ShardProfitScreen extends Screen {
                     button -> {
                         category = sparte;
                         page = 0;
+                        invalidate();
                         rebuild();
                     }).bounds(x, y, breite, 18).build();
             knopf.active = !gewaehlt;
@@ -168,6 +173,7 @@ public class ShardProfitScreen extends Screen {
         searchBox.setResponder(text -> {
             search = text == null ? "" : text.trim();
             page = 0;
+            invalidate();
         });
         addRenderableWidget(searchBox);
 
@@ -179,6 +185,7 @@ public class ShardProfitScreen extends Screen {
                 button -> {
                     onlyOwned = !onlyOwned;
                     page = 0;
+                    invalidate();
                     rebuild();
                 }).bounds(left + 206, sucheY, 140, 18).build());
 
@@ -204,6 +211,7 @@ public class ShardProfitScreen extends Screen {
                                          : ModConfig.FusionCategory.BuyMode.INSTANT_BUY;
                     ModConfig.INSTANCE.saveNow();
                     page = 0;
+                    invalidate();
                     rebuild();
                 }).bounds(left + 52, unten, 130, 20).build());
 
@@ -214,6 +222,7 @@ public class ShardProfitScreen extends Screen {
                                                      : ItemValue.PriceMode.INSTANT_SELL;
                     ModConfig.INSTANCE.saveNow();
                     page = 0;
+                    invalidate();
                     rebuild();
                 }).bounds(left + 186, unten, 130, 20).build());
 
@@ -221,6 +230,7 @@ public class ShardProfitScreen extends Screen {
                 Component.literal((onlyProfitable ? "☑" : "☐") + " Profit only"), button -> {
                     onlyProfitable = !onlyProfitable;
                     page = 0;
+                    invalidate();
                     rebuild();
                 }).bounds(left + 320, unten, 90, 20).build());
 
@@ -255,9 +265,9 @@ public class ShardProfitScreen extends Screen {
 
         String stand = ShardProfitData.age();
         graphics.centeredText(font, Component.literal(
-                        ShardProfitData.worthwhileCount() + " of "
-                        + ShardProfitData.combinationsChecked() + " combinations pay off"
-                        + (stand.isEmpty() ? "" : " - updated " + stand))
+                        rowCount() + " of " + ShardProfitData.combinations()
+                        + " combinations shown"
+                        + (stand.isEmpty() ? "" : " - prices " + stand))
                 .withStyle(ChatFormatting.DARK_GRAY), centerX, 28, 0xFF888888);
 
         graphics.text(font, "Fusion", left + 4, listTop - 12, 0xFF888888, false);
@@ -340,6 +350,7 @@ public class ShardProfitScreen extends Screen {
         boolean behandelt = super.keyPressed(event);
         if (searchBox != null && searchBox.isFocused() && !search.equals(searchBox.getValue().trim())) {
             search = searchBox.getValue().trim();
+            invalidate();
             rebuild();
         }
         return behandelt;
