@@ -98,7 +98,8 @@ public final class ShardProfitData {
      * Entsteht erst beim Filtern und nur fuer die Treffer - alle 128.000 auf einmal
      * als Objekte waeren Verschwendung.
      */
-    public record Row(String result, String first, String second, int amount,
+    public record Row(String result, String resultBazaarId,
+                      String first, String second, int amount,
                       int firstAmount, int secondAmount,
                       String rarity, String category, String area,
                       long firstInstant, long firstOrder,
@@ -257,7 +258,7 @@ public final class ShardProfitData {
             // Dieselben Zahlen in die Zeile, mit denen eben gerechnet wurde. Nimmt
             // man hier die gespeicherten, zeigt die Liste andere Kosten an, als sie
             // zum Reihen benutzt hat - und niemand kaeme darauf, warum
-            out.add(new Row(ziel.name(), a.name(), b.name(), menge,
+            out.add(new Row(ziel.name(), ziel.bazaarId(), a.name(), b.name(), menge,
                     a.fuseAmount(), b.fuseAmount(),
                     ziel.rarity(), ziel.category(), ziel.area(),
                     a.buyNow(), a.sellNow(),

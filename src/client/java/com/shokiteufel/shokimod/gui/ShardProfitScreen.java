@@ -33,7 +33,7 @@ import java.util.Locale;
 public class ShardProfitScreen extends Screen {
 
     private static final int ROW_HEIGHT = 20;
-    private static final int LIST_WIDTH = 500;
+    private static final int LIST_WIDTH = 560;
     /** Wo die Liste beginnt - wird bei zwei Reihen Reiter nach unten geschoben */
     private int listTop = 74;
     /** Die Sparte, die zuletzt gewaehlt war - ueberdauert das Schliessen des Fensters */
@@ -231,7 +231,7 @@ public class ShardProfitScreen extends Screen {
         addRenderableWidget(Button.builder(
                 Component.literal(ShardStock.known() ? "Refresh box" : "Open box")
                         .withStyle(ShardStock.known() ? ChatFormatting.GRAY : ChatFormatting.YELLOW),
-                button -> openBox()).bounds(left + 410, sucheY, 90, 18).build());
+                button -> openBox()).bounds(left + LIST_WIDTH - 90, sucheY, 90, 18).build());
 
         int unten = height - 28;
         // Die Pfeile links und rechts der Seitenzahl, nicht in der Ecke: Wo man ist
@@ -350,6 +350,10 @@ public class ShardProfitScreen extends Screen {
         graphics.text(font, "Cost", left + 320, listTop - 12, 0xFF888888, false);
         graphics.text(font, "Sells for", left + 380, listTop - 12, 0xFF888888, false);
         graphics.text(font, "Profit", left + 444, listTop - 12, 0xFF888888, false);
+        // Wie viele Stueck des Ergebnisses taeglich weggehen. Der Gewinn allein sagt
+        // nicht, ob sich der Shard ueberhaupt bewegt - wer zwanzig fusioniert und
+        // taeglich zwei verkauft, sitzt eine Woche darauf
+        graphics.text(font, "Sold/day", left + 506, listTop - 12, 0xFF888888, false);
 
         boolean kaufen = instantBuy();
         boolean verkaufen = instantSell();
@@ -367,6 +371,14 @@ public class ShardProfitScreen extends Screen {
             graphics.text(font, ItemValue.format(row.revenue(verkaufen)), left + 380, y, 0xFFAAAAFF, false);
             graphics.text(font, ItemValue.format(gewinn), left + 444, y,
                     gewinn > 0 ? 0xFF55FF55 : 0xFFFF5555, false);
+
+            // Der Tagesumsatz kommt aus den Live-Daten; die gespeicherte Datei fuehrt
+            // ihn nicht. Liegt keiner vor, steht hier ein Strich statt einer Zahl,
+            // die niemand nachpruefen koennte
+            long proTag = com.shokiteufel.shokimod.util.BazaarLive.soldPerDay(
+                    row.resultBazaarId());
+            graphics.text(font, proTag < 0 ? "-" : ItemValue.format(proTag),
+                    left + 506, y, mengeFarbe(proTag), false);
         }
 
         drawFooter(graphics, centerX);
@@ -392,6 +404,20 @@ public class ShardProfitScreen extends Screen {
             graphics.centeredText(font, Component.literal((page + 1) + " / " + pageCount())
                     .withStyle(ChatFormatting.GRAY), centerX, height - 44, 0xFFAAAAAA);
         }
+    }
+
+    /**
+     * Die Farbe des Tagesumsatzes.
+     *
+     * Rot heisst: Hier bewegt sich fast nichts, und ein Gewinn auf dem Papier nuetzt
+     * wenig, wenn die Ware tagelang liegt. Die Schwellen sind grob und sollen nur
+     * den Blick lenken.
+     */
+    private static int mengeFarbe(long proTag) {
+        if (proTag < 0) return 0xFF666666;
+        if (proTag < 100) return 0xFFFF5555;
+        if (proTag < 1000) return 0xFFFFAA00;
+        return 0xFF55FF55;
     }
 
     /** Die Farbe der Seltenheit, wie im Spiel */
