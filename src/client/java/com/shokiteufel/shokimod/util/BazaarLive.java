@@ -27,11 +27,15 @@ import java.util.zip.GZIPInputStream;
  * sie nicht von selbst an, deshalb steht sie hier ausdruecklich im Kopf und wird
  * hier ausgepackt.
  *
- * <p><b>Warum nicht dauernd:</b> Fuenfhundert Kilobyte alle zwanzig Sekunden waeren
- * neunzig Megabyte in der Stunde - fuer Zahlen, die niemand ansieht. Geholt wird
- * deshalb nur, solange jemand hinsieht: Das Fusions-Fenster meldet sich an, und mit
- * dem Schliessen hoert es wieder auf. Wer eine Viertelstunde in der Liste blaettert,
- * verbraucht rund zwanzig Megabyte; wer sie nie oeffnet, gar nichts.
+ * <p><b>Warum nicht dauernd:</b> Fuenfhundert Kilobyte alle fuenfzehn Sekunden sind
+ * rund hundert Megabyte in der Stunde - fuer Zahlen, die meist niemand ansieht.
+ * Geholt wird deshalb nur, solange jemand hinsieht: Die Profit-Fenster melden sich
+ * an, und mit dem Schliessen hoert es wieder auf. Wer eine Viertelstunde blaettert,
+ * verbraucht rund dreissig Megabyte; wer sie nie oeffnet, gar nichts.
+ *
+ * <p>Wer die Genauigkeit ueberall will, schaltet "Live bazaar prices" ein - dann
+ * laeuft es durchgehend, und jede Bewertung in der Mod bekommt die frischen Zahlen.
+ * Der Preis dafuer steht bei der Einstellung.
  *
  * <p><b>Warum zwanzig Sekunden:</b> Gemessen. Hypixel setzt den Stand in genau
  * diesem Takt neu - haeufiger zu fragen bringt dieselben Zahlen noch einmal.
@@ -51,7 +55,7 @@ public final class BazaarLive {
     private static final Duration TIMEOUT = Duration.ofSeconds(20);
     private static final Gson GSON = new Gson();
 
-    /** Kennung des Shards -> sofort kaufen / sofort verkaufen */
+    /** Kennung der Ware -> sofort kaufen / sofort verkaufen */
     private static volatile Map<String, long[]> prices = Map.of();
     private static volatile long fetchedAt = 0L;
     private static volatile long interestedAt = 0L;
@@ -71,6 +75,20 @@ public final class BazaarLive {
      * danach laeuft es von selbst aus.
      */
     public static void wanted() {
+        interestedAt = System.currentTimeMillis();
+        tick();
+    }
+
+    /**
+     * Im Takt des Spiels gerufen - holt, wenn die Einstellung es verlangt.
+     *
+     * Ohne sie geschieht hier nichts: Der schnelle Weg laeuft dann nur, solange
+     * eines der Profit-Fenster offen ist und sich selbst meldet.
+     */
+    public static void tickAlways() {
+        if (!com.shokiteufel.shokimod.data.ModConfig.INSTANCE.chat.rareLoot.liveBazaarAlways) {
+            return;
+        }
         interestedAt = System.currentTimeMillis();
         tick();
     }
@@ -136,11 +154,16 @@ public final class BazaarLive {
                 return;
             }
 
-            // Nur die Shards behalten. Zweitausend Produkte kommen an, dreihundert
-            // davon werden gebraucht - der Rest belegte nur Speicher
-            Map<String, long[]> frisch = new HashMap<>(512);
+            // Alle Waren behalten, nicht nur die Shards.
+            //
+            // Anfangs ging es hier allein um die Fusionen, und dreihundert Shards
+            // waren alles, was gebraucht wurde. Inzwischen rechnen auch die
+            // Handwerksrezepte damit, der Rare Loot und der Hunting Tracker - fuer
+            // die waere ein Bazaar ohne ihre Waren nutzlos. Zweitausend Eintraege
+            // kosten ein paar hundert Kilobyte und sind damit billiger als ein
+            // einziges erneutes Holen
+            Map<String, long[]> frisch = new HashMap<>(4096);
             for (String id : produkte.keySet()) {
-                if (!id.startsWith("SHARD_")) continue;
                 JsonObject eintrag = produkte.getAsJsonObject(id);
                 if (eintrag == null) continue;
                 JsonObject stand = eintrag.getAsJsonObject("quick_status");
@@ -152,7 +175,7 @@ public final class BazaarLive {
                 frisch.put(id, new long[]{kaufen, verkaufen});
             }
             if (frisch.isEmpty()) {
-                lastError = "no shards in the answer";
+                lastError = "no products in the answer";
                 return;
             }
 
@@ -193,12 +216,15 @@ public final class BazaarLive {
 
     /** Eine Zeile fuer den Diagnosebericht */
     public static String status() {
+        boolean immer = com.shokiteufel.shokimod.data.ModConfig.INSTANCE
+                .chat.rareLoot.liveBazaarAlways;
         if (fetchCount == 0) {
-            return "live bazaar: not used yet"
+            return "live bazaar: not used yet (" + (immer ? "always on" : "only while a profit screen is open") + ")"
                     + (lastError == null ? "" : ", last error: " + lastError);
         }
-        return "live bazaar: " + prices.size() + " shards, " + fetchCount + " fetches, "
-                + (bytes / 1024) + " KB each, " + ageSeconds() + "s old"
+        return "live bazaar: " + prices.size() + " products, " + fetchCount + " fetches, "
+                + (bytes / 1024) + " KB each, " + ageSeconds() + "s old, "
+                + (immer ? "always on" : "only while a profit screen is open")
                 + (fresh() ? "" : " (STALE - falling back to the GitHub prices)")
                 + (lastError == null ? "" : ", last error: " + lastError);
     }

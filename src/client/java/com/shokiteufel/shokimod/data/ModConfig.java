@@ -1650,6 +1650,24 @@ public class ModConfig extends Config {
         @ConfigEditorDropdown
         public ItemValue.PriceMode bazaarPriceMode = ItemValue.PriceMode.INSTANT_SELL;
 
+        /**
+         * Ob der Bazaar dauernd frisch geholt wird oder nur beim Hinsehen.
+         *
+         * Hypixel setzt den Bazaar alle zwanzig Sekunden neu, und komprimiert sind es
+         * vierhundertachtzig Kilobyte - alle fuenfzehn Sekunden macht das etwa
+         * hundert Megabyte in der Stunde. Fuer die Profit-Fenster lohnt sich das,
+         * solange man hineinsieht; rund um die Uhr fuer jeden Fund im Chat ist es
+         * viel Verkehr fuer wenig: In zehn Minuten bewegt sich ein Bazaar-Preis
+         * meist um Prozente, und ob ein Fund 41 oder 42 Millionen wert ist, aendert
+         * an der Meldung nichts.
+         *
+         * Wer die Genauigkeit trotzdem will, schaltet es hier ein.
+         */
+        @Expose
+        @ConfigOption(name = "Live bazaar prices", desc = "Fetches the bazaar straight from Hypixel every 15 seconds instead of every 10 minutes - for everything, not just the profit screens. Costs about 100 MB per hour. Off means the profit screens still do it while they are open.")
+        @ConfigEditorBoolean
+        public boolean liveBazaarAlways = false;
+
 
         /**
          * Nur zum Auf- und Zuklappen. MoulConfig haelt den Zustand selbst und schreibt

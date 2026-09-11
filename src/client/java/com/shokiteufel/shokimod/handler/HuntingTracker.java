@@ -200,7 +200,8 @@ public final class HuntingTracker {
 
     /** Der Stueckpreis eines Shards nach Preisart, oder -1 wenn der Basar ihn nicht kennt */
     private static double unitPrice(String itemId, PriceMode mode) {
-        BazaarPrice price = ItemValue.BAZAAR.get(itemId);
+        // Erst der frische Stand, falls gerade einer vorliegt - sonst der gespeicherte
+        BazaarPrice price = ItemValue.bazaarPrice(itemId);
         if (price == null) return -1;
         double chosen = mode == PriceMode.SELL_ORDER ? price.sellOrder() : price.instantSell();
         if (chosen <= 0) chosen = mode == PriceMode.SELL_ORDER ? price.instantSell() : price.sellOrder();

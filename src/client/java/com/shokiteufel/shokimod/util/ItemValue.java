@@ -168,7 +168,7 @@ public final class ItemValue {
             String itemId = candidate.trim();
             if (itemId.isEmpty()) continue;
 
-            BazaarPrice bazaar = BAZAAR.get(itemId);
+            BazaarPrice bazaar = freshOrStored(itemId);
             if (bazaar != null) {
                 PriceMode mode = itemId.startsWith(SHARD_PREFIX) ? shardMode : otherMode;
                 if (mode == null) mode = PriceMode.INSTANT_SELL;
@@ -186,6 +186,34 @@ public final class ItemValue {
             if (bin != null && bin > 0) return new Value(bin * multiplier, itemId, Source.LOWEST_BIN);
         }
         return null;
+    }
+
+    /**
+     * Der Bazaar-Preis einer Ware - lieber der frische als der gespeicherte.
+     *
+     * Liegt ein direkt bei Hypixel geholter Stand vor, zaehlt der: Er ist Sekunden
+     * alt statt bis zu zehn Minuten. So bekommen alle Funktionen die schnelleren
+     * Zahlen mit, ohne dass jede einzeln danach fragen muesste - der Rare Loot, der
+     * Hunting Tracker, die Sammlungen.
+     *
+     * <p>Geholt wird dadurch nichts zusaetzlich. {@link BazaarLive} laeuft nur,
+     * solange eines der Profit-Fenster offen ist; was hier ankommt, ist ein
+     * Nebenprodukt davon. Fehlt es, gilt der gespeicherte Stand weiter - eine Zahl
+     * von vor zehn Minuten ist besser als keine.
+     */
+    public static BazaarPrice bazaarPrice(String itemId) {
+        return freshOrStored(itemId);
+    }
+
+    private static BazaarPrice freshOrStored(String itemId) {
+        long[] live = BazaarLive.priceOf(itemId);
+        if (live != null && (live[0] > 0 || live[1] > 0)) {
+            // live[0] ist der Sofortkauf, live[1] der Sofortverkauf. Was eine Sell
+            // Order einbringt, ist derselbe Betrag wie ein Sofortkauf - dasselbe
+            // offene Angebot, von der anderen Seite gesehen
+            return new BazaarPrice(live[1], live[0]);
+        }
+        return BAZAAR.get(itemId);
     }
 
     /**

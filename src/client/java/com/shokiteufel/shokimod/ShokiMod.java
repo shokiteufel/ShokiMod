@@ -106,6 +106,9 @@ public class ShokiMod implements ClientModInitializer {
             com.shokiteufel.shokimod.scanner.PetState.tick(client);
             // Was an Shards im Lager liegt, sobald die Box offen ist
             com.shokiteufel.shokimod.scanner.ShardStock.tick(client);
+            // Nur wenn eingeschaltet - sonst laeuft der schnelle Bazaar-Weg allein
+            // fuer die Profit-Fenster, solange sie offen sind
+            com.shokiteufel.shokimod.util.BazaarLive.tickAlways();
             // Die Umlaufzeit selbst messen - die Spielerliste taugt bei Hypixel nicht
             com.shokiteufel.shokimod.scanner.PerformanceState.tickPing(client);
             // Die Gewinnliste im Hintergrund holen, damit sie beim Oeffnen dasteht
