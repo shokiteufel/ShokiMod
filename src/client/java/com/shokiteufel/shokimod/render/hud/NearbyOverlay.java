@@ -38,6 +38,9 @@ public final class NearbyOverlay {
      * endet der Durchgang hier, ohne die Zeichenroutine anzustossen.
      */
     public static boolean anyPanel() {
+        // Auch dann zeichnen, wenn kein einziger Kasten an ist: Der Hinweis ueber der
+        // Hunting-Box haengt nicht an ihnen
+        if (HuntingBoxOverlay.shown()) return true;
         for (SafariHud.Panel panel : SafariHud.panels()) {
             if (panel.visible()) return true;
         }
@@ -45,6 +48,10 @@ public final class NearbyOverlay {
     }
 
     public static void draw(GuiGraphicsExtractor graphics) {
+        // Der Kasten ueber der Hunting-Box gehoert nicht zu den Kaesten des Spiels
+        // und folgt deren Regeln nicht: Er erscheint genau dort, wo er gebraucht wird
+        HuntingBoxOverlay.draw(graphics);
+
         // Ueber einem Spielmenue gehoeren die Kaesten hin - ueber einem Fenster einer
         // Mod nicht. Wer die Gewinnliste oder die Einstellungen offen hat, will sie
         // lesen und nicht durch Kaesten hindurchschauen; im Einrichtungsfenster
@@ -65,12 +72,16 @@ public final class NearbyOverlay {
 
     /** Gibt es bei offenem Fenster ueberhaupt etwas Anklickbares? */
     public static boolean anyClickable() {
-        return shown() || SafariHud.Panel.HUNTING.visible() || SafariHud.Panel.COLLECTION.visible();
+        return HuntingBoxOverlay.shown() || shown()
+                || SafariHud.Panel.HUNTING.visible() || SafariHud.Panel.COLLECTION.visible();
     }
 
     /** Sitzt der Zeiger auf einer Zeile? Dann handeln und den Klick schlucken */
     public static boolean handleClick(double mouseX, double mouseY) {
         if (Minecraft.getInstance().screen instanceof HudEditorScreen) return false;
+        // Zuerst der Knopf ueber der Box: Er liegt ueber allem anderen, also bekommt
+        // er den Klick auch zuerst
+        if (HuntingBoxOverlay.handleClick(mouseX, mouseY)) return true;
 
         if (shown()) {
             SafariHud.Panel panel = SafariHud.Panel.NEARBY;

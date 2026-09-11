@@ -33,8 +33,27 @@ import java.util.regex.Pattern;
  */
 public final class ShardStock {
 
-    /** Nur diese Fenster werden gelesen - der Plural grenzt "Shard Sitter" o.ae. aus */
-    private static final String[] TITLES = {"shard", "hunting box", "attribute"};
+    /**
+     * Die Fenster, in denen Shards liegen - so wie Hypixel sie benennt.
+     *
+     * Vor dem Namen kann eine Seitenangabe stehen: "(2/3) Hunting Box". Sie ist die
+     * wertvollste Angabe im ganzen Fenster, denn aus ihr geht hervor, wie viele Seiten
+     * es ueberhaupt gibt - und damit, ob man schon alles gesehen hat.
+     */
+    private static final Pattern TITLE = Pattern.compile(
+            "^(?:\\((?<page>\\d+)/(?<pages>\\d+)\\)\\s*)?"
+            + "(?<name>Hunting Box|Attribute Menu|Fusion Box|Oddities\\s*.\\s*Shards)\\s*$",
+            Pattern.CASE_INSENSITIVE);
+    /**
+     * Der Name eines Shards, ohne die Stufe dahinter.
+     *
+     * Im Feld steht "Abyssal Miner IV" - der Name und dahinter die Stufe als roemische
+     * Zahl. Wer sie stehen laesst, sucht in den Fusionsdaten nach "Abyssal Miner IV"
+     * und findet nichts; genau daran scheiterten die Sorten, die nicht zugeordnet
+     * werden konnten.
+     */
+    private static final Pattern SHARD_NAME = Pattern.compile(
+            "^(?<name>.+?)\\s+(?<tier>[IVXL]+)$");
     /** "Stored: 1,234" oder "Amount: 12" - die Menge in der Beschreibung */
     private static final Pattern LORE_AMOUNT = Pattern.compile(
             "^(?:stored|amount|quantity|total)\\s*:?\\s*(?<n>[0-9][0-9,.]*)",
@@ -60,6 +79,11 @@ public final class ShardStock {
     private static volatile int pages = 0;
     private static volatile int slotsSeen = 0;
     private static volatile String lastPage = "";
+    /** Wie viele Seiten die Box hat, laut ihrem eigenen Titel */
+    private static volatile int totalPages = 0;
+    /** Welche davon schon gelesen wurden */
+    private static final java.util.Set<Integer> seenPages =
+            java.util.Collections.synchronizedSet(new java.util.TreeSet<>());
     private static long lastLook = 0L;
 
     private ShardStock() {
@@ -77,6 +101,18 @@ public final class ShardStock {
         return n == null ? 0 : n;
     }
 
+    /**
+     * Steht gerade eine Shard-Box offen?
+     *
+     * Gefragt beim Zeichnen, also in jedem Bild - deshalb nur der Blick auf den
+     * Titel des offenen Fensters und keine Zaehlerei.
+     */
+    public static boolean inBox() {
+        Minecraft client = Minecraft.getInstance();
+        if (!(client.screen instanceof AbstractContainerScreen<?> screen)) return false;
+        return TITLE.matcher(clean(screen.getTitle().getString())).matches();
+    }
+
     /** Wurde schon einmal hineingesehen? */
     public static boolean known() {
         return seenAt > 0 && !counts.isEmpty();
@@ -88,13 +124,29 @@ public final class ShardStock {
     }
 
     /**
-     * Ueber wie viele Seiten hinweg gezaehlt wurde.
+     * Wie viele verschiedene Seiten gelesen wurden.
      *
      * Gelesen wird nur, was im Fenster steht. Wer die Box oeffnet und nicht
      * blaettert, hat genau eine Seite - und diese Zahl sagt es ihm.
      */
     public static int pages() {
-        return pages;
+        return seenPages.isEmpty() ? pages : seenPages.size();
+    }
+
+    /** Wie viele Seiten die Box hat, laut ihrem Titel. 0 heisst: unbekannt */
+    public static int totalPages() {
+        return totalPages;
+    }
+
+    /** Fehlt noch eine Seite? */
+    public static boolean incomplete() {
+        return totalPages > 1 && pages() < totalPages;
+    }
+
+    /** "Seite 2 von 3 gelesen" - oder leer, wenn die Box es nicht verraet */
+    public static String pageNote() {
+        if (totalPages <= 1) return "";
+        return pages() + "/" + totalPages + " pages read";
     }
 
     /** Wie lange der letzte Blick her ist, in Worten */
@@ -120,15 +172,12 @@ public final class ShardStock {
         if (now - lastLook < GAP_MILLIS) return;
         lastLook = now;
 
-        String title = clean(screen.getTitle().getString()).toLowerCase(Locale.ROOT);
-        boolean passt = false;
-        for (String wort : TITLES) {
-            if (title.contains(wort)) {
-                passt = true;
-                break;
-            }
-        }
-        if (!passt) return;
+        String title = clean(screen.getTitle().getString());
+        Matcher kopf = TITLE.matcher(title);
+        if (!kopf.matches()) return;
+        // Steht eine Seitenangabe im Titel, weiss die Mod, wie viel noch fehlt
+        int dieseSeite = kopf.group("page") == null ? 1 : parse(kopf.group("page"));
+        int seitenGesamt = kopf.group("pages") == null ? 1 : parse(kopf.group("pages"));
 
         // Eine Seite, die schon einmal gezaehlt wurde, darf nicht doppelt zaehlen -
         // wer zurueckblaettert, haette sonst die doppelte Menge im Lager
@@ -142,6 +191,10 @@ public final class ShardStock {
             if (stack.isEmpty()) continue;
             String name = clean(stack.getHoverName().getString());
             if (name.isEmpty()) continue;
+            // "Abyssal Miner IV" -> "Abyssal Miner". Die Stufe gehoert zum Zustand
+            // des Shards, nicht zu seinem Namen - die Fusionsdaten kennen nur diesen
+            Matcher ohneStufe = SHARD_NAME.matcher(name);
+            if (ohneStufe.matches()) name = ohneStufe.group("name");
             // Die Knoepfe des Fensters tragen keine Mengen und keine Shard-Namen;
             // sie fallen beim Abgleich mit den Fusionsdaten von selbst heraus
             int menge = amountOf(stack);
@@ -169,6 +222,7 @@ public final class ShardStock {
             counts.clear();
             pages = 0;
             slotsSeen = 0;
+            seenPages.clear();
         }
         for (Map.Entry<String, Integer> e : gefunden.entrySet()) {
             // Die groessere Zahl gewinnt statt zu addieren: Beim Blaettern taucht
@@ -178,6 +232,8 @@ public final class ShardStock {
         }
         lastPage = fingerabdruck;
         pages++;
+        if (seitenGesamt > 0) totalPages = seitenGesamt;
+        if (dieseSeite > 0) seenPages.add(dieseSeite);
         slotsSeen += felder;
         seenAt = now;
         lastTitle = clean(screen.getTitle().getString());
@@ -235,8 +291,8 @@ public final class ShardStock {
             return "shard stock: never looked into a shard window yet";
         }
         return "shard stock: " + counts.size() + " kinds from " + lastSlots + " slots over "
-                + pages + " page(s) of \"" + lastTitle + "\", counted by " + howCounted
-                + ", seen " + age();
+                + pages() + (totalPages > 0 ? "/" + totalPages : "") + " page(s) of \""
+                + lastTitle + "\", counted by " + howCounted + ", seen " + age();
     }
 
     /** Die ersten Eintraege im Klartext - damit sich pruefen laesst, was gelesen wurde */
