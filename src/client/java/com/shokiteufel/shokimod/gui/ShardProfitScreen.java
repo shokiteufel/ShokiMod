@@ -175,9 +175,10 @@ public class ShardProfitScreen extends Screen {
         // Unter dem letzten Reiter faengt die Liste an, mit Platz fuer das Suchfeld
         // und die Spaltenkoepfe darunter
         int sucheY = y + 24;
-        listTop = y + 62;
+        // Eine Zeile mehr als frueher: Darunter steht, was die Box hergegeben hat
+        listTop = y + 76;
 
-        searchBox = new EditBox(font, left, sucheY, 200, 18, Component.literal("Search"));
+        searchBox = new EditBox(font, left, sucheY, 178, 18, Component.literal("Search"));
         searchBox.setHint(Component.literal("Search a shard ..."));
         searchBox.setMaxLength(40);
         searchBox.setValue(search);
@@ -197,7 +198,7 @@ public class ShardProfitScreen extends Screen {
                     page = 0;
                     invalidate();
                     rebuild();
-                }).bounds(left + 206, sucheY, 100, 18).build());
+                }).bounds(left + 182, sucheY, 96, 18).build());
 
         // Nur was im Lager liegt. Der Schalter bleibt sichtbar, auch wenn noch nie
         // in die Box gesehen wurde - sonst sucht man ihn und findet ihn nicht
@@ -209,7 +210,14 @@ public class ShardProfitScreen extends Screen {
                     page = 0;
                     invalidate();
                     rebuild();
-                }).bounds(left + 310, sucheY, 140, 18).build());
+                }).bounds(left + 282, sucheY, 124, 18).build());
+
+        // Der Weg zur Box, direkt von hier. Ohne ihn steht da nur die Aufforderung,
+        // sie zu oeffnen - und man muss das Fenster erst schliessen, um ihr zu folgen
+        addRenderableWidget(Button.builder(
+                Component.literal(ShardStock.known() ? "Refresh box" : "Open box")
+                        .withStyle(ShardStock.known() ? ChatFormatting.GRAY : ChatFormatting.YELLOW),
+                button -> openBox()).bounds(left + 410, sucheY, 90, 18).build());
 
         int unten = height - 28;
         if (pageCount() > 1) {
@@ -292,19 +300,20 @@ public class ShardProfitScreen extends Screen {
             String hinweis;
             int farbe;
             if (!ShardStock.known()) {
-                hinweis = "Open your shard box once - nothing counted yet";
+                hinweis = "Nothing counted yet - open the box and page through it";
                 farbe = 0xFFFFAA00;
             } else {
-                // Nicht nur, wie viele gezaehlt wurden, sondern wie viele davon einem
-                // Shard zugeordnet werden konnten. Die beiden Zahlen trennen "die Box
-                // ist leer" von "die Namen passen nicht zusammen" - ohne sie sieht
-                // beides gleich aus: eine leere Liste
+                // Drei Angaben, und jede beantwortet eine eigene Frage: Wie viele
+                // Sorten liegen da, wie viele davon kennt die Fusionsliste, und ueber
+                // wie viele Seiten wurde gezaehlt. Die letzte ist die wichtigste -
+                // gelesen wird nur, was im Fenster stand, und wer nicht blaettert,
+                // hat nur die erste Seite erwischt
                 int erkannt = ShardProfitData.matched(ShardStock.counts());
-                hinweis = erkannt + " of " + ShardStock.kinds() + " matched, seen "
-                        + ShardStock.age();
+                hinweis = erkannt + " of " + ShardStock.kinds() + " shards matched over "
+                        + ShardStock.pages() + " page(s), seen " + ShardStock.age();
                 farbe = erkannt == 0 ? 0xFFFF5555 : 0xFF55FF55;
             }
-            graphics.text(font, hinweis, left + 456, listTop - 34, farbe, false);
+            graphics.text(font, hinweis, left + 4, listTop - 32, farbe, false);
         }
 
         // Woher die Preise gerade kommen. Der Unterschied ist keine Kleinigkeit:
@@ -382,6 +391,18 @@ public class ShardProfitScreen extends Screen {
 
     private static String cut(String text, int max) {
         return text.length() <= max ? text : text.substring(0, max - 1) + "…";
+    }
+
+    /**
+     * Die Hunting-Box aufmachen.
+     *
+     * Das Fenster geht vorher zu, sonst laege es ueber dem, was der Server gleich
+     * aufmacht - dieselbe Regel wie beim Sprung in eine Auktion.
+     */
+    private void openBox() {
+        if (minecraft == null || minecraft.player == null) return;
+        minecraft.setScreen(null);
+        minecraft.player.connection.sendCommand("huntingbox");
     }
 
     @Override

@@ -87,6 +87,16 @@ public final class ShardStock {
         return counts.size();
     }
 
+    /**
+     * Ueber wie viele Seiten hinweg gezaehlt wurde.
+     *
+     * Gelesen wird nur, was im Fenster steht. Wer die Box oeffnet und nicht
+     * blaettert, hat genau eine Seite - und diese Zahl sagt es ihm.
+     */
+    public static int pages() {
+        return pages;
+    }
+
     /** Wie lange der letzte Blick her ist, in Worten */
     public static String age() {
         if (seenAt == 0L) return "";
