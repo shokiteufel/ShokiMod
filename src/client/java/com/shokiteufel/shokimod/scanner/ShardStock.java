@@ -78,12 +78,16 @@ public final class ShardStock {
     private static volatile String howCounted = "";
     private static volatile int pages = 0;
     private static volatile int slotsSeen = 0;
-    private static volatile String lastPage = "";
+    /**
+     * Was auf welcher Seite lag, beim letzten Blick dorthin.
+     *
+     * Der Gesamtbestand entsteht daraus; eine Seite neu zu lesen ersetzt ihren
+     * Beitrag ganz. Nur so kann ein Shard auch wieder verschwinden.
+     */
+    private static final Map<Integer, Map<String, Integer>> perPage =
+            java.util.Collections.synchronizedMap(new java.util.TreeMap<>());
     /** Wie viele Seiten die Box hat, laut ihrem eigenen Titel */
     private static volatile int totalPages = 0;
-    /** Welche davon schon gelesen wurden */
-    private static final java.util.Set<Integer> seenPages =
-            java.util.Collections.synchronizedSet(new java.util.TreeSet<>());
     private static long lastLook = 0L;
 
     private ShardStock() {
@@ -123,6 +127,16 @@ public final class ShardStock {
         return counts.size();
     }
 
+    /** Alles vergessen - fuer den Fall, dass der Stand offensichtlich nicht mehr stimmt */
+    public static void forget() {
+        perPage.clear();
+        counts.clear();
+        totalPages = 0;
+        pages = 0;
+        slotsSeen = 0;
+        seenAt = 0L;
+    }
+
     /**
      * Wie viele verschiedene Seiten gelesen wurden.
      *
@@ -130,7 +144,7 @@ public final class ShardStock {
      * blaettert, hat genau eine Seite - und diese Zahl sagt es ihm.
      */
     public static int pages() {
-        return seenPages.isEmpty() ? pages : seenPages.size();
+        return perPage.size();
     }
 
     /** Wie viele Seiten die Box hat, laut ihrem Titel. 0 heisst: unbekannt */
@@ -207,34 +221,35 @@ public final class ShardStock {
 
         if (gefunden.isEmpty()) return;
 
-        // Dieselbe Seite noch einmal? Dann aendert sich nichts. Erkannt an dem, was
-        // darauf steht: Seitenzahl und Feldanzahl allein truegen, zwei Seiten koennen
-        // gleich viele Felder haben
-        String fingerabdruck = gefunden.toString();
-        if (fingerabdruck.equals(lastPage) && now - seenAt < SESSION_MILLIS) {
-            seenAt = now;
-            return;
-        }
-
         // Innerhalb einer Sitzung wird ergaenzt, danach neu angefangen. Sonst bliebe
         // ein Lagerstand von gestern stehen, den es so laengst nicht mehr gibt
         if (now - seenAt > SESSION_MILLIS) {
-            counts.clear();
-            pages = 0;
-            slotsSeen = 0;
-            seenPages.clear();
+            perPage.clear();
+            totalPages = 0;
         }
-        for (Map.Entry<String, Integer> e : gefunden.entrySet()) {
-            // Die groessere Zahl gewinnt statt zu addieren: Beim Blaettern taucht
-            // derselbe Shard auf zwei Seiten nicht auf, wohl aber beim erneuten
-            // Oeffnen derselben Seite mit geaenderter Menge
-            counts.merge(e.getKey(), e.getValue(), Math::max);
-        }
-        lastPage = fingerabdruck;
-        pages++;
+
+        // Jede Seite fuer sich, und ein erneuter Blick ersetzt sie vollstaendig.
+        //
+        // Frueher wurde zusammengefuehrt und dabei die groessere Zahl behalten - das
+        // hielt beim Blaettern alles zusammen, liess aber nie etwas verschwinden. Wer
+        // seine Miner-Shards aus der Box ins Inventar legte und erneut hineinsah,
+        // bekam sie weiter angeboten: Die alte Zahl war groesser als die neue Null und
+        // gewann. Seitenweise ersetzt, kann ein Shard auch wieder weg sein.
+        perPage.put(dieseSeite, gefunden);
         if (seitenGesamt > 0) totalPages = seitenGesamt;
-        if (dieseSeite > 0) seenPages.add(dieseSeite);
-        slotsSeen += felder;
+
+        // Der Gesamtbestand ist die Summe der Seiten. Addiert, nicht gemaxt: Derselbe
+        // Shard kann durchaus auf zwei Seiten liegen
+        counts.clear();
+        int felderGesamt = 0;
+        for (Map<String, Integer> seite : perPage.values()) {
+            for (Map.Entry<String, Integer> e : seite.entrySet()) {
+                counts.merge(e.getKey(), e.getValue(), Integer::sum);
+            }
+            felderGesamt += seite.size();
+        }
+        pages = perPage.size();
+        slotsSeen = felderGesamt;
         seenAt = now;
         lastTitle = clean(screen.getTitle().getString());
         lastSlots = slotsSeen;

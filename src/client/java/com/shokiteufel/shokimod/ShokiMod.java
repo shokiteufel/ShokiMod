@@ -52,6 +52,7 @@ public class ShokiMod implements ClientModInitializer {
     private static boolean openHudNextTick = false;
     private static boolean openPetProfitNextTick = false;
     private static boolean openShardProfitNextTick = false;
+    private static boolean openCraftProfitNextTick = false;
     private static boolean openPetBuilderNextTick = false;
 
 
@@ -91,6 +92,10 @@ public class ShokiMod implements ClientModInitializer {
             if (openShardProfitNextTick) {
                 openShardProfitNextTick = false;
                 client.setScreen(new com.shokiteufel.shokimod.gui.ShardProfitScreen(null));
+            }
+            if (openCraftProfitNextTick) {
+                openCraftProfitNextTick = false;
+                client.setScreen(new com.shokiteufel.shokimod.gui.CraftProfitScreen(null));
             }
             if (openPetBuilderNextTick) {
                 openPetBuilderNextTick = false;
@@ -151,6 +156,13 @@ public class ShokiMod implements ClientModInitializer {
                         .then(ClientCommands.literal("shardprofit").executes(context -> {
                             com.shokiteufel.shokimod.util.ShardProfitData.prefetch();
                             openShardProfitNextTick = true;
+                            return 1;
+                        }))
+                        // /shoki craftprofit -> was sich zu bauen lohnt. Die Rezepte
+                        // kommen aus dem Netz, die Preise fuehrt die Mod selbst
+                        .then(ClientCommands.literal("craftprofit").executes(context -> {
+                            com.shokiteufel.shokimod.util.CraftProfitData.prefetch();
+                            openCraftProfitNextTick = true;
                             return 1;
                         }))
                         // /shoki tab -> die Tab-Liste ins Log schreiben.

@@ -54,6 +54,13 @@ jobs:
         continue-on-error: true
         run: python tools/shardprofit.py ausgabe
 
+      # Das Verzeichnis von NotEnoughUpdates: neun Megabyte gepackt, achttausend
+      # Items. Die Rezepte aendern sich nur bei einem Hypixel-Update - der Lauf
+      # kostet trotzdem nur eine Minute, und so bleibt alles in einem Durchgang
+      - name: Handwerks-Rezepte auswerten
+        continue-on-error: true
+        run: python tools/craftprofit.py ausgabe/craftrecipes.json
+
       - name: Ergebnis veroeffentlichen
         run: |
           set -euo pipefail
@@ -66,7 +73,7 @@ jobs:
           mv ausgabe/petprofit.json petprofit.json
           # Die Shard-Dateien nur, wenn ihr Schritt durchgekommen ist: Ohne diese
           # Pruefung risse ein Aussetzer bei SkyShards den ganzen Lauf mit
-          for f in shardrecipes.json shardprices.json; do
+          for f in shardrecipes.json shardprices.json craftrecipes.json; do
             if [ -f "ausgabe/$f" ]; then
               mv "ausgabe/$f" "$f"
               git add "$f"
