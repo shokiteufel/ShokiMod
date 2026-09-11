@@ -54,8 +54,17 @@ public final class ShardProfitData {
     private static final String PRICES_FILE = "shardprices.json";
     private static final String RECIPES_FILE = "shardrecipes.json";
 
-    private static final long REFRESH_MILLIS = 5 * 60 * 1000L;
-    private static final long RETRY_MILLIS = 2 * 60 * 1000L;
+    /**
+     * So oft wird nach neuen Preisen gesehen.
+     *
+     * Fuenfzehn Sekunden klingen nach viel fuer eine Datei, die alle paar Minuten neu
+     * entsteht - kosten aber fast nichts: Beim Nachfragen geht die Kennung der zuletzt
+     * geholten Fassung mit, und solange sich nichts geaendert hat, antwortet GitHub mit
+     * "unveraendert" und schickt keine Daten. Gezahlt wird also nur, wenn es wirklich
+     * etwas Neues gibt.
+     */
+    private static final long REFRESH_MILLIS = 15 * 1000L;
+    private static final long RETRY_MILLIS = 60 * 1000L;
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
     private static final Gson GSON = new Gson();
 
@@ -134,6 +143,9 @@ public final class ShardProfitData {
     private static volatile String lastError = null;
     private static volatile String origin = "nothing loaded";
     private static volatile boolean cacheRead = false;
+    /** Die Kennung der zuletzt geholten Preisdatei - damit GitHub schweigen darf */
+    private static volatile String priceTag = "";
+    private static volatile long unchangedCount = 0L;
 
     private ShardProfitData() {
     }
@@ -175,7 +187,7 @@ public final class ShardProfitData {
      * @param owned     Vorrat je Shard-Name, oder null - dann wird nicht geprueft
      * @param onlyGain  nur Fusionen, die auf diesem Weg wirklich etwas abwerfen
      */
-    public static List<Row> select(String category, String search,
+    public static List<Row> select(String category, String search, boolean searchInputsOnly,
                                    Map<String, Integer> owned, boolean onlyGain,
                                    boolean instantBuy, boolean instantSell, int limit) {
         prefetch();
@@ -197,19 +209,30 @@ public final class ShardProfitData {
             if (ziel.volume() < minVolume || a.volume() < minVolume || b.volume() < minVolume) {
                 continue;
             }
-            if (!suche.isEmpty()
-                    && !ziel.name().toLowerCase(Locale.ROOT).contains(suche)
-                    && !a.name().toLowerCase(Locale.ROOT).contains(suche)
-                    && !b.name().toLowerCase(Locale.ROOT).contains(suche)) {
-                continue;
+            if (!suche.isEmpty()) {
+                boolean inZutat = a.name().toLowerCase(Locale.ROOT).contains(suche)
+                        || b.name().toLowerCase(Locale.ROOT).contains(suche);
+                // Wer nur die Zutat sucht, fragt "was kann ich daraus machen" und will
+                // die Fusionen nicht sehen, die den Shard erst herstellen
+                boolean treffer = searchInputsOnly
+                        ? inZutat
+                        : inZutat || ziel.name().toLowerCase(Locale.ROOT).contains(suche);
+                if (!treffer) continue;
             }
             if (owned != null && !hasEnough(owned, a, b)) continue;
 
+            // Ein Preis von null heisst nicht "kostenlos", sondern "dafuer gibt es
+            // gerade kein Angebot". Wer das als Zahl nimmt, bekommt eine Fusion ohne
+            // Kosten an die Spitze gereiht - das schoenste Geschaeft des Tages, und
+            // keines, das sich machen laesst. Solche Zeilen fallen weg
+            long preisA = instantBuy ? a.instantBuy() : a.instantSell();
+            long preisB = instantBuy ? b.instantBuy() : b.instantSell();
+            long preisZiel = instantSell ? ziel.instantSell() : ziel.instantBuy();
+            if (preisA <= 0 || preisB <= 0 || preisZiel <= 0) continue;
+
             int menge = outAmount[i];
-            long kosten = instantBuy
-                    ? (long) a.fuseAmount() * a.instantBuy() + (long) b.fuseAmount() * b.instantBuy()
-                    : (long) a.fuseAmount() * a.instantSell() + (long) b.fuseAmount() * b.instantSell();
-            long erloes = (long) menge * (instantSell ? ziel.instantSell() : ziel.instantBuy());
+            long kosten = (long) a.fuseAmount() * preisA + (long) b.fuseAmount() * preisB;
+            long erloes = (long) menge * preisZiel;
             if (onlyGain && erloes - kosten <= 0) continue;
 
             out.add(new Row(ziel.name(), a.name(), b.name(), menge,
@@ -241,8 +264,50 @@ public final class ShardProfitData {
     }
 
     private static int have(Map<String, Integer> owned, String name) {
-        Integer n = owned.get(name.toLowerCase(Locale.ROOT));
+        Integer n = owned.get(normalize(name));
         return n == null ? 0 : n;
+    }
+
+    /**
+     * Ein Shard-Name in der Form, in der beide Seiten ihn wiedererkennen.
+     *
+     * Im Spiel heisst das Feld "Abyssal Miner Shard", die Fusionsdaten fuehren
+     * "Abyssal Miner". Wer die beiden roh vergleicht, findet nie etwas - und genau
+     * das war zu sehen: sechsundvierzig Sorten in der Box, null Treffer in der Liste.
+     * Abgeschnitten wird deshalb ein angehaengtes "Shard", und alles, was nicht
+     * Buchstabe oder Ziffer ist, faellt weg: Hypixel setzt vor manche Namen ein
+     * Symbol, und ein Bindestrich hier gegen ein Leerzeichen dort hat schon genug
+     * Abgleiche zerlegt.
+     */
+    public static String normalize(String name) {
+        if (name == null) return "";
+        String text = name.toLowerCase(Locale.ROOT).trim();
+        if (text.endsWith(" shard")) text = text.substring(0, text.length() - 6);
+        StringBuilder out = new StringBuilder(text.length());
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (Character.isLetterOrDigit(c)) out.append(c);
+        }
+        return out.toString();
+    }
+
+    /**
+     * Wie viele der gezaehlten Sorten sich einem Shard zuordnen lassen.
+     *
+     * Die Zahl trennt zwei Faelle, die von aussen gleich aussehen: "die Box ist leer"
+     * und "die Namen passen nicht zusammen". Ohne sie bliebe nur Raten.
+     */
+    public static int matched(Map<String, Integer> owned) {
+        if (owned == null || owned.isEmpty() || !ready()) return 0;
+        Set<String> bekannt = new java.util.HashSet<>();
+        for (Shard s : shards) {
+            if (s != null) bekannt.add(normalize(s.name()));
+        }
+        int n = 0;
+        for (String name : owned.keySet()) {
+            if (bekannt.contains(name)) n++;
+        }
+        return n;
     }
 
     /** Wie alt der Preisstand ist, in Worten */
@@ -286,7 +351,8 @@ public final class ShardProfitData {
             out.append(count).append(" combinations, ").append(shards.length)
                .append(" shards from ").append(origin)
                .append(", recipes ").append(recipeKey)
-               .append(", prices ").append(updated);
+               .append(", prices ").append(updated)
+               .append(", ").append(unchangedCount).append(" unchanged replies");
         }
         if (succeededAt > 0) out.append(", last success ").append(ago(succeededAt));
         if (attemptedAt > 0) out.append(", last attempt ").append(ago(attemptedAt));
@@ -304,8 +370,13 @@ public final class ShardProfitData {
     private static void fetch() {
         try {
             HttpClient client = HttpClient.newBuilder().connectTimeout(TIMEOUT).build();
-            String preise = get(client, PRICES_URL);
-            if (preise == null) return;
+            String preise = get(client, PRICES_URL, priceTag);
+            if (preise == null) {
+                // Unveraendert oder ein Fehler - beides ist kein Grund, den alten
+                // Stand wegzuwerfen
+                if (lastError == null) succeededAt = System.currentTimeMillis();
+                return;
+            }
 
             JsonObject root = GSON.fromJson(preise, JsonObject.class);
             if (root == null) {
@@ -344,15 +415,33 @@ public final class ShardProfitData {
 
     private static String get(HttpClient client, String url)
             throws IOException, InterruptedException {
-        HttpRequest request = HttpRequest.newBuilder(URI.create(url))
+        return get(client, url, null);
+    }
+
+    /**
+     * Eine Datei holen - und nur dann, wenn sie sich geaendert hat.
+     *
+     * Geht eine Kennung mit, antwortet GitHub bei unveraendertem Inhalt mit 304 und
+     * schickt keine Daten. Das macht haeufiges Nachsehen praktisch kostenlos.
+     */
+    private static String get(HttpClient client, String url, String tag)
+            throws IOException, InterruptedException {
+        HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(url))
                 .header("User-Agent", "ShokiMod")
                 .timeout(TIMEOUT)
-                .GET()
-                .build();
-        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+                .GET();
+        if (tag != null && !tag.isEmpty()) builder.header("If-None-Match", tag);
+        HttpResponse<String> response = client.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+        if (response.statusCode() == 304) {
+            unchangedCount++;
+            return null;
+        }
         if (response.statusCode() != 200) {
             fail("HTTP " + response.statusCode() + " for " + url);
             return null;
+        }
+        if (url.equals(PRICES_URL)) {
+            priceTag = response.headers().firstValue("ETag").orElse("");
         }
         return response.body();
     }

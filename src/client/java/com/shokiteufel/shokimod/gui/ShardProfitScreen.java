@@ -49,6 +49,14 @@ public class ShardProfitScreen extends Screen {
     private static boolean onlyOwned = false;
     /** Wonach gesucht wird - leer heisst: alles */
     private static String search = "";
+    /**
+     * Sucht nur in den Zutaten, nicht im Ergebnis.
+     *
+     * Zwei verschiedene Fragen: "was kann ich aus diesem Shard machen" und "wie komme
+     * ich an diesen Shard". Wer das erste meint, will die Fusionen nicht sehen, die
+     * ihn erst herstellen.
+     */
+    private static boolean searchInputsOnly = false;
 
     /**
      * Mehr Zeilen liest niemand durch.
@@ -102,7 +110,7 @@ public class ShardProfitScreen extends Screen {
     private List<Row> visible() {
         if (cached == null) {
             cached = ShardProfitData.select(
-                    category, search,
+                    category, search, searchInputsOnly,
                     onlyOwned ? ShardStock.counts() : null,
                     onlyProfitable, instantBuy(), instantSell(), LIMIT);
         }
@@ -177,6 +185,17 @@ public class ShardProfitScreen extends Screen {
         });
         addRenderableWidget(searchBox);
 
+        // Wo gesucht wird: ueberall, oder nur in den Zutaten
+        addRenderableWidget(Button.builder(
+                Component.literal(searchInputsOnly ? "as ingredient" : "anywhere")
+                        .withStyle(ChatFormatting.AQUA),
+                button -> {
+                    searchInputsOnly = !searchInputsOnly;
+                    page = 0;
+                    invalidate();
+                    rebuild();
+                }).bounds(left + 206, sucheY, 100, 18).build());
+
         // Nur was im Lager liegt. Der Schalter bleibt sichtbar, auch wenn noch nie
         // in die Box gesehen wurde - sonst sucht man ihn und findet ihn nicht
         addRenderableWidget(Button.builder(
@@ -187,7 +206,7 @@ public class ShardProfitScreen extends Screen {
                     page = 0;
                     invalidate();
                     rebuild();
-                }).bounds(left + 206, sucheY, 140, 18).build());
+                }).bounds(left + 310, sucheY, 140, 18).build());
 
         int unten = height - 28;
         if (pageCount() > 1) {
@@ -256,11 +275,22 @@ public class ShardProfitScreen extends Screen {
         // Was der Bestandsschalter gerade bedeutet - sonst wundert man sich ueber
         // eine leere Liste
         if (onlyOwned) {
-            String hinweis = ShardStock.known()
-                    ? ShardStock.kinds() + " kinds in your box, seen " + ShardStock.age()
-                    : "Open your shard box once - nothing counted yet";
-            graphics.text(font, hinweis, left + 352, listTop - 34,
-                    ShardStock.known() ? 0xFF55FF55 : 0xFFFFAA00, false);
+            String hinweis;
+            int farbe;
+            if (!ShardStock.known()) {
+                hinweis = "Open your shard box once - nothing counted yet";
+                farbe = 0xFFFFAA00;
+            } else {
+                // Nicht nur, wie viele gezaehlt wurden, sondern wie viele davon einem
+                // Shard zugeordnet werden konnten. Die beiden Zahlen trennen "die Box
+                // ist leer" von "die Namen passen nicht zusammen" - ohne sie sieht
+                // beides gleich aus: eine leere Liste
+                int erkannt = ShardProfitData.matched(ShardStock.counts());
+                hinweis = erkannt + " of " + ShardStock.kinds() + " matched, seen "
+                        + ShardStock.age();
+                farbe = erkannt == 0 ? 0xFFFF5555 : 0xFF55FF55;
+            }
+            graphics.text(font, hinweis, left + 456, listTop - 34, farbe, false);
         }
 
         String stand = ShardProfitData.age();

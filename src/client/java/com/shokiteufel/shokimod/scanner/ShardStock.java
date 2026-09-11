@@ -203,8 +203,16 @@ public final class ShardStock {
         }
     }
 
+    /**
+     * Der Name in der Form, in der ihn die Fusionsdaten wiedererkennen.
+     *
+     * Im Spiel heisst das Feld "Abyssal Miner Shard", die Fusionsdaten fuehren
+     * "Abyssal Miner". Wer beide roh vergleicht, findet nie etwas - sechsundvierzig
+     * Sorten in der Box und null Treffer in der Liste sahen genau so aus. Beide
+     * Seiten gehen deshalb durch dieselbe Funktion.
+     */
     private static String key(String name) {
-        return name.trim().toLowerCase(Locale.ROOT);
+        return com.shokiteufel.shokimod.util.ShardProfitData.normalize(name);
     }
 
     private static String clean(String text) {
