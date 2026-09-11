@@ -234,15 +234,18 @@ public class ShardProfitScreen extends Screen {
                 button -> openBox()).bounds(left + 410, sucheY, 90, 18).build());
 
         int unten = height - 28;
+        // Die Pfeile links und rechts der Seitenzahl, nicht in der Ecke: Wo man ist
+        // und wie man weiterkommt, gehoert zusammen
         if (pageCount() > 1) {
+            int mitte = width / 2;
             addRenderableWidget(Button.builder(Component.literal("◀"), button -> {
                 page = (page - 1 + pageCount()) % pageCount();
                 rebuild();
-            }).bounds(left, unten, 20, 20).build());
+            }).bounds(mitte - 60, height - 50, 20, 20).build());
             addRenderableWidget(Button.builder(Component.literal("▶"), button -> {
                 page = (page + 1) % pageCount();
                 rebuild();
-            }).bounds(left + 24, unten, 20, 20).build());
+            }).bounds(mitte + 40, height - 50, 20, 20).build());
         }
 
         // Die beiden Handelswege, jeder fuer sich umschaltbar. Sie stehen hier und
@@ -385,8 +388,9 @@ public class ShardProfitScreen extends Screen {
             // Knapp ueber der Knopfreihe. Die Knoepfe stehen bei height-28 und sind
             // zwanzig hoch; zwoelf darueber liegt die Zeile frei, ohne den halben
             // Bildschirm nach oben zu wandern
+            // Mittig zwischen den beiden Pfeilen, auf ihrer Hoehe
             graphics.centeredText(font, Component.literal((page + 1) + " / " + pageCount())
-                    .withStyle(ChatFormatting.GRAY), centerX, height - 40, 0xFFAAAAAA);
+                    .withStyle(ChatFormatting.GRAY), centerX, height - 44, 0xFFAAAAAA);
         }
     }
 

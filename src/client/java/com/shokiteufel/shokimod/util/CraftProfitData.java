@@ -134,8 +134,9 @@ public final class CraftProfitData {
      * @param instantSell  Ergebnis sofort verkaufen statt per Sell Order
      * @param onlyGain     nur was etwas abwirft
      */
-    public static List<Row> select(String search, boolean inputsOnly, boolean instantBuy,
-                                   boolean instantSell, boolean onlyGain, int limit) {
+    public static List<Row> select(String search, boolean instantBuy,
+                                   boolean instantSell, boolean sellToBazaar,
+                                   boolean onlyGain, int limit) {
         prefetch();
         if (!ready()) return List.of();
 
@@ -143,7 +144,7 @@ public final class CraftProfitData {
         List<Row> out = new ArrayList<>(Math.min(limit, 256));
 
         for (Recipe r : recipes) {
-            if (!suche.isEmpty() && !matches(r, suche, inputsOnly)) continue;
+            if (!suche.isEmpty() && !matches(r, suche)) continue;
 
             long kosten = 0;
             boolean vollstaendig = true;
@@ -162,7 +163,7 @@ public final class CraftProfitData {
                     kosten += stueck * (long) menge;
                 }
             }
-            long erloes = sellPrice(r.result(), instantSell) * (long) r.amount();
+            long erloes = sellPrice(r.result(), instantSell, sellToBazaar) * (long) r.amount();
             if (erloes <= 0) vollstaendig = false;
             if (onlyGain && (!vollstaendig || erloes - kosten <= 0)) continue;
 
@@ -179,11 +180,10 @@ public final class CraftProfitData {
         return out.size() > limit ? new ArrayList<>(out.subList(0, limit)) : out;
     }
 
-    private static boolean matches(Recipe r, String suche, boolean inputsOnly) {
+    private static boolean matches(Recipe r, String suche) {
         for (String id : r.ids()) {
             if (nameOf(id).toLowerCase(Locale.ROOT).contains(suche)) return true;
         }
-        if (inputsOnly) return false;
         return nameOf(r.result()).toLowerCase(Locale.ROOT).contains(suche);
     }
 
@@ -210,8 +210,34 @@ public final class CraftProfitData {
         return bin != null && bin > 0 ? Math.round(bin) : 0;
     }
 
-    /** Was ein Stueck einbringt - dieselben Zahlen, andere Richtung */
-    private static long sellPrice(String id, boolean instant) {
+    /**
+     * Was ein Stueck einbringt - an dem Ort, den der Betrachter gewaehlt hat.
+     *
+     * Bazaar und Auktionshaus sind zwei verschiedene Maerkte, und die Preise gehen
+     * weit auseinander. Was im Bazaar zu Tausenden gehandelt wird, bringt im
+     * Auktionshaus mitunter das Doppelte - dafuer einzeln und mit Wartezeit. Welcher
+     * Weg gemeint ist, kann nur der Spieler wissen.
+     *
+     * Was es am gewaehlten Ort nicht gibt, wird am anderen nachgeschlagen: Eine Zeile
+     * ohne Preis nuetzt niemandem, und die Herkunft steht ohnehin in der Spalte.
+     */
+    private static long sellPrice(String id, boolean instant, boolean bazaarFirst) {
+        if (bazaarFirst) {
+            long[] live = BazaarLive.priceOf(id);
+            if (live != null) {
+                long wert = instant ? live[1] : live[0];
+                if (wert > 0) return wert;
+            }
+            ItemValue.BazaarPrice bazaar = ItemValue.BAZAAR.get(id);
+            if (bazaar != null) {
+                double wert = instant ? bazaar.instantSell() : bazaar.sellOrder();
+                if (wert > 0) return Math.round(wert);
+            }
+            Double bin = ItemValue.LOWEST_BIN.get(id);
+            return bin != null && bin > 0 ? Math.round(bin) : 0;
+        }
+        Double bin = ItemValue.LOWEST_BIN.get(id);
+        if (bin != null && bin > 0) return Math.round(bin);
         long[] live = BazaarLive.priceOf(id);
         if (live != null) {
             long wert = instant ? live[1] : live[0];
@@ -222,8 +248,7 @@ public final class CraftProfitData {
             double wert = instant ? bazaar.instantSell() : bazaar.sellOrder();
             if (wert > 0) return Math.round(wert);
         }
-        Double bin = ItemValue.LOWEST_BIN.get(id);
-        return bin != null && bin > 0 ? Math.round(bin) : 0;
+        return 0;
     }
 
     /** Holt nach, wenn der Stand alt genug ist */

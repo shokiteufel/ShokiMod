@@ -19,8 +19,10 @@ import java.util.List;
  *
  * Gesucht wird in beiden Richtungen: im Ergebnis und in den Zutaten. Wer "Enchanted
  * String" eintippt, will die dreiundzwanzig Rezepte sehen, die es verbrauchen -
- * nicht nur das eine, das es herstellt. Der Schalter daneben schraenkt auf die
- * Zutaten ein, wenn nur diese Richtung gemeint ist.
+ * nicht nur das eine, das es herstellt.
+ *
+ * Ein Klick auf eine Zeile oeffnet das Rezept im Spiel, mit dem sich das Ding gleich
+ * bauen laesst.
  *
  * Die Preise kommen aus {@link ItemValue} und {@link com.shokiteufel.shokimod.util.BazaarLive}:
  * Bazaar, wo es einen gibt, sonst der Tiefstpreis im Auktionshaus. Was sich gar
@@ -34,8 +36,16 @@ public class CraftProfitScreen extends Screen {
 
     /** Ueberdauert das Schliessen - wer weitersucht, faengt nicht von vorn an */
     private static String search = "";
-    private static boolean inputsOnly = false;
     private static boolean onlyProfitable = true;
+    /**
+     * Wo das Ergebnis verkauft wird.
+     *
+     * Nicht dasselbe wie sofort oder per Auftrag - das ist die Frage nach dem Haus.
+     * Manches laesst sich an beiden Orten losschlagen, und die Preise gehen weit
+     * auseinander: Was im Bazaar zu Tausenden gehandelt wird, bringt im Auktionshaus
+     * mitunter das Doppelte, dafuer einzeln und mit Wartezeit.
+     */
+    private static boolean sellToBazaar = true;
 
     private final Screen parent;
     private EditBox searchBox;
@@ -71,8 +81,8 @@ public class CraftProfitScreen extends Screen {
 
     private List<Row> visible() {
         if (cached == null) {
-            cached = CraftProfitData.select(search, inputsOnly, instantBuy(), instantSell(),
-                    onlyProfitable, LIMIT);
+            cached = CraftProfitData.select(search, instantBuy(), instantSell(),
+                    sellToBazaar, onlyProfitable, LIMIT);
         }
         return cached;
     }
@@ -108,10 +118,10 @@ public class CraftProfitScreen extends Screen {
         addRenderableWidget(searchBox);
 
         addRenderableWidget(Button.builder(
-                Component.literal(inputsOnly ? "as material" : "anywhere")
+                Component.literal(sellToBazaar ? "Sell to BZ" : "Sell to AH")
                         .withStyle(ChatFormatting.AQUA),
                 button -> {
-                    inputsOnly = !inputsOnly;
+                    sellToBazaar = !sellToBazaar;
                     page = 0;
                     invalidate();
                     rebuild();
@@ -124,23 +134,21 @@ public class CraftProfitScreen extends Screen {
                     page = 0;
                     invalidate();
                     rebuild();
-                }).bounds(left + 330, sucheY, 96, 18).build());
-
-        addRenderableWidget(Button.builder(Component.literal("Fusions")
-                        .withStyle(ChatFormatting.GRAY),
-                button -> minecraft.setScreen(new ShardProfitScreen(parent)))
-                .bounds(left + 430, sucheY, 90, 18).build());
+                }).bounds(left + 330, sucheY, 110, 18).build());
 
         int unten = height - 28;
+        // Die Pfeile links und rechts der Seitenzahl, nicht in der Ecke: Wo man ist
+        // und wie man weiterkommt, gehoert zusammen
         if (pageCount() > 1) {
+            int mitte = width / 2;
             addRenderableWidget(Button.builder(Component.literal("◀"), button -> {
                 page = (page - 1 + pageCount()) % pageCount();
                 rebuild();
-            }).bounds(left, unten, 20, 20).build());
+            }).bounds(mitte - 60, height - 50, 20, 20).build());
             addRenderableWidget(Button.builder(Component.literal("▶"), button -> {
                 page = (page + 1) % pageCount();
                 rebuild();
-            }).bounds(left + 24, unten, 20, 20).build());
+            }).bounds(mitte + 40, height - 50, 20, 20).build());
         }
 
         addRenderableWidget(Button.builder(
@@ -168,6 +176,38 @@ public class CraftProfitScreen extends Screen {
 
         addRenderableWidget(Button.builder(Component.literal("Done"), button -> onClose())
                 .bounds(left + LIST_WIDTH - 80, unten, 80, 20).build());
+    }
+
+    /**
+     * Ein Klick auf eine Zeile zeigt das Rezept im Spiel.
+     *
+     * Hypixel kennt dafuer /recipe mit dem Namen des Gegenstands und macht dabei
+     * gleich das Handwerksfenster auf, aus dem sich das Ding bauen laesst. Das
+     * Fenster schliesst vorher, sonst laege es darueber - dieselbe Regel wie beim
+     * Sprung in eine Auktion.
+     */
+    @Override
+    public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, boolean doubleClick) {
+        // Erst die Knoepfe fragen: Sonst faengt die Liste einen Klick ab, der einem
+        // Schalter galt - und statt der Einstellung ginge ein Rezept auf
+        if (super.mouseClicked(event, doubleClick)) return true;
+        if (!CraftProfitData.ready()) return false;
+
+        double x = event.x();
+        double y = event.y();
+        int left = left();
+        if (y < listTop - 3 || x < left || x > left + LIST_WIDTH) return false;
+
+        int index = (int) ((y - listTop + 3) / ROW_HEIGHT);
+        List<Row> zeilen = visible();
+        int start = page * perPage();
+        if (index < 0 || index >= perPage() || start + index >= zeilen.size()) return false;
+
+        Row row = zeilen.get(start + index);
+        if (minecraft == null || minecraft.player == null) return false;
+        minecraft.setScreen(null);
+        minecraft.player.connection.sendCommand("recipe " + row.name());
+        return true;
     }
 
     @Override
@@ -201,7 +241,8 @@ public class CraftProfitScreen extends Screen {
         graphics.centeredText(font, Component.literal(
                         zeilen.size() + " of " + CraftProfitData.recipeCount()
                         + " recipes shown"
-                        + (search.isBlank() ? " - type an item to narrow it down" : ""))
+                        + (search.isBlank() ? " - type an item to narrow it down"
+                                            : " - click a row for /recipe"))
                 .withStyle(ChatFormatting.DARK_GRAY), centerX, 28, 0xFF888888);
 
         graphics.text(font, "Craft", left + 4, listTop - 12, 0xFF888888, false);
@@ -238,8 +279,9 @@ public class CraftProfitScreen extends Screen {
                     .withStyle(ChatFormatting.GRAY), centerX, listTop + 20, 0xFFAAAAAA);
         }
         if (pageCount() > 1) {
+            // Mittig zwischen den beiden Pfeilen, auf ihrer Hoehe
             graphics.centeredText(font, Component.literal((page + 1) + " / " + pageCount())
-                    .withStyle(ChatFormatting.GRAY), centerX, height - 40, 0xFFAAAAAA);
+                    .withStyle(ChatFormatting.GRAY), centerX, height - 44, 0xFFAAAAAA);
         }
     }
 

@@ -117,29 +117,32 @@ public class PetProfitScreen extends Screen {
         listTop = y + 40;
 
         int unten = height - 28;
+        // Die Pfeile links und rechts der Seitenzahl, nicht in der Ecke: Wo man ist
+        // und wie man weiterkommt, gehoert zusammen
         if (pageCount() > 1) {
+            int mitte = width / 2;
             addRenderableWidget(Button.builder(Component.literal("◀"), button -> {
                 page = (page - 1 + pageCount()) % pageCount();
                 rebuild();
-            }).bounds(left, unten, 20, 20).build());
+            }).bounds(mitte - 60, height - 50, 20, 20).build());
             addRenderableWidget(Button.builder(Component.literal("▶"), button -> {
                 page = (page + 1) % pageCount();
                 rebuild();
-            }).bounds(left + 24, unten, 20, 20).build());
+            }).bounds(mitte + 40, height - 50, 20, 20).build());
         }
         addRenderableWidget(Button.builder(
                 Component.literal((onlyLevelOne ? "☑" : "☐") + " Level 1 only"), button -> {
                     onlyLevelOne = !onlyLevelOne;
                     page = 0;
                     rebuild();
-                }).bounds(left + 52, unten, 110, 20).build());
+                }).bounds(left, unten, 110, 20).build());
 
         addRenderableWidget(Button.builder(
                 Component.literal((noCandy ? "☑" : "☐") + " No pet candy"), button -> {
                     noCandy = !noCandy;
                     page = 0;
                     rebuild();
-                }).bounds(left + 166, unten, 110, 20).build());
+                }).bounds(left + 114, unten, 110, 20).build());
 
         addRenderableWidget(Button.builder(Component.literal("Done"), button -> onClose())
                 .bounds(left + LIST_WIDTH - 90, unten, 90, 20).build());
@@ -242,8 +245,10 @@ public class PetProfitScreen extends Screen {
                     .withStyle(ChatFormatting.GRAY), centerX, listTop + 20, 0xFFAAAAAA);
         }
         if (pageCount() > 1) {
+            // Mittig zwischen den beiden Pfeilen und ueber der Knopfreihe. Vorher lag
+            // sie bei height-22 und damit mitten im Knopf "No pet candy"
             graphics.centeredText(font, Component.literal((page + 1) + " / " + pageCount())
-                    .withStyle(ChatFormatting.GRAY), centerX, height - 22, 0xFFAAAAAA);
+                    .withStyle(ChatFormatting.GRAY), centerX, height - 44, 0xFFAAAAAA);
         }
     }
 
