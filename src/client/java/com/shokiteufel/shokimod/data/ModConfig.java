@@ -1829,6 +1829,65 @@ public class ModConfig extends Config {
         @ConfigAccordionId(id = 23)
         public String tier3Design = "Classic band";
 
+        /**
+         * Nur zum Auf- und Zuklappen. MoulConfig haelt den Zustand selbst und schreibt
+         * nie in dieses Feld - ein Schalter darf deshalb nicht am Kopf haengen
+         */
+        @ConfigOption(name = "Tier 4", desc = "The top tier. From the threshold below up; a drop that reaches it fires only this one.")
+        @ConfigEditorAccordion(id = 25)
+        public transient boolean tier4Folder = false;
+
+        @Expose
+        @ConfigOption(name = "Enabled", desc = "Off means this tier never fires, even if the drop reaches its threshold.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 25)
+        public boolean tier4Enabled = false;
+
+        @Expose
+        @ConfigOption(name = "Threshold", desc = "Coins. Short forms work: 500k, 5M, 1.2B. Counted is the whole drop, so 3x counts three times.")
+        @ConfigEditorText
+        @ConfigAccordionId(id = 25)
+        public String tier4Threshold = "250M";
+
+        @Expose
+        @ConfigOption(name = "Banner", desc = "Large text across the screen.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 25)
+        public boolean tier4Banner = true;
+
+        @Expose
+        @ConfigOption(name = "Banner", desc = "Name of the banner design this tier shows. Pick or build one in Alerts > Banner > Sandbox, where Use for Tier sets this for you.")
+        @ConfigEditorText
+        @ConfigAccordionId(id = 25)
+        public String tier4Design = "Classic band";
+
+        @Expose
+        @ConfigOption(name = "Toast", desc = "Small box in the top right corner.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 25)
+        public boolean tier4Toast = true;
+
+        @Expose
+        @ConfigOption(name = "Chat line", desc = "Writes the drop and its value into your chat.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 25)
+        public boolean tier4Chat = false;
+
+        @ConfigOption(name = "Sound", desc = "Your own file from config/shokimod/sounds. Leave empty for silence.")
+        @ConfigEditorButton(buttonText = "Pick")
+        @ConfigAccordionId(id = 25)
+        public transient Runnable openTier4Sound = () -> {
+        };
+
+        @Expose
+        public String tier4Sound = "";
+
+        @ConfigOption(name = "Test", desc = "Fires this tier once with a sample drop, so you can see and hear what you set.")
+        @ConfigEditorButton(buttonText = "Test")
+        @ConfigAccordionId(id = 25)
+        public transient Runnable testTier4 = () -> {
+        };
+
         /** Alte Ablage bis 1.1.16, nur fuer die Uebernahme */
         @Expose
         public String tier3Style = null;
@@ -1958,65 +2017,6 @@ public class ModConfig extends Config {
         public record Tier(int number, boolean enabled, String threshold, boolean banner,
                            boolean toast, boolean chat, String sound, String design) {
         }
-
-        /**
-         * Nur zum Auf- und Zuklappen. MoulConfig haelt den Zustand selbst und schreibt
-         * nie in dieses Feld - ein Schalter darf deshalb nicht am Kopf haengen
-         */
-        @ConfigOption(name = "Tier 4", desc = "The top tier. From the threshold below up; a drop that reaches it fires only this one.")
-        @ConfigEditorAccordion(id = 25)
-        public transient boolean tier4Folder = false;
-
-        @Expose
-        @ConfigOption(name = "Enabled", desc = "Off means this tier never fires, even if the drop reaches its threshold.")
-        @ConfigEditorBoolean
-        @ConfigAccordionId(id = 25)
-        public boolean tier4Enabled = false;
-
-        @Expose
-        @ConfigOption(name = "Threshold", desc = "Coins. Short forms work: 500k, 5M, 1.2B. Counted is the whole drop, so 3x counts three times.")
-        @ConfigEditorText
-        @ConfigAccordionId(id = 25)
-        public String tier4Threshold = "250M";
-
-        @Expose
-        @ConfigOption(name = "Banner", desc = "Large text across the screen.")
-        @ConfigEditorBoolean
-        @ConfigAccordionId(id = 25)
-        public boolean tier4Banner = true;
-
-        @Expose
-        @ConfigOption(name = "Banner", desc = "Name of the banner design this tier shows. Pick or build one in Alerts > Banner > Sandbox, where Use for Tier sets this for you.")
-        @ConfigEditorText
-        @ConfigAccordionId(id = 25)
-        public String tier4Design = "Classic band";
-
-        @Expose
-        @ConfigOption(name = "Toast", desc = "Small box in the top right corner.")
-        @ConfigEditorBoolean
-        @ConfigAccordionId(id = 25)
-        public boolean tier4Toast = true;
-
-        @Expose
-        @ConfigOption(name = "Chat line", desc = "Writes the drop and its value into your chat.")
-        @ConfigEditorBoolean
-        @ConfigAccordionId(id = 25)
-        public boolean tier4Chat = false;
-
-        @ConfigOption(name = "Sound", desc = "Your own file from config/shokimod/sounds. Leave empty for silence.")
-        @ConfigEditorButton(buttonText = "Pick")
-        @ConfigAccordionId(id = 25)
-        public transient Runnable openTier4Sound = () -> {
-        };
-
-        @Expose
-        public String tier4Sound = "";
-
-        @ConfigOption(name = "Test", desc = "Fires this tier once with a sample drop, so you can see and hear what you set.")
-        @ConfigEditorButton(buttonText = "Test")
-        @ConfigAccordionId(id = 25)
-        public transient Runnable testTier4 = () -> {
-        };
 
         public Tier tier(int number) {
             return switch (number) {

@@ -266,10 +266,14 @@ public class CraftProfitScreen extends Screen {
                 sellToBazaar && live ? 0xFF77DD77 : 0xFF888888);
 
         graphics.text(font, "Craft", left + 4, listTop - 12, 0xFF888888, false);
-        graphics.text(font, "Materials", left + 170, listTop - 12, 0xFF888888, false);
-        graphics.text(font, "Cost", left + 356, listTop - 12, 0xFF888888, false);
-        graphics.text(font, "Sells for", left + 412, listTop - 12, 0xFF888888, false);
-        graphics.text(font, "Profit", left + 472, listTop - 12, 0xFF888888, false);
+        graphics.text(font, "Materials", left + 150, listTop - 12, 0xFF888888, false);
+        graphics.text(font, "Cost", left + 320, listTop - 12, 0xFF888888, false);
+        graphics.text(font, "Sells for", left + 374, listTop - 12, 0xFF888888, false);
+        graphics.text(font, "Profit", left + 432, listTop - 12, 0xFF888888, false);
+        // Wie viele Stueck taeglich weggehen. Der Gewinn allein sagt nicht, ob sich
+        // die Ware ueberhaupt bewegt - wer hundert baut und taeglich fuenf verkauft,
+        // sitzt lange darauf
+        graphics.text(font, "Sold/day", left + 486, listTop - 12, 0xFF888888, false);
 
         int start = page * perPage();
         for (int i = 0; i < perPage() && start + i < zeilen.size(); i++) {
@@ -277,19 +281,26 @@ public class CraftProfitScreen extends Screen {
             int y = listTop + i * ROW_HEIGHT;
             if ((i & 1) == 0) graphics.fill(left, y - 3, left + LIST_WIDTH, y + ROW_HEIGHT - 4, 0x30000000);
 
-            graphics.text(font, cut(row.yield(), 27), left + 4, y, 0xFFFFCC66, false);
-            graphics.text(font, cut(row.partsText(), 34), left + 170, y, 0xFFBBBBBB, false);
+            graphics.text(font, cut(row.yield(), 24), left + 4, y, 0xFFFFCC66, false);
+            graphics.text(font, cut(row.partsText(), 31), left + 150, y, 0xFFBBBBBB, false);
 
             if (!row.complete()) {
                 // Ohne Preis ist jede Zahl hier eine Behauptung. Lieber ein Strich
-                graphics.text(font, "no price", left + 356, y, 0xFF888888, false);
+                graphics.text(font, "no price", left + 320, y, 0xFF888888, false);
             } else {
                 long gewinn = row.profit();
-                graphics.text(font, ItemValue.format(row.cost()), left + 356, y, 0xFFFF7777, false);
-                graphics.text(font, ItemValue.format(row.revenue()), left + 412, y, 0xFFAAAAFF, false);
-                graphics.text(font, ItemValue.format(gewinn), left + 472, y,
+                graphics.text(font, ItemValue.format(row.cost()), left + 320, y, 0xFFFF7777, false);
+                graphics.text(font, ItemValue.format(row.revenue()), left + 374, y, 0xFFAAAAFF, false);
+                graphics.text(font, ItemValue.format(gewinn), left + 432, y,
                         gewinn > 0 ? 0xFF55FF55 : 0xFFFF5555, false);
             }
+
+            // Der Tagesumsatz. Liegt kein frischer Bazaar-Stand vor, steht hier ein
+            // Strich statt einer erfundenen Zahl - der Wochenwert kommt nur mit den
+            // Live-Daten, die gespeicherte Datei fuehrt ihn nicht
+            long proTag = com.shokiteufel.shokimod.util.BazaarLive.soldPerDay(row.id());
+            graphics.text(font, proTag < 0 ? "-" : ItemValue.format(proTag),
+                    left + 486, y, mengeFarbe(proTag), false);
         }
 
         if (zeilen.isEmpty()) {
@@ -303,6 +314,20 @@ public class CraftProfitScreen extends Screen {
             graphics.centeredText(font, Component.literal((page + 1) + " / " + pageCount())
                     .withStyle(ChatFormatting.GRAY), centerX, height - 44, 0xFFAAAAAA);
         }
+    }
+
+    /**
+     * Die Farbe des Tagesumsatzes.
+     *
+     * Rot heisst: Hier bewegt sich fast nichts, und ein Gewinn auf dem Papier nuetzt
+     * wenig, wenn die Ware tagelang liegt. Die Schwellen sind grob und sollen nur
+     * den Blick lenken.
+     */
+    private static int mengeFarbe(long proTag) {
+        if (proTag < 0) return 0xFF666666;
+        if (proTag < 100) return 0xFFFF5555;
+        if (proTag < 1000) return 0xFFFFAA00;
+        return 0xFF55FF55;
     }
 
     private static String cut(String text, int max) {

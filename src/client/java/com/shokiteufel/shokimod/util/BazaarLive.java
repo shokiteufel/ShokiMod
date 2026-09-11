@@ -55,7 +55,12 @@ public final class BazaarLive {
     private static final Duration TIMEOUT = Duration.ofSeconds(20);
     private static final Gson GSON = new Gson();
 
-    /** Kennung der Ware -> sofort kaufen / sofort verkaufen */
+    /**
+     * Kennung der Ware -> sofort kaufen, sofort verkaufen, Woche verkauft, Woche gekauft.
+     *
+     * Vier Zahlen in einem Feld statt eines eigenen Typs: Bei zweitausend Waren, die
+     * alle fuenfzehn Sekunden neu entstehen, spart das eine Menge kleiner Objekte.
+     */
     private static volatile Map<String, long[]> prices = Map.of();
     private static volatile long fetchedAt = 0L;
     private static volatile long interestedAt = 0L;
@@ -110,6 +115,27 @@ public final class BazaarLive {
     public static long[] priceOf(String bazaarId) {
         if (!fresh()) return null;
         return prices.get(bazaarId);
+    }
+
+    /**
+     * Wie viele Stueck an einem Tag verkauft werden, im Schnitt der letzten Woche.
+     *
+     * Hypixel fuehrt keinen Tageswert, nur die Summe der letzten sieben Tage. Geteilt
+     * durch sieben ist das eine brauchbare Auskunft darueber, ob sich eine Ware
+     * ueberhaupt bewegt: Wer hundert Stueck bauen will und sieht, dass taeglich
+     * fuenfzig weggehen, weiss, dass er zwei Tage braucht.
+     *
+     * @return Stueck je Tag, oder -1 wenn gerade keine frischen Zahlen vorliegen
+     */
+    public static long soldPerDay(String bazaarId) {
+        long[] p = priceOf(bazaarId);
+        return p == null || p.length < 3 ? -1 : p[2] / 7;
+    }
+
+    /** Dasselbe fuer die Kaufseite - wie viele Stueck taeglich gekauft werden */
+    public static long boughtPerDay(String bazaarId) {
+        long[] p = priceOf(bazaarId);
+        return p == null || p.length < 4 ? -1 : p[3] / 7;
     }
 
     /** Liegt ein brauchbar frischer Stand vor? */
@@ -172,7 +198,13 @@ public final class BazaarLive {
                         : stand.get("buyPrice").getAsDouble());
                 long verkaufen = Math.round(stand.get("sellPrice") == null ? 0
                         : stand.get("sellPrice").getAsDouble());
-                frisch.put(id, new long[]{kaufen, verkaufen});
+                // Was in sieben Tagen ueber die Theke ging. Einen Tageswert fuehrt
+                // Hypixel nicht - die Woche ist das Feinste, was zu haben ist
+                long wocheVerkauft = stand.get("sellMovingWeek") == null ? 0
+                        : stand.get("sellMovingWeek").getAsLong();
+                long wocheGekauft = stand.get("buyMovingWeek") == null ? 0
+                        : stand.get("buyMovingWeek").getAsLong();
+                frisch.put(id, new long[]{kaufen, verkaufen, wocheVerkauft, wocheGekauft});
             }
             if (frisch.isEmpty()) {
                 lastError = "no products in the answer";
