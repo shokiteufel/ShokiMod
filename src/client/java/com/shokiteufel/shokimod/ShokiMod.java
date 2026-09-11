@@ -99,6 +99,8 @@ public class ShokiMod implements ClientModInitializer {
             // Der Fortschritt des Pets steht nur im Pet-Menue; solange es offen ist,
             // wird er mitgelesen
             com.shokiteufel.shokimod.scanner.PetState.tick(client);
+            // Was an Shards im Lager liegt, sobald die Box offen ist
+            com.shokiteufel.shokimod.scanner.ShardStock.tick(client);
             // Die Umlaufzeit selbst messen - die Spielerliste taugt bei Hypixel nicht
             com.shokiteufel.shokimod.scanner.PerformanceState.tickPing(client);
             // Die Gewinnliste im Hintergrund holen, damit sie beim Oeffnen dasteht

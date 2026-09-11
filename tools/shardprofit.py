@@ -16,6 +16,15 @@ sich frei mischen: Zutaten sofort kaufen und das Ergebnis per Auftrag verkaufen 
 eine ebenso gueltige Wahl wie jede andere. Vier Kombinationen also, und welche gilt,
 weiss nur der Spieler. Die Mod rechnet damit; hier wird gesammelt.
 
+Wie viele Shards eine Fusion verschlingt, steht nicht im Rezept, sondern beim
+Shard selbst: fuse_amount, meist 5, bei manchen 2. Eine Fusion nimmt von jeder
+Zutat diese Menge - "Sun Fish + Sun Fish -> 2x Galaxy Fish" heisst also fuenf plus
+fuenf, nicht eins plus eins. Wer das uebersieht, rechnet die Kosten um das
+Fuenffache zu niedrig und haelt Verlustgeschaefte fuer Gewinne. So steht es auch
+in der Rechnung der Vorlage (calculationService.ts):
+
+    const totalCost = cost1 * fuse1 + cost2 * fuse2;
+
 Was die beiden Bazaar-Zahlen bedeuten:
 
     buyPrice   was ein Stueck kostet, wenn man es sofort nimmt (Instabuy),
@@ -118,9 +127,16 @@ def bauen(fusionen: dict, eigenschaften: dict, preise: Preise) -> list[dict]:
                 if not isinstance(paar, list) or len(paar) != 2:
                     continue
                 a, b = paar
-                ka = shards.get(a, {}).get("internal_id")
-                kb = shards.get(b, {}).get("internal_id")
+                sa = shards.get(a, {})
+                sb = shards.get(b, {})
+                ka = sa.get("internal_id")
+                kb = sb.get("internal_id")
                 if not ka or not kb:
+                    continue
+                # Wie viele Stueck die Fusion von jeder Zutat nimmt
+                na = int(sa.get("fuse_amount") or 0)
+                nb = int(sb.get("fuse_amount") or 0)
+                if na <= 0 or nb <= 0:
                     continue
                 # Zutaten sofort nehmen, Ergebnis sofort abgeben: der schnelle Weg
                 ea = preise.sofort_kaufen(ka)
@@ -133,13 +149,20 @@ def bauen(fusionen: dict, eigenschaften: dict, preise: Preise) -> list[dict]:
                 if min(preise.umsatz(ka), preise.umsatz(kb)) < MINDESTUMSATZ:
                     continue
 
+                # Erst runden, dann rechnen: Die Mod bekommt gerundete Preise und
+                # rechnet damit. Wer hier mit den ungerundeten Zahlen reiht, sortiert
+                # nach etwas anderem als dem, was der Spieler spaeter liest - ein
+                # Coin Unterschied, aber die Reihenfolge soll zur Anzeige passen
+                r_ea, r_eb, r_ga, r_gb = round(ea), round(eb), round(ga), round(gb)
+                r_sofort, r_auftrag = round(bringt_sofort), round(bringt_auftrag)
+
                 # Alle vier Wege durchrechnen - der beste entscheidet, ob die Zeile
                 # mitkommt und wo sie steht. Sonst haenge die Auswahl an einer
                 # Annahme, die der Spieler gar nicht teilt
                 bester = max(
-                    stueck * bringt - (kauf_a + kauf_b)
-                    for bringt in (bringt_sofort, bringt_auftrag)
-                    for kauf_a, kauf_b in ((ea, eb), (ga, gb)))
+                    stueck * bringt - (na * kauf_a + nb * kauf_b)
+                    for bringt in (r_sofort, r_auftrag)
+                    for kauf_a, kauf_b in ((r_ea, r_eb), (r_ga, r_gb)))
                 if bester <= 0:
                     continue
 
@@ -147,8 +170,11 @@ def bauen(fusionen: dict, eigenschaften: dict, preise: Preise) -> list[dict]:
                     "ergebnis": ziel.get("name", ergebnis),
                     "ergebnisId": ergebnis,
                     "menge": stueck,
-                    "zutat1": shards.get(a, {}).get("name", a),
-                    "zutat2": shards.get(b, {}).get("name", b),
+                    "zutat1": sa.get("name", a),
+                    "zutat2": sb.get("name", b),
+                    # Wie viele Stueck je Zutat noetig sind
+                    "menge1": na,
+                    "menge2": nb,
                     "zutat1Id": a,
                     "zutat2Id": b,
                     "seltenheit": (ziel.get("rarity") or "").upper(),
@@ -157,15 +183,16 @@ def bauen(fusionen: dict, eigenschaften: dict, preise: Preise) -> list[dict]:
                     # und taugt als Reiter nicht
                     "sparte": (ziel.get("type") or "").upper(),
                     "gebiet": eig.get("category") or "",
-                    # Je Shard beide Zahlen. Was daraus Kosten oder Erloes wird,
-                    # haengt an der Richtung und entscheidet die Mod
-                    "z1Sofort": round(ea),
-                    "z1Auftrag": round(ga),
-                    "z2Sofort": round(eb),
-                    "z2Auftrag": round(gb),
-                    "ergSofort": round(bringt_sofort),
-                    "ergAuftrag": round(bringt_auftrag),
-                    "bester": round(bester),
+                    # Je Shard beide Zahlen, immer je Stueck. Was daraus Kosten
+                    # oder Erloes wird, haengt an der Richtung und an der Stueckzahl -
+                    # beides entscheidet die Mod
+                    "z1Sofort": r_ea,
+                    "z1Auftrag": r_ga,
+                    "z2Sofort": r_eb,
+                    "z2Auftrag": r_gb,
+                    "ergSofort": r_sofort,
+                    "ergAuftrag": r_auftrag,
+                    "bester": bester,
                     "umsatz": preise.umsatz(kennung),
                 })
 

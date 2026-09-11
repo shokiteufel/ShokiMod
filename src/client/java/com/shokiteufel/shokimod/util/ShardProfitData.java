@@ -55,6 +55,7 @@ public final class ShardProfitData {
      */
     public record Row(String result, String resultId, int amount,
                       String first, String second, String firstId, String secondId,
+                      int firstAmount, int secondAmount,
                       String rarity, String category, String area,
                       long firstInstant, long firstOrder,
                       long secondInstant, long secondOrder,
@@ -64,10 +65,18 @@ public final class ShardProfitData {
         /**
          * Was die beiden Zutaten zusammen kosten.
          *
+         * Mal der Stueckzahl, und die ist selten eins: Eine Fusion verschlingt von
+         * jeder Zutat meist fuenf Shards, bei manchen zwei. "Sun Fish + Sun Fish"
+         * heisst also fuenf plus fuenf. Ohne diesen Faktor stuenden hier Kosten, die
+         * um das Fuenffache zu niedrig sind - und Verlustgeschaefte saehen aus wie
+         * Gewinne.
+         *
          * @param instant sofort kaufen (teurer, sofort da) statt per Buy Order
          */
         public long cost(boolean instant) {
-            return instant ? firstInstant + secondInstant : firstOrder + secondOrder;
+            return instant
+                    ? (long) firstAmount * firstInstant + (long) secondAmount * secondInstant
+                    : (long) firstAmount * firstOrder + (long) secondAmount * secondOrder;
         }
 
         /**
@@ -89,9 +98,22 @@ public final class ShardProfitData {
             return amount + "x " + result;
         }
 
-        /** "Sun Fish + Sun Fish" */
+        /** "5x Sun Fish + 5x Sun Fish" - die Stueckzahl gehoert sichtbar dazu */
         public String recipe() {
-            return first + " + " + second;
+            return firstAmount + "x " + first + " + " + secondAmount + "x " + second;
+        }
+
+        /** Enthaelt die Fusion diesen Shard, als Zutat oder als Ergebnis? */
+        public boolean mentions(String text) {
+            String suche = text.toLowerCase(java.util.Locale.ROOT);
+            return first.toLowerCase(java.util.Locale.ROOT).contains(suche)
+                    || second.toLowerCase(java.util.Locale.ROOT).contains(suche)
+                    || result.toLowerCase(java.util.Locale.ROOT).contains(suche);
+        }
+
+        /** Braucht die Fusion diesen Shard als Zutat? */
+        public boolean needs(String shardName) {
+            return first.equalsIgnoreCase(shardName) || second.equalsIgnoreCase(shardName);
         }
     }
 
@@ -241,6 +263,16 @@ public final class ShardProfitData {
             JsonObject o = element.getAsJsonObject();
             String ergebnis = string(o, "ergebnis");
             if (ergebnis.isEmpty()) continue;
+            // Ohne Stueckzahlen keine Zeile.
+            //
+            // Eine aeltere Datei kennt die Felder noch nicht; sie faellt dann auf
+            // null zurueck, und eine Fusion ohne Zutatenmenge kostet scheinbar
+            // nichts. Das saehe nicht nach einem Fehler aus, sondern nach dem
+            // Geschaeft des Tages - und waere schlimmer als gar keine Liste.
+            // Lieber leer bleiben, bis der naechste Lauf die Datei erneuert hat
+            if (number(o, "menge1").intValue() <= 0 || number(o, "menge2").intValue() <= 0) {
+                continue;
+            }
             parsed.add(new Row(
                     ergebnis,
                     string(o, "ergebnisId"),
@@ -249,6 +281,8 @@ public final class ShardProfitData {
                     string(o, "zutat2"),
                     string(o, "zutat1Id"),
                     string(o, "zutat2Id"),
+                    number(o, "menge1").intValue(),
+                    number(o, "menge2").intValue(),
                     string(o, "seltenheit").toUpperCase(Locale.ROOT),
                     string(o, "sparte").toUpperCase(Locale.ROOT),
                     string(o, "gebiet"),

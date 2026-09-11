@@ -1,6 +1,7 @@
 package com.shokiteufel.shokimod.gui;
 
 import com.shokiteufel.shokimod.data.ModConfig;
+import com.shokiteufel.shokimod.scanner.ShardStock;
 import com.shokiteufel.shokimod.util.ItemValue;
 import com.shokiteufel.shokimod.util.ShardProfitData;
 import com.shokiteufel.shokimod.util.ShardProfitData.Row;
@@ -8,6 +9,7 @@ import com.shokiteufel.shokimod.util.ShardProfitData.Row;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
@@ -37,8 +39,19 @@ public class ShardProfitScreen extends Screen {
     private static String category = "";
     /** Nur Fusionen, die auf dem gewaehlten Weg wirklich etwas abwerfen */
     private static boolean onlyProfitable = true;
+    /**
+     * Nur Fusionen, deren Zutaten im Lager liegen.
+     *
+     * Beantwortet die andere Frage: nicht "was ist am besten", sondern "was kann ich
+     * jetzt machen". Verlangt einen Blick in die Hunting-Box - ohne ihn bleibt der
+     * Schalter wirkungslos, und das Fenster sagt das auch.
+     */
+    private static boolean onlyOwned = false;
+    /** Wonach gesucht wird - leer heisst: alles */
+    private static String search = "";
 
     private final Screen parent;
+    private EditBox searchBox;
     private int page;
 
     public ShardProfitScreen(Screen parent) {
@@ -76,10 +89,25 @@ public class ShardProfitScreen extends Screen {
         for (Row row : ShardProfitData.rows()) {
             if (!category.isEmpty() && !category.equals(row.category())) continue;
             if (onlyProfitable && row.profit(kaufen, verkaufen) <= 0) continue;
+            // Gesucht wird in beiden Zutaten und im Ergebnis: Wer einen Shard eintippt,
+            // will wissen, was er damit anfangen kann - und was ihn herstellt
+            if (!search.isBlank() && !row.mentions(search)) continue;
+            if (onlyOwned && !owned(row)) continue;
             out.add(row);
         }
         out.sort((a, b) -> Long.compare(b.profit(kaufen, verkaufen), a.profit(kaufen, verkaufen)));
         return out;
+    }
+
+    /** Liegen beide Zutaten in ausreichender Zahl im Lager? */
+    private static boolean owned(Row row) {
+        if (!ShardStock.known()) return false;
+        // Derselbe Shard zweimal: dann braucht es die Summe beider Mengen
+        if (row.first().equalsIgnoreCase(row.second())) {
+            return ShardStock.have(row.first()) >= row.firstAmount() + row.secondAmount();
+        }
+        return ShardStock.have(row.first()) >= row.firstAmount()
+                && ShardStock.have(row.second()) >= row.secondAmount();
     }
 
     private int rowCount() {
@@ -128,8 +156,31 @@ public class ShardProfitScreen extends Screen {
             x += breite + 2;
         }
 
-        // Unter dem letzten Reiter faengt die Liste an, mit Platz fuer die Spaltenkoepfe
-        listTop = y + 40;
+        // Unter dem letzten Reiter faengt die Liste an, mit Platz fuer das Suchfeld
+        // und die Spaltenkoepfe darunter
+        int sucheY = y + 24;
+        listTop = y + 62;
+
+        searchBox = new EditBox(font, left, sucheY, 200, 18, Component.literal("Search"));
+        searchBox.setHint(Component.literal("Search a shard ..."));
+        searchBox.setMaxLength(40);
+        searchBox.setValue(search);
+        searchBox.setResponder(text -> {
+            search = text == null ? "" : text.trim();
+            page = 0;
+        });
+        addRenderableWidget(searchBox);
+
+        // Nur was im Lager liegt. Der Schalter bleibt sichtbar, auch wenn noch nie
+        // in die Box gesehen wurde - sonst sucht man ihn und findet ihn nicht
+        addRenderableWidget(Button.builder(
+                Component.literal((onlyOwned ? "☑" : "☐") + " Only what I have")
+                        .withStyle(ShardStock.known() ? ChatFormatting.WHITE : ChatFormatting.DARK_GRAY),
+                button -> {
+                    onlyOwned = !onlyOwned;
+                    page = 0;
+                    rebuild();
+                }).bounds(left + 206, sucheY, 140, 18).build());
 
         int unten = height - 28;
         if (pageCount() > 1) {
@@ -192,6 +243,16 @@ public class ShardProfitScreen extends Screen {
             return;
         }
 
+        // Was der Bestandsschalter gerade bedeutet - sonst wundert man sich ueber
+        // eine leere Liste
+        if (onlyOwned) {
+            String hinweis = ShardStock.known()
+                    ? ShardStock.kinds() + " kinds in your box, seen " + ShardStock.age()
+                    : "Open your shard box once - nothing counted yet";
+            graphics.text(font, hinweis, left + 352, listTop - 34,
+                    ShardStock.known() ? 0xFF55FF55 : 0xFFFFAA00, false);
+        }
+
         String stand = ShardProfitData.age();
         graphics.centeredText(font, Component.literal(
                         ShardProfitData.worthwhileCount() + " of "
@@ -215,7 +276,7 @@ public class ShardProfitScreen extends Screen {
             if ((i & 1) == 0) graphics.fill(left, y - 3, left + LIST_WIDTH, y + ROW_HEIGHT - 4, 0x30000000);
 
             long gewinn = row.profit(kaufen, verkaufen);
-            graphics.text(font, cut(row.recipe(), 33), left + 4, y, 0xFFCCCCCC, false);
+            graphics.text(font, cut(row.recipe(), 40), left + 4, y, 0xFFCCCCCC, false);
             graphics.text(font, cut(row.yield(), 17), left + 210, y, colour(row.rarity()), false);
             graphics.text(font, ItemValue.format(row.cost(kaufen)), left + 320, y, 0xFFFF7777, false);
             graphics.text(font, ItemValue.format(row.revenue(verkaufen)), left + 380, y, 0xFFAAAAFF, false);
@@ -265,5 +326,22 @@ public class ShardProfitScreen extends Screen {
     @Override
     public void onClose() {
         if (minecraft != null) minecraft.setScreen(parent);
+    }
+
+    /**
+     * Die Liste soll sich mit dem Suchtext sofort mitbewegen.
+     *
+     * Der Responder setzt nur den Text; die Seitenzahl und die Knoepfe darunter haengen
+     * aber an der Trefferzahl. Neu gebaut wird erst hier, nach dem Tastendruck - waehrend
+     * des Responders waere das Feld selbst noch in Arbeit.
+     */
+    @Override
+    public boolean keyPressed(net.minecraft.client.input.KeyEvent event) {
+        boolean behandelt = super.keyPressed(event);
+        if (searchBox != null && searchBox.isFocused() && !search.equals(searchBox.getValue().trim())) {
+            search = searchBox.getValue().trim();
+            rebuild();
+        }
+        return behandelt;
     }
 }
