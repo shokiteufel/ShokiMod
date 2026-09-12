@@ -137,6 +137,17 @@ public final class RareLootHandler {
         String clean = plain.trim();
         long now = System.currentTimeMillis();
 
+        // Fremde Zeilen fliegen zuerst raus, noch vor der Buendel-Erkennung.
+        //
+        // Vorher stand diese Pruefung weiter unten - eine Zeile im Gildenchat mit dem
+        // Wortlaut einer Buendel-Ueberschrift haette also ein Buendel eroeffnet, und
+        // was danach im Chat stand, waere als eigener Fund gewertet worden. Solange es
+        // nur um das Nucleus ging, war die Ueberschrift zu lang zum Nachtippen; die
+        // Leichen melden sich kuerzer, und damit ist es zu einfach geworden
+        for (String prefix : SKIPPED_PREFIXES) {
+            if (clean.startsWith(prefix)) return;
+        }
+
         // Das Beutebuendel aus dem Crystal Nucleus meldet seine Funde nicht einzeln,
         // sondern als Liste unter einer Ueberschrift. Diese Zeilen tragen keines der
         // Kennzeichen ("RARE DROP!", "You dug out"), auf die der Parser sonst hoert.

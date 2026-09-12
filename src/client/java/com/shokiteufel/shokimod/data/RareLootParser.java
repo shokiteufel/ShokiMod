@@ -98,10 +98,20 @@ public final class RareLootParser {
      * die Mod dort nie einen Fund, wie wertvoll er auch sei.
      */
     private static final Pattern BUNDLE_START = Pattern.compile(
-            "^CRYSTAL NUCLEUS LOOT BUNDLE$", Pattern.CASE_INSENSITIVE);
+            "^(?:CRYSTAL NUCLEUS LOOT BUNDLE"
+            // Die Leichen in den Gletscherschaechten melden nach demselben Muster,
+            // nur mit eigener Ueberschrift: "LAPIS CORPSE LOOT!". Vor dem Wort steht
+            // die Sorte - Lapis, Tungsten, Umber, Vanguard -, und welche es kuenftig
+            // noch gibt, weiss heute niemand. Deshalb wird die Sorte nicht
+            // aufgezaehlt, sondern offen gelassen
+            + "|.{0,32} CORPSE LOOT!?"
+            + ")$", Pattern.CASE_INSENSITIVE);
     /** Die Zwischenzeile ueber der Liste - kein Gegenstand */
     private static final Pattern BUNDLE_HEADING = Pattern.compile(
-            "^REWARDS$", Pattern.CASE_INSENSITIVE);
+            // "+1 bonus drop!" steht bei den Leichen zwischen Ueberschrift und Liste
+            // und ist kein Gegenstand. Ohne diese Zeile hier landete sie als Fund in
+            // der Auswertung und suchte vergeblich nach einem Preis
+            "^(?:REWARDS|\\+\\d+ bonus drops?!?)$", Pattern.CASE_INSENSITIVE);
     /**
      * Das Symbol der Edelsteinsorte vor dem Namen. Statt die zwoelf Sorten aufzuzaehlen,
      * faellt jedes Zeichen aus Hypixels eigenem Zeichenvorrat weg - dann traegt die
@@ -118,7 +128,12 @@ public final class RareLootParser {
             "^(?<drop>.*?)\\s+x(?<amount>[0-9][0-9,.]*)$");
     /** Woran das Buendel endet: die Trennlinie oder der Hinweis darunter */
     private static final Pattern BUNDLE_END = Pattern.compile(
-            "^(?:[\\u25AC\\u2500-\\u257F=-]{4,}|Pick it up near the Nucleus Vault!.*)$",
+            "^(?:[\\u25AC\\u2500-\\u257F=-]{4,}"
+            + "|Pick it up near the Nucleus Vault!.*"
+            // Bei den Leichen folgt die Gewinnmeldung anderer Mods; sie gehoert nicht
+            // mehr zum Buendel und beendet es sicher
+            + "|\\[SkyHanni\\].*"
+            + ")$",
             Pattern.CASE_INSENSITIVE);
     /** Ein Gegenstandsname faengt mit einem Buchstaben oder einer Ziffer an */
     private static final Pattern BUNDLE_NAME = Pattern.compile("^[A-Za-z0-9].*");
