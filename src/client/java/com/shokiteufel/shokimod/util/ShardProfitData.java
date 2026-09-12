@@ -190,6 +190,22 @@ public final class ShardProfitData {
         return out;
     }
 
+    /**
+     * Kennt die Fusionsliste diesen Namen als Shard?
+     *
+     * In der Hunting Box liegen nicht nur Shards, sondern auch Ausruestung. Wer alles
+     * zaehlt, was dort steht, bekommt "Fabled Flaming Flay" als Sorte gemeldet und
+     * eine Statistik, die niemandem hilft.
+     */
+    public static boolean isShard(String name) {
+        if (name == null || name.isBlank() || !ready()) return false;
+        String gesucht = normalize(name);
+        for (Shard s : shards) {
+            if (s != null && normalize(s.name()).equals(gesucht)) return true;
+        }
+        return false;
+    }
+
     /** Ab welchem Wochenumsatz ein Preis als belastbar gilt */
     public static int minVolume() {
         return minVolume;

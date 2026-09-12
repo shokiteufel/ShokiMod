@@ -76,6 +76,14 @@ public final class ShardStock {
     private static volatile String lastTitle = "";
     private static volatile int lastSlots = 0;
     private static volatile String howCounted = "";
+    /**
+     * Name und Beschreibung eines Feldes, wie sie wirklich dastehen.
+     *
+     * Nur fuer den Diagnosebericht. Wo Hypixel die Stueckzahl hinschreibt, laesst
+     * sich von aussen nicht erraten - und ohne sie zu kennen, ist jede Vermutung
+     * ueber eine leere Bestandsliste geraten.
+     */
+    private static volatile String sampleLore = "";
     private static volatile int pages = 0;
     private static volatile int slotsSeen = 0;
     /**
@@ -209,10 +217,17 @@ public final class ShardStock {
             // des Shards, nicht zu seinem Namen - die Fusionsdaten kennen nur diesen
             Matcher ohneStufe = SHARD_NAME.matcher(name);
             if (ohneStufe.matches()) name = ohneStufe.group("name");
+            // In der Box liegt auch Ausruestung. Was die Fusionsliste nicht als Shard
+            // kennt, gehoert nicht in den Bestand - sonst steht "Fabled Flaming Flay"
+            // als Sorte im Bericht und verzerrt jede Zahl darueber
+            if (!com.shokiteufel.shokimod.util.ShardProfitData.isShard(name)) continue;
             // Die Knoepfe des Fensters tragen keine Mengen und keine Shard-Namen;
             // sie fallen beim Abgleich mit den Fusionsdaten von selbst heraus
             int menge = amountOf(stack);
             if (menge <= 0) continue;
+            // Das erste Feld einer Seite als Muster aufheben - mehr braucht es nicht,
+            // um zu sehen, wie Hypixel eine Menge schreibt
+            if (felder == 0) sampleLore = describe(stack, name);
             if (stack.getCount() > 1) ausStapel = true;
             if (menge != stack.getCount()) ausText = true;
             gefunden.merge(key(name), menge, Integer::sum);
@@ -298,6 +313,33 @@ public final class ShardStock {
 
     private static String clean(String text) {
         return COLOUR_CODE.matcher(text == null ? "" : text).replaceAll("").trim();
+    }
+
+    /** Name, Stapelgroesse und Beschreibung eines Feldes, fuer den Diagnosebericht */
+    private static String describe(ItemStack stack, String name) {
+        StringBuilder out = new StringBuilder();
+        out.append('"').append(name).append("\" stack=").append(stack.getCount());
+        ItemLore lore = stack.get(DataComponents.LORE);
+        if (lore == null) {
+            out.append(" (no lore)");
+            return out.toString();
+        }
+        int n = 0;
+        for (Component zeile : lore.lines()) {
+            String text = clean(zeile.getString());
+            if (text.isEmpty()) continue;
+            if (n++ >= 6) {
+                out.append(" | ...");
+                break;
+            }
+            out.append(" | ").append(text);
+        }
+        return out.toString();
+    }
+
+    /** Wie ein Feld der Box wirklich aussieht - fuer den Diagnosebericht */
+    public static String sample() {
+        return sampleLore.isEmpty() ? "(nothing read yet)" : sampleLore;
     }
 
     /** Eine Zeile fuer den Diagnosebericht */
