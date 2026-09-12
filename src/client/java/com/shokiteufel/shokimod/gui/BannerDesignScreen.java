@@ -14,6 +14,7 @@ import net.minecraft.network.chat.Component;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -21,11 +22,16 @@ import java.util.function.Supplier;
 /**
  * Der Banner-Sandbox: ein Design auswaehlen oder anlegen und jede Eigenschaft drehen.
  *
- * Links die Liste der Designs - die einundzwanzig Vorlagen und alles, was man selbst
- * gebaut hat. Rechts die Eigenschaften des ausgewaehlten Designs: Verankerung,
- * Hintergrund, Rahmen, Akzent, Schrift, Vor- und Nachsatz, Bild, Animation, Dauer,
- * Farbe. "Preview" zeigt es sofort hinter dem Fenster; "Use for Tier" haengt es an
- * eine Stufe. Ort und Groesse zieht man im HUD-Editor, hier gibt es nur den Regler.
+ * Links die Liste der Designs - die Vorlagen und alles, was man selbst gebaut hat.
+ * Rechts die Eigenschaften, auf vier Karteikarten verteilt: Aufbau, Form, Schrift,
+ * Bewegung. Frueher standen alle Regler in zwei langen Spalten untereinander; mit
+ * Formen, Schnitten und dem grossen Auftritt waeren daraus vierzig geworden, und wer
+ * die Schriftgroesse suchte, scrollte an Kistenarten vorbei. Die Karten trennen, was
+ * ohnehin nicht zusammen eingestellt wird.
+ *
+ * "Preview" zeigt das Banner samt Auftritt sofort hinter dem Fenster; "Tier 1-4"
+ * haengt es an eine Stufe. Ort und Groesse zieht man im HUD-Editor, hier gibt es nur
+ * den Regler.
  *
  * Kein Abdunkeln des Hintergrunds, damit die Vorschau so aussieht wie im Spiel.
  */
@@ -56,10 +62,35 @@ public class BannerDesignScreen extends Screen {
     private static final int LIST_TOP = 30;
     private static final int COLUMN_WIDTH = 196;
     private static final int COLUMN_GAP = 8;
+    /** Wie breit der Beschriftungsstreifen links in einer Zeile ist */
+    private static final int LABEL_WIDTH = 90;
+
+    /** Die vier Karteikarten - jede fasst zusammen, was miteinander zu tun hat */
+    private enum Tab {
+        LAYOUT("Layout", "Where it sits, how big, how long"),
+        SHAPE("Shape", "Outline, background, frame, colour"),
+        TEXT("Text", "Sizes, colours, bold and underline"),
+        MOTION("Motion", "How it arrives - and the grand entrance");
+
+        final String label;
+        final String hint;
+
+        Tab(String label, String hint) {
+            this.label = label;
+            this.hint = hint;
+        }
+    }
 
     private final Screen parent;
     private int selected = 0;
     private int listPage = 0;
+    /**
+     * Die offene Karte bleibt ueber das Fenster hinaus stehen.
+     *
+     * Wer an der Schrift arbeitet, macht das Fenster mehrmals auf und zu. Faellt es
+     * jedesmal auf die erste Karte zurueck, sucht man jedesmal von vorn.
+     */
+    private static Tab tab = Tab.LAYOUT;
 
     public BannerDesignScreen(Screen parent) {
         super(Component.literal("Banner sandbox"));
@@ -89,8 +120,27 @@ public class BannerDesignScreen extends Screen {
     @Override
     protected void init() {
         BannerDesign d = design();
+        int col1 = LIST_LEFT + LIST_WIDTH + 16;
+        int col2 = col1 + COLUMN_WIDTH + COLUMN_GAP;
 
-        // ---- Liste links ----
+        buildList(d);
+        buildTabs(col1);
+
+        int y1 = LIST_TOP + 26;
+        int y2 = y1;
+        switch (tab) {
+            case LAYOUT -> buildLayout(d, col1, col2, y1, y2);
+            case SHAPE -> buildShape(d, col1, col2, y1, y2);
+            case TEXT -> buildText(d, col1, col2, y1, y2);
+            case MOTION -> buildMotion(d, col1, col2, y1, y2);
+        }
+
+        buildFooter(d, col1, col2);
+    }
+
+    // ---- Die Liste links ----
+
+    private void buildList(BannerDesign d) {
         int rowsPerPage = Math.max(1, (height - LIST_TOP - 90) / ROW);
         int pages = Math.max(1, (designs().size() + rowsPerPage - 1) / rowsPerPage);
         listPage = Math.clamp(listPage, 0, pages - 1);
@@ -99,7 +149,8 @@ public class BannerDesignScreen extends Screen {
             int index = start + i;
             BannerDesign entry = designs().get(index);
             String tiers = HudEditorScreen.tiersUsing(entry.name);
-            String rowText = (index == selected ? "▶ " : "") + entry.name + (tiers.isEmpty() ? "" : "  [" + tiers.replace("Tier ", "T") + "]");
+            String rowText = (index == selected ? "▶ " : "") + entry.name
+                    + (tiers.isEmpty() ? "" : "  [" + tiers.replace("Tier ", "T") + "]");
             Button row = Button.builder(Component.literal(rowText), button -> {
                 selected = index;
                 rebuild();
@@ -117,6 +168,7 @@ public class BannerDesignScreen extends Screen {
                 rebuild();
             }).bounds(LIST_LEFT + LIST_WIDTH - 20, listBottom, 20, 20).build());
         }
+
         int actionTop = listBottom + 24;
         addRenderableWidget(Button.builder(Component.literal("New"), button -> {
             BannerDesign fresh = new BannerDesign();
@@ -158,55 +210,114 @@ public class BannerDesignScreen extends Screen {
         holen.setTooltip(Tooltip.create(Component.literal(
                 "Reads a shared code from your clipboard and adds it as a new design.")));
         addRenderableWidget(holen);
+    }
 
-        // ---- Eigenschaften rechts, zwei Spalten ----
-        int col1 = LIST_LEFT + LIST_WIDTH + 16;
-        int col2 = col1 + COLUMN_WIDTH + COLUMN_GAP;
-        int y1 = LIST_TOP;
-        int y2 = LIST_TOP;
+    // ---- Die Karteireiter ----
 
+    private void buildTabs(int col1) {
+        Tab[] tabs = Tab.values();
+        int total = COLUMN_WIDTH * 2 + COLUMN_GAP;
+        int each = (total - (tabs.length - 1) * 2) / tabs.length;
+        for (int i = 0; i < tabs.length; i++) {
+            Tab t = tabs[i];
+            boolean open = t == tab;
+            Button b = Button.builder(Component.literal(open ? "▾ " + t.label : t.label)
+                            .withStyle(open ? ChatFormatting.YELLOW : ChatFormatting.GRAY), button -> {
+                tab = t;
+                rebuild();
+            }).bounds(col1 + i * (each + 2), LIST_TOP, each, 20).build();
+            b.setTooltip(Tooltip.create(Component.literal(t.hint)));
+            addRenderableWidget(b);
+        }
+    }
+
+    // ---- Die vier Karten ----
+
+    private void buildLayout(BannerDesign d, int col1, int col2, int y1, int y2) {
         EditBox name = box(col1, y1, "Name", d.name, 40, value -> d.name = value.isBlank() ? d.name : value);
         y1 += ROW;
-        cycle(col1, y1, "Anchor", BannerDesign.Anchor.values(), () -> d.anchor, v -> d.anchor = v, a -> a.label);
-        y1 += ROW;
-        cycle(col1, y1, "Background", BannerDesign.Background.values(), () -> d.background, v -> d.background = v, b -> b.label);
-        y1 += ROW;
-        slider(col1, y1, "Background alpha", 0f, 1f, () -> d.backgroundAlpha, v -> d.backgroundAlpha = v, "%.0f%%", 100f);
-        y1 += ROW;
-        cycle(col1, y1, "Frame", BannerDesign.Frame.values(), () -> d.frame, v -> d.frame = v, f -> f.label);
-        y1 += ROW;
-        cycle(col1, y1, "Accent", BannerDesign.Accent.values(), () -> d.accent, v -> d.accent = v, a -> a.label);
-        y1 += ROW;
-        cycle(col1, y1, "Icon", BannerDesign.Icon.values(), () -> d.icon, v -> d.icon = v, i -> i.label);
-        y1 += ROW;
-        slider(col1, y1, "Icon size", 0.5f, 4f, () -> d.iconScale, v -> d.iconScale = v, "%.1fx", 1f);
-        y1 += ROW;
-        cycle(col1, y1, "Animation", BannerDesign.Animation.values(), () -> d.animation, v -> d.animation = v, a -> a.label);
-        y1 += ROW;
-        // Nur zeigen, wenn eine Kiste aufspringt - sonst stuende hier eine Wahl
-        // ohne Wirkung, und man suchte spaeter, warum sie nichts tut
-        if (d.animation == BannerDesign.Animation.CHEST) {
-            cycle(col1, y1, "Chest", BannerDesign.Chest.values(), () -> d.chest,
-                    v -> d.chest = v, c -> c.label);
-            y1 += ROW;
-        }
-        slider(col1, y1, "Duration", 1f, 10f, () -> d.durationMillis / 1000f, v -> d.durationMillis = Math.round(v * 1000f), "%.1fs", 1f);
+        cycle(col1, y1, "Anchor", BannerDesign.Anchor.values(), () -> d.anchor, v -> d.anchor = v, a -> a.label,
+                "Where the banner hangs. Only Free follows the X/Y from the HUD editor.");
         y1 += ROW;
         slider(col1, y1, "Overall size", 0.3f, 3f, () -> d.scale, v -> d.scale = v, "%.0f%%", 100f);
+        y1 += ROW;
+        slider(col1, y1, "Padding", 0f, 40f, () -> (float) d.padding, v -> d.padding = Math.round(v), "%.0f px", 1f);
+        y1 += ROW;
+        slider(col1, y1, "Duration", 1f, 10f, () -> d.durationMillis / 1000f,
+                v -> d.durationMillis = Math.round(v * 1000f), "%.1fs", 1f);
 
-        slider(col2, y2, "Headline size", 0.5f, 5f, () -> d.headlineSize, v -> d.headlineSize = v, "%.1fx", 1f);
+        cycle(col2, y2, "Align", BannerDesign.Align.values(), () -> d.align, v -> d.align = v, a -> a.label,
+                "Where the lines sit inside the banner.");
         y2 += ROW;
+        cycle(col2, y2, "Icon", BannerDesign.Icon.values(), () -> d.icon, v -> d.icon = v, i -> i.label,
+                "Whether the found item shows, and on which side.");
+        y2 += ROW;
+        slider(col2, y2, "Icon size", 0.5f, 4f, () -> d.iconScale, v -> d.iconScale = v, "%.1fx", 1f);
+        y2 += ROW;
+        toggle(col2, y2, "Show tier", () -> d.showTier, v -> d.showTier = v);
+        y2 += ROW;
+        Button position = Button.builder(Component.literal("Position: HUD editor"), button -> {
+            if (minecraft != null) minecraft.setScreen(new HudEditorScreen(this, true));
+        }).bounds(col2, y2, COLUMN_WIDTH, 20).build();
+        position.setTooltip(Tooltip.create(Component.literal("Drag this banner into place. Only the Free anchor follows X/Y.")));
+        addRenderableWidget(position);
+
+        setInitialFocus(name);
+    }
+
+    private void buildShape(BannerDesign d, int col1, int col2, int y1, int y2) {
+        cycle(col1, y1, "Outline", BannerDesign.Shape.values(), () -> d.shape, v -> d.shape = v, s -> s.label,
+                "Rectangle, rounded, pill, oval, diamond or cut corners. A banner across the whole screen stays rectangular.");
+        y1 += ROW;
+        slider(col1, y1, "Corner radius", 0f, 40f, () -> (float) d.cornerRadius,
+                v -> d.cornerRadius = Math.round(v), "%.0f px", 1f);
+        y1 += ROW;
+        cycle(col1, y1, "Background", BannerDesign.Background.values(), () -> d.background,
+                v -> d.background = v, b -> b.label, "What sits behind the text.");
+        y1 += ROW;
+        slider(col1, y1, "Background alpha", 0f, 1f, () -> d.backgroundAlpha,
+                v -> d.backgroundAlpha = v, "%.0f%%", 100f);
+
+        cycle(col2, y2, "Frame", BannerDesign.Frame.values(), () -> d.frame, v -> d.frame = v, f -> f.label,
+                "The border. It follows the outline - corner brackets always sit on the box.");
+        y2 += ROW;
+        cycle(col2, y2, "Accent", BannerDesign.Accent.values(), () -> d.accent, v -> d.accent = v, a -> a.label,
+                "A single line, bar or dot in the accent colour.");
+        y2 += ROW;
+        EditBox colour = box(col2, y2, "Colour hex", d.colour, 7, value -> d.colour = value.trim());
+        colour.setTooltip(Tooltip.create(Component.literal(
+                "Six hex digits like FFD700. Empty: green, gold, purple or cyan by tier.")));
+    }
+
+    private void buildText(BannerDesign d, int col1, int col2, int y1, int y2) {
+        slider(col1, y1, "Headline size", 0.5f, 5f, () -> d.headlineSize, v -> d.headlineSize = v, "%.1fx", 1f);
+        y1 += ROW;
+        cycle(col1, y1, "Headline colour", BannerDesign.TextColour.values(), () -> d.headlineColour,
+                v -> d.headlineColour = v, c -> c.label, null);
+        y1 += ROW;
+        styleRow(col1, y1, "Headline",
+                () -> d.headlineBold, v -> d.headlineBold = v,
+                () -> d.headlineItalic, v -> d.headlineItalic = v,
+                () -> d.headlineUnderline, v -> d.headlineUnderline = v,
+                () -> d.headlineStrike, v -> d.headlineStrike = v);
+        y1 += ROW;
+        cycle(col1, y1, "Text effect", BannerDesign.TextEffect.values(), () -> d.textEffect,
+                v -> d.textEffect = v, e -> e.label, "Plain, a shadow, a black outline or a coloured glow.");
+        y1 += ROW;
+        box(col1, y1, "Prefix", d.prefix, 16, value -> d.prefix = value);
+        y1 += ROW;
+        box(col1, y1, "Suffix", d.suffix, 16, value -> d.suffix = value);
+
         slider(col2, y2, "Value size", 0.5f, 5f, () -> d.valueSize, v -> d.valueSize = v, "%.1fx", 1f);
         y2 += ROW;
-        cycle(col2, y2, "Headline colour", BannerDesign.TextColour.values(), () -> d.headlineColour, v -> d.headlineColour = v, c -> c.label);
+        cycle(col2, y2, "Value colour", BannerDesign.TextColour.values(), () -> d.valueColour,
+                v -> d.valueColour = v, c -> c.label, null);
         y2 += ROW;
-        cycle(col2, y2, "Value colour", BannerDesign.TextColour.values(), () -> d.valueColour, v -> d.valueColour = v, c -> c.label);
-        y2 += ROW;
-        cycle(col2, y2, "Text effect", BannerDesign.TextEffect.values(), () -> d.textEffect, v -> d.textEffect = v, e -> e.label);
-        y2 += ROW;
-        box(col2, y2, "Prefix", d.prefix, 16, value -> d.prefix = value);
-        y2 += ROW;
-        box(col2, y2, "Suffix", d.suffix, 16, value -> d.suffix = value);
+        styleRow(col2, y2, "Value",
+                () -> d.valueBold, v -> d.valueBold = v,
+                () -> d.valueItalic, v -> d.valueItalic = v,
+                () -> d.valueUnderline, v -> d.valueUnderline = v,
+                () -> d.valueStrike, v -> d.valueStrike = v);
         y2 += ROW;
         toggle(col2, y2, "Show value", () -> d.showValue, v -> d.showValue = v);
         y2 += ROW;
@@ -215,35 +326,62 @@ public class BannerDesignScreen extends Screen {
         box(col2, y2, "Value left", d.valuePrefix, 4, value -> d.valuePrefix = value);
         y2 += ROW;
         box(col2, y2, "Value right", d.valueSuffix, 4, value -> d.valueSuffix = value);
-        y2 += ROW;
-        toggle(col2, y2, "Show tier", () -> d.showTier, v -> d.showTier = v);
-        y2 += ROW;
-        EditBox colour = box(col2, y2, "Colour hex (empty = tier)", d.colour, 7, value -> d.colour = value.trim());
-        colour.setTooltip(Tooltip.create(Component.literal("Six hex digits like FFD700. Empty: green, gold or purple by tier.")));
-        y2 += ROW;
-        Button position = Button.builder(Component.literal("Position: HUD editor"), button -> {
-            if (minecraft != null) minecraft.setScreen(new HudEditorScreen(this, true));
-        }).bounds(col2, y2, COLUMN_WIDTH, 20).build();
-        position.setTooltip(Tooltip.create(Component.literal("Drag this banner into place. Only the Free anchor follows X/Y.")));
-        addRenderableWidget(position);
+    }
 
-        // ---- Unten ----
+    private void buildMotion(BannerDesign d, int col1, int col2, int y1, int y2) {
+        cycle(col1, y1, "Animation", BannerDesign.Animation.values(), () -> d.animation,
+                v -> {
+                    d.animation = v;
+                    rebuild();
+                }, a -> a.label, "How the banner arrives.");
+        y1 += ROW;
+        // Nur zeigen, wenn eine Kiste aufspringt - sonst stuende hier eine Wahl
+        // ohne Wirkung, und man suchte spaeter, warum sie nichts tut
+        if (d.animation == BannerDesign.Animation.CHEST) {
+            cycle(col1, y1, "Chest", BannerDesign.Chest.values(), () -> d.chest,
+                    v -> d.chest = v, c -> c.label, "Which container bursts open.");
+            y1 += ROW;
+        }
+
+        toggle(col2, y2, "Item flourish", () -> d.itemFlourish, v -> d.itemFlourish = v,
+                "Sends the found item flying across the screen, the way a Totem of Undying does.");
+        y2 += ROW;
+        cycle(col2, y2, "Particles", BannerDesign.Particles.values(), () -> d.particles,
+                v -> d.particles = v, p -> p.label, "Sparks rising around you when the banner fires.");
+        y2 += ROW;
+        slider(col2, y2, "Particle length", 1f, 60f, () -> (float) d.particleTicks,
+                v -> d.particleTicks = Math.round(v), "%.0f ticks", 1f);
+        y2 += ROW;
+        // Der Ton steht bei der Stufe und nicht hier. Zwei Toene aus zwei Quellen
+        // laegen sonst uebereinander, und keiner wuesste, welcher woher kam
+        labels.add(new Label(col2, y2 + 6, "§8Sound: per tier, in Rare Loot"));
+    }
+
+    // ---- Unten ----
+
+    private void buildFooter(BannerDesign d, int col1, int col2) {
         int bottom = height - 28;
-        addRenderableWidget(Button.builder(Component.literal("Preview"), button -> DropBanner.preview(d))
-                .bounds(col1, bottom, 80, 20).build());
-        for (int tier = 1; tier <= 3; tier++) {
+        Button vorschau = Button.builder(Component.literal("Preview"),
+                        button -> DropBanner.previewWithEffects(d))
+                .bounds(col1, bottom, 80, 20).build();
+        vorschau.setTooltip(Tooltip.create(Component.literal(
+                "Plays it once with the flourish and particles. The still preview behind this window runs without them.")));
+        addRenderableWidget(vorschau);
+
+        int tiers = ModConfig.RareLootCategory.TIERS;
+        int each = (COLUMN_WIDTH * 2 + COLUMN_GAP - 84 - 84) / tiers;
+        for (int tier = 1; tier <= tiers; tier++) {
             int number = tier;
-            Button use = Button.builder(Component.literal(usesTier(d, tier) ? "✔ Tier " + tier : "Tier " + tier), button -> {
-                ModConfig.INSTANCE.chat.rareLoot.setDesign(number, d.name);
-                rebuild();
-            }).bounds(col1 + 84 + (tier - 1) * 58, bottom, 54, 20).build();
+            Button use = Button.builder(Component.literal(usesTier(d, tier) ? "✔ T" + tier : "Tier " + tier),
+                    button -> {
+                        ModConfig.INSTANCE.chat.rareLoot.setDesign(number, d.name);
+                        rebuild();
+                    }).bounds(col1 + 84 + (tier - 1) * each, bottom, each - 4, 20).build();
             use.setTooltip(Tooltip.create(Component.literal("Use this design when a drop reaches Tier " + tier)));
             addRenderableWidget(use);
         }
         addRenderableWidget(Button.builder(Component.literal("Done"), button -> onClose())
                 .bounds(col2 + COLUMN_WIDTH - 80, bottom, 80, 20).build());
-
-        setInitialFocus(name);
     }
 
     private static boolean usesTier(BannerDesign d, int tier) {
@@ -310,6 +448,10 @@ public class BannerDesignScreen extends Screen {
                 note("The code did not contain a usable design", ChatFormatting.RED);
                 return;
             }
+            // Ein Code kann aus einer aelteren Fassung stammen und Felder gar nicht
+            // kennen. repair setzt die auf die Vorgabe, statt sie als null stehen zu
+            // lassen - sonst faellt das Zeichnen darueber
+            neu.repair();
             neu.name = uniqueName(neu.name);
             designs().add(neu);
             selected = designs().size() - 1;
@@ -339,7 +481,7 @@ public class BannerDesignScreen extends Screen {
     // ---- Widget-Bauer ----
 
     private EditBox box(int x, int y, String label, String value, int maxLength, Consumer<String> apply) {
-        EditBox field = new EditBox(font, x + 90, y, COLUMN_WIDTH - 90, 20, Component.literal(label));
+        EditBox field = new EditBox(font, x + LABEL_WIDTH, y, COLUMN_WIDTH - LABEL_WIDTH, 20, Component.literal(label));
         field.setMaxLength(maxLength);
         field.setValue(value == null ? "" : value);
         field.setHint(Component.literal(label).withStyle(ChatFormatting.DARK_GRAY));
@@ -352,7 +494,8 @@ public class BannerDesignScreen extends Screen {
         return field;
     }
 
-    private <T> void cycle(int x, int y, String label, T[] values, Supplier<T> get, Consumer<T> set, Function<T, String> text) {
+    private <T> void cycle(int x, int y, String label, T[] values, Supplier<T> get, Consumer<T> set,
+                           Function<T, String> text, String tip) {
         Button button = Button.builder(Component.literal(label + ": " + text.apply(get.get())), b -> {
             T current = get.get();
             int index = 0;
@@ -362,23 +505,66 @@ public class BannerDesignScreen extends Screen {
             b.setMessage(Component.literal(label + ": " + text.apply(values[next])));
             DropBanner.preview(design());
         }).bounds(x, y, COLUMN_WIDTH, 20).build();
-        button.setTooltip(Tooltip.create(Component.literal("Click to step through the options")));
+        button.setTooltip(Tooltip.create(Component.literal(
+                tip == null ? "Click to step through the options" : tip)));
         addRenderableWidget(button);
     }
 
     private void toggle(int x, int y, String label, Supplier<Boolean> get, Consumer<Boolean> set) {
+        toggle(x, y, label, get, set, null);
+    }
+
+    private void toggle(int x, int y, String label, Supplier<Boolean> get, Consumer<Boolean> set, String tip) {
         Button button = Button.builder(toggleText(label, get.get()), b -> {
             boolean next = !get.get();
             set.accept(next);
             b.setMessage(toggleText(label, next));
             DropBanner.preview(design());
         }).bounds(x, y, COLUMN_WIDTH, 20).build();
+        if (tip != null) button.setTooltip(Tooltip.create(Component.literal(tip)));
         addRenderableWidget(button);
     }
 
     private static Component toggleText(String label, boolean on) {
         return Component.literal(label + ": ").append(Component.literal(on ? "ON" : "OFF")
                 .withStyle(on ? ChatFormatting.GREEN : ChatFormatting.RED));
+    }
+
+    /**
+     * Fett, kursiv, unterstrichen, durchgestrichen - vier Schalter in einer Zeile.
+     *
+     * Vier eigene Zeilen je Text waeren acht Zeilen fuer etwas, das man mit einem
+     * Blick erfassen will. Nebeneinander sieht man den Schnitt, wie man ihn aus jedem
+     * Schreibprogramm kennt: an ist gruen, aus ist grau.
+     */
+    private void styleRow(int x, int y, String label,
+                          BooleanSupplier bold, Consumer<Boolean> setBold,
+                          BooleanSupplier italic, Consumer<Boolean> setItalic,
+                          BooleanSupplier underline, Consumer<Boolean> setUnderline,
+                          BooleanSupplier strike, Consumer<Boolean> setStrike) {
+        labels.add(new Label(x, y + 6, label + " style"));
+        int left = x + LABEL_WIDTH;
+        int each = (COLUMN_WIDTH - LABEL_WIDTH - 6) / 4;
+        styleButton(left, y, each, "B", "Bold", bold, setBold);
+        styleButton(left + each + 2, y, each, "I", "Italic", italic, setItalic);
+        styleButton(left + (each + 2) * 2, y, each, "U", "Underline", underline, setUnderline);
+        styleButton(left + (each + 2) * 3, y, each, "S", "Strikethrough", strike, setStrike);
+    }
+
+    private void styleButton(int x, int y, int width, String letter, String tip,
+                             BooleanSupplier get, Consumer<Boolean> set) {
+        Button b = Button.builder(styleText(letter, get.getAsBoolean()), button -> {
+            boolean next = !get.getAsBoolean();
+            set.accept(next);
+            button.setMessage(styleText(letter, next));
+            DropBanner.preview(design());
+        }).bounds(x, y, width, 20).build();
+        b.setTooltip(Tooltip.create(Component.literal(tip)));
+        addRenderableWidget(b);
+    }
+
+    private static Component styleText(String letter, boolean on) {
+        return Component.literal(letter).withStyle(on ? ChatFormatting.GREEN : ChatFormatting.DARK_GRAY);
     }
 
     private void slider(int x, int y, String label, float min, float max, Supplier<Float> get, Consumer<Float> set,

@@ -3,11 +3,13 @@ package com.shokiteufel.shokimod.render;
 import com.shokiteufel.shokimod.data.BannerDesign;
 import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.data.BannerDesign.Accent;
+import com.shokiteufel.shokimod.data.BannerDesign.Align;
 import com.shokiteufel.shokimod.data.BannerDesign.Anchor;
 import com.shokiteufel.shokimod.data.BannerDesign.Animation;
 import com.shokiteufel.shokimod.data.BannerDesign.Background;
 import com.shokiteufel.shokimod.data.BannerDesign.Frame;
 import com.shokiteufel.shokimod.data.BannerDesign.Icon;
+import com.shokiteufel.shokimod.data.BannerDesign.Shape;
 import com.shokiteufel.shokimod.data.BannerDesign.TextColour;
 import com.shokiteufel.shokimod.data.BannerDesign.TextEffect;
 import com.shokiteufel.shokimod.util.ItemIcons;
@@ -22,9 +24,9 @@ import java.util.Locale;
 /**
  * Die Einblendung fuer seltene Funde - gezeichnet nach einem {@link BannerDesign}.
  *
- * Ein Zeichenweg fuer alle Banner: das Design sagt, wo es haengt, was dahinter liegt,
- * wie die Schrift aussieht und wie es hereinkommt. Die frueheren zwanzig Stile sind
- * Vorlagen desselben Modells, kein eigener Code mehr.
+ * Ein Zeichenweg fuer alle Banner: das Design sagt, wo es haengt, welchen Umriss es
+ * hat, was dahinter liegt, wie die Schrift aussieht und wie es hereinkommt. Die
+ * frueheren zwanzig Stile sind Vorlagen desselben Modells, kein eigener Code mehr.
  *
  * Getrennt vom {@link AlertBanner}, der fuer SHINY-Critter und Chatregeln bleibt.
  * Kein Timer: nur ein Zeitstempel, aus dem beim Zeichnen Deckkraft, Lage und
@@ -61,7 +63,6 @@ public final class DropBanner {
     private static final long CHEST_VALUE = CHEST_BURST + 880L;
     /** So lange dauert die ganze Vorstellung - vorher darf sie nicht ausblenden */
     private static final long CHEST_TOTAL = CHEST_BURST + 1100L;
-    private static final int PADDING = 10;
 
     /**
      * So lange wird auf Nachzuegler gewartet, bevor abgespielt wird.
@@ -92,6 +93,8 @@ public final class DropBanner {
         double value;
         /** 0 heisst: wartet noch */
         long startedAt;
+        /** Ob beim Anfangen der grosse Auftritt dazugehoert */
+        boolean withEffects = true;
     }
 
     /** Eingetroffen, aber noch nicht angefangen - in der Reihenfolge des Eintreffens */
@@ -157,6 +160,7 @@ public final class DropBanner {
                 running.clear();
                 running.add(neuestes);
                 waiting.clear();
+                effects(neuestes);
             }
             case STACKED -> {
                 waiting.sort(java.util.Comparator.comparingDouble(s -> s.value));
@@ -164,12 +168,17 @@ public final class DropBanner {
                 // Bildschirm passt, bleibt stehen und rueckt nach, sobald oben einer
                 // ablaeuft. Ein pauschales Leeren haette ihn verschluckt
                 java.util.Iterator<Shown> es = waiting.iterator();
+                Shown reichstes = null;
                 while (es.hasNext() && running.size() < MAX_STACK) {
                     Shown s = es.next();
                     s.startedAt = now;
                     running.add(s);
                     es.remove();
+                    if (reichstes == null || s.value > reichstes.value) reichstes = s;
                 }
+                // Alle auf einmal heisst: ein Auftritt, und zwar der des wertvollsten.
+                // Fuenf Totems uebereinander waeren kein Auftritt, sondern ein Gewitter
+                effects(reichstes);
             }
             // Einer nach dem anderen: Der naechste kommt erst, wenn der laufende durch ist
             default -> {
@@ -180,12 +189,32 @@ public final class DropBanner {
                 Shown naechstes = waiting.remove(0);
                 naechstes.startedAt = now;
                 running.add(naechstes);
+                effects(naechstes);
             }
         }
     }
 
-    /** Sandbox und Befehl: ein Beispiel im gewuenschten Design, laenger als im Spiel */
+    private static void effects(Shown s) {
+        if (s != null && s.withEffects) SpecialEffects.play(s.design, s.icon);
+    }
+
+    /**
+     * Sandbox und Befehl: ein Beispiel im gewuenschten Design, laenger als im Spiel.
+     *
+     * Ohne den grossen Auftritt: Die Vorschau laeuft bei jedem Reglerzug neu an, und
+     * ein Stueck, das bei jedem Millimeter ueber den Bildschirm fliegt, macht das
+     * Einstellen unmoeglich. Wer ihn sehen will, nimmt {@link #previewWithEffects}.
+     */
     public static void preview(BannerDesign chosen) {
+        preview(chosen, false);
+    }
+
+    /** Dasselbe mit Auftritt - fuer den Knopf, der ihn ausdruecklich zeigen soll */
+    public static void previewWithEffects(BannerDesign chosen) {
+        preview(chosen, true);
+    }
+
+    private static void preview(BannerDesign chosen, boolean mitAuftritt) {
         // Die Vorschau steht fuer sich - was noch wartet, hat hier nichts zu suchen
         waiting.clear();
         running.clear();
@@ -193,8 +222,10 @@ public final class DropBanner {
         Shown s = waiting.get(0);
         s.displayMillis = Math.max(s.displayMillis, 4500L);
         s.startedAt = System.currentTimeMillis();
+        s.withEffects = mitAuftritt;
         running.add(s);
         waiting.clear();
+        if (mitAuftritt) effects(s);
     }
 
     /**
@@ -207,7 +238,7 @@ public final class DropBanner {
         Shown s = running.isEmpty() ? null : running.get(0);
         if (s == null || s.design != chosen
                 || System.currentTimeMillis() - s.startedAt > s.displayMillis - FADE_MILLIS) {
-            preview(chosen);
+            preview(chosen, false);
         }
     }
 
@@ -251,11 +282,20 @@ public final class DropBanner {
         BannerDesign d = banner.design;
         int colour = parseColour(d.colour, banner.tint);
         float scale = clamp(d.scale, 0.3f, 4.0f);
+        Shape shape = d.shape == null ? Shape.RECTANGLE : d.shape;
+        Align align = d.align == null ? Align.CENTER : d.align;
+        int padding = Math.clamp(d.padding, 0, 60);
 
         // ---- Texte und Groessen ----
-        String head = d.prefix + banner.headline + d.suffix;
+        //
+        // Die Schnitte stehen als Steuerzeichen vor dem Text. Das Spiel liest sie beim
+        // Zeichnen und beim Messen gleichermassen - fett ist je Zeichen einen Punkt
+        // breiter, und genau diese Breite braucht der Kasten
+        String headStyle = style(d.headlineBold, d.headlineItalic, d.headlineUnderline, d.headlineStrike);
+        String valueStyle = style(d.valueBold, d.valueItalic, d.valueUnderline, d.valueStrike);
+        String head = headStyle + d.prefix + banner.headline + d.suffix;
         String value = d.showValue && !banner.worth.isEmpty()
-                ? d.valuePrefix + banner.worth + d.valueSuffix
+                ? valueStyle + d.valuePrefix + banner.worth + d.valueSuffix
                 : "";
         String tier = d.showTier ? banner.tierLabel : "";
         float hs = clamp(d.headlineSize, 0.5f, 6.0f) * scale;
@@ -293,9 +333,12 @@ public final class DropBanner {
         String shownHead = head;
         boolean typing = false;
         if (d.animation == Animation.TYPEWRITER) {
+            // Nur der sichtbare Text wird gekuerzt, die Steuerzeichen bleiben stehen -
+            // sonst faellt der Schnitt mitten im Tippen weg
+            String rumpf = head.substring(headStyle.length());
             float progress = Math.min(1.0f, age / (float) TYPE_MILLIS);
-            int shown = Math.min(head.length(), Math.round(head.length() * progress));
-            shownHead = head.substring(0, shown) + (progress < 1.0f ? "_" : "");
+            int shown = Math.min(rumpf.length(), Math.round(rumpf.length() * progress));
+            shownHead = headStyle + rumpf.substring(0, shown) + (progress < 1.0f ? "_" : "");
             typing = progress < 1.0f;
         }
 
@@ -307,6 +350,7 @@ public final class DropBanner {
         int tierH = tier.isEmpty() ? 0 : (int) (10 * ts);
         int iconSize = d.icon == Icon.NONE || banner.icon == null ? 0 : (int) (16 * clamp(d.iconScale, 0.5f, 6.0f) * scale);
         int gap = (int) (4 * scale);
+        boolean iconBeside = (d.icon == Icon.LEFT || d.icon == Icon.RIGHT) && iconSize > 0;
 
         // Der Textblock: Ueberschrift, (Bild), Wert, Stufe untereinander
         int textW = Math.max(headW, Math.max(valueW, tierW));
@@ -316,7 +360,7 @@ public final class DropBanner {
         if (d.icon == Icon.MIDDLE && iconSize > 0) {
             blockW = Math.max(textW, iconSize);
             blockH = textH + gap + iconSize;
-        } else if (d.icon == Icon.LEFT && iconSize > 0) {
+        } else if (iconBeside) {
             blockW = iconSize + gap * 2 + textW;
             blockH = Math.max(textH, iconSize);
         } else {
@@ -324,11 +368,23 @@ public final class DropBanner {
             blockH = textH;
         }
         int accentPad = d.accent == Accent.LEFT_BAR ? (int) (6 * scale) : d.accent == Accent.DOT ? (int) (8 * scale) : 0;
-        int boxW = blockW + PADDING * 2 + accentPad;
-        int boxH = blockH + PADDING * 2;
+        int boxW = blockW + padding * 2 + accentPad;
+        int boxH = blockH + padding * 2;
 
         // ---- Lage ----
+        //
+        // Ueber die ganze Breite gibt es keine Rundung: Ein Oval, das den Bildschirm
+        // ausfuellt, ist keine Form mehr, sondern ein Zufall
         boolean fullWidth = d.anchor == Anchor.BAND || d.anchor == Anchor.TOP;
+        Shape umriss = fullWidth ? Shape.RECTANGLE : shape;
+
+        // Runde Formen brauchen mehr Luft als ein Rechteck: In der Ecke eines Ovals
+        // ist kein Platz, und ohne Zuschlag stuende der Text ueber dem Rand
+        if (umriss == Shape.OVAL || umriss == Shape.DIAMOND) {
+            boxW = (int) (boxW * 1.45f);
+            boxH = (int) (boxH * 1.35f);
+        }
+
         int cx;
         int cy;
         switch (d.anchor) {
@@ -363,12 +419,15 @@ public final class DropBanner {
 
         float slide = Math.min(1.0f, age / (float) SLIDE_MILLIS);
         if (d.animation == Animation.SLIDE_RIGHT) cx += (int) ((1.0f - slide) * (width - cx + boxW));
+        if (d.animation == Animation.SLIDE_LEFT) cx -= (int) ((1.0f - slide) * (cx + boxW));
         if (d.animation == Animation.DROP) cy -= (int) ((1.0f - slide) * (cy + boxH));
+        if (d.animation == Animation.RISE) cy += (int) ((1.0f - slide) * (height - cy + boxH));
 
         int left = fullWidth ? 0 : cx - boxW / 2;
         int right = fullWidth ? width : cx + boxW / 2;
         int top = cy - boxH / 2;
         int bottom = cy + boxH / 2;
+        int radius = Math.clamp(d.cornerRadius, 0, 64);
 
         // ---- Hintergrund und Rahmen ----
         if (d.animation == Animation.FLASH && age < FLASH_MILLIS) {
@@ -376,20 +435,38 @@ public final class DropBanner {
         }
         float bgAlpha = alpha * clamp(d.backgroundAlpha, 0f, 1f);
         switch (d.background) {
-            case BOX -> g.fill(left, top, right, bottom, argb(bgAlpha, 0x101010));
-            case FILL -> g.fill(left, top, right, bottom, argb(bgAlpha, colour));
+            case BOX -> fillShape(g, umriss, left, top, right, bottom, radius,
+                    argb(bgAlpha, 0x101010), argb(bgAlpha, 0x101010));
+            case FILL -> fillShape(g, umriss, left, top, right, bottom, radius,
+                    argb(bgAlpha, colour), argb(bgAlpha, colour));
+            case GRADIENT -> fillShape(g, umriss, left, top, right, bottom, radius,
+                    argb(bgAlpha, colour), argb(bgAlpha, 0x101010));
             case SPLIT -> {
                 int mid = left + (right - left) * 3 / 5;
-                g.fill(left, top, mid, bottom, argb(bgAlpha, 0x101010));
-                g.fill(mid, top, right, bottom, argb(bgAlpha, colour));
+                fillShape(g, umriss, left, top, right, bottom, radius,
+                        argb(bgAlpha, 0x101010), argb(bgAlpha, 0x101010));
+                // Die rechte Haelfte liegt darueber und wird auf die Form beschnitten,
+                // damit sie bei einem Oval nicht ueber den Rand steht
+                fillShapeClipped(g, umriss, left, top, right, bottom, radius, mid, right,
+                        argb(bgAlpha, colour), argb(bgAlpha, colour));
             }
             default -> {
             }
         }
-        if (d.frame == Frame.SINGLE) frame(g, left, top, right, bottom, 2, argb(alpha, colour));
-        if (d.frame == Frame.DOUBLE) {
-            frame(g, left, top, right, bottom, 1, argb(alpha, colour));
-            frame(g, left + 4, top + 4, right - 4, bottom - 4, 1, argb(alpha, 0xFFFFFF));
+        int frameColour = argb(alpha, colour);
+        switch (d.frame) {
+            case SINGLE -> strokeShape(g, umriss, left, top, right, bottom, radius, 2, frameColour);
+            case THICK -> strokeShape(g, umriss, left, top, right, bottom, radius,
+                    Math.max(3, (int) (4 * scale)), frameColour);
+            case DOUBLE -> {
+                strokeShape(g, umriss, left, top, right, bottom, radius, 1, frameColour);
+                strokeShape(g, umriss, left + 4, top + 4, right - 4, bottom - 4,
+                        Math.max(0, radius - 2), 1, argb(alpha, 0xFFFFFF));
+            }
+            case CORNERS -> corners(g, left, top, right, bottom,
+                    Math.max(6, (int) (10 * scale)), Math.max(1, (int) (2 * scale)), frameColour);
+            default -> {
+            }
         }
         if (d.accent == Accent.EDGES) {
             g.fill(left, top, right, top + 1, argb(alpha, colour));
@@ -404,22 +481,20 @@ public final class DropBanner {
         }
 
         // ---- Inhalt ----
-        int contentLeft = left + PADDING + accentPad + ((right - left) - boxW) / 2;
+        int contentLeft = left + (boxW - blockW - accentPad) / 2 + accentPad + ((right - left) - boxW) / 2;
         int textLeft = contentLeft;
-        int textTop = top + PADDING;
-        if (d.icon == Icon.LEFT && iconSize > 0) {
-            // Auch hier erst nach der Kiste. Vorher wurde nur das mittige Bild
-            // zurueckgehalten, und wer sein Banner mit linkem Bild gebaut hatte, sah
-            // den Fund schon, waehrend die Kiste noch zitterte
+        int textTop = top + (boxH - blockH) / 2;
+        if (iconBeside) {
             int gezeigt = Math.round(iconSize * itemAuf);
+            int iconLeft = d.icon == Icon.LEFT ? contentLeft : contentLeft + textW + gap * 2;
             if (gezeigt > 0) {
-                drawIcon(g, banner.icon, contentLeft + (iconSize - gezeigt) / 2,
+                drawIcon(g, banner.icon, iconLeft + (iconSize - gezeigt) / 2,
                         top + (boxH - gezeigt) / 2, gezeigt);
             }
-            textLeft = contentLeft + iconSize + gap * 2;
+            textLeft = d.icon == Icon.LEFT ? contentLeft + iconSize + gap * 2 : contentLeft;
             textTop = top + (boxH - textH) / 2;
         }
-        int textCentreX = textLeft + textW / 2;
+        int headCentre = lineCentre(align, textLeft, textW, headW);
         if (d.accent == Accent.DOT) {
             int dot = Math.max(3, (int) (4 * scale));
             g.fill(textLeft - accentPad, textTop + headH / 2 - dot / 2, textLeft - accentPad + dot, textTop + headH / 2 + dot / 2, argb(alpha, colour));
@@ -430,7 +505,7 @@ public final class DropBanner {
             // Von links hereinfahren und dabei aufklaren. Bei allen anderen
             // Animationen ist nameAuf eins, also aendert sich dort nichts
             int versatz = Math.round((1.0f - nameAuf) * -60 * scale);
-            drawText(g, font, shownHead, textCentreX + versatz, y, hs * pop,
+            drawText(g, font, shownHead, headCentre + versatz, y, hs * pop,
                     textColour(d.headlineColour, colour), d.textEffect,
                     alpha * nameAuf, colour);
         }
@@ -439,14 +514,14 @@ public final class DropBanner {
         if (d.accent == Accent.UNDERLINE || d.accent == Accent.SWEEP) {
             int half = headW / 2 + (int) (6 * scale);
             if (d.accent == Accent.SWEEP) half = (int) (half * Math.min(1.0f, age / (float) SWEEP_MILLIS));
-            g.fill(textCentreX - half, y + 1, textCentreX + half, y + 1 + Math.max(1, (int) (2 * scale)), argb(alpha, colour));
+            g.fill(headCentre - half, y + 1, headCentre + half, y + 1 + Math.max(1, (int) (2 * scale)), argb(alpha, colour));
         }
         if (d.icon == Icon.MIDDLE && iconSize > 0) {
             y += gap;
             // Bei der Kiste schiesst das Stueck heraus, statt einfach dazustehen
             int gezeigt = Math.round(iconSize * itemAuf);
             if (gezeigt > 0) {
-                drawIcon(g, banner.icon, textCentreX - gezeigt / 2,
+                drawIcon(g, banner.icon, lineCentre(align, textLeft, textW, iconSize) - gezeigt / 2,
                         y + (iconSize - gezeigt) / 2, gezeigt);
             }
             y += iconSize;
@@ -455,16 +530,18 @@ public final class DropBanner {
             y += gap;
             if (d.accent == Accent.DIVIDER) {
                 int half = textW / 2 + (int) (6 * scale);
-                g.fill(textCentreX - half, y - gap / 2, textCentreX + half, y - gap / 2 + 1, argb(alpha, colour));
+                int mitte = textLeft + textW / 2;
+                g.fill(mitte - half, y - gap / 2, mitte + half, y - gap / 2 + 1, argb(alpha, colour));
             }
-            int valueX = textCentreX;
+            int valueX = lineCentre(align, textLeft, textW, valueW);
             if (d.background == Background.SPLIT) valueX = left + (right - left) * 4 / 5;
             drawText(g, font, value, valueX, y, vs, textColour(d.valueColour, colour), d.textEffect, alpha, colour);
             y += valueH;
         }
         if (tierH > 0) {
             y += gap;
-            drawText(g, font, tier, textCentreX, y, ts, 0xAAAAAA, TextEffect.PLAIN, alpha, colour);
+            drawText(g, font, tier, lineCentre(align, textLeft, textW, tierW), y, ts,
+                    0xAAAAAA, TextEffect.PLAIN, alpha, colour);
         }
         return boxH;
     }
@@ -528,12 +605,152 @@ public final class DropBanner {
         }
     }
 
+    // ---- Formen ----
+
+    /**
+     * Wie breit die Form in dieser Bildzeile ist.
+     *
+     * Zeilenweise, weil das Spiel nur Rechtecke fuellen kann: Ein Oval ist nichts
+     * anderes als hundert verschieden breite Rechtecke uebereinander. Das kostet so
+     * viel wie hundert Rechtecke - also nichts - und kommt ohne eigene Bilddateien
+     * aus, die bei jeder Bannergroesse neu gestreckt werden muessten.
+     *
+     * @param out nimmt Anfang und Ende auf, gemessen vom linken Rand
+     * @return falsch, wenn diese Zeile gar nichts traegt - oben und unten am Oval
+     */
+    private static boolean span(Shape shape, int w, int h, int y, int radius, int[] out) {
+        out[0] = 0;
+        out[1] = w;
+        if (w <= 0 || h <= 0 || y < 0 || y >= h) return false;
+        if (shape == Shape.OVAL || shape == Shape.DIAMOND) {
+            double b = h / 2.0;
+            double a = w / 2.0;
+            double dy = Math.abs((y + 0.5) - b);
+            double halb = shape == Shape.OVAL
+                    ? a * Math.sqrt(Math.max(0.0, 1.0 - (dy * dy) / (b * b)))
+                    : a * (1.0 - dy / b);
+            if (halb <= 0.5) return false;
+            out[0] = (int) Math.round(a - halb);
+            out[1] = (int) Math.round(a + halb);
+        } else if (shape == Shape.PILL || shape == Shape.ROUNDED || shape == Shape.CUT) {
+            int r = shape == Shape.PILL ? h / 2 : Math.max(0, Math.min(radius, Math.min(w, h) / 2));
+            int dy = Math.min(y, h - 1 - y);
+            if (dy < r) {
+                int einzug;
+                if (shape == Shape.CUT) {
+                    einzug = r - dy;
+                } else {
+                    double k = r - dy - 0.5;
+                    einzug = (int) Math.round(r - Math.sqrt(Math.max(0.0, (double) r * r - k * k)));
+                }
+                out[0] = einzug;
+                out[1] = w - einzug;
+            }
+        }
+        return out[1] > out[0];
+    }
+
+    /** Die Form fuellen, oben in der einen und unten in der anderen Farbe */
+    private static void fillShape(GuiGraphicsExtractor g, Shape shape, int left, int top, int right, int bottom,
+                                  int radius, int colourTop, int colourBottom) {
+        fillShapeClipped(g, shape, left, top, right, bottom, radius, left, right, colourTop, colourBottom);
+    }
+
+    /** Dasselbe, aber nur zwischen zwei senkrechten Schnitten - fuer den geteilten Hintergrund */
+    private static void fillShapeClipped(GuiGraphicsExtractor g, Shape shape, int left, int top, int right, int bottom,
+                                         int radius, int clipLeft, int clipRight, int colourTop, int colourBottom) {
+        int w = right - left;
+        int h = bottom - top;
+        if (w <= 0 || h <= 0) return;
+        if (shape == Shape.RECTANGLE && colourTop == colourBottom) {
+            g.fill(Math.max(left, clipLeft), top, Math.min(right, clipRight), bottom, colourTop);
+            return;
+        }
+        int[] s = new int[2];
+        for (int y = 0; y < h; y++) {
+            if (!span(shape, w, h, y, radius, s)) continue;
+            int x0 = Math.max(left + s[0], clipLeft);
+            int x1 = Math.min(left + s[1], clipRight);
+            if (x1 <= x0) continue;
+            g.fill(x0, top + y, x1, top + y + 1,
+                    blend(colourTop, colourBottom, h == 1 ? 0f : y / (float) (h - 1)));
+        }
+    }
+
+    /**
+     * Den Umriss nachziehen.
+     *
+     * Gezeichnet wird die Form einmal gross und einmal um die Stichstaerke kleiner;
+     * uebrig bleibt der Ring dazwischen. So stimmt der Rand bei jeder Form, ohne dass
+     * fuer Oval, Raute und gerundete Ecke je eine eigene Rechnung dastuende.
+     */
+    private static void strokeShape(GuiGraphicsExtractor g, Shape shape, int left, int top, int right, int bottom,
+                                    int radius, int thick, int colour) {
+        int w = right - left;
+        int h = bottom - top;
+        if (w <= 0 || h <= 0) return;
+        int t = Math.max(1, thick);
+        if (shape == Shape.RECTANGLE) {
+            frame(g, left, top, right, bottom, t, colour);
+            return;
+        }
+        int[] aussen = new int[2];
+        int[] innen = new int[2];
+        for (int y = 0; y < h; y++) {
+            if (!span(shape, w, h, y, radius, aussen)) continue;
+            boolean hatInnen = y >= t && y < h - t
+                    && span(shape, w - 2 * t, h - 2 * t, y - t, Math.max(0, radius - t), innen);
+            if (!hatInnen) {
+                g.fill(left + aussen[0], top + y, left + aussen[1], top + y + 1, colour);
+                continue;
+            }
+            int i0 = Math.max(aussen[0], t + innen[0]);
+            int i1 = Math.min(aussen[1], t + innen[1]);
+            if (i0 > aussen[0]) g.fill(left + aussen[0], top + y, left + i0, top + y + 1, colour);
+            if (i1 < aussen[1]) g.fill(left + i1, top + y, left + aussen[1], top + y + 1, colour);
+        }
+    }
+
+    /** Vier Winkel in den Ecken - gefasst, aber nicht eingesperrt */
+    private static void corners(GuiGraphicsExtractor g, int left, int top, int right, int bottom,
+                                int length, int thick, int colour) {
+        int l = Math.min(length, Math.min(right - left, bottom - top) / 2);
+        g.fill(left, top, left + l, top + thick, colour);
+        g.fill(left, top, left + thick, top + l, colour);
+        g.fill(right - l, top, right, top + thick, colour);
+        g.fill(right - thick, top, right, top + l, colour);
+        g.fill(left, bottom - thick, left + l, bottom, colour);
+        g.fill(left, bottom - l, left + thick, bottom, colour);
+        g.fill(right - l, bottom - thick, right, bottom, colour);
+        g.fill(right - thick, bottom - l, right, bottom, colour);
+    }
+
     // ---- Helfer ----
+
+    /** Die Steuerzeichen fuer die gewaehlten Schnitte, etwa "§l§n" */
+    private static String style(boolean bold, boolean italic, boolean underline, boolean strike) {
+        StringBuilder out = new StringBuilder(8);
+        if (bold) out.append("§l");
+        if (italic) out.append("§o");
+        if (underline) out.append("§n");
+        if (strike) out.append("§m");
+        return out.toString();
+    }
+
+    /** Wo die Mitte dieser Zeile liegt, je nach Ausrichtung */
+    private static int lineCentre(Align align, int textLeft, int textW, int lineW) {
+        return switch (align) {
+            case LEFT -> textLeft + lineW / 2;
+            case RIGHT -> textLeft + textW - lineW / 2;
+            default -> textLeft + textW / 2;
+        };
+    }
 
     private static int textColour(TextColour choice, int accent) {
         return switch (choice) {
             case WHITE -> 0xFFFFFF;
             case DARK -> 0x101010;
+            case GREY -> 0xAAAAAA;
             default -> accent;
         };
     }
@@ -607,5 +824,18 @@ public final class DropBanner {
 
     private static int argb(float alpha, int rgb) {
         return ((int) (Math.max(0f, Math.min(1f, alpha)) * 255) << 24) | (rgb & 0xFFFFFF);
+    }
+
+    /** Zwei Farben mischen, mit Deckkraft - fuer den weichen Verlauf */
+    private static int blend(int a, int b, float t) {
+        if (a == b) return a;
+        float k = Math.max(0f, Math.min(1f, t));
+        int out = 0;
+        for (int shift = 0; shift <= 24; shift += 8) {
+            int ca = (a >> shift) & 0xFF;
+            int cb = (b >> shift) & 0xFF;
+            out |= Math.round(ca + (cb - ca) * k) << shift;
+        }
+        return out;
     }
 }

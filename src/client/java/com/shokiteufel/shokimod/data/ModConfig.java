@@ -284,6 +284,7 @@ public class ModConfig extends Config {
             }
         }
         banner.looks = null;
+        topUpPresets(banner);
 
         RareLootCategory rare = INSTANCE.chat.rareLoot;
         if (rare.tier1Style != null) { rare.tier1Design = BannerDesign.presetNameFor(rare.tier1Style); rare.tier1Style = null; }
@@ -292,6 +293,42 @@ public class ModConfig extends Config {
         if (rare.tier1Design == null || rare.tier1Design.isBlank()) rare.tier1Design = "Classic band";
         if (rare.tier2Design == null || rare.tier2Design.isBlank()) rare.tier2Design = "Classic band";
         if (rare.tier3Design == null || rare.tier3Design.isBlank()) rare.tier3Design = "Classic band";
+    }
+
+    /**
+     * Neue Vorlagen nachliefern - aber jede nur einmal.
+     *
+     * Vorlagen wurden bisher nur beim allerersten Start angelegt. Wer die Mod seit
+     * Monaten benutzt, sah deshalb keine einzige neue - die Formen und der grosse
+     * Auftritt waeren an ihm vorbeigegangen, ohne dass er je erfahren haette, dass es
+     * sie gibt.
+     *
+     * Geloeschtes bleibt geloescht: Was einmal geliefert wurde, steht in der Liste und
+     * kommt nicht wieder. Beim Umstieg auf diese Liste gilt, was gerade da ist, als
+     * geliefert - wer eine alte Vorlage vorher geloescht hatte, sieht sie dieses eine
+     * Mal wieder und wird sie danach endgueltig los.
+     */
+    private static void topUpPresets(BannerCategory banner) {
+        List<BannerDesign> vorlagen = BannerDesign.presets();
+        java.util.Set<String> schon = new java.util.HashSet<>();
+        if (banner.seededPresets == null) {
+            for (BannerDesign d : banner.designs) {
+                if (d.name != null) schon.add(d.name.toLowerCase(java.util.Locale.ROOT));
+            }
+        } else {
+            for (String name : banner.seededPresets) {
+                if (name != null) schon.add(name.toLowerCase(java.util.Locale.ROOT));
+            }
+        }
+        for (BannerDesign vorlage : vorlagen) {
+            if (schon.contains(vorlage.name.toLowerCase(java.util.Locale.ROOT))) continue;
+            // Ein eigenes Design mit demselben Namen hat Vorrang - es zu ueberschreiben
+            // waere ein Verlust, den niemand bestellt hat
+            if (banner.design(vorlage.name) != null) continue;
+            banner.designs.add(vorlage);
+        }
+        banner.seededPresets = new ArrayList<>(vorlagen.size());
+        for (BannerDesign vorlage : vorlagen) banner.seededPresets.add(vorlage.name);
     }
 
     /**
@@ -1545,9 +1582,20 @@ public class ModConfig extends Config {
         @ConfigEditorDropdown
         public MultiDrop multiDrop = MultiDrop.CHEAP_FIRST;
 
-        /** Alle Designs, die einundzwanzig Vorlagen eingeschlossen. Name ist der Schluessel */
+        /** Alle Designs, die Vorlagen eingeschlossen. Name ist der Schluessel */
         @Expose
         public List<BannerDesign> designs = new ArrayList<>();
+
+        /**
+         * Welche Vorlagen schon einmal angelegt wurden.
+         *
+         * Ohne diese Liste bekaeme neue Vorlagen nur, wer die Mod zum ersten Mal
+         * startet - angelegt wurden sie bisher allein, wenn die Designliste leer war.
+         * Mit ihr kommt jede neue Vorlage einmal dazu, und wer sie loescht, ist sie
+         * dauerhaft los.
+         */
+        @Expose
+        public List<String> seededPresets = null;
 
         /** Alte Ablage bis 1.1.16: Ort und Farbe je Stil. Nur noch fuer die Uebernahme */
         @Expose
@@ -2020,13 +2068,29 @@ public class ModConfig extends Config {
             };
         }
 
-        /** Der Designname einer Stufe */
+        /**
+         * Der Designname einer Stufe.
+         *
+         * Die vierte Stufe fehlte hier, als sie dazukam: Gelesen und geschrieben wurde
+         * bei ihr die dritte. Damit zog Stufe 4 im Spiel ein Design, das der Sandbox
+         * nie zugewiesen hatte, und wer ihr eines gab, aenderte in Wahrheit Stufe 3.
+         */
         public String designFor(int tier) {
-            return switch (tier) { case 1 -> tier1Design; case 2 -> tier2Design; default -> tier3Design; };
+            return switch (tier) {
+                case 1 -> tier1Design;
+                case 2 -> tier2Design;
+                case 3 -> tier3Design;
+                default -> tier4Design;
+            };
         }
 
         public void setDesign(int tier, String name) {
-            switch (tier) { case 1 -> tier1Design = name; case 2 -> tier2Design = name; default -> tier3Design = name; }
+            switch (tier) {
+                case 1 -> tier1Design = name;
+                case 2 -> tier2Design = name;
+                case 3 -> tier3Design = name;
+                default -> tier4Design = name;
+            }
         }
 
         /** Eine Stufe, wie der Handler sie sieht */
@@ -2042,6 +2106,9 @@ public class ModConfig extends Config {
                 default -> new Tier(4, tier4Enabled, tier4Threshold, tier4Banner, tier4Toast, tier4Chat, tier4Sound, tier4Design);
             };
         }
+
+        /** So viele Stufen gibt es - damit niemand anderswo wieder bei drei aufhoert */
+        public static final int TIERS = 4;
 
         public List<Tier> tiers() {
             return List.of(tier(1), tier(2), tier(3), tier(4));

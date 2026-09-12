@@ -173,7 +173,7 @@ public class HudEditorScreen extends Screen {
     static String tiersUsing(String name) {
         ModConfig.RareLootCategory rare = ModConfig.INSTANCE.chat.rareLoot;
         StringBuilder out = new StringBuilder();
-        for (int tier = 1; tier <= 3; tier++) {
+        for (int tier = 1; tier <= ModConfig.RareLootCategory.TIERS; tier++) {
             String used = rare.designFor(tier);
             if (used == null || name == null || !used.trim().equalsIgnoreCase(name.trim())) continue;
             out.append(out.length() == 0 ? "Tier " : ", ").append(tier);
