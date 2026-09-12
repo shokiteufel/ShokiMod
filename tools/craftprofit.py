@@ -14,6 +14,20 @@ Zwei Formen kommen vor. Die aeltere legt ein einzelnes Rezept unter "recipe" ab,
 die neuere eine Liste unter "recipes" - mit Typ, Ausbeute und mitunter einem
 abweichenden Ergebnis. Beide werden gelesen.
 
+Die Zutaten stehen ihrerseits auf zwei Weisen da. Am Handwerkstisch sind es die
+neun Felder A1 bis C3; in der Forge eine schlichte Liste unter "inputs", weil dort
+kein Gitter steht, sondern nur ein Trichter. Wer nur die Felder liest, sieht von
+der Forge kein einziges Rezept - und genau das war bisher der Fall.
+
+Die Forge zaehlt ausserdem in Kommazahlen: "GLOSSY_GEMSTONE:32.0". Wer daraus
+stumpf eine ganze Zahl machen will, bekommt einen Fehler und faellt auf eins
+zurueck - zweiunddreissig Gemstones waeren zu einem geworden, und die Rechnung
+haette einen Gewinn behauptet, den es nicht gibt.
+
+Mit den Forge-Rezepten kommt die Dauer mit, in Sekunden. Ohne sie waere ein
+Gewinn nichtssagend: Zehn Millionen in dreissig Sekunden und zehn Millionen in
+fuenfzig Stunden sind nicht dasselbe Geschaeft.
+
 Die neun Felder eines Rezepts werden zusammengefasst: Fuenfmal "STRING:32" in
 verschiedenen Feldern ist einmal 160 String. Das spart Platz und ist ohnehin die
 Zahl, die zaehlt.
@@ -64,9 +78,54 @@ def holen() -> Path:
     raise SystemExit("Im Verzeichnis ist kein items-Ordner")
 
 
+def anzahl_aus(text: str) -> int:
+    """"32" und "32.0" sind beide zweiunddreissig.
+
+    Die Forge schreibt Kommazahlen. int() wirft darauf, und der alte Rueckfall auf
+    eins haette aus zweiunddreissig Gemstones einen gemacht.
+    """
+    try:
+        return int(float(text))
+    except (TypeError, ValueError):
+        return 1
+
+
+def kennung_aus(text: str) -> str:
+    """Die nackte Kennung aus "STRING:32" oder "RAW_FISH-1;3"."""
+    kennung = text.split(":")[0].split(";")[0].strip()
+    # Das Verzeichnis schreibt alte Minecraft-Varianten mit Bindestrich, der
+    # Bazaar mit Doppelpunkt: RAW_FISH-1 dort ist RAW_FISH:1 hier, beides Raw
+    # Salmon. Wer das nicht umschreibt, findet fuer ein Viertel aller Varianten
+    # keinen Preis - bei Whale Bait war genau das der Grund fuer "no price".
+    # Abschneiden waere falsch: RAW_FISH ist Raw Cod und kostet etwas anderes
+    m = VARIANTE.match(kennung)
+    return m.group("basis") + ":" + m.group("nr") if m else kennung
+
+
 def zutaten(feld: dict) -> dict:
-    """Die neun Felder zu "Kennung -> Anzahl" zusammenfassen."""
+    """Die Zutaten zu "Kennung -> Anzahl" zusammenfassen.
+
+    Am Handwerkstisch stehen sie in neun Feldern, in der Forge in einer Liste.
+    """
     out = defaultdict(int)
+
+    # Die Forge: eine Liste, weil dort kein Gitter steht, sondern ein Trichter
+    if isinstance(feld.get("inputs"), list):
+        for eintrag in feld["inputs"]:
+            if not isinstance(eintrag, str):
+                continue
+            text = eintrag.strip()
+            if not text:
+                continue
+            kennung = kennung_aus(text)
+            if not kennung:
+                continue
+            teile = text.split(":")
+            menge = anzahl_aus(teile[1]) if len(teile) > 1 and teile[1] else 1
+            if menge > 0:
+                out[kennung] += menge
+        return dict(out)
+
     for slot in SLOTS:
         wert = feld.get(slot)
         if not wert:
@@ -76,21 +135,10 @@ def zutaten(feld: dict) -> dict:
             continue
         # "STRING:32" - und manche tragen eine Variante hinter einem Semikolon
         teile = text.split(":")
-        kennung = teile[0].split(";")[0].strip()
+        kennung = kennung_aus(text)
         if not kennung:
             continue
-        # Das Verzeichnis schreibt alte Minecraft-Varianten mit Bindestrich, der
-        # Bazaar mit Doppelpunkt: RAW_FISH-1 dort ist RAW_FISH:1 hier, beides Raw
-        # Salmon. Wer das nicht umschreibt, findet fuer ein Viertel aller Varianten
-        # keinen Preis - bei Whale Bait war genau das der Grund fuer "no price".
-        # Abschneiden waere falsch: RAW_FISH ist Raw Cod und kostet etwas anderes
-        m = VARIANTE.match(kennung)
-        if m:
-            kennung = m.group("basis") + ":" + m.group("nr")
-        try:
-            anzahl = int(teile[1]) if len(teile) > 1 and teile[1] else 1
-        except ValueError:
-            anzahl = 1
+        anzahl = anzahl_aus(teile[1]) if len(teile) > 1 and teile[1] else 1
         if anzahl > 0:
             out[kennung] += anzahl
     return dict(out)
@@ -124,22 +172,28 @@ def lesen(ordner: Path) -> dict:
 
         formen = []
         if isinstance(d.get("recipe"), dict):
-            formen.append((d["recipe"], "crafting", 1, eigen))
+            formen.append((d["recipe"], "crafting", 1, eigen, 0))
         for r in d.get("recipes") or []:
             if not isinstance(r, dict):
                 continue
             formen.append((r, r.get("type") or "crafting",
-                           int(r.get("count") or 1),
-                           r.get("overrideOutputId") or eigen))
+                           anzahl_aus(r.get("count") or 1),
+                           r.get("overrideOutputId") or eigen,
+                           anzahl_aus(r.get("duration") or 0)))
 
-        for feld, art, menge, ergebnis in formen:
+        for feld, art, menge, ergebnis, dauer in formen:
             z = zutaten(feld)
             if not z or len(z) > MAX_ZUTATEN or menge <= 0:
                 continue
             # Ein Rezept, das sich selbst als Zutat hat, fuehrt zu nichts
             if ergebnis in z:
                 continue
-            rezepte[ergebnis].append({"a": art, "c": menge, "z": z})
+            eintrag = {"a": art, "c": menge, "z": z}
+            # Nur wo es eine gibt: Neunzehn Zwanzigstel der Rezepte haben keine
+            # Dauer, und eine Null je Zeile waere unnoetiger Ballast in der Datei
+            if dauer > 0:
+                eintrag["d"] = dauer
+            rezepte[ergebnis].append(eintrag)
     return rezepte, namen
 
 

@@ -31,7 +31,10 @@ import java.util.List;
 public class CraftProfitScreen extends Screen {
 
     private static final int ROW_HEIGHT = 22;
-    private static final int LIST_WIDTH = 520;
+    // Breiter geworden mit der Forge: Zeit und Stundenlohn sind zwei Spalten, die
+    // es vorher nicht gab, und beide zu quetschen haette die Zahlen unleserlich
+    // gemacht, auf die es gerade ankommt
+    private static final int LIST_WIDTH = 600;
     private static final int LIMIT = 500;
 
     /** Ueberdauert das Schliessen - wer weitersucht, faengt nicht von vorn an */
@@ -46,6 +49,15 @@ public class CraftProfitScreen extends Screen {
      * mitunter das Doppelte, dafuer einzeln und mit Wartezeit.
      */
     private static boolean sellToBazaar = true;
+    /**
+     * Welche Rezeptart die Liste zeigt.
+     *
+     * Zwei verschiedene Fragen: Am Handwerkstisch steht man einmal und hat es
+     * gleich; in der Forge legt man etwas hin und kommt Stunden spaeter wieder.
+     */
+    private static CraftProfitData.Kind kind = CraftProfitData.Kind.ALL;
+    /** Nach Gewinn je Stunde reihen statt nach Gewinn */
+    private static boolean perHour = false;
 
     private final Screen parent;
     private EditBox searchBox;
@@ -84,7 +96,8 @@ public class CraftProfitScreen extends Screen {
     private List<Row> visible() {
         if (cached == null) {
             cached = CraftProfitData.select(search, instantBuy(), instantSell(),
-                    sellToBazaar, onlyProfitable, LIMIT);
+                    sellToBazaar, onlyProfitable, kind, perHour,
+                    cfg().quickForgePercent, LIMIT);
         }
         return cached;
     }
@@ -130,13 +143,48 @@ public class CraftProfitScreen extends Screen {
                 }).bounds(left + 226, sucheY, 100, 18).build());
 
         addRenderableWidget(Button.builder(
-                Component.literal((onlyProfitable ? "☑" : "☐") + " Profit only"),
+                Component.literal((onlyProfitable ? "☑" : "☐") + " Profit"),
                 button -> {
                     onlyProfitable = !onlyProfitable;
                     page = 0;
                     invalidate();
                     rebuild();
-                }).bounds(left + 330, sucheY, 110, 18).build());
+                }).bounds(left + 330, sucheY, 80, 18).build());
+
+        // Handwerkstisch oder Forge. Wer wissen will, was sich ueber Nacht lohnt,
+        // will die zweitausendfuenfhundert Handwerksrezepte nicht dazwischen haben
+        addRenderableWidget(Button.builder(
+                Component.literal("Type: " + kind.label).withStyle(ChatFormatting.GOLD),
+                button -> {
+                    CraftProfitData.Kind[] alle = CraftProfitData.Kind.values();
+                    kind = alle[(kind.ordinal() + 1) % alle.length];
+                    // In der Forge ist der Stundenlohn die Zahl, auf die es ankommt -
+                    // also stellt sich die Reihung mit um, statt darauf zu warten,
+                    // dass jemand den zweiten Knopf findet
+                    perHour = kind == CraftProfitData.Kind.FORGE_ONLY;
+                    page = 0;
+                    invalidate();
+                    rebuild();
+                }).bounds(left + 414, sucheY, 86, 18).build());
+
+        Button reihung = Button.builder(
+                Component.literal(perHour ? "Sort: Coins/h" : "Sort: Profit")
+                        .withStyle(ChatFormatting.AQUA),
+                button -> {
+                    perHour = !perHour;
+                    page = 0;
+                    invalidate();
+                    rebuild();
+                }).bounds(left + 504, sucheY, 96, 18).build();
+        // Der Hinweis gehoert dazu, sonst ist die Liste irrefuehrend: Ganz oben
+        // stehen die Rezepte von dreissig Sekunden, und ihr Stundenlohn geht in die
+        // Milliarden - aber ihre Teile entstehen anderswo und brauchen selbst Tage.
+        // Die Zahl stimmt, sie ist nur keine Verdienstmoeglichkeit
+        reihung.setTooltip(net.minecraft.client.gui.components.Tooltip.create(
+                Component.literal("Coins per hour of forge time. The thirty-second "
+                        + "recipes lead this list because their parts are forged "
+                        + "elsewhere - the number is right, the loop is not.")));
+        addRenderableWidget(reihung);
 
         int unten = height - 28;
         // Die Pfeile links und rechts der Seitenzahl, nicht in der Ecke: Wo man ist
@@ -175,6 +223,22 @@ public class CraftProfitScreen extends Screen {
                     invalidate();
                     rebuild();
                 }).bounds(left + 186, unten, 130, 20).build());
+
+        // Die eigene Forge laeuft schneller, wenn der Perk sitzt. Der Schritt von
+        // fuenf reicht: Es geht darum, dass die angezeigte Zeit ungefaehr die eigene
+        // ist, nicht um das letzte Prozent
+        addRenderableWidget(Button.builder(
+                Component.literal("Quick Forge: "
+                                + cfg().quickForgePercent + "%")
+                        .withStyle(ChatFormatting.GOLD),
+                button -> {
+                    int jetzt = cfg().quickForgePercent;
+                    cfg().quickForgePercent = jetzt >= 30 ? 0 : jetzt + 5;
+                    ModConfig.INSTANCE.saveNow();
+                    page = 0;
+                    invalidate();
+                    rebuild();
+                }).bounds(left + 320, unten, 130, 20).build());
 
         addRenderableWidget(Button.builder(Component.literal("Done"), button -> onClose())
                 .bounds(left + LIST_WIDTH - 80, unten, 80, 20).build());
@@ -256,7 +320,10 @@ public class CraftProfitScreen extends Screen {
                         : ", bazaar prices up to 10 min old")
                 : ", auction prices up to 10 min old";
         graphics.centeredText(font, Component.literal(
-                        zeilen.size() + " of " + CraftProfitData.recipeCount()
+                        zeilen.size() + " of "
+                        + (kind == CraftProfitData.Kind.FORGE_ONLY
+                                ? CraftProfitData.forgeCount() + " forge recipes"
+                                : String.valueOf(CraftProfitData.recipeCount()))
                         + (sellToBazaar ? " sellable on the bazaar"
                                         : " sellable on the auction house")
                         + stand
@@ -266,14 +333,19 @@ public class CraftProfitScreen extends Screen {
                 sellToBazaar && live ? 0xFF77DD77 : 0xFF888888);
 
         graphics.text(font, "Craft", left + 4, listTop - 12, 0xFF888888, false);
-        graphics.text(font, "Materials", left + 150, listTop - 12, 0xFF888888, false);
-        graphics.text(font, "Cost", left + 320, listTop - 12, 0xFF888888, false);
-        graphics.text(font, "Sells for", left + 374, listTop - 12, 0xFF888888, false);
-        graphics.text(font, "Profit", left + 432, listTop - 12, 0xFF888888, false);
+        graphics.text(font, "Materials", left + 140, listTop - 12, 0xFF888888, false);
+        // Die Forge-Zeit. Ohne sie waere ein Gewinn nichtssagend: Zehn Millionen in
+        // dreissig Sekunden und zehn Millionen in fuenfzig Stunden sind nicht
+        // dasselbe Geschaeft
+        graphics.text(font, "Time", left + 300, listTop - 12, 0xFF888888, false);
+        graphics.text(font, "Cost", left + 340, listTop - 12, 0xFF888888, false);
+        graphics.text(font, "Sells for", left + 396, listTop - 12, 0xFF888888, false);
+        graphics.text(font, "Profit", left + 452, listTop - 12, 0xFF888888, false);
+        graphics.text(font, "Coins/h", left + 508, listTop - 12, 0xFF888888, false);
         // Wie viele Stueck taeglich weggehen. Der Gewinn allein sagt nicht, ob sich
         // die Ware ueberhaupt bewegt - wer hundert baut und taeglich fuenf verkauft,
         // sitzt lange darauf
-        graphics.text(font, "Sold/day", left + 486, listTop - 12, 0xFF888888, false);
+        graphics.text(font, "Sold/day", left + 560, listTop - 12, 0xFF888888, false);
 
         int start = page * perPage();
         for (int i = 0; i < perPage() && start + i < zeilen.size(); i++) {
@@ -281,18 +353,32 @@ public class CraftProfitScreen extends Screen {
             int y = listTop + i * ROW_HEIGHT;
             if ((i & 1) == 0) graphics.fill(left, y - 3, left + LIST_WIDTH, y + ROW_HEIGHT - 4, 0x30000000);
 
-            graphics.text(font, cut(row.yield(), 24), left + 4, y, 0xFFFFCC66, false);
-            graphics.text(font, cut(row.partsText(), 31), left + 150, y, 0xFFBBBBBB, false);
+            graphics.text(font, cut(row.yield(), 22), left + 4, y, 0xFFFFCC66, false);
+            graphics.text(font, cut(row.partsText(), 26), left + 140, y, 0xFFBBBBBB, false);
+
+            // Die Wartezeit. Ein Strich heisst: sofort fertig, es gibt keine
+            graphics.text(font, row.seconds() > 0 ? row.durationText() : "-",
+                    left + 300, y, row.seconds() > 0 ? 0xFFFFAA00 : 0xFF666666, false);
 
             if (!row.complete()) {
                 // Ohne Preis ist jede Zahl hier eine Behauptung. Lieber ein Strich
-                graphics.text(font, "no price", left + 320, y, 0xFF888888, false);
+                graphics.text(font, "no price", left + 340, y, 0xFF888888, false);
             } else {
                 long gewinn = row.profit();
-                graphics.text(font, ItemValue.format(row.cost()), left + 320, y, 0xFFFF7777, false);
-                graphics.text(font, ItemValue.format(row.revenue()), left + 374, y, 0xFFAAAAFF, false);
-                graphics.text(font, ItemValue.format(gewinn), left + 432, y,
+                graphics.text(font, ItemValue.format(row.cost()), left + 340, y, 0xFFFF7777, false);
+                graphics.text(font, ItemValue.format(row.revenue()), left + 396, y, 0xFFAAAAFF, false);
+                graphics.text(font, ItemValue.format(gewinn), left + 452, y,
                         gewinn > 0 ? 0xFF55FF55 : 0xFFFF5555, false);
+                // Der Stundenlohn steht nur, wo gewartet wird. Was sofort fertig ist,
+                // hat keinen - und eine Zahl dahin zu schreiben hiesse, zwei Dinge
+                // ohne gemeinsame Einheit nebeneinanderzustellen
+                if (row.seconds() > 0) {
+                    long proStunde = row.profitPerHour();
+                    graphics.text(font, ItemValue.format(proStunde), left + 508, y,
+                            proStunde > 0 ? 0xFF55FF55 : 0xFFFF5555, false);
+                } else {
+                    graphics.text(font, "-", left + 508, y, 0xFF666666, false);
+                }
             }
 
             // Der Tagesumsatz. Liegt kein frischer Bazaar-Stand vor, steht hier ein
@@ -300,7 +386,7 @@ public class CraftProfitScreen extends Screen {
             // Live-Daten, die gespeicherte Datei fuehrt ihn nicht
             long proTag = com.shokiteufel.shokimod.util.BazaarLive.soldPerDay(row.id());
             graphics.text(font, proTag < 0 ? "-" : ItemValue.format(proTag),
-                    left + 486, y, mengeFarbe(proTag), false);
+                    left + 560, y, mengeFarbe(proTag), false);
         }
 
         if (zeilen.isEmpty()) {

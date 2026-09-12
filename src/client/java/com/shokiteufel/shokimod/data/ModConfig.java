@@ -1142,6 +1142,21 @@ public class ModConfig extends Config {
         @ConfigEditorDropdown
         public ItemValue.PriceMode resultMode = ItemValue.PriceMode.INSTANT_SELL;
 
+        /**
+         * Um wie viel Prozent die eigene Forge schneller laeuft.
+         *
+         * Der Quick-Forge-Perk im Heart of the Mountain kuerzt jede Forge-Zeit. Wie
+         * viel es bei einem selbst ist, steht im Perk - die Zahl wird hier
+         * eingetragen statt geraten: Sie haengt an der Perk-Stufe, und eine
+         * hergeleitete Formel waere eine Behauptung ueber fremde Zahlen.
+         *
+         * Null heisst: die Zeiten stehen so da, wie das Verzeichnis sie kennt.
+         */
+        @Expose
+        @ConfigOption(name = "Quick Forge", desc = "Percent your own forge is faster, from the Quick Forge perk. Read it off the perk in the Heart of the Mountain; 0 shows the base times.")
+        @ConfigEditorSlider(minValue = 0, maxValue = 30, minStep = 1)
+        public int quickForgePercent = 0;
+
         @ConfigOption(name = "Open the list", desc = "Same as /shoki shardprofit.")
         @ConfigEditorButton(buttonText = "Open")
         public transient Runnable open = () -> {

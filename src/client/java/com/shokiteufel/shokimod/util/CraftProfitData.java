@@ -59,10 +59,38 @@ public final class CraftProfitData {
      * Zahl, als die Reihung benutzt hat.
      */
     public record Row(String id, String name, int amount, List<Part> parts,
-                      long cost, long revenue, boolean complete) {
+                      long cost, long revenue, boolean complete, String type, int seconds) {
 
         public long profit() {
             return revenue - cost;
+        }
+
+        /** Laeuft das in der Forge? */
+        public boolean forge() {
+            return FORGE.equals(type);
+        }
+
+        /**
+         * Was die Stunde Wartezeit einbringt.
+         *
+         * Die Zahl, auf die es in der Forge ankommt: Zehn Millionen in dreissig
+         * Sekunden und zehn Millionen in fuenfzig Stunden sind nicht dasselbe
+         * Geschaeft, und der blosse Gewinn sagt darueber nichts. Ohne Dauer gibt es
+         * keine - was sofort fertig ist, hat keinen Stundenlohn, sondern einen Betrag.
+         */
+        public long profitPerHour() {
+            return seconds <= 0 ? 0 : Math.round(profit() * 3600.0 / seconds);
+        }
+
+        /** "30s", "45min", "4.5h", "50h" */
+        public String durationText() {
+            if (seconds <= 0) return "";
+            if (seconds < 60) return seconds + "s";
+            if (seconds < 3600) return (seconds / 60) + "min";
+            double stunden = seconds / 3600.0;
+            return stunden == Math.floor(stunden)
+                    ? (long) stunden + "h"
+                    : String.format(Locale.ROOT, "%.1fh", stunden);
         }
 
         /** "3x Enchanted String, 1x Stick" */
@@ -82,7 +110,30 @@ public final class CraftProfitData {
     }
 
     /** Ein Rezept, wie es in der Datei steht */
-    private record Recipe(String result, int amount, String[] ids, int[] counts) {
+    private record Recipe(String result, int amount, String[] ids, int[] counts,
+                          String type, int seconds) {
+    }
+
+    /** Wie das Verzeichnis die Forge nennt */
+    public static final String FORGE = "forge";
+
+    /**
+     * Welche Rezepte die Liste zeigt.
+     *
+     * Getrennt, weil es zwei verschiedene Fragen sind: Am Handwerkstisch steht man
+     * einmal und hat es gleich; in der Forge legt man etwas hin und kommt Stunden
+     * spaeter wieder. Wer das eine sucht, will das andere nicht dazwischen haben.
+     */
+    public enum Kind {
+        ALL("All"),
+        CRAFT("Craft"),
+        FORGE_ONLY("Forge");
+
+        public final String label;
+
+        Kind(String label) {
+            this.label = label;
+        }
     }
 
     private static volatile List<Recipe> recipes = List.of();
@@ -105,6 +156,13 @@ public final class CraftProfitData {
 
     public static int recipeCount() {
         return recipes.size();
+    }
+
+    /** Wie viele davon in der Forge laufen - fuer die Statuszeile */
+    public static int forgeCount() {
+        int n = 0;
+        for (Recipe r : recipes) if (FORGE.equals(r.type())) n++;
+        return n;
     }
 
     /** Der lesbare Name zu einer Kennung, oder die Kennung selbst */
@@ -137,13 +195,31 @@ public final class CraftProfitData {
     public static List<Row> select(String search, boolean instantBuy,
                                    boolean instantSell, boolean sellToBazaar,
                                    boolean onlyGain, int limit) {
+        return select(search, instantBuy, instantSell, sellToBazaar, onlyGain,
+                Kind.ALL, false, 0, limit);
+    }
+
+    /**
+     * Dasselbe, mit Forge.
+     *
+     * @param kind        welche Rezeptart die Liste zeigt
+     * @param perHour     nach Gewinn je Stunde reihen statt nach Gewinn
+     * @param quickForge  um wie viel Prozent die eigene Forge schneller ist
+     */
+    public static List<Row> select(String search, boolean instantBuy,
+                                   boolean instantSell, boolean sellToBazaar,
+                                   boolean onlyGain, Kind kind, boolean perHour,
+                                   int quickForge, int limit) {
         prefetch();
         if (!ready()) return List.of();
 
         String suche = search == null ? "" : search.trim().toLowerCase(Locale.ROOT);
         List<Row> out = new ArrayList<>(Math.min(limit, 256));
 
+        int schneller = Math.clamp(quickForge, 0, 90);
         for (Recipe r : recipes) {
+            if (kind == Kind.FORGE_ONLY && !FORGE.equals(r.type())) continue;
+            if (kind == Kind.CRAFT && FORGE.equals(r.type())) continue;
             if (!suche.isEmpty() && !matches(r, suche)) continue;
             // Der Verkaufsort waehlt aus, nicht nur den Preis: Wer auf den Bazaar
             // schaut, will keine Rezepte sehen, die sich dort gar nicht loswerden
@@ -171,14 +247,29 @@ public final class CraftProfitData {
             if (erloes <= 0) vollstaendig = false;
             if (onlyGain && (!vollstaendig || erloes - kosten <= 0)) continue;
 
+            // Die eigene Forge laeuft schneller, wenn der Perk sitzt. Gerechnet wird
+            // hier und nicht beim Anzeigen, damit die Reihung nach Stundenlohn
+            // dieselbe Zahl benutzt, die in der Zeile steht
+            int dauer = r.seconds() <= 0 ? 0
+                    : Math.max(1, Math.round(r.seconds() * (100 - schneller) / 100f));
             out.add(new Row(r.result(), nameOf(r.result()), r.amount(),
-                    List.copyOf(teile), kosten, erloes, vollstaendig));
+                    List.copyOf(teile), kosten, erloes, vollstaendig, r.type(), dauer));
         }
 
         // Was sich nicht bewerten laesst, nach hinten - sonst stuende eine Zeile ohne
         // Preise oben, nur weil ihre Kosten mangels Zahlen bei null liegen
         out.sort((a, b) -> {
             if (a.complete() != b.complete()) return a.complete() ? -1 : 1;
+            if (perHour) {
+                // Was sofort fertig ist, hat keinen Stundenlohn - diese Zeilen stehen
+                // hinten und untereinander wieder nach ihrem Gewinn. Sie gegen einen
+                // Stundenlohn zu stellen waere ein Vergleich zweier Dinge, die keine
+                // gemeinsame Einheit haben
+                boolean aDauer = a.seconds() > 0;
+                boolean bDauer = b.seconds() > 0;
+                if (aDauer != bDauer) return aDauer ? -1 : 1;
+                if (aDauer) return Long.compare(b.profitPerHour(), a.profitPerHour());
+            }
             return Long.compare(b.profit(), a.profit());
         });
         return out.size() > limit ? new ArrayList<>(out.subList(0, limit)) : out;
@@ -285,7 +376,8 @@ public final class CraftProfitData {
         if (!ready()) {
             out.append("EMPTY");
         } else {
-            out.append(recipes.size()).append(" recipes, ").append(names.size())
+            out.append(recipes.size()).append(" recipes (").append(forgeCount())
+               .append(" forge), ").append(names.size())
                .append(" names from ").append(origin)
                .append(", built ").append(updated).append(" (").append(key).append(")");
         }
@@ -368,7 +460,11 @@ public final class CraftProfitData {
                     counts[i] = zutaten.get(zutat).getAsInt();
                     i++;
                 }
-                gelesen.add(new Recipe(ergebnis, menge, ids, counts));
+                JsonElement art = r.get("a");
+                JsonElement dauer = r.get("d");
+                gelesen.add(new Recipe(ergebnis, menge, ids, counts,
+                        art == null || art.isJsonNull() ? "crafting" : art.getAsString(),
+                        dauer == null || dauer.isJsonNull() ? 0 : dauer.getAsInt()));
             }
         }
         if (gelesen.isEmpty()) return false;
