@@ -54,9 +54,20 @@ public final class ShardStock {
      */
     private static final Pattern SHARD_NAME = Pattern.compile(
             "^(?<name>.+?)\\s+(?<tier>[IVXL]+)$");
-    /** "Stored: 1,234" oder "Amount: 12" - die Menge in der Beschreibung */
+    /**
+     * Die Stueckzahl in der Beschreibung: "Owned: 157 Shards".
+     *
+     * So schreibt Hypixel sie in der Hunting Box. Das Wort stand lange nicht in
+     * dieser Liste, und weil kein anderes passte, fiel die Zaehlung auf die
+     * Stapelgroesse zurueck - die ist dort immer eins. Siebenundachtzig Sorten mit
+     * je einem Stueck, und keine einzige Fusion kam zustande, weil jede fuenf
+     * braucht.
+     *
+     * Die uebrigen Woerter bleiben stehen: Andere Fenster schreiben es anders, und
+     * ein Wort zu viel im Muster kostet nichts.
+     */
     private static final Pattern LORE_AMOUNT = Pattern.compile(
-            "^(?:stored|amount|quantity|total)\\s*:?\\s*(?<n>[0-9][0-9,.]*)",
+            "^(?:owned|stored|amount|quantity|total)\\s*:?\\s*(?<n>[0-9][0-9,.]*)",
             Pattern.CASE_INSENSITIVE);
     private static final Pattern COLOUR_CODE = Pattern.compile("§.");
     /** Oefter als das lohnt der Blick ins offene Fenster nicht */
@@ -335,7 +346,10 @@ public final class ShardStock {
         for (Component zeile : lore.lines()) {
             String text = clean(zeile.getString());
             if (text.isEmpty()) continue;
-            if (n++ >= 6) {
+            // Alles zeigen, nicht nur den Anfang: Die Stueckzahl - wenn es sie
+            // ueberhaupt gibt - steht erfahrungsgemaess unten, hinter Familie,
+            // Beschreibung und Faehigkeit
+            if (n++ >= 20) {
                 out.append(" | ...");
                 break;
             }
