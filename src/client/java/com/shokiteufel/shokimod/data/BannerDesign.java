@@ -481,6 +481,21 @@ public class BannerDesign {
         karte.headlineBold = true;
         out.add(karte);
 
+        // Der Farb-Alarm, wie ShokiTeufel ihn am 12.09.2026 gebaut und geteilt hat.
+        // Uebernommen sind seine Werte, nicht meine Vorstellung davon
+        BannerDesign farbe = preset("Dye alert", Anchor.BAND, Background.NONE, 1.0f, Frame.NONE, Accent.NONE,
+                2.62f, 2.46f, TextColour.ACCENT, TextColour.WHITE, TextEffect.PLAIN, "", "", Icon.MIDDLE, Animation.CHEST);
+        farbe.shape = Shape.CUT;
+        farbe.scale = 1.49f;
+        farbe.iconScale = 2.03f;
+        farbe.showTier = false;
+        farbe.valuePrefix = "";
+        farbe.valueSuffix = "";
+        farbe.durationMillis = 5021;
+        farbe.particles = Particles.FLAME;
+        farbe.particleTicks = 53;
+        out.add(farbe);
+
         BannerDesign auftritt = preset("Grand reveal", Anchor.CENTER, Background.NONE, 0f, Frame.NONE, Accent.NONE, 2.8f, 1.6f, TextColour.ACCENT, TextColour.WHITE, TextEffect.GLOW, "", "", Icon.MIDDLE, Animation.CHEST);
         auftritt.headlineBold = true;
         auftritt.itemFlourish = true;

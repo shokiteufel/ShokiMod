@@ -180,6 +180,13 @@ public class ModConfig extends Config {
                         picked -> INSTANCE.chat.rareLoot.tier1Sound = picked,
                         1.0f)));
         INSTANCE.chat.rareLoot.testTier1 = () -> RareLootHandler.test(1);
+        INSTANCE.chat.rareLoot.openDyeSound = () -> Minecraft.getInstance().execute(() ->
+                Minecraft.getInstance().setScreen(new SoundPickerScreen(
+                        Minecraft.getInstance().screen,
+                        () -> INSTANCE.chat.rareLoot.dyeSound,
+                        picked -> INSTANCE.chat.rareLoot.dyeSound = picked,
+                        1.0f)));
+        INSTANCE.chat.rareLoot.testDye = RareLootHandler::testDye;
         INSTANCE.chat.rareLoot.openTier2Sound = () -> Minecraft.getInstance().execute(() ->
                 Minecraft.getInstance().setScreen(new SoundPickerScreen(
                         Minecraft.getInstance().screen,
@@ -1721,15 +1728,70 @@ public class ModConfig extends Config {
         @ConfigEditorBoolean
         public boolean liveBazaarAlways = false;
 
+        /**
+         * Nur zum Auf- und Zuklappen. MoulConfig haelt den Zustand selbst und schreibt
+         * nie in dieses Feld - ein Schalter darf deshalb nicht am Kopf haengen
+         */
+        @ConfigOption(name = "Dye alert", desc = "Dyes get their own alert, because their worth says little: a Tentacle Dye can be unsellable today and priceless tomorrow. Fires whatever the price, and skips the tiers.")
+        @ConfigEditorAccordion(id = 26)
+        public transient boolean dyeFolder = false;
+
         @Expose
-        @ConfigOption(name = "Dye drops", desc = "Hypixel announces dyes as \"WOW! ... found a Necron Dye!\" instead of RARE DROP!. On means those count as a drop too, with the same tiers, prices and banners.")
+        @ConfigOption(name = "Read dye drops", desc = "Hypixel announces dyes as \"WOW! ... found a Necron Dye!\" instead of RARE DROP!. Off means the mod ignores those lines entirely.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 26)
         public boolean dyeDrops = true;
 
         @Expose
-        @ConfigOption(name = "Dyes from other players", desc = "The dye announcement goes to the whole server. Off means only your own dyes fire a banner.")
+        @ConfigOption(name = "Dyes from other players", desc = "The dye announcement goes to the whole server. Off means only your own dyes fire.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 26)
         public boolean dyeDropsFromOthers = false;
+
+        @Expose
+        @ConfigOption(name = "Own alert", desc = "On: every dye fires this alert, whatever it is worth. Off: dyes go through the ordinary tiers instead, and a dye below Tier 1 stays silent.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 26)
+        public boolean dyeAlert = true;
+
+        @Expose
+        @ConfigOption(name = "Banner", desc = "Large text across the screen.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 26)
+        public boolean dyeBanner = true;
+
+        @Expose
+        @ConfigOption(name = "Banner", desc = "Name of the banner design the dye alert shows. Build one in Alerts > Banner > Sandbox.")
+        @ConfigEditorText
+        @ConfigAccordionId(id = 26)
+        public String dyeDesign = "Dye alert";
+
+        @Expose
+        @ConfigOption(name = "Toast", desc = "Small box in the top right corner.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 26)
+        public boolean dyeToast = true;
+
+        @Expose
+        @ConfigOption(name = "Chat line", desc = "Writes the dye and its value into your chat.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 26)
+        public boolean dyeChat = false;
+
+        @ConfigOption(name = "Sound", desc = "Your own file from config/shokimod/sounds. Leave empty for silence.")
+        @ConfigEditorButton(buttonText = "Pick")
+        @ConfigAccordionId(id = 26)
+        public transient Runnable openDyeSound = () -> {
+        };
+
+        @Expose
+        public String dyeSound = "";
+
+        @ConfigOption(name = "Test", desc = "Fires the dye alert once with a sample dye, so you can see and hear what you set.")
+        @ConfigEditorButton(buttonText = "Test")
+        @ConfigAccordionId(id = 26)
+        public transient Runnable testDye = () -> {
+        };
 
 
         /**

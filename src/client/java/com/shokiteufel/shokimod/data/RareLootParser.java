@@ -60,8 +60,22 @@ public final class RareLootParser {
      * uebergeht, verliert die Shards fuer Anzeige und Jagd-Zaehler.
      */
     private static final Pattern LOOT_SHARE = Pattern.compile(
-            "^LOOT SHARE +You received (?<amount>[0-9]+|an?) (?<shard>.+?) Shards? "
+            // Das Ausrufezeichen hinter "LOOT SHARE" ist neu und war der Grund, warum
+            // diese Zeile zuletzt durchfiel
+            "^LOOT SHARE!? +You received (?<amount>[0-9]+|an?) (?<shard>.+?) Shards? "
                     + "for assisting [A-Za-z0-9_]{1,16}!?(?: *[(][0-9]+[)])?$",
+            Pattern.CASE_INSENSITIVE);
+    /**
+     * Dieselbe Beute, anders gemeldet.
+     *
+     * "LOOT SHARE! You received a Doomspiral Shard from DatingPreposing catching a
+     * Doomspiral!" - beim Fangen steht "from ... catching", beim Toeten "for
+     * assisting". Wer nur die zweite Form kennt, verliert jede gefangene Beute aus
+     * der Party.
+     */
+    private static final Pattern LOOT_SHARE_CATCH = Pattern.compile(
+            "^LOOT SHARE!? +You received (?<amount>[0-9]+|an?) (?<shard>.+?) Shards? "
+                    + "from .+? catching .+?!?$",
             Pattern.CASE_INSENSITIVE);
     private static final String SHARD_PREFIX = "SHARD_";
 
@@ -81,7 +95,16 @@ public final class RareLootParser {
      * Tatsache, kein Code - die Umsetzung hier ist eigene Arbeit.
      */
     private static final Pattern DYE_DROP = Pattern.compile(
-            "^WOW!\\s+(?:\\[[A-Za-z0-9+]{1,10}]\\s*)?(?<player>[A-Za-z0-9_]{1,16})"
+            "^WOW!\\s+(?:\\[[A-Za-z0-9+]{1,10}]\\s*)?"
+                    // Zwischen Rang und Namen steht bei vielen Spielern ein Wappen -
+                    // ein Zeichen aus Hypixels eigener Schrift, das kein Buchstabe ist.
+                    // Ohne diese Stelle sprang das Muster bei genau denen nicht an, die
+                    // eines tragen, und das sind die meisten. Aufgezaehlt wird es nicht:
+                    // Welche Zeichen Hypixel dafuer nimmt, aendert sich, und ein Name
+                    // besteht ohnehin nur aus Buchstaben, Ziffern und Unterstrich -
+                    // alles davor kann also getrost weg
+                    + "(?:[^A-Za-z0-9_\\s]\\s*)*"
+                    + "(?<player>[A-Za-z0-9_]{1,16})"
                     + " found (?:an?\\s+)?(?<dye>.+? Dye)(?:\\s*#[0-9,.]+)?!$",
             Pattern.CASE_INSENSITIVE);
 
@@ -233,6 +256,9 @@ public final class RareLootParser {
 
         Matcher shared = LOOT_SHARE.matcher(clean);
         if (shared.matches()) return shardDrop(shared.group("amount"), shared.group("shard"));
+
+        Matcher gefangen = LOOT_SHARE_CATCH.matcher(clean);
+        if (gefangen.matches()) return shardDrop(gefangen.group("amount"), gefangen.group("shard"));
 
         Matcher dug = DUG_OUT.matcher(clean);
         if (dug.matches()) {

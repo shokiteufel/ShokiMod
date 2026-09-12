@@ -72,6 +72,8 @@ public final class RareLootHandler {
 
     /** Je Stufe eine Farbe, damit man schon am Banner sieht, welche es war */
     private static final int[] TIER_COLOURS = {0x55FF55, 0xFFD700, 0xFF55FF, 0x55FFFF};
+    /** Hypixel schreibt Farbnamen im Chat hellviolett - der Alarm bleibt dabei */
+    private static final int DYE_COLOUR = 0xFF55FF;
 
     private static final Pattern LOOTSHARE_RECEIPT = Pattern.compile(
             "^LOOT SHARE You received(?: .+?)? for assisting (?<player>[A-Za-z0-9_]{1,16})!(?: \\(\\d+\\))?$",
@@ -160,9 +162,17 @@ public final class RareLootHandler {
             } else if (!eigeneFarbe(farbe.player()) && !cfg().dyeDropsFromOthers) {
                 note("dye by " + farbe.player() + ": not me, and other players' dyes are off");
             } else {
-                evaluate(farbe.drop(), clean, now);
+                evaluate(farbe.drop(), clean, now, true);
             }
             return;
+        }
+        // Eine WOW-Zeile, die nicht passt, wird vermerkt.
+        //
+        // Ohne diesen Vermerk ginge ein Farbfund, den das Muster nicht kennt, voellig
+        // spurlos vorbei - in der Diagnose stuende nichts, und man koennte nur raten.
+        // So steht die Zeile da, und beim naechsten Mal ist klar, woran es lag
+        if (clean.regionMatches(true, 0, "WOW!", 0, 4)) {
+            note("unmatched WOW line: \"" + clean + "\"");
         }
 
         // Das Beutebuendel aus dem Crystal Nucleus meldet seine Funde nicht einzeln,
@@ -226,6 +236,13 @@ public final class RareLootHandler {
      * auseinanderlaufen koennen.
      */
     private static void evaluate(Drop drop, String clean, long now) {
+        evaluate(drop, clean, now, false);
+    }
+
+    /**
+     * @param dye ob der Fund eine Farbe ist - die hat ihren eigenen Alarm
+     */
+    private static void evaluate(Drop drop, String clean, long now, boolean dye) {
         RareLootCategory cfg = cfg();
         List<String> candidates = candidatesFor(drop);
         Value value = ItemValue.resolve(candidates, drop.amount(), cfg.shardPriceMode, cfg.bazaarPriceMode);
@@ -238,7 +255,19 @@ public final class RareLootHandler {
 
         Minecraft client = Minecraft.getInstance();
 
-        if (cfg.enabled) {
+        if (dye && cfg.dyeAlert) {
+            // Farben laufen nicht ueber die Schwellen.
+            //
+            // Ihr Wert sagt wenig: Eine Tentacle Dye steht heute in keiner Auktion und
+            // hat damit gar keinen Preis - durch die Stufen faellt sie lautlos hindurch,
+            // obwohl gerade sie die ist, die man sehen will. Deshalb feuert der
+            // Farb-Alarm immer, und der Preis ist nur noch eine Zeile im Banner
+            note("  dye alert" + (value == null ? " (no price known - showing it anyway)" : ""));
+            announce(client, cfg.dyeBanner, cfg.dyeDesign, cfg.dyeToast, cfg.dyeChat, cfg.dyeSound,
+                    "Dye", DYE_COLOUR, headline(drop),
+                    value == null ? -1 : value.coins(),
+                    value == null ? firstId(candidates) : value.itemId());
+        } else if (cfg.enabled) {
             if (value == null) {
                 note("  no alert: no price known for any id");
             } else {
@@ -320,33 +349,70 @@ public final class RareLootHandler {
         });
     }
 
-    private static void announce(Minecraft client, Tier tier, String headline, double coins, String itemId) {
-        String worth = ItemValue.format(coins);
-        int colour = TIER_COLOURS[Math.min(Math.max(tier.number() - 1, 0), TIER_COLOURS.length - 1)];
+    /**
+     * Der Testknopf fuer den Farb-Alarm.
+     *
+     * Mit einer Farbe ohne Preis - denn genau darauf kommt es an: Der Alarm soll auch
+     * dann kommen, wenn gerade niemand eine anbietet.
+     */
+    public static void testDye() {
+        RareLootCategory cfg = cfg();
+        Minecraft client = Minecraft.getInstance();
+        client.execute(() -> announce(client, cfg.dyeBanner, cfg.dyeDesign, cfg.dyeToast,
+                cfg.dyeChat, cfg.dyeSound, "Dye", DYE_COLOUR,
+                "Emerald Dye", 65_000_000d, "DYE_EMERALD"));
+    }
 
-        if (tier.banner()) {
+    private static void announce(Minecraft client, Tier tier, String headline, double coins, String itemId) {
+        announce(client, tier.banner(), tier.design(), tier.toast(), tier.chat(), tier.sound(),
+                "Tier " + tier.number(),
+                TIER_COLOURS[Math.min(Math.max(tier.number() - 1, 0), TIER_COLOURS.length - 1)],
+                headline, coins, itemId);
+    }
+
+    /**
+     * Die Meldung selbst - fuer jede Stufe und fuer den Farb-Alarm dieselbe.
+     *
+     * Frueher stand hier eine Stufe; der Farb-Alarm ist aber keine. Ausgepackt sind
+     * deshalb die vier Reaktionen und das, was im Banner steht - so gibt es weiter
+     * genau einen Weg zur Einblendung, statt zweier, die auseinanderlaufen koennen.
+     *
+     * @param coins ein Betrag unter null heisst: kein Preis bekannt. Dann bleibt die
+     *              Wertzeile leer, statt eine Null zu behaupten
+     */
+    private static void announce(Minecraft client, boolean banner, String design, boolean toast,
+                                 boolean chat, String sound, String label, int colour,
+                                 String headline, double coins, String itemId) {
+        String worth = coins < 0 ? "" : ItemValue.format(coins);
+
+        if (banner) {
             // Der Wert geht mit: Fallen mehrere auf einmal, reiht die Einblendung danach
-            DropBanner.show(ModConfig.INSTANCE.chat.banner.designOrDefault(tier.design()),
+            DropBanner.show(ModConfig.INSTANCE.chat.banner.designOrDefault(design),
                     // Ohne Klammern: Was links und rechts vom Wert steht, gehoert
                     // zum Aussehen und damit ins Design, nicht hierher
-                    headline, worth, "Tier " + tier.number(), colour,
-                    ItemIcons.stackFor(itemId), coins);
+                    headline, worth, label, colour,
+                    ItemIcons.stackFor(itemId), Math.max(coins, 0));
         }
 
-        if (tier.toast() && client.getToastManager() != null) {
+        if (toast && client.getToastManager() != null) {
             client.getToastManager().addToast(new ShokiModToast(
-                    Component.literal(headline + " (" + worth + ")"), TOAST_MILLIS, null));
+                    Component.literal(worth.isEmpty() ? headline : headline + " (" + worth + ")"),
+                    TOAST_MILLIS, null));
         }
 
-        if (tier.chat() && client.player != null) {
+        if (chat && client.player != null) {
             client.player.sendSystemMessage(Component.literal(
-                    "§6" + headline + " §e(" + worth + ") §8Tier " + tier.number()));
+                    "§6" + headline + (worth.isEmpty() ? " " : " §e(" + worth + ") ") + "§8" + label));
         }
 
-        String sound = tier.sound();
         if (sound != null && !sound.isBlank()) {
             CustomSoundPlayer.play(sound, AlertVolume.factor(), RareLootHandler.class);
         }
+    }
+
+    /** Die erste Kennung, damit wenigstens das Bild stimmt, wenn der Preis fehlt */
+    private static String firstId(List<String> candidates) {
+        return candidates.isEmpty() ? "" : candidates.get(0);
     }
 
     /**
