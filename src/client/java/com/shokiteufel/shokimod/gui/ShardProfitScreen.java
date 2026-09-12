@@ -365,7 +365,13 @@ public class ShardProfitScreen extends Screen {
             if ((i & 1) == 0) graphics.fill(left, y - 3, left + LIST_WIDTH, y + ROW_HEIGHT - 4, 0x30000000);
 
             long gewinn = row.profit(kaufen, verkaufen);
-            graphics.text(font, cut(row.recipe(), 40), left + 4, y, 0xFFCCCCCC, false);
+            // Wie oft das mit dem Vorrat geht - vorangestellt und knapp, damit es
+            // die Zeile nicht sprengt. Ohne Bestandsfilter steht dort nichts
+            String zeile = row.affordable() >= 0
+                    ? "(" + row.affordable() + ") " + row.recipe()
+                    : row.recipe();
+            graphics.text(font, cut(zeile, 44), left + 4, y,
+                    row.affordable() > 0 ? 0xFFCCCCCC : 0xFF999999, false);
             graphics.text(font, cut(row.yield(), 17), left + 210, y, colour(row.rarity()), false);
             graphics.text(font, ItemValue.format(row.cost(kaufen)), left + 320, y, 0xFFFF7777, false);
             graphics.text(font, ItemValue.format(row.revenue(verkaufen)), left + 380, y, 0xFFAAAAFF, false);

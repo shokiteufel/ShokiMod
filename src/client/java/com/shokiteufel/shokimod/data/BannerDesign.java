@@ -117,7 +117,17 @@ public class BannerDesign {
         DROP("Drop from the top"),
         POP("Pop"),
         TYPEWRITER("Typewriter"),
-        FLASH("Flash");
+        FLASH("Flash"),
+        /**
+         * Die grosse Nummer: eine Kiste, die aufspringt.
+         *
+         * Vier Abschnitte nacheinander - die Kiste wackelt und platzt, das Stueck
+         * schiesst heraus und faellt auf seine Groesse zurueck, der Name faehrt von
+         * links ein, zuletzt der Wert. Zusammen knapp zwei Sekunden; dafuer bleibt
+         * sie laenger stehen als die anderen, sonst waere sie vorbei, bevor der Preis
+         * steht.
+         */
+        CHEST("Chest opening");
 
         public final String label;
 

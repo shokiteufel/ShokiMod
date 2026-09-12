@@ -39,6 +39,20 @@ public final class DropBanner {
     private static final long SWEEP_MILLIS = 350L;
     private static final long TYPE_MILLIS = 450L;
     private static final long FLASH_MILLIS = 160L;
+    /**
+     * Die vier Abschnitte der Kisten-Animation, als Zeitpunkte vom Anfang gerechnet.
+     *
+     * Bis CHEST_BURST wackelt die Kiste, dann platzt sie. Ab CHEST_ITEM schiesst das
+     * Stueck heraus, ab CHEST_NAME faehrt der Name ein, ab CHEST_VALUE steht der
+     * Wert. Die Ueberlappung ist Absicht: Die Kiste vergeht noch, waehrend das Stueck
+     * schon kommt - sonst entstuende eine Luecke, in der nichts passiert.
+     */
+    private static final long CHEST_BURST = 520L;
+    private static final long CHEST_ITEM = 430L;
+    private static final long CHEST_NAME = 820L;
+    private static final long CHEST_VALUE = 1150L;
+    /** So lange dauert die ganze Vorstellung - vorher darf sie nicht ausblenden */
+    private static final long CHEST_TOTAL = 1400L;
     private static final int PADDING = 10;
 
     /**
@@ -108,6 +122,11 @@ public final class DropBanner {
         s.tint = rgb & 0xFFFFFF;
         s.icon = iconStack;
         s.displayMillis = Math.max(s.design.durationMillis, FADE_MILLIS + 300L);
+        // Eine Kiste, die aufspringt, braucht ihre Zeit. Bliebe die uebliche Dauer
+        // stehen, waere sie ausgeblendet, bevor der Wert erscheint
+        if (s.design.animation == Animation.CHEST) {
+            s.displayMillis = Math.max(s.displayMillis, CHEST_TOTAL + FADE_MILLIS + 600L);
+        }
         s.value = value;
         waiting.add(s);
         // Wer so lange ansteht, dass niemand mehr weiss wofuer, hilft keinem mehr
@@ -233,6 +252,29 @@ public final class DropBanner {
         float vs = clamp(d.valueSize, 0.5f, 6.0f) * scale;
         float ts = Math.max(0.8f, scale);
 
+        // ---- Die Kiste, wenn sie dran ist ----
+        //
+        // Gezeichnet wird sie vor allem anderen und ausserhalb des Kastens: Sie
+        // gehoert nicht zum Text, sondern geht ihm voraus.
+        boolean kiste = d.animation == Animation.CHEST;
+        float itemAuf = 1.0f;
+        float nameAuf = 1.0f;
+        boolean zeigeWert = true;
+        if (kiste) {
+            // Vor dem Platzen nur die Kiste, danach das Stueck
+            if (age < CHEST_ITEM) {
+                itemAuf = 0f;
+            } else {
+                // Herausschiessen und zurueckfallen: erst ueber die Zielgroesse
+                // hinaus, dann darauf einpendeln
+                float t = Math.min(1.0f, (age - CHEST_ITEM) / 320f);
+                itemAuf = t < 0.6f ? t / 0.6f * 1.35f : 1.35f - (t - 0.6f) / 0.4f * 0.35f;
+            }
+            nameAuf = age < CHEST_NAME ? 0f
+                    : Math.min(1.0f, (age - CHEST_NAME) / 260f);
+            zeigeWert = age >= CHEST_VALUE;
+        }
+
         float pop = 1.0f;
         if (d.animation == Animation.POP) {
             float progress = Math.min(1.0f, age / (float) POP_MILLIS);
@@ -345,6 +387,12 @@ public final class DropBanner {
         }
         if (d.accent == Accent.LEFT_BAR) g.fill(left, top, left + (int) (3 * scale) + 1, bottom, argb(alpha, colour));
 
+        // Die Kiste: wackelt, waechst, platzt. Gezeichnet ueber dem Kasten, damit
+        // sie nicht hinter dessen Hintergrund verschwindet
+        if (kiste && age < CHEST_BURST + 220L) {
+            drawChest(g, cx, cy - boxH / 4, scale, age, alpha);
+        }
+
         // ---- Inhalt ----
         int contentLeft = left + PADDING + accentPad + ((right - left) - boxW) / 2;
         int textLeft = contentLeft;
@@ -361,7 +409,14 @@ public final class DropBanner {
         }
 
         int y = textTop;
-        drawText(g, font, shownHead, textCentreX, y, hs * pop, textColour(d.headlineColour, colour), d.textEffect, alpha, colour);
+        if (nameAuf > 0f) {
+            // Von links hereinfahren und dabei aufklaren. Bei allen anderen
+            // Animationen ist nameAuf eins, also aendert sich dort nichts
+            int versatz = Math.round((1.0f - nameAuf) * -60 * scale);
+            drawText(g, font, shownHead, textCentreX + versatz, y, hs * pop,
+                    textColour(d.headlineColour, colour), d.textEffect,
+                    alpha * nameAuf, colour);
+        }
         y += headH;
 
         if (d.accent == Accent.UNDERLINE || d.accent == Accent.SWEEP) {
@@ -371,10 +426,15 @@ public final class DropBanner {
         }
         if (d.icon == Icon.MIDDLE && iconSize > 0) {
             y += gap;
-            drawIcon(g, banner.icon, textCentreX - iconSize / 2, y, iconSize);
+            // Bei der Kiste schiesst das Stueck heraus, statt einfach dazustehen
+            int gezeigt = Math.round(iconSize * itemAuf);
+            if (gezeigt > 0) {
+                drawIcon(g, banner.icon, textCentreX - gezeigt / 2,
+                        y + (iconSize - gezeigt) / 2, gezeigt);
+            }
             y += iconSize;
         }
-        if (valueH > 0 && !typing) {
+        if (valueH > 0 && !typing && zeigeWert) {
             y += gap;
             if (d.accent == Accent.DIVIDER) {
                 int half = textW / 2 + (int) (6 * scale);
@@ -390,6 +450,55 @@ public final class DropBanner {
             drawText(g, font, tier, textCentreX, y, ts, 0xAAAAAA, TextEffect.PLAIN, alpha, colour);
         }
         return boxH;
+    }
+
+    /**
+     * Die Kiste, die aufspringt.
+     *
+     * Drei Abschnitte in einem: Sie waechst heran, zittert kurz - je naeher das
+     * Platzen, desto staerker - und faellt dann auseinander, indem sie sich schnell
+     * aufblaeht und verschwindet. Gezeichnet wird eine gewoehnliche Truhe; ein
+     * eigenes Bild braucht es dafuer nicht, und ein bekanntes Ding wirkt ohnehin
+     * vertrauter als ein gemaltes.
+     */
+    private static void drawChest(GuiGraphicsExtractor g, int cx, int cy, float scale,
+                                  long age, float alpha) {
+        float wachsen = Math.min(1.0f, age / 260f);
+        float groesse = 26f * scale * wachsen;
+        float deckkraft = alpha;
+
+        if (age >= CHEST_BURST) {
+            // Auseinanderfallen: schnell groesser und dabei durchsichtig
+            float t = Math.min(1.0f, (age - CHEST_BURST) / 220f);
+            groesse = 26f * scale * (1.0f + t * 1.6f);
+            deckkraft = alpha * (1.0f - t);
+        }
+        if (deckkraft <= 0.01f || groesse < 1f) return;
+
+        // Zittern: nimmt zu, je naeher das Platzen kommt
+        int ruettel = 0;
+        if (age < CHEST_BURST) {
+            float naehe = Math.min(1.0f, age / (float) CHEST_BURST);
+            float staerke = naehe * naehe * 3f * scale;
+            ruettel = Math.round((float) Math.sin(age / 28.0) * staerke);
+        }
+
+        ItemStack truhe = new ItemStack(net.minecraft.world.item.Items.CHEST);
+        int kante = Math.round(groesse);
+        float s = kante / 16f;
+        g.pose().pushMatrix();
+        g.pose().scale(s, s);
+        g.fakeItem(truhe, Math.round((cx + ruettel - kante / 2f) / s),
+                Math.round((cy - kante / 2f) / s));
+        g.pose().popMatrix();
+
+        // Ein heller Schein im Moment des Platzens
+        if (age >= CHEST_BURST - 60 && age < CHEST_BURST + 160) {
+            float t = Math.abs(age - CHEST_BURST) / 160f;
+            float hell = Math.max(0f, 1.0f - t) * 0.5f * alpha;
+            int r = Math.round(groesse * 0.9f);
+            g.fill(cx - r, cy - r, cx + r, cy + r, argb(hell, 0xFFFFAA));
+        }
     }
 
     // ---- Helfer ----

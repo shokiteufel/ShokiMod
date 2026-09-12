@@ -104,7 +104,8 @@ public final class ShardProfitData {
                       String rarity, String category, String area,
                       long firstInstant, long firstOrder,
                       long secondInstant, long secondOrder,
-                      long resultInstant, long resultOrder, int volume) {
+                      long resultInstant, long resultOrder, int volume,
+                      int affordable) {
 
         /**
          * Was die beiden Zutaten zusammen kosten.
@@ -279,7 +280,8 @@ public final class ShardProfitData {
                     ziel.rarity(), ziel.category(), ziel.area(),
                     a.buyNow(), a.sellNow(),
                     b.buyNow(), b.sellNow(),
-                    ziel.sellNow(), ziel.buyNow(), ziel.volume()));
+                    ziel.sellNow(), ziel.buyNow(), ziel.volume(),
+                    owned == null ? -1 : howOften(owned, a, b)));
         }
 
         out.sort((x, y) -> Long.compare(y.profit(instantBuy, instantSell),
@@ -341,6 +343,23 @@ public final class ShardProfitData {
                     + " kinds reach that)";
         }
         return "";
+    }
+
+    /**
+     * Wie oft sich die Fusion mit dem Vorrat machen laesst.
+     *
+     * Die knappere Zutat entscheidet - wer fuenfhundert von der einen hat und zehn
+     * von der anderen, kommt zweimal durch, nicht hundertmal. Sind beide Zutaten
+     * derselbe Shard, zaehlt die Summe beider Mengen gegen den Vorrat.
+     */
+    private static int howOften(Map<String, Integer> owned, Shard a, Shard b) {
+        if (a.name().equalsIgnoreCase(b.name())) {
+            int braucht = a.fuseAmount() + b.fuseAmount();
+            return braucht <= 0 ? 0 : have(owned, a.name()) / braucht;
+        }
+        int ausA = a.fuseAmount() <= 0 ? 0 : have(owned, a.name()) / a.fuseAmount();
+        int ausB = b.fuseAmount() <= 0 ? 0 : have(owned, b.name()) / b.fuseAmount();
+        return Math.min(ausA, ausB);
     }
 
     /**
