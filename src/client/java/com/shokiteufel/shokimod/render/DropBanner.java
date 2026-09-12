@@ -47,12 +47,20 @@ public final class DropBanner {
      * Wert. Die Ueberlappung ist Absicht: Die Kiste vergeht noch, waehrend das Stueck
      * schon kommt - sonst entstuende eine Luecke, in der nichts passiert.
      */
-    private static final long CHEST_BURST = 520L;
-    private static final long CHEST_ITEM = 430L;
-    private static final long CHEST_NAME = 820L;
-    private static final long CHEST_VALUE = 1150L;
+    private static final long CHEST_BURST = 2100L;
+    /**
+     * Erst nach dem Platzen kommt das Stueck.
+     *
+     * Frueher lag dieser Zeitpunkt davor - die Ueberlappung sollte eine Luecke
+     * vermeiden, zeigte aber den Fund, bevor die Kiste ihn hergab. Das nimmt der
+     * ganzen Sache die Pointe. Jetzt beginnt es, waehrend die Kiste vergeht: spaet
+     * genug, dass sie zuerst aufgeht, frueh genug, dass nichts stockt.
+     */
+    private static final long CHEST_ITEM = CHEST_BURST + 90L;
+    private static final long CHEST_NAME = CHEST_BURST + 520L;
+    private static final long CHEST_VALUE = CHEST_BURST + 880L;
     /** So lange dauert die ganze Vorstellung - vorher darf sie nicht ausblenden */
-    private static final long CHEST_TOTAL = 1400L;
+    private static final long CHEST_TOTAL = CHEST_BURST + 1100L;
     private static final int PADDING = 10;
 
     /**
@@ -398,7 +406,14 @@ public final class DropBanner {
         int textLeft = contentLeft;
         int textTop = top + PADDING;
         if (d.icon == Icon.LEFT && iconSize > 0) {
-            drawIcon(g, banner.icon, contentLeft, top + (boxH - iconSize) / 2, iconSize);
+            // Auch hier erst nach der Kiste. Vorher wurde nur das mittige Bild
+            // zurueckgehalten, und wer sein Banner mit linkem Bild gebaut hatte, sah
+            // den Fund schon, waehrend die Kiste noch zitterte
+            int gezeigt = Math.round(iconSize * itemAuf);
+            if (gezeigt > 0) {
+                drawIcon(g, banner.icon, contentLeft + (iconSize - gezeigt) / 2,
+                        top + (boxH - gezeigt) / 2, gezeigt);
+            }
             textLeft = contentLeft + iconSize + gap * 2;
             textTop = top + (boxH - textH) / 2;
         }
@@ -463,14 +478,15 @@ public final class DropBanner {
      */
     private static void drawChest(GuiGraphicsExtractor g, int cx, int cy, float scale,
                                   long age, float alpha) {
-        float wachsen = Math.min(1.0f, age / 260f);
-        float groesse = 26f * scale * wachsen;
+        // Laenger heranwachsen, passend zur laengeren Spannung davor
+        float wachsen = Math.min(1.0f, age / 700f);
+        float groesse = 48f * scale * wachsen;
         float deckkraft = alpha;
 
         if (age >= CHEST_BURST) {
             // Auseinanderfallen: schnell groesser und dabei durchsichtig
             float t = Math.min(1.0f, (age - CHEST_BURST) / 220f);
-            groesse = 26f * scale * (1.0f + t * 1.6f);
+            groesse = 48f * scale * (1.0f + t * 1.6f);
             deckkraft = alpha * (1.0f - t);
         }
         if (deckkraft <= 0.01f || groesse < 1f) return;
@@ -478,12 +494,17 @@ public final class DropBanner {
         // Zittern: nimmt zu, je naeher das Platzen kommt
         int ruettel = 0;
         if (age < CHEST_BURST) {
+            // Hoch vier statt hoch zwei: Bei zwei Sekunden Anlauf begaenne das
+            // Zittern sonst viel zu frueh und waere die halbe Zeit ueber da. So
+            // bleibt die Kiste lange ruhig und faengt erst zum Schluss an zu beben
             float naehe = Math.min(1.0f, age / (float) CHEST_BURST);
-            float staerke = naehe * naehe * 3f * scale;
-            ruettel = Math.round((float) Math.sin(age / 28.0) * staerke);
+            float staerke = naehe * naehe * naehe * naehe * 5f * scale;
+            ruettel = Math.round((float) Math.sin(age / 26.0) * staerke);
         }
 
-        ItemStack truhe = new ItemStack(net.minecraft.world.item.Items.CHEST);
+        // Eine Endertruhe statt der gewoehnlichen: Sie ist dunkler und traegt den
+        // Sternenschimmer, was zu einem seltenen Fund besser passt als Holz
+        ItemStack truhe = new ItemStack(net.minecraft.world.item.Items.ENDER_CHEST);
         int kante = Math.round(groesse);
         float s = kante / 16f;
         g.pose().pushMatrix();
