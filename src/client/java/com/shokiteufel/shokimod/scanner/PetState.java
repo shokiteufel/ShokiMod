@@ -358,7 +358,8 @@ public final class PetState {
                 }
             }
             if (overflowLevel > 0) {
-                com.shokiteufel.shokimod.util.PetIcons.rememberOverflow(name, overflowLevel, overflowXp);
+                com.shokiteufel.shokimod.util.PetIcons.rememberOverflow(
+                        name, overflowLevel, overflowXp, combinedLevel());
             } else {
                 // Die Tab-Liste sagt gerade nichts dazu - dann gilt der letzte Stand,
                 // statt eine Luecke zu zeigen, wo eben noch eine Zahl war
@@ -538,7 +539,8 @@ public final class PetState {
         overflowXp = ueber;
         overflowLevel = (int) Math.floor(ueber / schritt);
         if (overflowLevel > 0) {
-            com.shokiteufel.shokimod.util.PetIcons.rememberOverflow(name, overflowLevel, overflowXp);
+            com.shokiteufel.shokimod.util.PetIcons.rememberOverflow(
+                    name, overflowLevel, overflowXp, combinedLevel());
         }
     }
 

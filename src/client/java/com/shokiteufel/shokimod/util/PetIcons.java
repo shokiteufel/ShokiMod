@@ -140,6 +140,16 @@ public final class PetIcons {
      * Fehlen einer - und wuerde die gemerkte Zahl zerstoeren.
      */
     public static void rememberOverflow(String petName, int level, double xp) {
+        rememberOverflow(petName, level, xp, 0);
+    }
+
+    /**
+     * Dasselbe, mit der Gesamtstufe fuer die Meldung im Chat.
+     *
+     * @param combined Stufe plus Ueberschuss - dieselbe Zahl, die im Kasten steht.
+     *                 Null heisst: unbekannt, dann nennt die Meldung den Ueberschuss
+     */
+    public static void rememberOverflow(String petName, int level, double xp, int combined) {
         if (petName == null || petName.isBlank() || level <= 0) return;
         load();
         String key = key(petName);
@@ -161,7 +171,9 @@ public final class PetIcons {
         save();
 
         if (gestiegen) {
-            announceOverflow(petName, level);
+            // Im Kasten steht die Gesamtstufe, nicht der blosse Ueberschuss. Nennt die
+            // Meldung eine andere Zahl, sucht man beim Lesen erst, was gemeint ist
+            announceOverflow(petName, combined > 0 ? combined : level);
         }
     }
 
@@ -177,7 +189,7 @@ public final class PetIcons {
         client.execute(() -> {
             if (client.player == null) return;
             client.player.sendSystemMessage(net.minecraft.network.chat.Component.literal(
-                    "§6--- §e" + petName + " §6reached overflow level §e" + level + "§6! ---"));
+                    "§6--- §e" + petName + " §6reached level §e" + level + "\u2b50§6! ---"));
         });
     }
 
