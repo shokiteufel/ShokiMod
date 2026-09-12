@@ -272,6 +272,62 @@ public final class ShardProfitData {
     }
 
     /**
+     * Warum kommt mit dem Bestand nichts durch?
+     *
+     * Eine leere Liste hat drei moegliche Gruende, und sie verlangen verschiedene
+     * Antworten: Der Vorrat kennt die Shards nicht (Namen passen nicht), er kennt sie
+     * und hat zu wenige (eine Fusion nimmt meist fuenf je Zutat), oder es fehlt
+     * schlicht der Partner. Von aussen sehen alle drei gleich aus - deshalb wird hier
+     * gezaehlt, statt den Betrachter raten zu lassen.
+     *
+     * @return ein Satz fuer das Fenster, oder leer wenn es nichts zu erklaeren gibt
+     */
+    public static String explainEmpty(Map<String, Integer> owned) {
+        if (!ready() || owned == null || owned.isEmpty()) return "";
+
+        Shard[] tabelle = shards;
+        int bekannt = 0;
+        int reichtEinzeln = 0;
+        long beideDa = 0;
+        long knapp = 0;
+
+        // Erst: Wie viele der gelagerten Sorten kennt die Fusionsliste ueberhaupt,
+        // und von wie vielen liegen genug fuer eine Fusion
+        for (Shard s : tabelle) {
+            if (s == null) continue;
+            int habe = have(owned, s.name());
+            if (habe <= 0) continue;
+            bekannt++;
+            if (habe >= s.fuseAmount()) reichtEinzeln++;
+        }
+
+        // Dann: Wie viele Kombinationen scheitern woran
+        for (int i = 0; i < count; i++) {
+            Shard a = tabelle[firstIndex[i]];
+            Shard b = tabelle[secondIndex[i]];
+            if (a == null || b == null) continue;
+            int ha = have(owned, a.name());
+            int hb = have(owned, b.name());
+            if (ha <= 0 || hb <= 0) continue;
+            beideDa++;
+            if (!hasEnough(owned, a, b)) knapp++;
+        }
+
+        if (bekannt == 0) {
+            return "None of your shards appear in the fusion list - the names do not match";
+        }
+        if (beideDa == 0) {
+            return bekannt + " of your shards are known, but no fusion uses two of them together";
+        }
+        if (knapp == beideDa) {
+            return beideDa + " fusions use shards you own, but you need more of them - "
+                    + "most take 5 of each (" + reichtEinzeln + " of " + bekannt
+                    + " kinds reach that)";
+        }
+        return "";
+    }
+
+    /**
      * Reicht der Vorrat fuer beide Zutaten?
      *
      * Der Sonderfall steckt in der Gleichheit: Sind beide Zutaten derselbe Shard,

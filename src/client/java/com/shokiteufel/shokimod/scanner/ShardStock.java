@@ -310,6 +310,33 @@ public final class ShardStock {
                 + lastTitle + "\", counted by " + howCounted + ", seen " + age();
     }
 
+    /**
+     * Wie sich die Mengen verteilen.
+     *
+     * Die entscheidende Frage bei einem leeren Bestandsfilter: Werden die Stueckzahlen
+     * ueberhaupt richtig gelesen? Stehen ueberall Einsen, stimmt etwas mit dem Ablesen
+     * nicht - eine Fusion braucht meist fuenf je Zutat, und mit lauter Einsen kommt nie
+     * eine zustande.
+     */
+    public static String amounts() {
+        if (counts.isEmpty()) return "(nothing)";
+        int eins = 0;
+        int bisVier = 0;
+        int abFuenf = 0;
+        int groesste = 0;
+        long summe = 0;
+        for (int n : counts.values()) {
+            if (n <= 1) eins++;
+            else if (n < 5) bisVier++;
+            else abFuenf++;
+            groesste = Math.max(groesste, n);
+            summe += n;
+        }
+        return "amounts: " + eins + "x one, " + bisVier + "x two-to-four, "
+                + abFuenf + "x five or more, largest " + groesste
+                + ", total " + summe;
+    }
+
     /** Die ersten Eintraege im Klartext - damit sich pruefen laesst, was gelesen wurde */
     public static String sample(int howMany) {
         if (counts.isEmpty()) return "(nothing)";

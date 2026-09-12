@@ -392,9 +392,16 @@ public class ShardProfitScreen extends Screen {
                     .withStyle(ChatFormatting.YELLOW), centerX, listTop - 20, 0xFFFFAA00);
         }
         if (rowCount() == 0) {
-            graphics.centeredText(font, Component.literal(
-                            "Nothing pays off on this route right now - try the other one")
-                    .withStyle(ChatFormatting.GRAY), centerX, listTop + 20, 0xFFAAAAAA);
+            // Mit Bestandsfilter hat eine leere Liste andere Gruende als ohne, und
+            // "versuch den anderen Weg" waere dort schlicht falsch
+            String grund = onlyOwned && ShardStock.known()
+                    ? ShardProfitData.explainEmpty(ShardStock.counts())
+                    : "";
+            if (grund.isEmpty()) {
+                grund = "Nothing pays off on this route right now - try the other one";
+            }
+            graphics.centeredText(font, Component.literal(grund)
+                    .withStyle(ChatFormatting.GRAY), centerX, listTop + 20, 0xFFFFAA00);
         }
         if (pageCount() > 1) {
             // Knapp ueber der Knopfreihe. Die Knoepfe stehen bei height-28 und sind
