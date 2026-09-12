@@ -66,6 +66,26 @@ public final class RareLootParser {
     private static final String SHARD_PREFIX = "SHARD_";
 
     /**
+     * Die Farbmeldung: "WOW! Shokiteufel found a Necron Dye!"
+     *
+     * Farben fallen nicht als "RARE DROP!", sondern unter eigener Ueberschrift - und
+     * sie geht an den ganzen Server, nicht nur an den Finder. Deshalb steht der Name
+     * mit im Muster: Ohne ihn meldete die Mod jede Farbe, die irgendwo auf Hypixel
+     * faellt, und das waren die meiste Zeit fremde.
+     *
+     * Hinter dem Namen kann eine laufende Nummer stehen ("#1,204") - die zaehlt, die
+     * wievielte dieser Farbe es auf dem Server ist, und gehoert nicht zum Namen.
+     *
+     * Das Muster stammt aus Skyblocker (LGPL-3.0, hysky): dort war abzulesen, wie
+     * Hypixel die Zeile baut. Die Beschreibung eines fremden Zeilenformats ist eine
+     * Tatsache, kein Code - die Umsetzung hier ist eigene Arbeit.
+     */
+    private static final Pattern DYE_DROP = Pattern.compile(
+            "^WOW!\\s+(?:\\[[A-Za-z0-9+]{1,10}]\\s*)?(?<player>[A-Za-z0-9_]{1,16})"
+                    + " found (?:an?\\s+)?(?<dye>.+? Dye)(?:\\s*#[0-9,.]+)?!$",
+            Pattern.CASE_INSENSITIVE);
+
+    /**
      * Prismarin ist kein Jagd-Shard, sondern gewoehnliches Material.
      *
      * Ohne diese Ausnahme wuerde "Enchanted Prismarine Shard" zu SHARD_ENCHANTED_PRISMARINE
@@ -180,6 +200,26 @@ public final class RareLootParser {
                 : new Drop(base.displayName(), amount, base.context(), base.itemIdCandidates());
     }
 
+    /** Wer welche Farbe gefunden hat */
+    public record DyeFind(String player, Drop drop) {
+    }
+
+    /**
+     * Die Farbmeldung lesen - oder null, wenn die Zeile keine ist.
+     *
+     * Getrennt von {@link #parse}, weil der Finder mitkommen muss: Ob die Meldung
+     * ueberhaupt eine ist, haengt daran, wer sie ausgeloest hat, und das entscheidet
+     * nicht der Parser, sondern die Einstellung.
+     */
+    public static DyeFind parseDye(String plain) {
+        if (plain == null) return null;
+        Matcher m = DYE_DROP.matcher(plain.trim());
+        if (!m.matches()) return null;
+        String name = m.group("dye").trim();
+        Drop drop = build(name, null);
+        return drop == null ? null : new DyeFind(m.group("player"), drop);
+    }
+
     public static Drop parse(String plain) {
         if (plain == null) return null;
         String clean = plain.trim();
@@ -242,7 +282,14 @@ public final class RareLootParser {
             }
         }
 
-        List<String> candidates = new ArrayList<>(1);
+        List<String> candidates = new ArrayList<>(2);
+        // Farben heissen bei Hypixel umgekehrt: "Necron Dye" liegt als DYE_NECRON
+        // vor, nicht als NECRON_DYE. Nachgesehen an allen sechsundsechzig Farben der
+        // Item-Liste - keine einzige Ausnahme. Die Regel steht trotzdem nur als
+        // zusaetzliche Kandidatin da: Findet sich unter ihr kein Preis, greift die
+        // gewoehnliche Bildung weiterhin
+        String dye = dyeIdFor(displayName);
+        if (dye != null) candidates.add(dye);
         String id = idFromDisplayName(displayName);
         if (id != null) candidates.add(id);
         return new Drop(displayName, amount, context, candidates);
@@ -281,6 +328,18 @@ public final class RareLootParser {
         if (clean.equalsIgnoreCase("Griffin Burrow")) return null;
         if (clean.toLowerCase(Locale.ROOT).contains("coin")) return null;
         return clean;
+    }
+
+    /** "Necron Dye" wird zu DYE_NECRON, alles andere zu null */
+    public static String dyeIdFor(String displayName) {
+        if (displayName == null) return null;
+        String clean = COLOUR_CODE.matcher(displayName).replaceAll("").trim();
+        if (clean.length() <= 4 || !clean.regionMatches(true, clean.length() - 4, " Dye", 0, 4)) {
+            return null;
+        }
+        String rest = trimUnderscores(NOT_ID_CHARS.matcher(
+                clean.substring(0, clean.length() - 4).toUpperCase(Locale.US)).replaceAll("_"));
+        return rest.isEmpty() ? null : "DYE_" + rest;
     }
 
     /** "Enchanted Diamond" wird zu ENCHANTED_DIAMOND - so heisst es im Basar */

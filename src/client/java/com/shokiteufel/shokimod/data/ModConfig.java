@@ -1673,6 +1673,16 @@ public class ModConfig extends Config {
         @ConfigEditorBoolean
         public boolean liveBazaarAlways = false;
 
+        @Expose
+        @ConfigOption(name = "Dye drops", desc = "Hypixel announces dyes as \"WOW! ... found a Necron Dye!\" instead of RARE DROP!. On means those count as a drop too, with the same tiers, prices and banners.")
+        @ConfigEditorBoolean
+        public boolean dyeDrops = true;
+
+        @Expose
+        @ConfigOption(name = "Dyes from other players", desc = "The dye announcement goes to the whole server. Off means only your own dyes fire a banner.")
+        @ConfigEditorBoolean
+        public boolean dyeDropsFromOthers = false;
+
 
         /**
          * Nur zum Auf- und Zuklappen. MoulConfig haelt den Zustand selbst und schreibt

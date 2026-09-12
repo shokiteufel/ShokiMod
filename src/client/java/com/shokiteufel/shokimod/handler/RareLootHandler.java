@@ -148,6 +148,23 @@ public final class RareLootHandler {
             if (clean.startsWith(prefix)) return;
         }
 
+        // Farben kommen vor dem Buendel dran.
+        //
+        // Sonst verschwaende eine Farbmeldung, die waehrend eines offenen Buendels
+        // eintrifft, in dessen Zeilenzaehler - und dort wuerde sie als Beutezeile
+        // gelesen, was sie nicht ist
+        RareLootParser.DyeFind farbe = RareLootParser.parseDye(clean);
+        if (farbe != null) {
+            if (!cfg().dyeDrops) {
+                note("dye \"" + clean + "\": dye drops are off");
+            } else if (!eigeneFarbe(farbe.player()) && !cfg().dyeDropsFromOthers) {
+                note("dye by " + farbe.player() + ": not me, and other players' dyes are off");
+            } else {
+                evaluate(farbe.drop(), clean, now);
+            }
+            return;
+        }
+
         // Das Beutebuendel aus dem Crystal Nucleus meldet seine Funde nicht einzeln,
         // sondern als Liste unter einer Ueberschrift. Diese Zeilen tragen keines der
         // Kennzeichen ("RARE DROP!", "You dug out"), auf die der Parser sonst hoert.
@@ -187,6 +204,18 @@ public final class RareLootHandler {
         Drop drop = RareLootParser.parse(clean);
         if (drop == null) return;
         evaluate(drop, clean, now);
+    }
+
+    /**
+     * Hat die Farbe der eigene Spieler gefunden?
+     *
+     * Ohne bekannten Namen gilt sie als fremd: Lieber eine eigene Farbe verpassen als
+     * bei jeder fremden losgehen - die Meldung geht an den ganzen Server.
+     */
+    private static boolean eigeneFarbe(String finder) {
+        Minecraft client = Minecraft.getInstance();
+        if (client.getUser() == null || finder == null) return false;
+        return finder.equalsIgnoreCase(client.getUser().getName());
     }
 
     /**
