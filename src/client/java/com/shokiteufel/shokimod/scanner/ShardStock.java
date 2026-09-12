@@ -208,7 +208,14 @@ public final class ShardStock {
         boolean ausStapel = false;
         boolean ausText = false;
 
+        // Ein offenes Fenster fuehrt beide Inventare: oben die Box, unten den
+        // eigenen Rucksack. Wer alle Felder liest, zaehlt seine Ausruestung mit -
+        // im Bericht standen "Fabled Flaming Flay" und ein Gemstone Gauntlet als
+        // Shard-Sorten, und beide lagen nie in der Box. Das Feld weiss, wohin es
+        // gehoert; danach wird getrennt
+        net.minecraft.world.Container eigenes = client.player.getInventory();
         for (Slot slot : screen.getMenu().slots) {
+            if (slot.container == eigenes) continue;
             ItemStack stack = slot.getItem();
             if (stack.isEmpty()) continue;
             String name = clean(stack.getHoverName().getString());
@@ -347,7 +354,7 @@ public final class ShardStock {
         if (seenAt == 0L) {
             return "shard stock: never looked into a shard window yet";
         }
-        return "shard stock: " + counts.size() + " kinds from " + lastSlots + " slots over "
+        return "shard stock: " + counts.size() + " kinds from " + lastSlots + " box slots over "
                 + pages() + (totalPages > 0 ? "/" + totalPages : "") + " page(s) of \""
                 + lastTitle + "\", counted by " + howCounted + ", seen " + age();
     }
