@@ -8,6 +8,7 @@ import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.properties.Property;
 import com.mojang.authlib.properties.PropertyMap;
 import com.shokiteufel.shokimod.ShokiMod;
+import com.shokiteufel.shokimod.data.ModConfig;
 
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -145,9 +146,39 @@ public final class PetIcons {
         Recipe vorher = recipes.get(key);
         Recipe recipe = (vorher == null ? new Recipe("", "") : vorher).withOverflow(level, xp);
         if (recipe.equals(vorher)) return;
+
+        // Ist die Stufe gestiegen? Gemeldet wird nur, was wirklich dazukommt.
+        //
+        // Die Bedingung "vorher war schon eine bekannt" ist der Kern: Beim ersten
+        // Blick auf ein Pet steht dort noch nichts, und ohne sie meldete die Mod
+        // beim Einloggen jedes Mal "Golden Dragon hat Stufe 332 erreicht" - fuer
+        // etwas, das seit Wochen so ist
+        boolean gestiegen = vorher != null && vorher.overflowLevel() > 0
+                && level > vorher.overflowLevel();
+
         recipes.put(key, recipe);
         dirty = true;
         save();
+
+        if (gestiegen) {
+            announceOverflow(petName, level);
+        }
+    }
+
+    /**
+     * Die Zeile im eigenen Chat - sie geht an niemanden sonst.
+     *
+     * Geschrieben wird sie ueber den Spieler selbst, nicht ueber den Server: eine
+     * Systemnachricht, die nur hier ankommt.
+     */
+    private static void announceOverflow(String petName, int level) {
+        if (!ModConfig.INSTANCE.hud.pet.announceOverflow) return;
+        net.minecraft.client.Minecraft client = net.minecraft.client.Minecraft.getInstance();
+        client.execute(() -> {
+            if (client.player == null) return;
+            client.player.sendSystemMessage(net.minecraft.network.chat.Component.literal(
+                    "§6--- §e" + petName + " §6reached overflow level §e" + level + "§6! ---"));
+        });
     }
 
     /** Die zuletzt bekannte Ueberschuss-Stufe, oder 0 */

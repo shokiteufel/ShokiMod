@@ -541,6 +541,11 @@ public class ModConfig extends Config {
         public boolean showLabels = true;
 
         @Expose
+        @ConfigOption(name = "Announce overflow", desc = "Writes a line into your own chat when the pet gains an overflow level. Nobody else sees it.")
+        @ConfigEditorBoolean
+        public boolean announceOverflow = true;
+
+        @Expose
         @ConfigOption(name = "Icon position", desc = "Where the pet image sits: in front of the first line, behind it, or on a line of its own.")
         @ConfigEditorDropdown
         public IconPlace iconPlace = IconPlace.LEFT;

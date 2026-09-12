@@ -31,6 +31,25 @@ import java.util.function.Supplier;
  */
 public class BannerDesignScreen extends Screen {
 
+    /**
+     * Woran ein geteilter Code zu erkennen ist.
+     *
+     * Die Eins ist die Fassung des Formats. Kommt spaeter eine zweite, laesst sich
+     * am Praefix ablesen, was vorliegt - statt an einem Fehler zu scheitern, den
+     * niemand deuten kann.
+     */
+    private static final String SHARE_PREFIX = "SHOKI1:";
+    /**
+     * Nur die Felder, die auch gespeichert werden.
+     *
+     * Ohne diese Einschraenkung wanderten auch die fluechtigen Felder mit, die
+     * MoulConfig fuer Knoepfe braucht - und ein Code traege Dinge, die auf einem
+     * anderen Rechner nichts bedeuten.
+     */
+    private static final com.google.gson.Gson SHARE_GSON = new com.google.gson.GsonBuilder()
+            .excludeFieldsWithoutExposeAnnotation()
+            .create();
+
     private static final int ROW = 22;
     private static final int LIST_LEFT = 8;
     private static final int LIST_WIDTH = 150;
@@ -123,6 +142,23 @@ public class BannerDesignScreen extends Screen {
         delete.setTooltip(Tooltip.create(Component.literal("Removes this design. Tiers that used it fall back to the first one.")));
         addRenderableWidget(delete);
 
+        // Teilen: Ein Design ist knapp vierhundert Zeichen und passt damit in jede
+        // Nachricht. Der Weg fuehrt ueber die Zwischenablage, weil der von jedem
+        // Fenster aus funktioniert - Discord, Chat, Notizzettel
+        Button teilen = Button.builder(Component.literal("Share")
+                        .withStyle(ChatFormatting.AQUA), button -> shareDesign(d))
+                .bounds(LIST_LEFT, actionTop + 23, 74, 20).build();
+        teilen.setTooltip(Tooltip.create(Component.literal(
+                "Copies this design as a code you can paste anywhere.")));
+        addRenderableWidget(teilen);
+
+        Button holen = Button.builder(Component.literal("Import")
+                        .withStyle(ChatFormatting.GREEN), button -> importDesign())
+                .bounds(LIST_LEFT + 77, actionTop + 23, 73, 20).build();
+        holen.setTooltip(Tooltip.create(Component.literal(
+                "Reads a shared code from your clipboard and adds it as a new design.")));
+        addRenderableWidget(holen);
+
         // ---- Eigenschaften rechts, zwei Spalten ----
         int col1 = LIST_LEFT + LIST_WIDTH + 16;
         int col2 = col1 + COLUMN_WIDTH + COLUMN_GAP;
@@ -212,6 +248,85 @@ public class BannerDesignScreen extends Screen {
 
     private static boolean usesTier(BannerDesign d, int tier) {
         return d.name.equalsIgnoreCase(ModConfig.INSTANCE.chat.rareLoot.designFor(tier));
+    }
+
+    /**
+     * Das Design als Code in die Zwischenablage.
+     *
+     * Zusammengepackt und in Buchstaben umgeschrieben - roh waeren es fast
+     * fuenfhundert Zeichen JSON mit Anfuehrungszeichen, die beim Einfuegen in einen
+     * Chat zerbrechen. So sind es rund vierhundert harmlose Zeichen.
+     *
+     * Die Kennung am Anfang sagt, wie der Rest zu lesen ist. Aendert sich das Format
+     * einmal, erkennt eine spaetere Fassung am Praefix, was sie vor sich hat, statt
+     * an einem unverstaendlichen Fehler zu scheitern.
+     */
+    private void shareDesign(BannerDesign d) {
+        try {
+            String json = SHARE_GSON.toJson(d);
+            java.io.ByteArrayOutputStream roh = new java.io.ByteArrayOutputStream();
+            try (java.util.zip.GZIPOutputStream zip = new java.util.zip.GZIPOutputStream(roh)) {
+                zip.write(json.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            }
+            String code = SHARE_PREFIX + java.util.Base64.getUrlEncoder().withoutPadding()
+                    .encodeToString(roh.toByteArray());
+            minecraft.keyboardHandler.setClipboard(code);
+            note("Copied " + d.name + " (" + code.length() + " characters) to your clipboard",
+                    ChatFormatting.GREEN);
+        } catch (java.io.IOException | RuntimeException e) {
+            note("Could not build the code: " + e, ChatFormatting.RED);
+        }
+    }
+
+    /**
+     * Ein geteiltes Design aus der Zwischenablage holen.
+     *
+     * Angelegt wird immer ein neues - ein Code soll nie still ueberschreiben, woran
+     * jemand gerade gearbeitet hat. Traegt der Code einen Namen, den es schon gibt,
+     * bekommt er eine Nummer.
+     */
+    private void importDesign() {
+        String zwischenablage = minecraft.keyboardHandler.getClipboard();
+        if (zwischenablage == null || zwischenablage.isBlank()) {
+            note("Your clipboard is empty", ChatFormatting.RED);
+            return;
+        }
+        String code = zwischenablage.trim();
+        if (!code.startsWith(SHARE_PREFIX)) {
+            note("That is not a banner code - it should start with " + SHARE_PREFIX,
+                    ChatFormatting.RED);
+            return;
+        }
+        try {
+            byte[] gepackt = java.util.Base64.getUrlDecoder()
+                    .decode(code.substring(SHARE_PREFIX.length()));
+            String json;
+            try (java.util.zip.GZIPInputStream zip = new java.util.zip.GZIPInputStream(
+                    new java.io.ByteArrayInputStream(gepackt))) {
+                json = new String(zip.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+            }
+            BannerDesign neu = SHARE_GSON.fromJson(json, BannerDesign.class);
+            if (neu == null || neu.name == null || neu.name.isBlank()) {
+                note("The code did not contain a usable design", ChatFormatting.RED);
+                return;
+            }
+            neu.name = uniqueName(neu.name);
+            designs().add(neu);
+            selected = designs().size() - 1;
+            note("Added " + neu.name, ChatFormatting.GREEN);
+            rebuild();
+        } catch (java.io.IOException | RuntimeException e) {
+            // IllegalArgumentException - ein schiefer Base64-Text - ist bereits
+            // eine RuntimeException und darf daneben nicht noch einmal stehen
+            note("Could not read that code - is it complete?", ChatFormatting.RED);
+        }
+    }
+
+    /** Eine kurze Rueckmeldung im Chat, damit man weiss, ob es geklappt hat */
+    private void note(String text, ChatFormatting colour) {
+        if (minecraft == null || minecraft.player == null) return;
+        minecraft.player.sendSystemMessage(
+                Component.literal("[ShokiMod] " + text).withStyle(colour));
     }
 
     private String uniqueName(String base) {
