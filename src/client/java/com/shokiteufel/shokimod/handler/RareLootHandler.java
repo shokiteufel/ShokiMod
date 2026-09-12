@@ -287,7 +287,9 @@ public final class RareLootHandler {
         if (tier.banner()) {
             // Der Wert geht mit: Fallen mehrere auf einmal, reiht die Einblendung danach
             DropBanner.show(ModConfig.INSTANCE.chat.banner.designOrDefault(tier.design()),
-                    headline, "(" + worth + ")", "Tier " + tier.number(), colour,
+                    // Ohne Klammern: Was links und rechts vom Wert steht, gehoert
+                    // zum Aussehen und damit ins Design, nicht hierher
+                    headline, worth, "Tier " + tier.number(), colour,
                     ItemIcons.stackFor(itemId), coins);
         }
 

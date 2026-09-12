@@ -189,7 +189,7 @@ public final class DropBanner {
         // Die Vorschau steht fuer sich - was noch wartet, hat hier nichts zu suchen
         waiting.clear();
         running.clear();
-        show(chosen, "+ 3x Ghost Shard", "(10.5k)", "Tier 1", 0xFFD700, ItemIcons.stackFor("SHARD_GHOST"));
+        show(chosen, "3x Ghost Shard", "10.5k", "Tier 1", 0xFFD700, ItemIcons.stackFor("SHARD_GHOST"));
         Shown s = waiting.get(0);
         s.displayMillis = Math.max(s.displayMillis, 4500L);
         s.startedAt = System.currentTimeMillis();
@@ -254,7 +254,9 @@ public final class DropBanner {
 
         // ---- Texte und Groessen ----
         String head = d.prefix + banner.headline + d.suffix;
-        String value = d.showValue ? banner.worth : "";
+        String value = d.showValue && !banner.worth.isEmpty()
+                ? d.valuePrefix + banner.worth + d.valueSuffix
+                : "";
         String tier = d.showTier ? banner.tierLabel : "";
         float hs = clamp(d.headlineSize, 0.5f, 6.0f) * scale;
         float vs = clamp(d.valueSize, 0.5f, 6.0f) * scale;
@@ -398,7 +400,7 @@ public final class DropBanner {
         // Die Kiste: wackelt, waechst, platzt. Gezeichnet ueber dem Kasten, damit
         // sie nicht hinter dessen Hintergrund verschwindet
         if (kiste && age < CHEST_BURST + 220L) {
-            drawChest(g, cx, cy - boxH / 4, scale, age, alpha);
+            drawChest(g, d.chest, cx, cy - boxH / 4, scale, age, alpha);
         }
 
         // ---- Inhalt ----
@@ -476,8 +478,8 @@ public final class DropBanner {
      * eigenes Bild braucht es dafuer nicht, und ein bekanntes Ding wirkt ohnehin
      * vertrauter als ein gemaltes.
      */
-    private static void drawChest(GuiGraphicsExtractor g, int cx, int cy, float scale,
-                                  long age, float alpha) {
+    private static void drawChest(GuiGraphicsExtractor g, BannerDesign.Chest art,
+                                  int cx, int cy, float scale, long age, float alpha) {
         // Laenger heranwachsen, passend zur laengeren Spannung davor
         float wachsen = Math.min(1.0f, age / 700f);
         float groesse = 48f * scale * wachsen;
@@ -502,9 +504,13 @@ public final class DropBanner {
             ruettel = Math.round((float) Math.sin(age / 26.0) * staerke);
         }
 
-        // Eine Endertruhe statt der gewoehnlichen: Sie ist dunkler und traegt den
-        // Sternenschimmer, was zu einem seltenen Fund besser passt als Holz
-        ItemStack truhe = new ItemStack(net.minecraft.world.item.Items.ENDER_CHEST);
+        // Was das Design will. Kennt das Spiel die Kennung nicht - etwa nach einer
+        // Umbenennung -, bleibt die Endertruhe als Rueckfall
+        net.minecraft.world.item.Item gewaehlt = net.minecraft.core.registries.BuiltInRegistries.ITEM
+                .getOptional(net.minecraft.resources.Identifier.tryParse(
+                        "minecraft:" + (art == null ? "ender_chest" : art.item)))
+                .orElse(net.minecraft.world.item.Items.ENDER_CHEST);
+        ItemStack truhe = new ItemStack(gewaehlt);
         int kante = Math.round(groesse);
         float s = kante / 16f;
         g.pose().pushMatrix();

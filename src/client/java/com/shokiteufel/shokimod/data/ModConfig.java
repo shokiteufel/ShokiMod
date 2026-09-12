@@ -1829,6 +1829,39 @@ public class ModConfig extends Config {
         @ConfigAccordionId(id = 23)
         public String tier3Design = "Classic band";
 
+
+        /** Alte Ablage bis 1.1.16, nur fuer die Uebernahme */
+        @Expose
+        public String tier3Style = null;
+
+
+        @Expose
+        @ConfigOption(name = "Toast", desc = "Small box in the top right corner.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 23)
+        public boolean tier3Toast = true;
+
+        @Expose
+        @ConfigOption(name = "Chat line", desc = "Writes the drop and its value into your chat.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 23)
+        public boolean tier3Chat = false;
+
+        @ConfigOption(name = "Sound", desc = "Your own file from config/shokimod/sounds. Leave empty for silence.")
+        @ConfigEditorButton(buttonText = "Pick")
+        @ConfigAccordionId(id = 23)
+        public transient Runnable openTier3Sound = () -> {
+        };
+
+        @Expose
+        public String tier3Sound = "";
+
+        @ConfigOption(name = "Test", desc = "Fires this tier once with a sample drop, so you can see and hear what you set.")
+        @ConfigEditorButton(buttonText = "Test")
+        @ConfigAccordionId(id = 23)
+        public transient Runnable testTier3 = () -> {
+        };
+
         /**
          * Nur zum Auf- und Zuklappen. MoulConfig haelt den Zustand selbst und schreibt
          * nie in dieses Feld - ein Schalter darf deshalb nicht am Kopf haengen
@@ -1886,38 +1919,6 @@ public class ModConfig extends Config {
         @ConfigEditorButton(buttonText = "Test")
         @ConfigAccordionId(id = 25)
         public transient Runnable testTier4 = () -> {
-        };
-
-        /** Alte Ablage bis 1.1.16, nur fuer die Uebernahme */
-        @Expose
-        public String tier3Style = null;
-
-
-        @Expose
-        @ConfigOption(name = "Toast", desc = "Small box in the top right corner.")
-        @ConfigEditorBoolean
-        @ConfigAccordionId(id = 23)
-        public boolean tier3Toast = true;
-
-        @Expose
-        @ConfigOption(name = "Chat line", desc = "Writes the drop and its value into your chat.")
-        @ConfigEditorBoolean
-        @ConfigAccordionId(id = 23)
-        public boolean tier3Chat = false;
-
-        @ConfigOption(name = "Sound", desc = "Your own file from config/shokimod/sounds. Leave empty for silence.")
-        @ConfigEditorButton(buttonText = "Pick")
-        @ConfigAccordionId(id = 23)
-        public transient Runnable openTier3Sound = () -> {
-        };
-
-        @Expose
-        public String tier3Sound = "";
-
-        @ConfigOption(name = "Test", desc = "Fires this tier once with a sample drop, so you can see and hear what you set.")
-        @ConfigEditorButton(buttonText = "Test")
-        @ConfigAccordionId(id = 23)
-        public transient Runnable testTier3 = () -> {
         };
 
         @ConfigOption(name = "Share drops", desc = "Sends valuable drops to your party or guild as RARE DROP! with the value. Your own shared line is never read again.")

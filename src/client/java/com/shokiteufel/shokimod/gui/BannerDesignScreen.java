@@ -147,6 +147,13 @@ public class BannerDesignScreen extends Screen {
         y1 += ROW;
         cycle(col1, y1, "Animation", BannerDesign.Animation.values(), () -> d.animation, v -> d.animation = v, a -> a.label);
         y1 += ROW;
+        // Nur zeigen, wenn eine Kiste aufspringt - sonst stuende hier eine Wahl
+        // ohne Wirkung, und man suchte spaeter, warum sie nichts tut
+        if (d.animation == BannerDesign.Animation.CHEST) {
+            cycle(col1, y1, "Chest", BannerDesign.Chest.values(), () -> d.chest,
+                    v -> d.chest = v, c -> c.label);
+            y1 += ROW;
+        }
         slider(col1, y1, "Duration", 1f, 10f, () -> d.durationMillis / 1000f, v -> d.durationMillis = Math.round(v * 1000f), "%.1fs", 1f);
         y1 += ROW;
         slider(col1, y1, "Overall size", 0.3f, 3f, () -> d.scale, v -> d.scale = v, "%.0f%%", 100f);
@@ -166,6 +173,12 @@ public class BannerDesignScreen extends Screen {
         box(col2, y2, "Suffix", d.suffix, 16, value -> d.suffix = value);
         y2 += ROW;
         toggle(col2, y2, "Show value", () -> d.showValue, v -> d.showValue = v);
+        y2 += ROW;
+        // Was um den Wert steht. Leer heisst: nackte Zahl - die Klammern standen
+        // frueher fest im Code und liessen sich nicht abwaehlen
+        box(col2, y2, "Value left", d.valuePrefix, 4, value -> d.valuePrefix = value);
+        y2 += ROW;
+        box(col2, y2, "Value right", d.valueSuffix, 4, value -> d.valueSuffix = value);
         y2 += ROW;
         toggle(col2, y2, "Show tier", () -> d.showTier, v -> d.showTier = v);
         y2 += ROW;

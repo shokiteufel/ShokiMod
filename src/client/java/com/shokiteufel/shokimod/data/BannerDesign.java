@@ -111,6 +111,34 @@ public class BannerDesign {
         }
     }
 
+    /**
+     * Die Truhen, die aufspringen koennen.
+     *
+     * Alle aus dem Spiel, keine gemalten: Ein bekanntes Ding wirkt vertrauter, und
+     * die Bilder kommen ohne eigene Dateien aus.
+     */
+    public enum Chest {
+        ENDER("Ender Chest", "ender_chest"),
+        NORMAL("Chest", "chest"),
+        TRAPPED("Trapped Chest", "trapped_chest"),
+        BARREL("Barrel", "barrel"),
+        SHULKER("Shulker Box", "shulker_box"),
+        PURPLE_SHULKER("Purple Shulker Box", "purple_shulker_box"),
+        GOLD("Gold Block", "gold_block"),
+        DIAMOND("Diamond Block", "diamond_block"),
+        BEACON("Beacon", "beacon"),
+        DRAGON_EGG("Dragon Egg", "dragon_egg");
+
+        public final String label;
+        /** Die Kennung im Spiel - daraus wird das Bild geholt */
+        public final String item;
+
+        Chest(String label, String item) {
+            this.label = label;
+            this.item = item;
+        }
+    }
+
     public enum Animation {
         NONE("None"),
         SLIDE_RIGHT("Slide in from the right"),
@@ -158,6 +186,14 @@ public class BannerDesign {
     /** Vor und hinter der Ueberschrift, etwa "[ " und " ]" */
     @Expose public String prefix = "";
     @Expose public String suffix = "";
+    /**
+     * Was links und rechts vom Wert steht.
+     *
+     * Die Klammern standen frueher fest im Code, der den Fund meldet - wer sie nicht
+     * wollte, konnte nichts machen. Hier sind sie nur noch die Vorgabe.
+     */
+    @Expose public String valuePrefix = "(";
+    @Expose public String valueSuffix = ")";
     @Expose public boolean showValue = true;
     @Expose public boolean showTier = true;
 
@@ -165,6 +201,8 @@ public class BannerDesign {
     @Expose public float iconScale = 2.0f;
 
     @Expose public Animation animation = Animation.NONE;
+    /** Welche Truhe aufspringt - gilt nur fuer die Chest-Animation */
+    @Expose public Chest chest = Chest.ENDER;
     @Expose public int durationMillis = 3000;
     /** Hex wie FFD700. Leer: die Farbe der Stufe */
     @Expose public String colour = "";
