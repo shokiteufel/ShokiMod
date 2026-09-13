@@ -3,13 +3,17 @@
 	"id": "shokimod",
 	"version": "${version}",
 	"name": "ShokiTeufel",
-	"description": "Hypixel Skyblock mod for area mini-bosses, own mob markers, critter safari extras and chat rules with custom sounds. Fork of GanKura by GanKuraDee.",
+	"description": "Hypixel Skyblock mod: rare loot alerts with designable banners, fusion/craft/forge profit screens, mining and pet HUDs, mob markers, critter safari helpers and chat rules with custom sounds. Fork of GanKura by GanKuraDee; CREDITS.md names every borrowed feature and its source mod.",
 	"authors": [
-		"ShokiTeufel",
+		"ShokiTeufel"
+	],
+	"contributors": [
 		"GanKuraDee"
 	],
 	"contact": {
-		"sources": "https://github.com/GanKuraDee/GanKura"
+		"homepage": "https://github.com/shokiteufel/ShokiMod",
+		"sources": "https://github.com/shokiteufel/ShokiMod",
+		"issues": "https://github.com/shokiteufel/ShokiMod/issues"
 	},
 	"license": "LGPL-3.0-or-later",
 	"icon": "assets/shokimod/icon.png",
@@ -29,7 +33,8 @@
 		}
 	],
 	"custom": {
-		"shokimod:upstream": "GanKura 6.4.0+26.1.x"
+		"shokimod:upstream": "GanKura 6.4.0+26.1.x (fork point 39d3901, 2026-08-22)",
+		"shokimod:credits": "https://github.com/shokiteufel/ShokiMod/blob/26.1.x/CREDITS.md"
 	},
 	"depends": {
 		"fabricloader": ">=0.19.2",
