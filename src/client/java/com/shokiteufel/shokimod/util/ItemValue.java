@@ -43,8 +43,26 @@ public final class ItemValue {
         }
     }
 
-    /** Beide Basarpreise einer Ware, so wie Hypixel sie in quick_status liefert */
-    public record BazaarPrice(double instantSell, double sellOrder) {
+    /**
+     * Die Basarpreise einer Ware.
+     *
+     * Die ersten beiden sind die gewichteten Mittel aus quick_status - richtig fuer
+     * "jetzt kaufen" und "jetzt verkaufen", weil man sich dabei ohnehin durch mehrere
+     * Auftraege arbeitet. Die letzten beiden sind die Spitzen des Auftragsbuchs, und
+     * nur die zaehlen fuer einen eigenen Auftrag: Dort geht es allein darum, wen man
+     * ueberbieten oder unterbieten muss.
+     *
+     * Die zwei koennen weit auseinanderliegen. Beim Gold Lotus standen 53.966 gegen
+     * 555.555 - das Zwanzigfache.
+     */
+    public record BazaarPrice(double instantSell, double sellOrder,
+                              double cheapestOffer, double highestBid) {
+
+        /** Alte Form ohne Auftragsbuch: dann treten die Mittel an dessen Stelle */
+        public BazaarPrice(double instantSell, double sellOrder) {
+            this(instantSell, sellOrder, sellOrder, instantSell);
+        }
+
         double pick(PriceMode mode) {
             return mode == PriceMode.SELL_ORDER ? sellOrder : instantSell;
         }
@@ -220,6 +238,16 @@ public final class ItemValue {
      * quick_status je Ware: sellPrice zahlt der Sofortverkauf, buyPrice bringt eine
      * Verkaufsorder - so nennt es auch Skysofts Tooltip "Bazaar Sell Order".
      */
+    /** Der oberste Eintrag einer Seite des Auftragsbuchs, sonst der Rueckfallwert */
+    private static double ersterPreis(JsonObject product, String seite, double rueckfall) {
+        com.google.gson.JsonArray liste = product.getAsJsonArray(seite);
+        if (liste == null || liste.isEmpty() || !liste.get(0).isJsonObject()) return rueckfall;
+        JsonObject erster = liste.get(0).getAsJsonObject();
+        if (erster.get("pricePerUnit") == null) return rueckfall;
+        double wert = erster.get("pricePerUnit").getAsDouble();
+        return wert > 0 ? wert : rueckfall;
+    }
+
     private static Map<String, BazaarPrice> parseBazaar(JsonObject root) {
         Map<String, BazaarPrice> out = new HashMap<>();
         if (!root.has("products")) return out;
@@ -236,7 +264,14 @@ public final class ItemValue {
 
             double instantSell = status.has("sellPrice") ? status.get("sellPrice").getAsDouble() : 0;
             double sellOrder = status.has("buyPrice") ? status.get("buyPrice").getAsDouble() : 0;
-            if (instantSell > 0 || sellOrder > 0) out.put(id, new BazaarPrice(instantSell, sellOrder));
+            // Die Spitzen des Auftragsbuchs. Die Namen sind aus Sicht des Spielers
+            // gewaehlt: buy_summary sind die Angebote, aus denen man kauft,
+            // sell_summary die Auftraege, in die man verkauft
+            double guenstigstes = ersterPreis(product, "buy_summary", sellOrder);
+            double hoechster = ersterPreis(product, "sell_summary", instantSell);
+            if (instantSell > 0 || sellOrder > 0) {
+                out.put(id, new BazaarPrice(instantSell, sellOrder, guenstigstes, hoechster));
+            }
         }
         return out;
     }

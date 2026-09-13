@@ -90,6 +90,25 @@ public final class ShardProfitData {
             long[] live = BazaarLive.priceOf(bazaarId);
             return live != null && live[1] > 0 ? live[1] : instantSell;
         }
+
+        /**
+         * Was ein eigener Kaufauftrag kostet: den hoechsten offenen ueberbieten.
+         *
+         * Nicht dasselbe wie der Sofortverkaufspreis, auch wenn beide dieselbe Seite
+         * des Buchs meinen. Der eine ist ein gewichtetes Mittel ueber viele Auftraege,
+         * der andere die Spitze - und bei duenn gehandelten Waren liegt dazwischen das
+         * Zwanzigfache.
+         */
+        long bidNow() {
+            long hoechster = BazaarLive.highestBid(bazaarId);
+            return hoechster > 0 ? hoechster : sellNow();
+        }
+
+        /** Was eine eigene Verkaufsorder bringt: das guenstigste Angebot unterbieten */
+        long offerNow() {
+            long guenstigstes = BazaarLive.cheapestOffer(bazaarId);
+            return guenstigstes > 0 ? guenstigstes : buyNow();
+        }
     }
 
     /**
@@ -262,9 +281,9 @@ public final class ShardProfitData {
             // gerade kein Angebot". Wer das als Zahl nimmt, bekommt eine Fusion ohne
             // Kosten an die Spitze gereiht - das schoenste Geschaeft des Tages, und
             // keines, das sich machen laesst. Solche Zeilen fallen weg
-            long preisA = instantBuy ? a.buyNow() : a.sellNow();
-            long preisB = instantBuy ? b.buyNow() : b.sellNow();
-            long preisZiel = instantSell ? ziel.sellNow() : ziel.buyNow();
+            long preisA = instantBuy ? a.buyNow() : a.bidNow();
+            long preisB = instantBuy ? b.buyNow() : b.bidNow();
+            long preisZiel = instantSell ? ziel.sellNow() : ziel.offerNow();
             if (preisA <= 0 || preisB <= 0 || preisZiel <= 0) continue;
 
             int menge = outAmount[i];

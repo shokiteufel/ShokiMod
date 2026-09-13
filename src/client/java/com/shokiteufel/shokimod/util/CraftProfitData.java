@@ -309,12 +309,19 @@ public final class CraftProfitData {
     private static long buyPrice(String id, boolean instant) {
         long[] live = BazaarLive.priceOf(id);
         if (live != null) {
-            long wert = instant ? live[0] : live[1];
+            // Sofortkauf: das gewichtete Mittel, denn man arbeitet sich durch mehrere
+            // Angebote. Kaufauftrag: den hoechsten offenen Auftrag, denn genau den muss
+            // man ueberbieten, damit der eigene ueberhaupt an die Reihe kommt
+            long wert = instant ? live[0] : BazaarLive.highestBid(id);
             if (wert > 0) return wert;
+            // Sucht gerade niemand, gibt es nichts zu ueberbieten - dann bleibt das
+            // Mittel als grobe Auskunft, statt gar keine zu haben
+            if (!instant && live[1] > 0) return live[1];
         }
         ItemValue.BazaarPrice bazaar = ItemValue.BAZAAR.get(id);
         if (bazaar != null) {
-            double wert = instant ? bazaar.sellOrder() : bazaar.instantSell();
+            // Dieselbe Regel wie oben: sofort das Mittel, per Auftrag die Spitze
+            double wert = instant ? bazaar.sellOrder() : bazaar.highestBid();
             if (wert > 0) return Math.round(wert);
         }
         Double bin = ItemValue.LOWEST_BIN.get(id);
@@ -337,12 +344,15 @@ public final class CraftProfitData {
         if (bazaarFirst) {
             long[] live = BazaarLive.priceOf(id);
             if (live != null) {
-                long wert = instant ? live[1] : live[0];
+                // Sofortverkauf: das gewichtete Mittel. Verkaufsorder: das guenstigste
+                // offene Angebot, denn das muss man unterbieten
+                long wert = instant ? live[1] : BazaarLive.cheapestOffer(id);
                 if (wert > 0) return wert;
+                if (!instant && live[0] > 0) return live[0];
             }
             ItemValue.BazaarPrice bazaar = ItemValue.BAZAAR.get(id);
             if (bazaar != null) {
-                double wert = instant ? bazaar.instantSell() : bazaar.sellOrder();
+                double wert = instant ? bazaar.instantSell() : bazaar.cheapestOffer();
                 if (wert > 0) return Math.round(wert);
             }
             return 0;

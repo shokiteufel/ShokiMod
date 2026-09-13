@@ -118,6 +118,41 @@ public final class BazaarLive {
     }
 
     /**
+     * Der Preis des obersten Eintrags einer Seite des Auftragsbuchs.
+     *
+     * @return 0, wenn es die Seite nicht gibt oder sie leer ist
+     */
+    private static long ersterPreis(JsonObject eintrag, String seite) {
+        com.google.gson.JsonArray liste = eintrag.getAsJsonArray(seite);
+        if (liste == null || liste.isEmpty()) return 0L;
+        if (!liste.get(0).isJsonObject()) return 0L;
+        JsonObject erster = liste.get(0).getAsJsonObject();
+        if (erster.get("pricePerUnit") == null) return 0L;
+        return Math.round(erster.get("pricePerUnit").getAsDouble());
+    }
+
+    /**
+     * Das guenstigste offene Verkaufsangebot - was eine eigene Verkaufsorder
+     * unterbieten muss, um zuerst bedient zu werden.
+     *
+     * @return 0, wenn kein frischer Stand vorliegt oder niemand etwas anbietet
+     */
+    public static long cheapestOffer(String bazaarId) {
+        long[] p = priceOf(bazaarId);
+        return p == null || p.length < 5 ? 0L : p[4];
+    }
+
+    /**
+     * Der hoechste offene Kaufauftrag - was ein eigener Kaufauftrag ueberbieten muss.
+     *
+     * @return 0, wenn kein frischer Stand vorliegt oder niemand etwas sucht
+     */
+    public static long highestBid(String bazaarId) {
+        long[] p = priceOf(bazaarId);
+        return p == null || p.length < 6 ? 0L : p[5];
+    }
+
+    /**
      * Wie viele Stueck an einem Tag verkauft werden, im Schnitt der letzten Woche.
      *
      * Hypixel fuehrt keinen Tageswert, nur die Summe der letzten sieben Tage. Geteilt
@@ -194,6 +229,24 @@ public final class BazaarLive {
                 if (eintrag == null) continue;
                 JsonObject stand = eintrag.getAsJsonObject("quick_status");
                 if (stand == null) continue;
+                // Die Spitze des Auftragsbuchs, beide Seiten.
+                //
+                // quick_status liefert gewichtete Mittel ueber viele Auftraege. Fuer
+                // "jetzt kaufen" oder "jetzt verkaufen" ist das richtig - man arbeitet
+                // sich ohnehin durch mehrere. Fuer einen eigenen Auftrag ist es falsch:
+                // Dort zaehlt allein, wen man ueberbieten oder unterbieten muss, und
+                // das ist der oberste Eintrag.
+                //
+                // Beim Gold Lotus lagen zwischen beidem 53.966 und 555.555 - das
+                // Zwanzigfache. Ein Kaufauftrag zu 53.966 wird nie bedient, solange
+                // jemand 555.555 bietet; die Rechnung stand auf einem Preis, den es
+                // nicht gibt.
+                //
+                // Die Namen sind aus Sicht des Spielers gewaehlt: buy_summary sind die
+                // Angebote, aus denen man kauft (aufsteigend), sell_summary die
+                // Auftraege, in die man verkauft (absteigend).
+                long guenstigstesAngebot = ersterPreis(eintrag, "buy_summary");
+                long hoechsterAuftrag = ersterPreis(eintrag, "sell_summary");
                 long kaufen = Math.round(stand.get("buyPrice") == null ? 0
                         : stand.get("buyPrice").getAsDouble());
                 long verkaufen = Math.round(stand.get("sellPrice") == null ? 0
@@ -204,7 +257,8 @@ public final class BazaarLive {
                         : stand.get("sellMovingWeek").getAsLong();
                 long wocheGekauft = stand.get("buyMovingWeek") == null ? 0
                         : stand.get("buyMovingWeek").getAsLong();
-                frisch.put(id, new long[]{kaufen, verkaufen, wocheVerkauft, wocheGekauft});
+                frisch.put(id, new long[]{kaufen, verkaufen, wocheVerkauft, wocheGekauft,
+                        guenstigstesAngebot, hoechsterAuftrag});
             }
             if (frisch.isEmpty()) {
                 lastError = "no products in the answer";
