@@ -26,15 +26,28 @@ import java.util.regex.Pattern;
 /**
  * Erinnert daran, wenn ein Kuchen-Buff abgelaufen ist.
  *
- * Uebernommen aus RiccioFishingUtils ("Outdated cake alert", GPL-3.0, Riccio): Wer
- * einen New Year Cake isst, bekommt "Yum! You gain +X ... for 48 hours!" in den Chat.
- * Die Mod merkt sich je Kuchen den Zeitpunkt; nach 48 Stunden gilt er als abgelaufen.
- * Neu abgelaufene Kuchen werden sofort gemeldet, danach in Abstaenden, solange einer
- * abgelaufen bleibt. Sind laut Tab-Liste wieder alle Kuchen aktiv, wird die Liste
- * geleert.
+ * <p><b>Herkunft.</b> Der Ablauf stammt aus RiccioFishingUtils ("Outdated cake
+ * alert", GPL-3.0, Riccio) - abgeglichen am 13.09.2026 gegen dessen
+ * CakeExpiredAlert.kt. Uebernommen ist die Vorgehensweise: Wer einen New Year Cake
+ * isst, bekommt "Yum! You gain +X ... for 48 hours!" in den Chat; je Kuchen wird der
+ * Zeitpunkt gemerkt, nach 48 Stunden gilt er als abgelaufen; neu Abgelaufenes wird
+ * sofort gemeldet, danach in Abstaenden; steht in der Tab-Liste wieder die volle Zahl
+ * Century Cakes, wird die Liste geleert.
  *
- * Neu gegenueber RFU: die Meldung traegt einen anklickbaren Text [Get Cakes!], der
- * einen Befehl ausfuehrt - standardmaessig /visit SchiggyMobil.
+ * <p>Die Umsetzung ist eigene Arbeit und sieht anders aus: RFU haengt drei getrennte
+ * Tick-Schleifen ein (20, 300, 3000 Ticks) und legt die Kuchen in eigenen
+ * Datenklassen mit Instant ab; hier laeuft eine Schleife alle zwanzig Ticks und
+ * verzweigt darin, und gemerkt wird in der Mod-Einstellung als Name auf Zeitstempel.
+ * Der Wiederholungsabstand ist einstellbar statt fest, zurueckgesetzt wird ueber
+ * einen Knopf statt ueber einen eigenen Befehl.
+ *
+ * <p>Woertlich gleich sind allein die beiden Muster - und die beschreiben Hypixels
+ * Chat- und Tab-Zeilen, nicht RFUs Erfindung. Die Meldungstexte waren anfangs
+ * ebenfalls RFUs; sie sind durch eigene ersetzt, damit nichts Geschriebenes aus einer
+ * GPL-Mod in dieser LGPL-Mod steht.
+ *
+ * <p>Neu gegenueber RFU: der anklickbare Text [Get Cakes!], der einen Befehl
+ * ausfuehrt - standardmaessig /visit SchiggyMobil -, ein Ton und der Testknopf.
  */
 public final class CakeReminder {
 
@@ -94,11 +107,11 @@ public final class CakeReminder {
         for (String name : outdated) if (!lastOutdated.contains(name)) fresh.add(name);
         long now = System.currentTimeMillis();
         if (!fresh.isEmpty()) {
-            remind(client, fresh.size() + " of your cakes just expired!", outdated);
+            remind(client, fresh.size() + " cake buffs just ran out", outdated);
             lastRemindMillis = now;
         } else if (!outdated.isEmpty() && cfg().cakeRepeatMinutes > 0
                 && now - lastRemindMillis >= cfg().cakeRepeatMinutes * 60_000L) {
-            remind(client, "You have " + outdated.size() + " expired cakes!", outdated);
+            remind(client, outdated.size() + " cake buffs are still missing", outdated);
             lastRemindMillis = now;
         }
         lastOutdated.clear();
@@ -140,7 +153,7 @@ public final class CakeReminder {
     /** Die Zeile: Text, dann der anklickbare Teil, der den Befehl ausfuehrt */
     static Component message(String text, List<String> outdated) {
         String command = cfg().cakeCommand == null ? "" : cfg().cakeCommand.trim();
-        StringBuilder hover = new StringBuilder("Expired cakes:");
+        StringBuilder hover = new StringBuilder("Ran out:");
         for (String name : outdated) hover.append("\n- ").append(name);
 
         MutableComponent line = Component.literal("[ShokiMod] ").withStyle(ChatFormatting.DARK_AQUA)
@@ -161,7 +174,7 @@ public final class CakeReminder {
     public static void test() {
         Minecraft client = Minecraft.getInstance();
         if (client.player == null) return;
-        remind(client, "1 of your cakes just expired!", List.of("Test Cake"));
+        remind(client, "1 cake buff just ran out", List.of("Test Cake"));
     }
 
     /** Knopf in den Einstellungen und Tab-Abgleich: alles vergessen */

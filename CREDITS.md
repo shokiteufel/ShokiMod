@@ -6,7 +6,7 @@ Sie ist keine Höflichkeit, sondern Pflicht. ShokiMod steht unter LGPL-3.0, und 
 fremde Arbeit einbaut, nennt sie beim Namen — auch dann, wenn nur die Idee übernommen
 wurde und keine einzige Zeile.
 
-Gemessen am Stand vom 13.09.2026 (Version 1.6.1).
+Gemessen am Stand vom 13.09.2026 (Version 1.6.3).
 
 ---
 
@@ -113,15 +113,34 @@ der Farbe des Bonus, Warnung beim Verschwinden (`HotspotTracker`, `HotspotRender
 
 ### RiccioFishingUtils (GPL-3.0-or-later, Riccio)
 
-Die Kuchen-Erinnerung: „Yum! You gain … for 48 hours!" mitlesen, nach 48 Stunden
-melden (`CakeReminder`). Der anklickbare `[Get Cakes!]`-Text ist eine eigene Zutat.
+Die Kuchen-Erinnerung (`CakeReminder`): „Yum! You gain … for 48 hours!" mitlesen, je
+Kuchen den Zeitpunkt merken, nach 48 Stunden melden, und die Liste leeren, sobald die
+Tab-Liste wieder die volle Zahl Century Cakes zeigt.
 
-> **Offener Punkt.** Im Quelltext steht „übernommen aus RiccioFishingUtils". RFU
-> steht unter GPL-3.0 — und GPL ist strenger als die LGPL, unter der ShokiMod läuft.
-> Solange nur *beschrieben* wurde, was RFU tut (Chatzeile, 48 Stunden), ist das
-> unproblematisch: Ideen und Zeilenformate sind nicht geschützt. Wurde dagegen
-> tatsächlich Code kopiert, müsste ShokiMod insgesamt unter GPL-3.0 stehen. Das ist
-> zu klären, bevor es jemand anders klärt.
+**Abgeglichen am 13.09.2026** gegen RFUs
+[`CakeExpiredAlert.kt`](https://github.com/Ricciow/RiccioFishingUtils-Modern/blob/main/src/main/kotlin/cloud/glitchdev/rfu/feature/other/CakeExpiredAlert.kt),
+Zeile für Zeile:
+
+| | RFU | ShokiMod |
+|---|---|---|
+| Ablauf-Logik | 48 h, `lastOutdated`-Differenz, Tab-Abgleich bei `current == total` | **gleich** |
+| Muster (Chat, Tab) | zwei Regexe | **zeichengleich** (nur `^`/`$` ergänzt) |
+| Sprache und Aufbau | Kotlin, drei getrennte Tick-Schleifen (20/300/3000) | Java, eine Schleife alle 20 Ticks mit Verzweigung |
+| Datenhaltung | eigene Datenklassen `CakesEntry`/`Cake` mit `Instant` | `Map<String, Long>` in der Mod-Einstellung |
+| Wiederholung | fest alle 3000 Ticks | einstellbar in Minuten |
+| Zurücksetzen | eigener Befehl `/rfuclearcakes` | Knopf in den Einstellungen |
+| Zusätzlich | — | `[Get Cakes!]` mit Klick-Befehl, Ton, Testknopf |
+
+**Einordnung: inspiriert, nicht übernommen.** Der Ablauf ist RFUs, die Umsetzung ist
+eigene Arbeit — andere Sprache, anderer Aufbau, andere Datenhaltung, andere
+Bedienung. Wörtlich gleich sind allein die beiden Muster, und die beschreiben
+Hypixels Chat- und Tab-Zeilen, nicht RFUs Erfindung.
+
+Beim Abgleich fiel auf, dass die **Meldungstexte** wörtlich RFUs waren („… of your
+cakes just expired!", „You have … expired cakes!", „Expired Cakes:"). Das sind
+Riccios Sätze, keine Tatsachen über Hypixel. Sie sind durch eigene ersetzt — damit
+steht nichts Geschriebenes aus einer GPL-Mod in dieser LGPL-Mod, und die Frage
+erledigt sich, statt offen zu bleiben.
 
 ---
 

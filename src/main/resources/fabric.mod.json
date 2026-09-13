@@ -2,7 +2,7 @@
 	"schemaVersion": 1,
 	"id": "shokimod",
 	"version": "${version}",
-	"name": "ShokiTeufel",
+	"name": "ShokiMod",
 	"description": "Hypixel Skyblock mod: rare loot alerts with designable banners, fusion/craft/forge profit screens, mining and pet HUDs, mob markers, critter safari helpers and chat rules with custom sounds. Fork of GanKura by GanKuraDee; CREDITS.md names every borrowed feature and its source mod.",
 	"authors": [
 		"ShokiTeufel"
