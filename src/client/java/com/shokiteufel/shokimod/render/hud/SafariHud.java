@@ -340,6 +340,10 @@ public final class SafariHud {
 
         for (Panel panel : PANELS) {
             if (!panel.visible() || !panel.showsHere() || !panel.showsNow()) continue;
+            // Der Gilden-Kasten nur, solange ein Event laeuft. "No event running" in der Ecke
+            // sagt nichts, was man wissen muesste. Hier und nicht in build(): Der HUD-Editor
+            // baut den Kasten auch - dort muss er zum Platzieren sichtbar bleiben
+            if (panel == Panel.GUILD && !com.shokiteufel.shokimod.handler.GuildEvents.eventRunning()) continue;
             draw(graphics, client.font, panel, panel.build());
         }
     }

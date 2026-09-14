@@ -118,6 +118,23 @@ public final class GuildEvents {
         return current;
     }
 
+    /**
+     * Laeuft gerade ein Event?
+     *
+     * Gezaehlt wird nur, was noch nicht vorbei ist. Der Feed kann alt sein - ist der Bot
+     * aus, bleibt der letzte Stand liegen, und dort stuende ein Event, das laengst zu Ende
+     * ist. Ohne diesen Blick aufs Ende bliebe der Kasten dann stehen, mit "Ends in: now".
+     */
+    public static boolean eventRunning() {
+        Feed feed = current;
+        if (feed == null) return false;
+        long jetzt = System.currentTimeMillis() / 1000L;
+        for (Event e : feed.events()) {
+            if (e.end() > jetzt) return true;
+        }
+        return false;
+    }
+
     public static boolean everLoaded() {
         return current != null;
     }
