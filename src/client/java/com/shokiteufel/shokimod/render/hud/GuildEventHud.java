@@ -42,7 +42,10 @@ public final class GuildEventHud {
         }
 
         List<Event> events = feed.events();
-        if (events.isEmpty() && feed.upcoming().isEmpty()) {
+        // Angekuendigte gehoeren nur dazu, wenn die Einstellung sie will - sonst stuende im
+        // Kasten ein Countdown, den man ausdruecklich abgewaehlt hat
+        boolean angekuendigt = ModConfig.INSTANCE.guild.events.showUpcoming;
+        if (events.isEmpty() && (!angekuendigt || feed.upcoming().isEmpty())) {
             panel.line("No event running", MUTED);
             return panel;
         }
@@ -52,6 +55,7 @@ public final class GuildEventHud {
             if (i > 0) panel.blank();
             addEvent(panel, events.get(i), limit);
         }
+        if (!angekuendigt) return panel;
         // Angekuendigte Events: Name, Wertung, Reward und wann es losgeht
         long nowSeconds = System.currentTimeMillis() / 1000L;
         for (GuildEvents.Upcoming u : feed.upcoming()) {

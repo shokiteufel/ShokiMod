@@ -1006,9 +1006,20 @@ public class ModConfig extends Config {
         public boolean enabled = false;
 
         @Expose
-        @ConfigOption(name = "Show panel", desc = "The event panel: name, time left, top places and your own. Move it with /shoki hud.")
+        @ConfigOption(name = "Show panel", desc = "The event panel: name, time left, top places and your own. Hidden while there is nothing to show. Move it with /shoki hud.")
         @ConfigEditorBoolean
         public boolean showHud = true;
+
+        /**
+         * Ob der Kasten schon fuer ein angekuendigtes Event erscheint.
+         *
+         * An heisst: Sobald der Bot ein Event ankuendigt, steht es mit Countdown im Kasten.
+         * Aus heisst: Der Kasten zeigt nur, was gerade laeuft, und bleibt bis zum Start weg.
+         */
+        @Expose
+        @ConfigOption(name = "Show announced", desc = "Shows the panel as soon as an event is announced, with a countdown to its start. Off means only running events appear.")
+        @ConfigEditorBoolean
+        public boolean showUpcoming = true;
 
         @Expose
         @ConfigOption(name = "Top rows", desc = "How many places the panel lists.")

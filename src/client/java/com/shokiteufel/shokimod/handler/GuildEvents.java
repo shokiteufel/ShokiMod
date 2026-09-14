@@ -135,6 +135,33 @@ public final class GuildEvents {
         return false;
     }
 
+    /**
+     * Ist ein Event angekuendigt, das noch nicht angefangen hat?
+     *
+     * Nur Starts in der Zukunft zaehlen - ein Event, dessen Start vorbei ist, steht mit
+     * dem naechsten Feed unter den laufenden und wird dort gezaehlt.
+     */
+    public static boolean eventAnnounced() {
+        Feed feed = current;
+        if (feed == null) return false;
+        long jetzt = System.currentTimeMillis() / 1000L;
+        for (Upcoming u : feed.upcoming()) {
+            if (u.start() > jetzt) return true;
+        }
+        return false;
+    }
+
+    /**
+     * Soll der Kasten gerade zu sehen sein?
+     *
+     * Ein laufendes Event immer; ein angekuendigtes nur, wenn die Einstellung "Show
+     * announced" es will. Diese eine Stelle entscheidet, damit Zeichnen und Inhalt nie
+     * auseinanderlaufen.
+     */
+    public static boolean panelWanted() {
+        return eventRunning() || (cfg().showUpcoming && eventAnnounced());
+    }
+
     public static boolean everLoaded() {
         return current != null;
     }
