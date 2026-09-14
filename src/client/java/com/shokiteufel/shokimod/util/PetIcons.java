@@ -188,9 +188,35 @@ public final class PetIcons {
         net.minecraft.client.Minecraft client = net.minecraft.client.Minecraft.getInstance();
         client.execute(() -> {
             if (client.player == null) return;
+            // Genau wie Hypixels eigene Meldung, die manche Drachen-Skins zeigen:
+            // "Your Jade Dragon leveled up to level 569!" - gruen, der Name in der
+            // Farbe seiner Seltenheit, die Stufe blau. Wer beide Zeilen sieht, soll
+            // nicht zwei verschiedene Sprachen lesen
             client.player.sendSystemMessage(net.minecraft.network.chat.Component.literal(
-                    "§6--- §e" + petName + " §6reached level §e" + level + "\u2b50§6! ---"));
+                    "§aYour " + rarityColour() + petName + " §aleveled up to level §9"
+                            + level + "§a!"));
         });
+    }
+
+    /**
+     * Die Farbe, in der Hypixel einen Pet-Namen schreibt.
+     *
+     * Gelesen wird die Seltenheit des aktiven Pets - gemeldet wird ohnehin nur das,
+     * dessen Stufe gerade gestiegen ist. Unbekannt heisst Gold, die Farbe der
+     * Legendaeren, bei denen der Ueberschuss am haeufigsten vorkommt.
+     */
+    private static String rarityColour() {
+        String r = com.shokiteufel.shokimod.scanner.PetState.rarity();
+        return switch (r == null ? "" : r.toUpperCase(java.util.Locale.ROOT)) {
+            case "COMMON" -> "§f";
+            case "UNCOMMON" -> "§a";
+            case "RARE" -> "§9";
+            case "EPIC" -> "§5";
+            case "MYTHIC" -> "§d";
+            case "DIVINE" -> "§b";
+            case "SPECIAL" -> "§c";
+            default -> "§6";
+        };
     }
 
     /** Die zuletzt bekannte Ueberschuss-Stufe, oder 0 */
