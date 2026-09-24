@@ -19,6 +19,7 @@ import net.minecraft.world.item.ItemStack;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -445,37 +446,40 @@ public final class ItemChanges {
      * aus der auch der Collection-Tracker liest.
      */
     private static void sacks(Component message) {
-        List<String> hover = new ArrayList<>();
-        collectHoverText(message, hover);
-        if (hover.isEmpty()) return;
+        List<String> blocks = hoverBlocks(message);
+        if (blocks.isEmpty()) return;
 
         Map<String, Integer> gains = new LinkedHashMap<>();
-        boolean adding = false;
-        for (String line : hover) {
-            String clean = COLOUR_CODE.matcher(line).replaceAll("").trim();
-            String lower = clean.toLowerCase(Locale.ROOT);
-            if (lower.startsWith("added items")) {
-                adding = true;
-                continue;
-            }
-            if (lower.startsWith("removed items")) {
-                adding = false;
-                continue;
-            }
-            if (!adding) continue;
+        for (String block : blocks) {
+            // Jede Aufstellung fuer sich: die Ueberschrift "Added items:" gilt nur
+            // innerhalb ihrer eigenen, nicht bis in die naechste hinein
+            boolean adding = false;
+            for (String line : block.split("\n")) {
+                String clean = line.trim();
+                String lower = clean.toLowerCase(Locale.ROOT);
+                if (lower.startsWith("added items")) {
+                    adding = true;
+                    continue;
+                }
+                if (lower.startsWith("removed items")) {
+                    adding = false;
+                    continue;
+                }
+                if (!adding) continue;
 
-            Matcher matcher = SACK_LINE.matcher(clean);
-            if (!matcher.find()) continue;
-            if ("-".equals(matcher.group(1))) continue;
-            int amount = number(matcher.group(2));
-            if (amount <= 0) continue;
+                Matcher matcher = SACK_LINE.matcher(clean);
+                if (!matcher.find()) continue;
+                if ("-".equals(matcher.group(1))) continue;
+                int amount = number(matcher.group(2));
+                if (amount <= 0) continue;
 
-            String name = TRAILING_SYMBOLS.matcher(LEADING_SYMBOLS.matcher(matcher.group(3))
-                    .replaceAll("")).replaceAll("").trim();
-            if (name.isEmpty()) continue;
-            List<String> ids = ItemNames.idsFor(name);
-            if (ids.isEmpty()) continue;
-            gains.merge(ids.get(0), amount, Integer::sum);
+                String name = TRAILING_SYMBOLS.matcher(LEADING_SYMBOLS.matcher(matcher.group(3))
+                        .replaceAll("")).replaceAll("").trim();
+                if (name.isEmpty()) continue;
+                List<String> ids = ItemNames.idsFor(name);
+                if (ids.isEmpty()) continue;
+                gains.merge(ids.get(0), amount, Integer::sum);
+            }
         }
 
         // Der eigentliche Punkt dieser Verrechnung: ein gefangener Fisch landet erst
@@ -502,10 +506,27 @@ public final class ItemChanges {
         }
     }
 
-    private static void collectHoverText(Component component, List<String> out) {
+    /**
+     * Der Text am Mauszeiger, Zeile fuer Zeile - jede Aufstellung aber nur einmal.
+     *
+     * Der Mauszeiger-Text haengt am Stil einer Nachricht, und den erben ihre Teile.
+     * Wer den Baum abgeht, bekommt dieselbe Aufstellung deshalb so oft zurueck, wie
+     * die Zeile Teile hat. Genau das hat jeden Posten aus einem Sack doppelt gezaehlt:
+     * "+3 Raw Cod" stand zweimal da, und beide Male wurde gebucht. Skysoft sortiert an
+     * derselben Stelle aus, und aus demselben Grund.
+     */
+    private static List<String> hoverBlocks(Component message) {
+        LinkedHashSet<String> blocks = new LinkedHashSet<>();
+        collectHoverText(message, blocks);
+        return new ArrayList<>(blocks);
+    }
+
+    /** Jede Aufstellung einmal - verglichen wird ohne Farbcodes, sonst zaehlt dieselbe zweimal */
+    private static void collectHoverText(Component component, LinkedHashSet<String> out) {
         HoverEvent hover = component.getStyle().getHoverEvent();
         if (hover instanceof HoverEvent.ShowText showText) {
-            for (String line : showText.value().getString().split("\n")) out.add(line);
+            String block = showText.value().getString();
+            if (!block.isBlank()) out.add(COLOUR_CODE.matcher(block).replaceAll(""));
         }
         for (Component sibling : component.getSiblings()) collectHoverText(sibling, out);
     }

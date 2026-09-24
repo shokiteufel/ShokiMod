@@ -47,6 +47,19 @@ public final class NearbyOverlay {
         return false;
     }
 
+    /**
+     * Zeichnet dieser Weg den Kasten gleich noch einmal darueber?
+     *
+     * Der gewoehnliche HUD-Durchgang fragt danach: Er holt die zweite Lage selbst
+     * nach, wenn sie hier nicht kommt. Dieselbe Bedingung wie unten in draw() - sie
+     * steht nur an einer Stelle, damit beide nicht auseinanderlaufen koennen.
+     */
+    public static boolean drawsSecondLayer() {
+        net.minecraft.client.gui.screens.Screen offen = Minecraft.getInstance().gui.screen();
+        return offen instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?>
+                || offen instanceof net.minecraft.client.gui.screens.ChatScreen;
+    }
+
     public static void draw(GuiGraphicsExtractor graphics) {
         // Der Kasten ueber der Hunting-Box gehoert nicht zu den Kaesten des Spiels
         // und folgt deren Regeln nicht: Er erscheint genau dort, wo er gebraucht wird
@@ -68,6 +81,14 @@ public final class NearbyOverlay {
         }
         // Dieselbe Auswahl wie beim Spielen - was eingeschaltet ist und hierher gehoert
         SafariHud.render(graphics);
+    }
+
+    /** Haelt der Spieler gerade eine Umschalttaste? */
+    private static boolean shiftDown() {
+        com.mojang.blaze3d.platform.Window window = Minecraft.getInstance().getWindow();
+        if (window == null) return false;
+        return com.mojang.blaze3d.platform.InputConstants.isKeyDown(window, org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_SHIFT)
+                || com.mojang.blaze3d.platform.InputConstants.isKeyDown(window, org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT_SHIFT);
     }
 
     /** Gibt es bei offenem Fenster ueberhaupt etwas Anklickbares? */
@@ -114,6 +135,23 @@ public final class NearbyOverlay {
                 com.shokiteufel.shokimod.handler.ProfitTracker.reset();
                 SafariHud.invalidate(panel);
                 return true;
+            }
+
+            // Vor jeder Ware stehen zwei Knoepfe. Welcher gemeint ist, sagt der Abstand
+            // vom linken Rand der Schrift - gerechnet in den Massen des Kastens, denn
+            // gezeichnet wird er vergroessert
+            String itemId = ProfitHud.itemAt(row);
+            if (itemId != null && panel.scale() > 0) {
+                double localX = (mouseX - SafariHud.originX(panel)) / panel.scale() - HudPanel.padding();
+                int direction = ProfitHud.buttonAt(Minecraft.getInstance().font, localX);
+                if (direction != 0) {
+                    // Zehnerschritte mit Umschalt: dreissig Stueck einzeln wegzuklicken
+                    // waere kein Nachbessern mehr
+                    int step = shiftDown() ? 10 : 1;
+                    com.shokiteufel.shokimod.handler.ProfitTracker.adjust(itemId, direction * step);
+                    SafariHud.invalidate(panel);
+                    return true;
+                }
             }
         }
 
