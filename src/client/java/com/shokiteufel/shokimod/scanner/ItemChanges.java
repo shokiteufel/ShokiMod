@@ -329,7 +329,7 @@ public final class ItemChanges {
         if (!FeatureGate.itemChanges() || !GameState.Server.isSkyblock()) return;
         // Wer von Hand einlagert oder in der Box raeumt, steht in einem Fenster - das
         // ist kein Fund, sondern ein Umzug
-        if (Minecraft.getInstance().screen instanceof AbstractContainerScreen<?>) return;
+        if (Minecraft.getInstance().gui.screen() instanceof AbstractContainerScreen<?>) return;
 
         if (plain.contains(SACK_MARKER)) {
             sacks(message);
@@ -396,17 +396,7 @@ public final class ItemChanges {
      * "[Sacks] +38 items." traegt am Mauszeiger die Aufstellung - dieselbe Quelle,
      * aus der auch der Collection-Tracker liest.
      */
-<<<<<<< HEAD
-    public static void onChatMessage(Component message, String plain) {
-        if (message == null || plain == null || !plain.contains(SACK_MARKER)) return;
-        if (!FeatureGate.itemChanges() || !GameState.Server.isSkyblock()) return;
-        // Wer von Hand einlagert, hat den Sack offen - das ist kein Fund, sondern ein Umzug
-        Minecraft client = Minecraft.getInstance();
-        if (client.gui.screen() instanceof AbstractContainerScreen<?>) return;
-
-=======
     private static void sacks(Component message) {
->>>>>>> 488d366 (Shards zaehlen mit, Namen in ihrer Seltenheitsfarbe, Summe nach unten - Version 1.6.10)
         List<String> hover = new ArrayList<>();
         collectHoverText(message, hover);
         if (hover.isEmpty()) return;
