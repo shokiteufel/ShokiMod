@@ -81,9 +81,13 @@ public final class ProfitTracker {
             String itemId = entry.getKey();
             int amount = entry.getValue();
             if (itemId == null || amount <= 0) continue;
+            // Nur der erste Fund einer Ware kommt ins Log. Beim Minen faellt jede
+            // Sekunde etwas an - Zeile fuer Zeile waere das Log nach einer Stunde
+            // unlesbar, und mehr als "das hier wurde erkannt" sagt es nicht aus
+            boolean first = !cfg().counts.containsKey(itemId);
             cfg().counts.merge(itemId, amount, Integer::sum);
             counted = true;
-            ShokiMod.LOGGER.info("[Profit] +{} {} -> {}", amount, itemId, cfg().counts.get(itemId));
+            if (first) ShokiMod.LOGGER.info("[Profit] first {} x{}", itemId, amount);
         }
 
         if (counted) {
