@@ -17,6 +17,11 @@ import java.util.List;
 public class HudPanel {
 
     private static final int PADDING = 4;
+
+    /** Der Abstand vom Rand des Kastens zur Schrift - wer Klicks zuordnet, braucht ihn */
+    public static int padding() {
+        return PADDING;
+    }
     /** Abstand zwischen Beschriftung und Wert in einer Paar-Zeile */
     private static final int GUTTER = 8;
     private static final int LINE_HEIGHT = 10;

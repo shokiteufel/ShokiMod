@@ -104,8 +104,7 @@ public final class CollectionTracker {
         if (!plain.contains(SACK_MARKER)) return;
         if (!GameState.Server.isSkyblock()) return;
 
-        List<String> hover = new ArrayList<>();
-        collectHoverText(message, hover);
+        List<String> hover = hoverLines(message);
         if (hover.isEmpty()) return;
 
         // Erst die ganze Nachricht zusammenrechnen, dann buchen. Wer hochcraftet, nimmt rohe
@@ -232,11 +231,31 @@ public final class CollectionTracker {
         return TRAILING_SYMBOLS.matcher(LEADING_SYMBOLS.matcher(raw).replaceAll("")).replaceAll("").trim();
     }
 
-    /** Der Text am Mauszeiger, Zeile fuer Zeile - auch aus allen Anhaengseln der Nachricht */
-    private static void collectHoverText(Component component, List<String> out) {
+    /**
+     * Der Text am Mauszeiger, Zeile fuer Zeile - jede Aufstellung aber nur einmal.
+     *
+     * Der Mauszeiger-Text haengt am Stil und wird von den Teilen der Nachricht geerbt;
+     * wer den Baum abgeht, sammelt dieselbe Aufstellung mehrfach ein. Beim Profit-
+     * Tracker hat das jeden Posten doppelt gezaehlt, und hier zaehlte es still dieselbe
+     * Ernte mehrfach in die Sammlung.
+     */
+    private static List<String> hoverLines(Component message) {
+        java.util.LinkedHashSet<String> blocks = new java.util.LinkedHashSet<>();
+        collectHoverText(message, blocks);
+
+        List<String> out = new ArrayList<>();
+        for (String block : blocks) {
+            for (String line : block.split("\n")) out.add(line);
+        }
+        return out;
+    }
+
+    /** Jede Aufstellung einmal - verglichen wird ohne Farbcodes */
+    private static void collectHoverText(Component component, java.util.LinkedHashSet<String> out) {
         HoverEvent hover = component.getStyle().getHoverEvent();
         if (hover instanceof HoverEvent.ShowText showText) {
-            for (String line : showText.value().getString().split("\n")) out.add(line);
+            String block = showText.value().getString();
+            if (!block.isBlank()) out.add(COLOUR_CODE.matcher(block).replaceAll(""));
         }
         for (Component sibling : component.getSiblings()) collectHoverText(sibling, out);
     }

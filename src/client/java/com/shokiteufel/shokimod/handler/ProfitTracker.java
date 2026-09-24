@@ -184,6 +184,25 @@ public final class ProfitTracker {
         return !cfg().hidden.contains(itemId);
     }
 
+    /**
+     * Von Hand nachbessern.
+     *
+     * Der Kasten zeigt, was gezaehlt wurde - nicht, was gefallen ist. Meistens ist das
+     * dasselbe, aber wenn nicht, soll man es geradeziehen koennen, ohne alles
+     * zurueckzusetzen. Unter null geht nichts; wer eine Ware auf null stellt, nimmt sie
+     * aus der Liste.
+     */
+    public static void adjust(String itemId, int delta) {
+        if (itemId == null || delta == 0) return;
+
+        int updated = countOf(itemId) + delta;
+        if (updated > 0) cfg().counts.put(itemId, updated);
+        else cfg().counts.remove(itemId);
+        ModConfig.INSTANCE.saveNow();
+        ShokiMod.LOGGER.info("[Profit] {} {} by hand -> {}", delta > 0 ? "+" + delta : delta,
+                itemId, Math.max(0, updated));
+    }
+
     /** Der Klick in der Liste: aus wird an, an wird aus - in beiden Betriebsarten */
     public static void toggle(String itemId) {
         if (itemId == null) return;
