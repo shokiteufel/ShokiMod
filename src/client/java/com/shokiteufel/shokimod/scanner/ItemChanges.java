@@ -1,5 +1,6 @@
 package com.shokiteufel.shokimod.scanner;
 
+import com.shokiteufel.shokimod.ShokiMod;
 import com.shokiteufel.shokimod.data.FeatureGate;
 import com.shokiteufel.shokimod.data.GameState;
 import com.shokiteufel.shokimod.data.RareLootParser;
@@ -74,8 +75,15 @@ public final class ItemChanges {
      * bevor er gebraucht wird.
      */
     private static final long SACK_OFFSET_MILLIS = 65_000L;
-    /** Der Platz des SkyBlock-Menues in der Schnellleiste - sein Inhalt wechselt staendig */
-    private static final int MENU_SLOT = 8;
+    /**
+     * Das SkyBlock-Menue zaehlt nicht mit.
+     *
+     * Erkannt wird es an seiner Kennung, nicht an seinem Platz. Es liegt zwar
+     * gewoehnlich auf dem letzten Platz der Schnellleiste, aber man kann es
+     * verschieben - und dann lag dort ein gewoehnlicher Gegenstand, dessen Zugaenge
+     * niemand gezaehlt haette.
+     */
+    private static final String MENU_ID = "SKYBLOCK_MENU";
 
     private static final Pattern COLOUR_CODE = Pattern.compile("§.");
     private static final Pattern LEADING_SYMBOLS = Pattern.compile("^[^\\p{L}\\p{N}]+");
@@ -103,9 +111,18 @@ public final class ItemChanges {
     /** Fingerabdruck der Plaetze. Aendert er sich nicht, muss auch nicht gezaehlt werden */
     private static int previousSignature = 0;
     private static String previousContext = null;
-    /** Nach einem Wechsel: warten, bis Ruhe ist, und dann neu ansetzen statt zu melden */
-    private static boolean settling = true;
-    private static int stableTicks = 0;
+    /**
+     * Ticks, die nach einem Wechsel noch abzuwarten sind.
+     *
+     * Ein Zaehler, kein Ruhe-Erfordernis: Er laeuft in jedem Tick herunter, egal was
+     * im Inventar gerade passiert. Die erste Fassung wartete stattdessen darauf, dass
+     * sich zwanzig Ticks lang nichts ruehrt - und genau das kann ausbleiben. Wer
+     * ununterbrochen etwas aufsammelt, kam nie aus dem Warten heraus, und dann zaehlte
+     * der Kasten still gar nichts mehr.
+     */
+    private static int settleTicks = SETTLE_TICKS;
+    /** Der Stand, als ein Fenster aufging - um danach zu sehen, was hindurchkam */
+    private static Map<String, Integer> windowBaseline = null;
     /**
      * Abgaenge der letzten Sekunden, gegen die spaetere Zugaenge verrechnet werden.
      *
@@ -142,7 +159,7 @@ public final class ItemChanges {
 
     /** Steht schon ein Vergleichsstand, oder wird noch gewartet? */
     public static boolean ready() {
-        return !settling && previousCounts != null;
+        return settleTicks == 0 && previousCounts != null && windowBaseline == null;
     }
 
     private static void tick(Minecraft client) {
@@ -158,36 +175,51 @@ public final class ItemChanges {
         // Ein offener Behaelter ist der Weg, auf dem Gekauftes, Ausgelagertes und
         // Gecraftetes hereinkommt. Nichts davon ist ein Fund
         if (client.gui.screen() instanceof AbstractContainerScreen<?>) {
-            settling = true;
-            stableTicks = 0;
+            if (windowBaseline == null) {
+                windowBaseline = previousCounts == null ? Map.of() : previousCounts;
+            }
             return;
         }
 
         String context = context(client);
         if (!context.equals(previousContext)) {
             previousContext = context;
-            settling = true;
-            stableTicks = 0;
+            // Nach einem Wechsel kommt das Inventar Stueck fuer Stueck an; erst danach
+            // ist ein Vergleich etwas wert
+            settleTicks = SETTLE_TICKS;
             previousCounts = null;
+            windowBaseline = null;
+            return;
+        }
+
+        if (windowBaseline != null) {
+            // Das Fenster ist zu. Der Stand von jetzt ist der neue Vergleichspunkt -
+            // was durch das Fenster kam, zaehlt nicht als Fund
+            Map<String, Integer> current = counts(client);
+            noteWindow(windowBaseline, current);
+            windowBaseline = null;
+            previousCounts = current;
+            previousSignature = signature(client);
+            return;
+        }
+
+        if (settleTicks > 0) {
+            settleTicks--;
+            if (settleTicks == 0) {
+                previousCounts = counts(client);
+                previousSignature = signature(client);
+            }
+            return;
         }
 
         // Der billige Teil zuerst: hat sich ueberhaupt ein Platz geruehrt? Zwanzigmal je
         // Sekunde lautet die Antwort fast immer nein, und dann faellt alles Weitere weg
         int signature = signature(client);
-        if (signature == previousSignature) {
-            stableTicks++;
-            if (settling && stableTicks >= SETTLE_TICKS) {
-                previousCounts = counts(client);
-                settling = false;
-            }
-            return;
-        }
-
+        if (signature == previousSignature) return;
         previousSignature = signature;
-        stableTicks = 0;
 
         Map<String, Integer> current = counts(client);
-        if (settling || previousCounts == null) {
+        if (previousCounts == null) {
             previousCounts = current;
             return;
         }
@@ -195,6 +227,24 @@ public final class ItemChanges {
         Map<String, Integer> gains = diff(previousCounts, current);
         previousCounts = current;
         if (!gains.isEmpty()) dispatch(gains);
+    }
+
+    /**
+     * Was hereinkam, waehrend ein Fenster offen war - und deshalb nicht zaehlt.
+     *
+     * Steht nur im Log, damit die Frage "warum steht das nicht im Kasten?" eine
+     * Antwort hat. Truhe, Basar, Auktionshaus, Sack und Craft laufen alle ueber ein
+     * Fenster, und nichts davon ist ein Fund.
+     */
+    private static void noteWindow(Map<String, Integer> before, Map<String, Integer> after) {
+        Map<String, Integer> gains = new LinkedHashMap<>();
+        for (Map.Entry<String, Integer> entry : after.entrySet()) {
+            int delta = entry.getValue() - before.getOrDefault(entry.getKey(), 0);
+            if (delta > 0) gains.put(entry.getKey(), delta);
+        }
+        if (!gains.isEmpty()) {
+            ShokiMod.LOGGER.info("[Profit] came in through a window, not counted: {}", gains);
+        }
     }
 
     /**
@@ -224,7 +274,6 @@ public final class ItemChanges {
         List<ItemStack> items = client.player.getInventory().getNonEquipmentItems();
         int hash = 1;
         for (int slot = 0; slot < items.size(); slot++) {
-            if (slot == MENU_SLOT) continue;
             ItemStack stack = items.get(slot);
             if (stack == null || stack.isEmpty()) continue;
             hash = hash * 31 + ItemStack.hashItemAndComponents(stack) * 31 + stack.getCount();
@@ -241,7 +290,6 @@ public final class ItemChanges {
         Map<String, Integer> out = new LinkedHashMap<>();
         List<ItemStack> items = client.player.getInventory().getNonEquipmentItems();
         for (int slot = 0; slot < items.size(); slot++) {
-            if (slot == MENU_SLOT) continue;
             add(out, items.get(slot));
         }
         add(out, client.player.containerMenu.getCarried());
@@ -251,7 +299,7 @@ public final class ItemChanges {
     private static void add(Map<String, Integer> counts, ItemStack stack) {
         if (stack == null || stack.isEmpty()) return;
         String id = SkyBlockItems.idOf(stack);
-        if (id == null) return;
+        if (id == null || MENU_ID.equals(id)) return;
         counts.merge(id, stack.getCount(), Integer::sum);
         // Nur beim ersten Mal: den Namen auseinanderzunehmen lohnt sich nicht in jedem Tick
         if (!colours.containsKey(id)) {
@@ -473,8 +521,8 @@ public final class ItemChanges {
         previousCounts = null;
         previousContext = null;
         previousSignature = 0;
-        settling = true;
-        stableTicks = 0;
+        settleTicks = SETTLE_TICKS;
+        windowBaseline = null;
         losses.clear();
     }
 }
