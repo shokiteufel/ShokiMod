@@ -370,17 +370,14 @@ public final class SafariHud {
         graphics.pose().pushMatrix();
         graphics.pose().translate(originX(panel), originY(panel));
         graphics.pose().scale(scale, scale);
-        content.render(graphics, font, 0, 0, panel.alpha());
-        // Die zweite Lage.
+        // Einmal zeichnen, nicht zweimal.
         //
-        // Ueber einem Behaelter oder dem Chat wird jeder Kasten ohnehin zweimal
-        // gezeichnet: einmal hier, einmal darueber im NearbyOverlay, damit ihn der
-        // Schleier des Spiels nicht grau faerbt. Zwei Lagen Schrift wirken kraeftiger
-        // als eine - und genau so soll sie aussehen, nicht nur bei offenem Chat.
-        // Fehlt die zweite Lage, wird sie hier nachgeholt
-        if (!NearbyOverlay.drawsSecondLayer()) {
-            content.render(graphics, font, 0, 0, panel.alpha());
-        }
+        // Der Kasten wird ohnehin nur einmal je Bild gezeichnet: ohne offenes Fenster
+        // im gewoehnlichen Durchgang, mit offenem Fenster ueber dem Fenster - der
+        // gewoehnliche Durchgang hoert dann vorher auf (HudRenderer). Eine zweite Lage
+        // macht die Schrift nicht kraeftiger, sondern matschiger: der dunkle Umriss des
+        // zweiten Durchgangs legt sich auf die Raender der Schrift des ersten
+        content.render(graphics, font, 0, 0, panel.alpha());
         graphics.pose().popMatrix();
     }
 
