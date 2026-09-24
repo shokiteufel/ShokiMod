@@ -87,6 +87,12 @@ public final class ProfitTracker {
             boolean first = !cfg().counts.containsKey(itemId);
             cfg().counts.merge(itemId, amount, Integer::sum);
             counted = true;
+            // Die Namensfarbe wird nur im Augenblick des Fundes gesehen - festhalten,
+            // solange sie da ist
+            if (!cfg().colours.containsKey(itemId)) {
+                int colour = ItemChanges.colourOf(itemId);
+                if (colour != 0) cfg().colours.put(itemId, colour);
+            }
             if (first) ShokiMod.LOGGER.info("[Profit] first {} x{}", itemId, amount);
         }
 
@@ -203,6 +209,24 @@ public final class ProfitTracker {
     public static String nameOf(String itemId) {
         String name = ItemNames.displayName(itemId);
         return name == null || name.isBlank() ? SkyBlockItems.readableName(itemId) : name;
+    }
+
+    /**
+     * Die Farbe, in der der Name steht - die Seltenheit des Items.
+     *
+     * Drei Quellen, in dieser Reihenfolge: was beim Fund am Gegenstand selbst zu
+     * sehen war, was diese Sitzung gesehen hat, und sonst die Seltenheit aus
+     * Hypixels Item-Liste. Wer in keiner steht, bleibt weiss.
+     */
+    public static int colourOf(String itemId) {
+        Integer stored = cfg().colours.get(itemId);
+        if (stored != null && stored != 0) return stored;
+
+        int seen = ItemChanges.colourOf(itemId);
+        if (seen != 0) return seen;
+
+        int rarity = SkyBlockItems.rarityColour(ItemNames.tier(itemId));
+        return rarity != 0 ? rarity : 0xFFFFFFFF;
     }
 
     /** Was ein Stueck bringt, oder -1 wenn es dazu keine Zahl gibt */

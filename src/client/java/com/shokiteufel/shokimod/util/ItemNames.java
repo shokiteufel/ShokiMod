@@ -37,6 +37,8 @@ public final class ItemNames {
     private static final Map<String, Double> npcSell = new ConcurrentHashMap<>();
     /** Der Weg zurueck: Kennung auf den Namen, wie ihn das Spiel schreibt */
     private static final Map<String, String> nameById = new ConcurrentHashMap<>();
+    /** Die Seltenheit einer Kennung: COMMON, UNCOMMON, RARE, EPIC, LEGENDARY, MYTHIC, ... */
+    private static final Map<String, String> tierById = new ConcurrentHashMap<>();
 
     /** Material, Skin, Farbe und Modellverweis einer Kennung, oder null wenn die Liste sie nicht kennt */
     public static Info info(String itemId) {
@@ -81,6 +83,21 @@ public final class ItemNames {
         // Pets und Buecher tragen ihre Stufe hinter einem Semikolon; die Liste kennt nur den Stamm
         int semicolon = itemId.indexOf(';');
         return semicolon > 0 ? nameById.get(itemId.substring(0, semicolon)) : null;
+    }
+
+    /**
+     * Die Seltenheit einer Kennung, oder null.
+     *
+     * Steht in derselben Liste wie Name und NPC-Preis. Bei 4.782 der 5.655 Items ist
+     * sie gesetzt; was keine hat, ist gewoehnliches Minecraft-Zeug und damit COMMON.
+     */
+    public static String tier(String itemId) {
+        if (itemId == null) return null;
+        FEED.prefetch();
+        String tier = tierById.get(itemId);
+        if (tier != null) return tier;
+        int semicolon = itemId.indexOf(';');
+        return semicolon > 0 ? tierById.get(itemId.substring(0, semicolon)) : null;
     }
 
     public static double npcSellPrice(String itemId) {
@@ -131,6 +148,9 @@ public final class ItemNames {
             out.computeIfAbsent(name, key -> new ArrayList<>(1)).add(id);
             byId.put(id, new Info(text(item, "material"), skinOf(item), text(item, "color"),
                     text(item, "item_model")));
+
+            String tier = text(item, "tier");
+            if (tier != null && !tier.isBlank()) tierById.put(id, tier);
 
             JsonElement npc = item.get("npc_sell_price");
             if (npc != null && npc.isJsonPrimitive()) {

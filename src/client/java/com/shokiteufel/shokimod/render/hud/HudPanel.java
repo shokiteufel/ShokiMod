@@ -25,10 +25,16 @@ public class HudPanel {
      * Kraeftig deckend, nicht bloss angedeutet.
      *
      * Bei halbdurchsichtigem Grund scheint die Welt durch und frisst den Kontrast -
-     * ueber hellem Gelaende wirkt derselbe Kasten dann matt. Der Wert liegt bewusst
-     * in der Groessenordnung, die Minecraft fuer seine eigenen Bildschirme nimmt.
+     * ueber hellem Gelaende wirkt derselbe Kasten dann matt.
+     *
+     * Der Wert ist so gewaehlt, dass der Kasten immer so aussieht wie mit offenem
+     * Chat: dort wird er zweimal gezeichnet - einmal vom gewoehnlichen Durchgang,
+     * einmal darueber, damit ihn der Schleier des Spiels nicht grau faerbt - und
+     * zwei Lagen zu 0xD0 ergeben zusammen rund 0xF6. Genau der Eindruck stand zur
+     * Wahl und hat gewonnen; mit einer Lage sah derselbe Kasten ohne offenes Fenster
+     * deutlich blasser aus.
      */
-    private static final int BACKGROUND = 0xD0101010;
+    private static final int BACKGROUND = 0xF6101010;
     /** Feine helle Kante oben, damit der Kasten eine Form hat statt zu verlaufen */
     private static final int TOP_EDGE = 0x50FFFFFF;
 

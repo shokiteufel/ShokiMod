@@ -10,12 +10,18 @@ import net.minecraft.client.Minecraft;
 import java.util.List;
 
 /**
- * Der Kasten des Profit-Trackers: Gesamtwert, Profit je Stunde, Zeit und die
- * wertvollsten Funde.
+ * Der Kasten des Profit-Trackers: die Funde, darunter die Summe.
  *
- * Hinter jeder Zeile steht, wie dieses Item zu Geld gemacht wird - aber nur, wenn
- * es nicht die Voreinstellung ist. Wer fuer alles Sofortverkauf gewaehlt hat und
- * nur beim Deep Sea Orb abweicht, soll genau das eine Mal etwas dastehen sehen.
+ * Die Reihenfolge ist Absicht. Oben steht, was gerade faellt - das aendert sich
+ * staendig und wird am haeufigsten angesehen. Die Summe darunter ist der Abschluss
+ * und steht dort, wo man sie am Ende einer Liste erwartet; so wie es auch andere
+ * Tracker halten.
+ *
+ * Jeder Name traegt die Farbe seiner Seltenheit, wie sie im Spiel aussieht: gruen
+ * ungewoehnlich, blau selten, lila episch. Hinter der Stueckzahl steht die
+ * Verkaufsart - aber nur, wenn sie von der Voreinstellung abweicht. Wer fuer alles
+ * Sofortverkauf gewaehlt hat und nur beim Deep Sea Orb abweicht, soll genau das eine
+ * Mal etwas dastehen sehen.
  */
 public final class ProfitHud {
 
@@ -33,28 +39,29 @@ public final class ProfitHud {
         List<ProfitTracker.Row> rows = ProfitTracker.rows();
 
         panel.title("Profit Tracker" + (ProfitTracker.isPaused() ? " (paused)" : ""), TITLE_COLOUR);
-        panel.pair("Total:", ItemValue.format(ProfitTracker.total()), LABEL_COLOUR, VALUE_COLOUR);
-        if (cfg.timerEnabled) {
-            panel.pair("Profit/h:", ItemValue.format(ProfitTracker.perHour()), LABEL_COLOUR, VALUE_COLOUR);
-            panel.pair("Time:", clock(ProfitTracker.uptimeMillis()), LABEL_COLOUR, TIME_COLOUR);
-        }
+        panel.blank();
 
         if (rows.isEmpty()) {
-            panel.blank();
             panel.line(cfg.selection == ModConfig.ProfitSelection.PICKED
                     ? "Nothing picked yet - open Items" : "Waiting for the first find", LABEL_COLOUR);
         } else {
-            panel.blank();
             int limit = Math.max(1, cfg.maxRows);
             for (int i = 0; i < rows.size() && i < limit; i++) {
                 ProfitTracker.Row row = rows.get(i);
                 String worth = row.priced() ? ItemValue.format(row.value()) : "?";
                 panel.pair(row.name() + " x" + row.count() + mark(row.itemId(), row.mode()),
-                        worth, LABEL_COLOUR, VALUE_COLOUR);
+                        worth, ProfitTracker.colourOf(row.itemId()), VALUE_COLOUR);
             }
             if (rows.size() > limit) {
                 panel.pair("+" + (rows.size() - limit) + " more", "", LABEL_COLOUR, LABEL_COLOUR);
             }
+        }
+
+        panel.blank();
+        panel.pair("Total:", ItemValue.format(ProfitTracker.total()), LABEL_COLOUR, VALUE_COLOUR);
+        if (cfg.timerEnabled) {
+            panel.pair("Profit/h:", ItemValue.format(ProfitTracker.perHour()), LABEL_COLOUR, VALUE_COLOUR);
+            panel.pair("Time:", clock(ProfitTracker.uptimeMillis()), LABEL_COLOUR, TIME_COLOUR);
         }
 
         // Nur bei offenem Fenster: dort kann man klicken. Die Zeile ist immer die letzte,

@@ -2,6 +2,9 @@ package com.shokiteufel.shokimod.scanner;
 
 import com.shokiteufel.shokimod.data.FeatureGate;
 import com.shokiteufel.shokimod.data.GameState;
+import com.shokiteufel.shokimod.data.RareLootParser;
+import com.shokiteufel.shokimod.data.RareLootParser.Drop;
+import com.shokiteufel.shokimod.util.ItemValue;
 import com.shokiteufel.shokimod.util.ItemNames;
 import com.shokiteufel.shokimod.util.SkyBlockItems;
 
@@ -13,6 +16,7 @@ import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -48,6 +52,12 @@ import java.util.regex.Pattern;
  *       aufhebt, hat nichts gewonnen. Abgaenge bleiben zehn Sekunden stehen und
  *       werden gegen spaetere Zugaenge derselben Ware aufgerechnet.</li>
  * </ul>
+ *
+ * Zwei Sorten kommen ohne Umweg ueber das Inventar herein und haben deshalb je eine
+ * eigene Quelle: Was in einen Sack faellt, meldet Hypixel gesammelt als "[Sacks] +38
+ * items." mit der Aufstellung am Mauszeiger. Shards wandern beim Fang direkt in die
+ * Hunting Box - fuer sie ist die Chatzeile ("You caught x2 Bambo Shards!", "CHARM!
+ * ...") die einzige Meldung, dieselbe, die schon der Hunting Tracker liest.
  */
 public final class ItemChanges {
 
@@ -73,8 +83,20 @@ public final class ItemChanges {
     /** "+38 Enchanted Helix Log (Enchanted Foraging Sack)" */
     private static final Pattern SACK_LINE = Pattern.compile("^([+-])\\s*([\\d,.]+)\\s+(.+?)\\s*\\(");
     private static final String SACK_MARKER = "[Sacks]";
+    private static final String SHARD_PREFIX = "SHARD_";
+    /** Zeilen aus fremden Kanaelen erzaehlen von fremden Funden */
+    private static final String[] FOREIGN_PREFIXES = {"Party >", "Guild >", "Co-op >", "From ", "To "};
 
     private static final List<Consumer<Map<String, Integer>>> listeners = new ArrayList<>(2);
+
+    /**
+     * Die Farbe, in der das Spiel den Namen einer Ware schreibt.
+     *
+     * Wird beim Zaehlen nebenbei mitgenommen, solange sie noch fehlt. Sie ist die
+     * Seltenheit: blau ist selten, lila episch. Aus einer Liste laesst sich das nicht
+     * fuer alles holen - Shards, Pets und Farben stehen in keiner.
+     */
+    private static final Map<String, Integer> colours = new HashMap<>();
 
     /** Der Stand des letzten Vergleichs: Kennung -> Stueckzahl im Inventar */
     private static Map<String, Integer> previousCounts = null;
@@ -231,6 +253,17 @@ public final class ItemChanges {
         String id = SkyBlockItems.idOf(stack);
         if (id == null) return;
         counts.merge(id, stack.getCount(), Integer::sum);
+        // Nur beim ersten Mal: den Namen auseinanderzunehmen lohnt sich nicht in jedem Tick
+        if (!colours.containsKey(id)) {
+            int colour = SkyBlockItems.nameColour(stack);
+            if (colour != 0) colours.put(id, colour);
+        }
+    }
+
+    /** Die beobachtete Namensfarbe einer Ware, oder 0 */
+    public static int colourOf(String itemId) {
+        Integer colour = colours.get(itemId);
+        return colour == null ? 0 : colour;
     }
 
     /** Zugaenge zwischen zwei Staenden, verrechnet mit den Abgaengen der letzten Sekunden */
@@ -285,19 +318,85 @@ public final class ItemChanges {
     }
 
     /**
+     * Die beiden Meldungen ueber Zugaenge, die das Inventar nie zu sehen bekommt.
+     *
+     * @param message   die Nachricht samt Mauszeiger-Text
+     * @param formatted dieselbe Zeile mit den Farbcodes
+     * @param plain     dieselbe Zeile ohne
+     */
+    public static void onChatMessage(Component message, String formatted, String plain) {
+        if (message == null || plain == null) return;
+        if (!FeatureGate.itemChanges() || !GameState.Server.isSkyblock()) return;
+        // Wer von Hand einlagert oder in der Box raeumt, steht in einem Fenster - das
+        // ist kein Fund, sondern ein Umzug
+        if (Minecraft.getInstance().screen instanceof AbstractContainerScreen<?>) return;
+
+        if (plain.contains(SACK_MARKER)) {
+            sacks(message);
+        } else {
+            shards(formatted, plain);
+        }
+    }
+
+    /**
+     * Ein gefangener Shard.
+     *
+     * Shards wandern beim Fang direkt in die Hunting Box; im Inventar taucht nie
+     * einer auf, und einen Sack haben sie auch nicht. Bliebe es beim Nachzaehlen,
+     * fehlte im Kasten ausgerechnet das, wonach beim Jagen gesucht wird.
+     *
+     * Gelesen wird dieselbe Zeile wie beim Hunting Tracker, mit demselben Parser -
+     * und mit derselben Vorsicht: Zeilen aus Party- und Gildenchat erzaehlen von
+     * fremden Funden.
+     */
+    private static void shards(String formatted, String plain) {
+        String clean = plain.trim();
+        for (int i = 0; i < FOREIGN_PREFIXES.length; i++) {
+            if (clean.startsWith(FOREIGN_PREFIXES[i])) return;
+        }
+
+        Drop drop = RareLootParser.parse(clean);
+        if (drop == null) return;
+
+        String shard = null;
+        List<String> candidates = drop.itemIdCandidates();
+        for (int i = 0; i < candidates.size(); i++) {
+            String candidate = candidates.get(i);
+            if (candidate != null && candidate.startsWith(SHARD_PREFIX)) {
+                // "Wither Spectre" heisst im Basar SHARD_WITHER_SPECTER
+                shard = ItemValue.canonicalShard(candidate);
+                break;
+            }
+        }
+        if (shard == null) return;
+
+        int amount = Math.max(1, drop.amount());
+        // Ist die Box voll, faellt der Shard doch ins Inventar. Dann steht er hier
+        // schon verbucht und zaehlt beim Nachzaehlen nicht noch einmal
+        losses.add(new Loss(shard, amount, System.currentTimeMillis()));
+
+        // Die Seltenheit steht in der Farbe des Namens - fuer Shards die einzige
+        // Gelegenheit, sie ueberhaupt zu erfahren
+        if (!colours.containsKey(shard)) {
+            String name = drop.displayName();
+            if (name.endsWith(" Shard")) name = name.substring(0, name.length() - " Shard".length());
+            int colour = SkyBlockItems.colourInLine(formatted, name);
+            if (colour != 0) colours.put(shard, colour);
+        }
+
+        Map<String, Integer> gains = new LinkedHashMap<>();
+        gains.put(shard, amount);
+        dispatch(gains);
+    }
+
+    /**
      * Die Sammelzeile der Saecke.
      *
      * Was direkt in einen Sack faellt, kommt nie im Inventar an. Die Zeile
      * "[Sacks] +38 items." traegt am Mauszeiger die Aufstellung - dieselbe Quelle,
      * aus der auch der Collection-Tracker liest.
      */
-    public static void onChatMessage(Component message, String plain) {
-        if (message == null || plain == null || !plain.contains(SACK_MARKER)) return;
-        if (!FeatureGate.itemChanges() || !GameState.Server.isSkyblock()) return;
-        // Wer von Hand einlagert, hat den Sack offen - das ist kein Fund, sondern ein Umzug
-        Minecraft client = Minecraft.getInstance();
-        if (client.screen instanceof AbstractContainerScreen<?>) return;
-
+    private static void sacks(Component message) {
         List<String> hover = new ArrayList<>();
         collectHoverText(message, hover);
         if (hover.isEmpty()) return;
