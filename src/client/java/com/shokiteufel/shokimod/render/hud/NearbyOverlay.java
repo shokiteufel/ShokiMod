@@ -47,19 +47,6 @@ public final class NearbyOverlay {
         return false;
     }
 
-    /**
-     * Zeichnet dieser Weg den Kasten gleich noch einmal darueber?
-     *
-     * Der gewoehnliche HUD-Durchgang fragt danach: Er holt die zweite Lage selbst
-     * nach, wenn sie hier nicht kommt. Dieselbe Bedingung wie unten in draw() - sie
-     * steht nur an einer Stelle, damit beide nicht auseinanderlaufen koennen.
-     */
-    public static boolean drawsSecondLayer() {
-        net.minecraft.client.gui.screens.Screen offen = Minecraft.getInstance().screen;
-        return offen instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?>
-                || offen instanceof net.minecraft.client.gui.screens.ChatScreen;
-    }
-
     public static void draw(GuiGraphicsExtractor graphics) {
         // Der Kasten ueber der Hunting-Box gehoert nicht zu den Kaesten des Spiels
         // und folgt deren Regeln nicht: Er erscheint genau dort, wo er gebraucht wird
