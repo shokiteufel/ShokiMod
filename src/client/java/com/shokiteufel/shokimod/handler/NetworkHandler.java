@@ -56,7 +56,7 @@ public class NetworkHandler {
             // Der Collection-Tracker braucht die Nachricht selbst: die Aufstellung haengt am Mauszeiger
             CollectionTracker.onChatMessage(message, unformattedMsg);
             // Und der Profit-Tracker dieselbe Zeile: was in einen Sack faellt, sieht das Inventar nie
-            com.shokiteufel.shokimod.scanner.ItemChanges.onChatMessage(message, unformattedMsg);
+            com.shokiteufel.shokimod.scanner.ItemChanges.onChatMessage(message, msg, unformattedMsg);
 
             // Ein "false" blendet die Originalzeile aus
             return ChatRuleHandler.handleMessage(message, msg, unformattedMsg);

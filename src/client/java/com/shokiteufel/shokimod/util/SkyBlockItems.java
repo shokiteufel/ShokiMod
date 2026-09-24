@@ -5,6 +5,8 @@ import com.google.gson.JsonParser;
 
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.TextColor;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
 
@@ -60,6 +62,97 @@ public final class SkyBlockItems {
             case "ATTRIBUTE_SHARD" -> firstNotNull(attributeShardId(tag), id);
             case "POTION" -> firstNotNull(potionId(tag), id);
             default -> id;
+        };
+    }
+
+    /**
+     * Die Farbe, in der das Spiel den Namen dieses Gegenstands schreibt - oder 0.
+     *
+     * SkyBlock faerbt jeden Item-Namen nach seiner Seltenheit; ein blauer Name ist
+     * RARE, ein lila EPIC. Das ist die genaueste Quelle, die es gibt: sie kommt vom
+     * Server selbst und gilt auch fuer Shards, Pets und Farben, die in keiner Liste
+     * stehen.
+     */
+    public static int nameColour(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) return 0;
+        return colourOf(stack.getHoverName());
+    }
+
+    /** Die erste Farbe, die in einem Text vorkommt - der Name selbst oder eines seiner Stuecke */
+    private static int colourOf(Component text) {
+        if (text == null) return 0;
+        TextColor colour = text.getStyle().getColor();
+        if (colour != null) return 0xFF000000 | colour.getValue();
+        for (Component sibling : text.getSiblings()) {
+            int found = colourOf(sibling);
+            if (found != 0) return found;
+        }
+        return 0;
+    }
+
+    /**
+     * Die Farbe einer Seltenheit, wie sie im Spiel aussieht.
+     *
+     * Die Zuordnung ist Hypixels eigene und in jedem Menue zu sehen: gewoehnlich
+     * weiss, ungewoehnlich gruen, selten blau, episch lila, legendaer gold.
+     */
+    public static int rarityColour(String tier) {
+        if (tier == null) return 0;
+        return switch (tier.toUpperCase(Locale.ROOT)) {
+            case "COMMON" -> 0xFFFFFFFF;
+            case "UNCOMMON" -> 0xFF55FF55;
+            case "RARE" -> 0xFF5555FF;
+            case "EPIC" -> 0xFFAA00AA;
+            case "LEGENDARY" -> 0xFFFFAA00;
+            case "MYTHIC" -> 0xFFFF55FF;
+            case "DIVINE" -> 0xFF55FFFF;
+            case "SPECIAL", "VERY_SPECIAL" -> 0xFFFF5555;
+            case "SUPREME" -> 0xFFAA0000;
+            default -> 0;
+        };
+    }
+
+    /**
+     * Die Farbe, in der ein Name in einer Chatzeile steht.
+     *
+     * Hypixel schreibt die Farbcodes mit in die Zeile. Gesucht wird der letzte Code
+     * vor dem Namen - der gilt fuer ihn. Fuer Shards ist das die einzige Gelegenheit,
+     * ihre Seltenheit zu erfahren: sie wandern in die Hunting Box und tauchen als
+     * Gegenstand nie auf.
+     */
+    public static int colourInLine(String formatted, String name) {
+        if (formatted == null || name == null || name.isBlank()) return 0;
+        int at = formatted.indexOf(name);
+        if (at < 0) return 0;
+
+        for (int i = at - 2; i >= 0; i--) {
+            if (formatted.charAt(i) != '\u00a7') continue;
+            int colour = legacyColour(formatted.charAt(i + 1));
+            if (colour != 0) return colour;
+        }
+        return 0;
+    }
+
+    /** Die sechzehn Farbcodes des Spiels */
+    private static int legacyColour(char code) {
+        return switch (Character.toLowerCase(code)) {
+            case '0' -> 0xFF000000;
+            case '1' -> 0xFF0000AA;
+            case '2' -> 0xFF00AA00;
+            case '3' -> 0xFF00AAAA;
+            case '4' -> 0xFFAA0000;
+            case '5' -> 0xFFAA00AA;
+            case '6' -> 0xFFFFAA00;
+            case '7' -> 0xFFAAAAAA;
+            case '8' -> 0xFF555555;
+            case '9' -> 0xFF5555FF;
+            case 'a' -> 0xFF55FF55;
+            case 'b' -> 0xFF55FFFF;
+            case 'c' -> 0xFFFF5555;
+            case 'd' -> 0xFFFF55FF;
+            case 'e' -> 0xFFFFFF55;
+            case 'f' -> 0xFFFFFFFF;
+            default -> 0;
         };
     }
 

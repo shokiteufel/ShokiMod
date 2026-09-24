@@ -1195,6 +1195,14 @@ public class ModConfig extends Config {
         /** Eigene Verkaufsart je Item. Fehlt der Eintrag, gilt die Voreinstellung */
         @Expose
         public Map<String, ItemValue.SellMode> modes = new HashMap<>();
+        /**
+         * Die Farbe des Namens, wie das Spiel sie schreibt - also die Seltenheit.
+         *
+         * Steht hier, weil sie sonst mit jedem Neustart verloren waere: gesehen wird
+         * sie nur im Augenblick des Fundes, am Gegenstand selbst oder an der Chatzeile.
+         */
+        @Expose
+        public Map<String, Integer> colours = new HashMap<>();
         @Expose
         public long uptimeMillis = 0L;
         @Expose

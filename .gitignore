@@ -42,3 +42,6 @@ replay_*.log
 # 開発用の一時的な機能(コミットしない)
 
 src/client/java/com/deeply/gankura/dev/
+
+# Das Spiel legt beim Bauen einen leeren Log-Ordner an
+logs/
