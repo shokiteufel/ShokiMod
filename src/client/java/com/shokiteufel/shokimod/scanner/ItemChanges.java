@@ -97,6 +97,18 @@ public final class ItemChanges {
     /** "+38 Enchanted Helix Log (Enchanted Foraging Sack)" */
     private static final Pattern SACK_LINE = Pattern.compile("^([+-])\\s*([\\d,.]+)\\s+(.+?)\\s*\\(");
     private static final String SACK_MARKER = "[Sacks]";
+    /**
+     * "You received 32x Enchanted Sunflower for killing a Lunar Moth!"
+     *
+     * Die Zeile sagt nicht, was alles kommt - sie sagt, dass der Server gerade Beute
+     * austeilt. Die Ultimate-Sunset-Buecher der Garden-Schaedlinge zum Beispiel haben
+     * gar keine eigene Zeile; sie liegen wortlos im Inventar.
+     */
+    private static final Pattern KILL_REWARD = Pattern.compile(
+            "^You received [\\d,]+x? .+ for killing (?:an?|the) .+!$", Pattern.CASE_INSENSITIVE);
+    /** So lange nach einer solchen Zeile zaehlt auch, was bei offenem Fenster ankommt */
+    private static final long LOOT_MILLIS = 5_000L;
+
     /** "You Supercrafted Blessed Bait x256!" - gebaut, nicht gefunden */
     private static final Pattern SUPERCRAFT = Pattern.compile(
             "^You Supercrafted (?<item>.+?)(?: x(?<amount>[\\d,]+))?!$", Pattern.CASE_INSENSITIVE);
@@ -132,6 +144,15 @@ public final class ItemChanges {
     private static int settleTicks = SETTLE_TICKS;
     /** Der Stand, als ein Fenster aufging - um danach zu sehen, was hindurchkam */
     private static Map<String, Integer> windowBaseline = null;
+    /**
+     * Bis wann der Server gerade Beute austeilt.
+     *
+     * Wer seine Fallen leert, hat dabei das Fallen-Menue offen, und die Beute kommt
+     * waehrenddessen herein. Ohne diese Ausnahme faellt sie unter dieselbe Regel wie
+     * ein Basar-Kauf und zaehlt nie - im Log stand genau das: zweimal vier Buecher,
+     * beide Male "came in through a window".
+     */
+    private static long lootUntil = 0L;
     /**
      * Abgaenge der letzten Sekunden, gegen die spaetere Zugaenge verrechnet werden.
      *
@@ -183,10 +204,15 @@ public final class ItemChanges {
 
         // Ein offener Behaelter ist der Weg, auf dem Gekauftes, Ausgelagertes und
         // Gecraftetes hereinkommt. Nichts davon ist ein Fund
-        if (client.screen instanceof AbstractContainerScreen<?>) {
-            if (windowBaseline == null) {
-                windowBaseline = previousCounts == null ? Map.of() : previousCounts;
-            }
+        boolean windowOpen = client.screen instanceof AbstractContainerScreen<?>;
+        // Solange Beute fliesst, wird auch bei offenem Fenster gezaehlt - aber nur so
+        // lange: was man danach im Fenster anklickt, ist wieder ein Umzug, kein Fund
+        boolean lootFlowing = System.currentTimeMillis() < lootUntil;
+        if (windowOpen && !lootFlowing) {
+            // Ohne Vergleichsstand gibt es auch nichts zu vergleichen: dann ist das
+            // Fenster waehrend eines Wechsels aufgegangen, und das halbe Inventar saehe
+            // hinterher aus wie frisch hereingekommen
+            if (windowBaseline == null && previousCounts != null) windowBaseline = previousCounts;
             return;
         }
 
@@ -201,7 +227,7 @@ public final class ItemChanges {
             return;
         }
 
-        if (windowBaseline != null) {
+        if (windowBaseline != null && !windowOpen) {
             // Das Fenster ist zu. Der Stand von jetzt ist der neue Vergleichspunkt -
             // was durch das Fenster kam, zaehlt nicht als Fund
             Map<String, Integer> current = counts(client);
@@ -238,6 +264,10 @@ public final class ItemChanges {
 
         Map<String, Integer> gains = diff(previousCounts, current);
         previousCounts = current;
+        // Beute bei offenem Fenster: der Vergleichspunkt des Fensters wandert mit.
+        // Sonst stuende dasselbe beim Schliessen noch einmal als "durchs Fenster" da -
+        // und waere als schon verbucht vorgemerkt, obwohl es gerade gezaehlt wurde
+        if (windowOpen) windowBaseline = current;
         if (!gains.isEmpty()) dispatch(gains, "inventory");
     }
 
@@ -399,6 +429,9 @@ public final class ItemChanges {
         // wird in einem, und die Meldung ist der einzige Hinweis darauf, dass die Ware
         // gebaut und nicht gefunden wurde
         if (supercraft(plain)) return;
+
+        // Teilt der Server gerade Beute aus, zaehlt sie auch bei offenem Fenster
+        if (KILL_REWARD.matcher(plain.trim()).matches()) lootUntil = System.currentTimeMillis() + LOOT_MILLIS;
         // Wer von Hand einlagert oder in der Box raeumt, steht in einem Fenster - das
         // ist kein Fund, sondern ein Umzug
         if (Minecraft.getInstance().screen instanceof AbstractContainerScreen<?>) return;
