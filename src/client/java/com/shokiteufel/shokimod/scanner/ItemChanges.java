@@ -13,7 +13,6 @@ import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -56,6 +55,15 @@ public final class ItemChanges {
     private static final int SETTLE_TICKS = 20;
     /** So lange wird ein Abgang gegen einen spaeteren Zugang derselben Ware aufgerechnet */
     private static final long OFFSET_MILLIS = 10_000L;
+    /**
+     * So lange zaehlt ein Abgang noch gegen eine Sack-Meldung.
+     *
+     * Hypixel fasst die Saecke zusammen und meldet sie gesammelt - die Zeile selbst
+     * sagt "(Last 20s.)". Bis die Meldung kommt, ist der Abgang im Inventar also
+     * laengst geschehen, und mit den zehn Sekunden von oben waere er vergessen,
+     * bevor er gebraucht wird.
+     */
+    private static final long SACK_OFFSET_MILLIS = 65_000L;
     /** Der Platz des SkyBlock-Menues in der Schnellleiste - sein Inhalt wechselt staendig */
     private static final int MENU_SLOT = 8;
 
@@ -76,9 +84,27 @@ public final class ItemChanges {
     /** Nach einem Wechsel: warten, bis Ruhe ist, und dann neu ansetzen statt zu melden */
     private static boolean settling = true;
     private static int stableTicks = 0;
-    /** Abgaenge der letzten Sekunden, gegen die spaetere Zugaenge verrechnet werden */
-    private static final Map<String, Integer> pendingLosses = new HashMap<>();
-    private static long lossesAt = 0L;
+    /**
+     * Abgaenge der letzten Sekunden, gegen die spaetere Zugaenge verrechnet werden.
+     *
+     * Jeder Posten mit eigener Uhrzeit, weil die beiden Faelle unterschiedlich lange
+     * nachwirken: das Wiederaufheben von Weggeworfenem zehn Sekunden, die Sack-Meldung
+     * gut eine Minute.
+     */
+    private static final List<Loss> losses = new ArrayList<>();
+
+    /** Ein Abgang: so viele Stueck dieser Ware sind zu diesem Zeitpunkt verschwunden */
+    private static final class Loss {
+        final String itemId;
+        int amount;
+        final long at;
+
+        Loss(String itemId, int amount, long at) {
+            this.itemId = itemId;
+            this.amount = amount;
+            this.at = at;
+        }
+    }
 
     private ItemChanges() {
     }
@@ -209,36 +235,53 @@ public final class ItemChanges {
 
     /** Zugaenge zwischen zwei Staenden, verrechnet mit den Abgaengen der letzten Sekunden */
     private static Map<String, Integer> diff(Map<String, Integer> before, Map<String, Integer> after) {
-        expireLosses();
+        long now = System.currentTimeMillis();
+        expireLosses(now);
+
         Map<String, Integer> gains = new LinkedHashMap<>();
         for (Map.Entry<String, Integer> entry : after.entrySet()) {
             int delta = entry.getValue() - before.getOrDefault(entry.getKey(), 0);
             if (delta <= 0) continue;
 
-            int offset = pendingLosses.getOrDefault(entry.getKey(), 0);
-            if (offset > 0) {
-                int used = Math.min(offset, delta);
-                delta -= used;
-                if (offset - used <= 0) pendingLosses.remove(entry.getKey());
-                else pendingLosses.put(entry.getKey(), offset - used);
-            }
-            if (delta > 0) gains.put(entry.getKey(), delta);
+            int rest = offset(entry.getKey(), delta, OFFSET_MILLIS, now);
+            if (rest > 0) gains.put(entry.getKey(), rest);
         }
-        // Was verschwunden ist, bleibt kurz vorgemerkt: wer wegwirft und wieder aufhebt,
-        // hat nichts gefunden
+        // Was verschwunden ist, bleibt vorgemerkt. Zwei Faelle laufen darueber: wer
+        // wegwirft und wieder aufhebt, hat nichts gefunden - und was in einen Sack
+        // wandert, verschwindet hier und taucht gleich darauf in der Sack-Meldung
+        // wieder auf
         for (Map.Entry<String, Integer> entry : before.entrySet()) {
             int delta = entry.getValue() - after.getOrDefault(entry.getKey(), 0);
-            if (delta > 0) {
-                pendingLosses.merge(entry.getKey(), delta, Integer::sum);
-                lossesAt = System.currentTimeMillis();
-            }
+            if (delta > 0) losses.add(new Loss(entry.getKey(), delta, now));
         }
         return gains;
     }
 
-    private static void expireLosses() {
-        if (pendingLosses.isEmpty()) return;
-        if (System.currentTimeMillis() - lossesAt > OFFSET_MILLIS) pendingLosses.clear();
+    /**
+     * Rechnet einen Zugang gegen vorgemerkte Abgaenge auf und gibt zurueck, was
+     * uebrig bleibt.
+     *
+     * Aelteste zuerst, damit die kurzlebigen Posten zuerst verbraucht werden. Was
+     * ausserhalb des Fensters liegt, bleibt liegen statt verworfen zu werden - das
+     * Fenster der Sack-Meldung ist laenger als das des Wiederaufhebens.
+     */
+    private static int offset(String itemId, int amount, long window, long now) {
+        int rest = amount;
+        for (int i = 0; i < losses.size() && rest > 0; i++) {
+            Loss loss = losses.get(i);
+            if (!loss.itemId.equals(itemId) || now - loss.at > window) continue;
+
+            int used = Math.min(loss.amount, rest);
+            loss.amount -= used;
+            rest -= used;
+        }
+        losses.removeIf(loss -> loss.amount <= 0);
+        return rest;
+    }
+
+    private static void expireLosses(long now) {
+        if (losses.isEmpty()) return;
+        losses.removeIf(loss -> now - loss.at > SACK_OFFSET_MILLIS);
     }
 
     /**
@@ -288,7 +331,20 @@ public final class ItemChanges {
             gains.merge(ids.get(0), amount, Integer::sum);
         }
 
-        if (!gains.isEmpty()) dispatch(gains);
+        // Der eigentliche Punkt dieser Verrechnung: ein gefangener Fisch landet erst
+        // im Inventar und wandert von dort in den Sack. Beides wird gesehen - der
+        // Fang als Zugang, der Umzug als Abgang. Ohne den Ausgleich stuende der Fisch
+        // zweimal im Kasten, einmal vom Nachzaehlen und einmal von der Meldung.
+        // Was ohne Umweg in den Sack faellt, hat keinen Abgang und zaehlt voll
+        long now = System.currentTimeMillis();
+        expireLosses(now);
+        Map<String, Integer> net = new LinkedHashMap<>();
+        for (Map.Entry<String, Integer> entry : gains.entrySet()) {
+            int rest = offset(entry.getKey(), entry.getValue(), SACK_OFFSET_MILLIS, now);
+            if (rest > 0) net.put(entry.getKey(), rest);
+        }
+
+        if (!net.isEmpty()) dispatch(net);
     }
 
     private static int number(String text) {
@@ -320,6 +376,6 @@ public final class ItemChanges {
         previousSignature = 0;
         settling = true;
         stableTicks = 0;
-        pendingLosses.clear();
+        losses.clear();
     }
 }
