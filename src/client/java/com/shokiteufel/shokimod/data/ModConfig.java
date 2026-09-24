@@ -144,6 +144,14 @@ public class ModConfig extends Config {
 
         adoptLegacyCategory();
 
+        // Die Farbe eines Shards kam bis 1.6.14 aus der falschen Haelfte der CHARM-Zeile
+        // und stand deshalb rot im Kasten. Gespeichert ist sie trotzdem - einmal leeren,
+        // der naechste Fund traegt sie richtig ein
+        if (INSTANCE.profit.colourVersion < 1) {
+            INSTANCE.profit.colours.clear();
+            INSTANCE.profit.colourVersion = 1;
+        }
+
         // Das Leuchten stand bis 1.1.0 in der Safari. Wer es dort ausgeschaltet hatte,
         // soll es nach dem Umzug nicht wieder angehen sehen
         if (INSTANCE.safari.glowingHudText != null) {
@@ -1203,6 +1211,15 @@ public class ModConfig extends Config {
          */
         @Expose
         public Map<String, Integer> colours = new HashMap<>();
+        /**
+         * Wie die Farben zustande kamen.
+         *
+         * Bis 1.6.14 nahm die CHARM-Zeile die Farbe des Mobs statt die des Shards -
+         * gespeichert ist das aber schon. Steht hier eine aeltere Zahl, wird die
+         * Sammlung einmal geleert und beim naechsten Fund neu aufgebaut.
+         */
+        @Expose
+        public int colourVersion = 0;
         @Expose
         public long uptimeMillis = 0L;
         @Expose
