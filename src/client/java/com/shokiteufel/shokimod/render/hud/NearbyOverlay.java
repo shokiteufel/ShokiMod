@@ -73,7 +73,8 @@ public final class NearbyOverlay {
     /** Gibt es bei offenem Fenster ueberhaupt etwas Anklickbares? */
     public static boolean anyClickable() {
         return HuntingBoxOverlay.shown() || shown()
-                || SafariHud.Panel.HUNTING.visible() || SafariHud.Panel.COLLECTION.visible();
+                || SafariHud.Panel.HUNTING.visible() || SafariHud.Panel.COLLECTION.visible()
+                || SafariHud.Panel.PROFIT.visible();
     }
 
     /** Sitzt der Zeiger auf einer Zeile? Dann handeln und den Klick schlucken */
@@ -98,6 +99,19 @@ public final class NearbyOverlay {
                     SafariHud.originX(panel), SafariHud.originY(panel), panel.scale(), mouseX, mouseY);
             if (row >= 0 && row == content.rowCount() - 1) {
                 CollectionTracker.reset();
+                SafariHud.invalidate(panel);
+                return true;
+            }
+        }
+
+        if (SafariHud.Panel.PROFIT.visible()) {
+            SafariHud.Panel panel = SafariHud.Panel.PROFIT;
+            HudPanel content = panel.build();
+            int row = content.rowAt(Minecraft.getInstance().font,
+                    SafariHud.originX(panel), SafariHud.originY(panel), panel.scale(), mouseX, mouseY);
+            // Die Reset-Zeile ist immer die letzte
+            if (row >= 0 && row == content.rowCount() - 1) {
+                com.shokiteufel.shokimod.handler.ProfitTracker.reset();
                 SafariHud.invalidate(panel);
                 return true;
             }

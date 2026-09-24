@@ -17,6 +17,7 @@ import com.shokiteufel.shokimod.handler.CakeReminder;
 import com.shokiteufel.shokimod.handler.CollectionTracker;
 import com.shokiteufel.shokimod.handler.GuildEvents;
 import com.shokiteufel.shokimod.handler.HuntingTracker;
+import com.shokiteufel.shokimod.handler.ProfitTracker;
 import com.shokiteufel.shokimod.handler.RareLootHandler;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -215,6 +216,10 @@ public class ModConfig extends Config {
         INSTANCE.collections.tracker.resetTracker = () -> Minecraft.getInstance().execute(CollectionTracker::reset);
         INSTANCE.collections.tracker.openPicker = () -> Minecraft.getInstance().execute(() ->
                 Minecraft.getInstance().setScreenAndShow(new CollectionPickerScreen(Minecraft.getInstance().gui.screen())));
+        INSTANCE.profit.resetTracker = () -> Minecraft.getInstance().execute(ProfitTracker::reset);
+        INSTANCE.profit.openItems = () -> Minecraft.getInstance().execute(() ->
+                Minecraft.getInstance().setScreenAndShow(
+                        new com.shokiteufel.shokimod.gui.ProfitItemScreen(Minecraft.getInstance().gui.screen())));
         INSTANCE.chat.reminder.testCake = () -> Minecraft.getInstance().execute(CakeReminder::test);
         INSTANCE.chat.reminder.clearCakes = () -> Minecraft.getInstance().execute(CakeReminder::clear);
         INSTANCE.chat.banner.openEditor = () -> Minecraft.getInstance().execute(() ->
@@ -468,6 +473,10 @@ public class ModConfig extends Config {
     @Expose
     @Category(name = "Collections", desc = "What your collections gain while you play.")
     public CollectionsCategory collections = new CollectionsCategory();
+
+    @Expose
+    @Category(name = "Profit", desc = "What a run brought in: every item that landed in your inventory or a sack, priced item by item.")
+    public ProfitCategory profit = new ProfitCategory();
 
     @Expose
     @Category(name = "Mining", desc = "Helpers for the mining islands: commissions, your pickaxe ability and the Sky Mall buff of the day.")
@@ -1086,6 +1095,116 @@ public class ModConfig extends Config {
         public float hudX = 0.75f;
         @Expose
         public float hudY = 0.65f;
+        @Expose
+        public float hudScale = 1.0f;
+        @Expose
+        public float hudAlpha = 1.0f;
+    }
+
+    /**
+     * Welche Funde der Profit-Tracker im Kasten zeigt.
+     *
+     * Zwei Wege zum selben Ziel: entweder steht alles drin und man raeumt weg, was
+     * stoert, oder es steht nichts drin und man klickt sich zusammen, was einen
+     * interessiert. Wer gezielt auf eine Sache aus ist, will das zweite; wer
+     * schauen will, was ueberhaupt faellt, das erste.
+     */
+    public enum ProfitSelection {
+        ALL("Everything but hidden"),
+        PICKED("Only picked");
+
+        private final String label;
+
+        ProfitSelection(String label) {
+            this.label = label;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
+    }
+
+    /**
+     * Der Profit-Tracker.
+     *
+     * Der Zaehlstand liegt hier, damit er einen Neustart ueberlebt - bis zum Reset.
+     * Auswahl und Verkaufsarten ebenso: die haben mit einem einzelnen Lauf nichts zu
+     * tun und sollen ihn ueberdauern.
+     */
+    public static class ProfitCategory {
+
+        @ConfigOption(name = "Profit Tracker", desc = "Counts what actually arrives - in your inventory and in your sacks - instead of reading the chat. Items Hypixel never announces are counted too.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Enabled", desc = "Watch the inventory and count what comes in. Off means nothing is counted or priced.")
+        @ConfigEditorBoolean
+        public boolean enabled = false;
+
+        @Expose
+        @ConfigOption(name = "Show panel", desc = "The tracker panel on screen. Move it with /shoki hud.")
+        @ConfigEditorBoolean
+        public boolean showHud = true;
+
+        @ConfigOption(name = "Items", desc = "Which items the panel shows and how each one is sold - Instant Sell, Sell Order or the NPC.")
+        @ConfigEditorButton(buttonText = "Open")
+        public transient Runnable openItems = () -> {
+        };
+
+        @Expose
+        @ConfigOption(name = "Panel shows", desc = "Everything but hidden lists every item and lets you take single ones out. Only picked starts empty - an item appears once you click it in the list.")
+        @ConfigEditorDropdown
+        public ProfitSelection selection = ProfitSelection.ALL;
+
+        @Expose
+        @ConfigOption(name = "Price", desc = "How an item turns into coins unless you set it yourself in the item list. Instant Sell pays right now, Sell Order once it fills, NPC Sell is what the merchant gives.")
+        @ConfigEditorDropdown
+        public ItemValue.SellMode priceMode = ItemValue.SellMode.INSTANT_SELL;
+
+        @Expose
+        @ConfigOption(name = "Timer", desc = "Track the time for Profit/h. Off hides Time and Profit/h and counts only the items.")
+        @ConfigEditorBoolean
+        public boolean timerEnabled = true;
+
+        @Expose
+        @ConfigOption(name = "Pause after", desc = "Seconds without a find before the timer pauses. The idle time since the last find is taken off again, so Profit/h does not drop while you are away.")
+        @ConfigEditorSlider(minValue = 10f, maxValue = 600f, minStep = 5f)
+        public int pauseAfterSeconds = 120;
+
+        @Expose
+        @ConfigOption(name = "Rows", desc = "How many items the panel lists, most valuable first.")
+        @ConfigEditorSlider(minValue = 1f, maxValue = 20f, minStep = 1f)
+        public int maxRows = 8;
+
+        @ConfigOption(name = "Reset", desc = "Clears the count and the timer. Your item choices stay.")
+        @ConfigEditorButton(buttonText = "Reset")
+        public transient Runnable resetTracker = () -> {
+        };
+
+        // Zaehlstand, Auswahl und Zeit - keine Menuefelder, nur Ablage
+        @Expose
+        public Map<String, Integer> counts = new HashMap<>();
+        /** Was bei "Everything but hidden" nicht im Kasten steht */
+        @Expose
+        public List<String> hidden = new ArrayList<>();
+        /** Was bei "Only picked" im Kasten steht */
+        @Expose
+        public List<String> picked = new ArrayList<>();
+        /** Eigene Verkaufsart je Item. Fehlt der Eintrag, gilt die Voreinstellung */
+        @Expose
+        public Map<String, ItemValue.SellMode> modes = new HashMap<>();
+        @Expose
+        public long uptimeMillis = 0L;
+        @Expose
+        public long startedAt = 0L;
+
+        // Lage des Kastens, gesetzt ueber /shoki hud
+        @Expose
+        public float hudX = 0.75f;
+        @Expose
+        public float hudY = 0.6f;
         @Expose
         public float hudScale = 1.0f;
         @Expose
@@ -1720,6 +1839,22 @@ public class ModConfig extends Config {
         @ConfigOption(name = "Enabled", desc = "Reads Hypixel's RARE DROP! lines and prices the drop on the bazaar or, failing that, the auction house. Off means no price is ever requested.")
         @ConfigEditorBoolean
         public boolean enabled = false;
+
+        /**
+         * Der zweite Weg zum Fund: nachsehen statt zuhoeren.
+         *
+         * Hypixel meldet nicht jeden Fund. Was ohne Zeile ins Inventar faellt, sieht
+         * der Chat nie - und damit auch dieser Alarm nicht. Mit diesem Schalter wird
+         * zusaetzlich das Inventar beobachtet; die Stufen gelten unveraendert, es
+         * kommt also nur durch, was ohnehin teuer genug waere.
+         *
+         * Aus Vorgabe, weil es ein anderes Verhalten ist als bisher: Wer den Alarm
+         * kennt, soll ihn nach dem Update nicht ploetzlich anders erleben.
+         */
+        @Expose
+        @ConfigOption(name = "Watch inventory", desc = "Also alert on items that simply appear in your inventory, without a chat line. Catches the drops Hypixel never announces. The tier thresholds still decide, and party sharing stays off for these.")
+        @ConfigEditorBoolean
+        public boolean watchInventory = false;
 
         @ConfigOption(name = "Diagnostics", desc = "Writes what the mod saw and decided into logs/shokimod-diagnostics.txt and opens that folder. Send that file together with latest.log when something did not fire.")
         @ConfigEditorButton(buttonText = "Open")

@@ -33,6 +33,10 @@ public final class ItemNames {
     }
 
     private static final Map<String, Info> byId = new ConcurrentHashMap<>();
+    /** Was ein NPC fuer ein Stueck zahlt. Steht in derselben Liste und kostet keinen zweiten Abruf */
+    private static final Map<String, Double> npcSell = new ConcurrentHashMap<>();
+    /** Der Weg zurueck: Kennung auf den Namen, wie ihn das Spiel schreibt */
+    private static final Map<String, String> nameById = new ConcurrentHashMap<>();
 
     /** Material, Skin, Farbe und Modellverweis einer Kennung, oder null wenn die Liste sie nicht kennt */
     public static Info info(String itemId) {
@@ -59,6 +63,31 @@ public final class ItemNames {
 
     public static void prefetch() {
         FEED.prefetch();
+    }
+
+    /**
+     * Was der NPC-Haendler je Stueck zahlt, oder -1 wenn die Liste dazu nichts sagt.
+     *
+     * Fuer alles, was der Basar nicht handelt und wofuer sich im Auktionshaus niemand
+     * interessiert, ist das der einzige Preis, den es ueberhaupt gibt - Enchanted
+     * Pumpkin etwa.
+     */
+    /** Der Anzeigename zu einer Kennung, oder null wenn die Liste sie nicht kennt */
+    public static String displayName(String itemId) {
+        if (itemId == null) return null;
+        FEED.prefetch();
+        String name = nameById.get(itemId);
+        if (name != null) return name;
+        // Pets und Buecher tragen ihre Stufe hinter einem Semikolon; die Liste kennt nur den Stamm
+        int semicolon = itemId.indexOf(';');
+        return semicolon > 0 ? nameById.get(itemId.substring(0, semicolon)) : null;
+    }
+
+    public static double npcSellPrice(String itemId) {
+        if (itemId == null) return -1;
+        FEED.prefetch();
+        Double price = npcSell.get(itemId);
+        return price == null ? -1 : price;
     }
 
     /** Ohne Farbcodes, ohne Gross/Klein, ohne Rand - so werden zwei Schreibweisen eine */
@@ -94,12 +123,20 @@ public final class ItemNames {
             if (!item.has("id") || !item.has("name")) continue;
 
             String id = item.get("id").getAsString();
-            String name = normalize(item.get("name").getAsString());
+            String raw = item.get("name").getAsString();
+            String name = normalize(raw);
             if (id.isBlank() || name.isBlank()) continue;
+            nameById.put(id, COLOUR_CODE.matcher(raw).replaceAll("").trim());
 
             out.computeIfAbsent(name, key -> new ArrayList<>(1)).add(id);
             byId.put(id, new Info(text(item, "material"), skinOf(item), text(item, "color"),
                     text(item, "item_model")));
+
+            JsonElement npc = item.get("npc_sell_price");
+            if (npc != null && npc.isJsonPrimitive()) {
+                double coins = npc.getAsDouble();
+                if (coins > 0) npcSell.put(id, coins);
+            }
         }
         return out;
     }
