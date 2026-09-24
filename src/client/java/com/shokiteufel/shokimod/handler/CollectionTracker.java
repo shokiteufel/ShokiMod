@@ -301,7 +301,7 @@ public final class CollectionTracker {
      * ohnehin fuer sich.
      */
     private static void readOpenMenu(Minecraft client) {
-        if (!(client.screen instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?> screen)) return;
+        if (!(client.gui.screen() instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?> screen)) return;
         String title = screen.getTitle().getString();
         if (!title.toLowerCase(Locale.ROOT).contains("collection")) return;
 

@@ -7,6 +7,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.phys.AABB;
 
 import java.util.ArrayList;
@@ -130,7 +131,7 @@ public final class SafariExtras {
         for (Entity entity : client.level.entitiesForRendering()) {
             if (entity.position().distanceToSqr(client.player.position()) > MOUND_RANGE_SQR) continue;
 
-            if (entity.getType() == EntityType.INTERACTION) {
+            if (entity.getType() == EntityTypes.INTERACTION) {
                 if (entity.getY() > MOUND_MAX_Y) continue;
                 AABB box = entity.getBoundingBox();
                 if (!inBand(box.getXsize(), box.getYsize())) continue;
@@ -168,13 +169,13 @@ public final class SafariExtras {
     /** Alles, was ein echter Mob sein kann - Deko- und Hilfs-Entities zählen nicht */
     private static boolean isCreature(Entity entity) {
         EntityType<?> type = entity.getType();
-        return type != EntityType.ARMOR_STAND
-                && type != EntityType.ITEM_DISPLAY
-                && type != EntityType.BLOCK_DISPLAY
-                && type != EntityType.TEXT_DISPLAY
-                && type != EntityType.PLAYER
-                && type != EntityType.ITEM
-                && type != EntityType.INTERACTION;
+        return type != EntityTypes.ARMOR_STAND
+                && type != EntityTypes.ITEM_DISPLAY
+                && type != EntityTypes.BLOCK_DISPLAY
+                && type != EntityTypes.TEXT_DISPLAY
+                && type != EntityTypes.PLAYER
+                && type != EntityTypes.ITEM
+                && type != EntityTypes.INTERACTION;
     }
 
     /**

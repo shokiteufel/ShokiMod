@@ -23,7 +23,7 @@ public class NearbyClickMixin {
     private void shokimod$onButton(long window, MouseButtonInfo info, int action, CallbackInfo ci) {
         Minecraft client = Minecraft.getInstance();
         // Nur bei offenem Fenster und nur beim Druecken, nicht beim Loslassen
-        if (client.screen == null || action != 1 || client.getWindow() == null) return;
+        if (client.gui.screen() == null || action != 1 || client.getWindow() == null) return;
         // Ist der Kasten aus, wird hier auch nichts umgerechnet
         if (!NearbyOverlay.anyClickable()) return;
 

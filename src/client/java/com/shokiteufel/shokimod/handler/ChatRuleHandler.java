@@ -72,7 +72,7 @@ public final class ChatRuleHandler {
 
     private static void apply(Minecraft client, ChatRule rule, Matcher matcher) {
         if (!rule.actionBar.isBlank()) {
-            client.gui.setOverlayMessage(
+            client.gui.hud.setOverlayMessage(
                     Component.literal(ChatRule.applyGroups(rule.actionBar, matcher)), false);
         }
 
@@ -82,7 +82,7 @@ public final class ChatRuleHandler {
         }
 
         if (!rule.toast.isBlank()) {
-            client.getToastManager().addToast(new ShokiModToast(
+            client.gui.toastManager().addToast(new ShokiModToast(
                     Component.literal(ChatRule.applyGroups(rule.toast, matcher)),
                     rule.toastMillis, iconOf(rule.toastIcon)));
         }

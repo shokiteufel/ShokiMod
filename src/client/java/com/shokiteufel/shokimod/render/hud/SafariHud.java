@@ -322,7 +322,7 @@ public final class SafariHud {
      * Zeichenwege auseinander, und ein Kasten faellt zwischen ihnen hindurch.
      */
     public static boolean menuOpen() {
-        net.minecraft.client.gui.screens.Screen offen = Minecraft.getInstance().screen;
+        net.minecraft.client.gui.screens.Screen offen = Minecraft.getInstance().gui.screen();
         return offen != null
                 && !(offen instanceof net.minecraft.client.gui.screens.ChatScreen);
     }
@@ -335,7 +335,7 @@ public final class SafariHud {
     /** Beim Spielen: nur was eingeschaltet ist und an diesen Ort gehoert */
     public static void render(GuiGraphicsExtractor graphics) {
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null || client.options.hideGui) return;
+        if (client.player == null || client.gui.hud.isHidden()) return;
         if (!GameState.Server.isSkyblock()) return;
 
         for (Panel panel : PANELS) {

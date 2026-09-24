@@ -62,7 +62,7 @@ public final class HuntingHud {
 
         // Nur bei offenem Fenster: dort kann man klicken. Die Zeile ist immer die letzte,
         // darauf verlaesst sich der Klick im NearbyOverlay
-        if (Minecraft.getInstance().screen != null) {
+        if (Minecraft.getInstance().gui.screen() != null) {
             panel.blank();
             panel.line("[ Reset ]", TIME_COLOUR);
         }

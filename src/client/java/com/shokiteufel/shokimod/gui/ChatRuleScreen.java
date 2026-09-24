@@ -60,7 +60,7 @@ public class ChatRuleScreen extends Screen {
             boolean needsFilter = rule.filter == null || rule.filter.isBlank();
             Button edit = Button.builder(Component.literal(
                     (needsFilter ? "§c⚠ §r" : "") + rule.label() + "  §8" + summary(rule)),
-                    button -> minecraft.setScreen(new ChatRuleEditScreen(this, rule)))
+                    button -> minecraft.setScreenAndShow(new ChatRuleEditScreen(this, rule)))
                     .bounds(left + 44, y, 252, WIDGET_HEIGHT).build();
             edit.setTooltip(Tooltip.create(needsFilter
                     ? Component.literal("No filter yet - the rule never triggers")
@@ -96,7 +96,7 @@ public class ChatRuleScreen extends Screen {
         addRenderableWidget(Button.builder(Component.literal("New rule"), button -> {
             ChatRule fresh = new ChatRule();
             rules().add(fresh);
-            minecraft.setScreen(new ChatRuleEditScreen(this, fresh));
+            minecraft.setScreenAndShow(new ChatRuleEditScreen(this, fresh));
         }).bounds(left, y, 100, WIDGET_HEIGHT).build());
 
         if (pageCount() > 1) {
@@ -173,6 +173,6 @@ public class ChatRuleScreen extends Screen {
     public void onClose() {
         rules().removeIf(ChatRule::isUntouched);
         ModConfig.INSTANCE.saveNow();
-        if (minecraft != null) minecraft.setScreen(parent);
+        if (minecraft != null) minecraft.setScreenAndShow(parent);
     }
 }

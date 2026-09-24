@@ -465,13 +465,13 @@ public class ShardProfitScreen extends Screen {
      */
     private void openBox() {
         if (minecraft == null || minecraft.player == null) return;
-        minecraft.setScreen(null);
+        minecraft.setScreenAndShow(null);
         minecraft.player.connection.sendCommand("huntingbox");
     }
 
     @Override
     public void onClose() {
-        if (minecraft != null) minecraft.setScreen(parent);
+        if (minecraft != null) minecraft.setScreenAndShow(parent);
     }
 
     /**

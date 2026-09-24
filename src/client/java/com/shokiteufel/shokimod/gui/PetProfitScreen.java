@@ -175,7 +175,7 @@ public class PetProfitScreen extends Screen {
                 if (index >= 0 && index < perPage() && start + index < zeilen.size()) {
                     String auktion = zeilen.get(start + index).auction();
                     if (!auktion.isEmpty() && minecraft != null && minecraft.player != null) {
-                        minecraft.setScreen(null);
+                        minecraft.setScreenAndShow(null);
                         minecraft.player.connection.sendCommand("viewauction " + auktion);
                         return true;
                     }
@@ -278,6 +278,6 @@ public class PetProfitScreen extends Screen {
 
     @Override
     public void onClose() {
-        if (minecraft != null) minecraft.setScreen(parent);
+        if (minecraft != null) minecraft.setScreenAndShow(parent);
     }
 }

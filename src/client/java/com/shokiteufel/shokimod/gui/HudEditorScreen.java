@@ -200,7 +200,7 @@ public class HudEditorScreen extends Screen {
     private void openAreas() {
         if (minecraft == null || selectedPanel == null) return;
         java.util.List<String> chosen = ModConfig.INSTANCE.hud.areasFor(selectedPanel.name());
-        minecraft.setScreen(new AreaPickerScreen(this, "Areas: " + label(selectedPanel), chosen,
+        minecraft.setScreenAndShow(new AreaPickerScreen(this, "Areas: " + label(selectedPanel), chosen,
                 "Nothing selected - the panel follows its default", ModConfig.INSTANCE::saveNow));
     }
 
@@ -253,7 +253,7 @@ public class HudEditorScreen extends Screen {
     private void openBannerColour() {
         if (minecraft == null) return;
         BannerDesign target = design();
-        minecraft.setScreen(new ColorPickerScreen(this, bannerColour(), 255,
+        minecraft.setScreenAndShow(new ColorPickerScreen(this, bannerColour(), 255,
                 (rgb, fillAlpha) -> target.colour = String.format("%06X", rgb & 0xFFFFFF)));
     }
 
@@ -548,6 +548,6 @@ public class HudEditorScreen extends Screen {
     @Override
     public void onClose() {
         ModConfig.INSTANCE.saveNow();
-        if (minecraft != null) minecraft.setScreen(parent);
+        if (minecraft != null) minecraft.setScreenAndShow(parent);
     }
 }

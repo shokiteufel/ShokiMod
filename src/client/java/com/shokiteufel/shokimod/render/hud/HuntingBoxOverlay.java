@@ -118,7 +118,7 @@ public final class HuntingBoxOverlay {
     public static boolean handleClick(double mouseX, double mouseY) {
         if (!shown() || !overButton(mouseX, mouseY)) return false;
         Minecraft client = Minecraft.getInstance();
-        client.setScreen(new ShardProfitScreen(null));
+        client.setScreenAndShow(new ShardProfitScreen(null));
         return true;
     }
 }

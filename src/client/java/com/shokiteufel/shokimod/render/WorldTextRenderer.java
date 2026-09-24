@@ -90,7 +90,7 @@ public class WorldTextRenderer {
         // 距離に比例して拡大し、見かけの大きさを一定に保つ。
         // プレイヤーのtick座標を使うと20回/秒でしかスケールが更新されずカクつくため、
         // フレームごとに補間されるカメラ座標を基準にする
-        Vec3 cameraPos = Minecraft.getInstance().gameRenderer.getMainCamera().position();
+        Vec3 cameraPos = Minecraft.getInstance().gameRenderer.mainCamera().position();
         float textScale = (float) Math.max(0.02, cameraPos.distanceTo(pos) * 0.0025);
 
         TextGizmo.Style style = TextGizmo.Style.forColorAndCentered(argbColor)

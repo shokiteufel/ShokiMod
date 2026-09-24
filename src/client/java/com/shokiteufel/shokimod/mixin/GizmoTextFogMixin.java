@@ -12,14 +12,16 @@ import org.spongepowered.asm.mixin.injection.ModifyArg;
  * DisplayMode.SEE_THROUGH はFOGバインドグループを持たないため、
  * ここで描画モードを差し替えて霧の影響を受けないようにする。
  */
-@Mixin(targets = "net.minecraft.client.renderer.gizmos.DrawableGizmoPrimitives$Group")
+// 26.2: Der Text laeuft nicht mehr ueber DrawableGizmoPrimitives$Group#renderTexts,
+// sondern ueber den Glyph-Besucher des GizmoFeatureRenderer
+@Mixin(targets = "net.minecraft.client.renderer.feature.GizmoFeatureRenderer$1")
 public class GizmoTextFogMixin {
 
     @ModifyArg(
-            method = "renderTexts",
+            method = "acceptRenderable",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/client/gui/Font;drawInBatch(Ljava/lang/String;FFIZLorg/joml/Matrix4fc;Lnet/minecraft/client/renderer/MultiBufferSource;Lnet/minecraft/client/gui/Font$DisplayMode;II)V"
+                    target = "Lnet/minecraft/client/gui/font/TextRenderable;renderType(Lnet/minecraft/client/gui/Font$DisplayMode;)Lnet/minecraft/client/renderer/rendertype/RenderType;"
             )
     )
     private Font.DisplayMode shokimod$disableFogForGizmoText(Font.DisplayMode mode) {

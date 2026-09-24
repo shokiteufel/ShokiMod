@@ -83,23 +83,23 @@ public class ShokiMod implements ClientModInitializer {
             }
             if (openHudNextTick) {
                 openHudNextTick = false;
-                client.setScreen(new HudEditorScreen(null, false));
+                client.setScreenAndShow(new HudEditorScreen(null, false));
             }
             if (openPetProfitNextTick) {
                 openPetProfitNextTick = false;
-                client.setScreen(new PetProfitScreen(null));
+                client.setScreenAndShow(new PetProfitScreen(null));
             }
             if (openShardProfitNextTick) {
                 openShardProfitNextTick = false;
-                client.setScreen(new com.shokiteufel.shokimod.gui.ShardProfitScreen(null));
+                client.setScreenAndShow(new com.shokiteufel.shokimod.gui.ShardProfitScreen(null));
             }
             if (openCraftProfitNextTick) {
                 openCraftProfitNextTick = false;
-                client.setScreen(new com.shokiteufel.shokimod.gui.CraftProfitScreen(null));
+                client.setScreenAndShow(new com.shokiteufel.shokimod.gui.CraftProfitScreen(null));
             }
             if (openPetBuilderNextTick) {
                 openPetBuilderNextTick = false;
-                client.setScreen(new PetHudBuilderScreen(null));
+                client.setScreenAndShow(new PetHudBuilderScreen(null));
             }
             // Der Fortschritt des Pets steht nur im Pet-Menue; solange es offen ist,
             // wird er mitgelesen
@@ -236,10 +236,10 @@ public class ShokiMod implements ClientModInitializer {
             MoulConfigScreenComponent configScreen = new MoulConfigScreenComponent(
                     Component.literal("ShokiMod Configuration"),
                     guiContext,
-                    Minecraft.getInstance().screen
+                    Minecraft.getInstance().gui.screen()
             );
 
-            Minecraft.getInstance().setScreen(configScreen);
+            Minecraft.getInstance().setScreenAndShow(configScreen);
         } catch (Exception e) {
             LOGGER.error("Failed to open MoulConfig screen!", e);
         }

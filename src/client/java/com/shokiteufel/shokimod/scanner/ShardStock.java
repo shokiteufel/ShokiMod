@@ -132,7 +132,7 @@ public final class ShardStock {
      */
     public static boolean inBox() {
         Minecraft client = Minecraft.getInstance();
-        if (!(client.screen instanceof AbstractContainerScreen<?> screen)) return false;
+        if (!(client.gui.screen() instanceof AbstractContainerScreen<?> screen)) return false;
         return TITLE.matcher(clean(screen.getTitle().getString())).matches();
     }
 
@@ -200,7 +200,7 @@ public final class ShardStock {
      * einen Bestand melden, der gerade erst im Entstehen ist.
      */
     public static void tick(Minecraft client) {
-        if (client == null || !(client.screen instanceof AbstractContainerScreen<?> screen)) return;
+        if (client == null || !(client.gui.screen() instanceof AbstractContainerScreen<?> screen)) return;
         long now = System.currentTimeMillis();
         if (now - lastLook < GAP_MILLIS) return;
         lastLook = now;

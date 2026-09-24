@@ -66,9 +66,13 @@ public class ScoreboardUtils {
             TextColor color = style.getColor();
             if (color != null) {
                 int rgb = color.getValue();
+                // 26.2: ChatFormatting.isColor()/getColor()/getChar() sind weg; die
+                // Zuordnung Farbe -> Code kommt jetzt von TextColor.fromLegacyFormat(),
+                // und toString() einer ChatFormatting ist weiterhin "§c"
                 for (ChatFormatting f : ChatFormatting.values()) {
-                    if (f.isColor() && f.getColor() != null && f.getColor().equals(rgb)) {
-                        sb.append('§').append(f.getChar());
+                    TextColor legacy = TextColor.fromLegacyFormat(f);
+                    if (legacy != null && legacy.getValue() == rgb) {
+                        sb.append(f);
                         break;
                     }
                 }

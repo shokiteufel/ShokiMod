@@ -15,10 +15,10 @@ public class HudRenderer {
         // im Einstellungsfenster überall etwas zeigt
         AlertBanner.render(graphics);
         // Der Sandbox zeichnet die Vorschau selbst, ueber seinem Fenster - hier wuerde sie darunter liegen
-        if (!(Minecraft.getInstance().screen instanceof BannerDesignScreen)) DropBanner.render(graphics);
+        if (!(Minecraft.getInstance().gui.screen() instanceof BannerDesignScreen)) DropBanner.render(graphics);
 
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null || client.options.hideGui) return;
+        if (client.player == null || client.gui.hud.isHidden()) return;
         if (client.level == null) return;
         if (!GameState.Server.isSkyblock()) return;
 
@@ -29,7 +29,7 @@ public class HudRenderer {
         // Waehrend man Banner oder Kaesten einrichtet, sollen die Kaesten nicht dazwischenliegen.
         // Bei jedem anderen offenen Fenster zeichnet sie der NearbyOverlayMixin darueber -
         // hier noch einmal zu zeichnen kostet dieselbe Arbeit und verschwindet hinter dem Fenster
-        if (client.screen != null) return;
+        if (client.gui.screen() != null) return;
         SafariHud.render(graphics);
     }
 }

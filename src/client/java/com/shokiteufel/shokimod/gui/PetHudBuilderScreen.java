@@ -134,7 +134,7 @@ public class PetHudBuilderScreen extends Screen {
         }).bounds(left + LIST_WIDTH - 20, unten + 72, 20, 20).build());
 
         addRenderableWidget(Button.builder(Component.literal("Move on screen"), b -> {
-            if (minecraft != null) minecraft.setScreen(new HudEditorScreen(this, false));
+            if (minecraft != null) minecraft.setScreenAndShow(new HudEditorScreen(this, false));
         }).bounds(left, unten + 96, LIST_WIDTH, 20).build());
 
         addRenderableWidget(Button.builder(Component.literal("Done"), b -> onClose())
@@ -176,6 +176,6 @@ public class PetHudBuilderScreen extends Screen {
     @Override
     public void onClose() {
         ModConfig.INSTANCE.saveNow();
-        if (minecraft != null) minecraft.setScreen(parent);
+        if (minecraft != null) minecraft.setScreenAndShow(parent);
     }
 }

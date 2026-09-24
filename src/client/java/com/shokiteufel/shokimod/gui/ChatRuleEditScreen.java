@@ -85,7 +85,7 @@ public class ChatRuleEditScreen extends Screen {
         y += ROW;
 
         Button areaButton = Button.builder(areaLabel(), button ->
-                minecraft.setScreen(new AreaPickerScreen(this, rule)))
+                minecraft.setScreenAndShow(new AreaPickerScreen(this, rule)))
                 .bounds(leftColumn, y, COLUMN_WIDTH, WIDGET_HEIGHT).build();
         areaButton.setTooltip(Tooltip.create(Component.literal(
                 "Pick the areas the rule works in. Nothing selected means everywhere. "
@@ -120,7 +120,7 @@ public class ChatRuleEditScreen extends Screen {
         y += ROW;
 
         Button fileButton = Button.builder(fileLabel(), button -> {
-            if (minecraft != null) minecraft.setScreen(new SoundPickerScreen(this, () -> rule.soundFile, file -> rule.soundFile = file, rule.volume));
+            if (minecraft != null) minecraft.setScreenAndShow(new SoundPickerScreen(this, () -> rule.soundFile, file -> rule.soundFile = file, rule.volume));
         }).bounds(rightColumn, y, COLUMN_WIDTH, WIDGET_HEIGHT).build();
         fileButton.setTooltip(Tooltip.create(Component.literal(
                 "Opens the list of your own files in config/shokimod/sounds.")));
@@ -131,7 +131,7 @@ public class ChatRuleEditScreen extends Screen {
         y += ROW;
 
         Button blocksButton = Button.builder(blocksLabel(), button -> {
-            if (minecraft != null) minecraft.setScreen(new RuleBlockScreen(this, rule));
+            if (minecraft != null) minecraft.setScreenAndShow(new RuleBlockScreen(this, rule));
         }).bounds(rightColumn, y, COLUMN_WIDTH, WIDGET_HEIGHT).build();
         blocksButton.setTooltip(Tooltip.create(Component.literal(
                 "Rules that stay silent when this one fires. The list order decides who goes first.")));
@@ -306,7 +306,7 @@ public class ChatRuleEditScreen extends Screen {
     public void onClose() {
         ModConfig.INSTANCE.saveNow();
         if (minecraft != null) {
-            minecraft.setScreen(parent);
+            minecraft.setScreenAndShow(parent);
             parent.rebuild();
         }
     }

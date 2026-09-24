@@ -1,6 +1,6 @@
 # ShokiMod
 
-Fabric-Mod fuer **Hypixel Skyblock** auf **Minecraft 26.1.2**, gepflegt von
+Fabric-Mod fuer **Hypixel Skyblock** auf **Minecraft 26.2**, gepflegt von
 [shokiteufel](https://github.com/shokiteufel).
 
 ShokiMod ist ein Zusammenschnitt: Funktionen, die es in anderen Mods einzeln gibt, in
@@ -15,10 +15,14 @@ Lizenz und dem, was genau uebernommen wurde.
 ## Download
 
 Die fertige `.jar` liegt bei den **[Releases](https://github.com/shokiteufel/ShokiMod/releases)** —
-immer die oberste Version nehmen, `shokimod-<version>+26.1.x.jar` herunterladen und in den
+immer die oberste Version nehmen, `shokimod-<version>+26.2.jar` herunterladen und in den
 `mods/`-Ordner legen. Die `-sources.jar` wird **nicht** gebraucht, die ist nur der Quelltext.
 
-Voraussetzungen: Minecraft 26.1.2, Fabric Loader 0.19.3+, Fabric API.
+Voraussetzungen: Minecraft 26.2, Fabric Loader 0.19.3+, Fabric API.
+
+Wer noch auf **26.1.2** spielt, nimmt eine Datei mit `+26.1.x` im Namen; gepflegt wird dieser
+Stand im Zweig [`26.1.x`](https://github.com/shokiteufel/ShokiMod/tree/26.1.x). Die Mod prueft
+die Spielversion beim Start — die falsche Datei laedt der Loader gar nicht erst.
 
 ## Was die Mod kann
 

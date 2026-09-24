@@ -271,7 +271,7 @@ public class CraftProfitScreen extends Screen {
 
         Row row = zeilen.get(start + index);
         if (minecraft == null || minecraft.player == null) return false;
-        minecraft.setScreen(null);
+        minecraft.setScreenAndShow(null);
         minecraft.player.connection.sendCommand("recipe " + row.name());
         return true;
     }
@@ -422,6 +422,6 @@ public class CraftProfitScreen extends Screen {
 
     @Override
     public void onClose() {
-        if (minecraft != null) minecraft.setScreen(parent);
+        if (minecraft != null) minecraft.setScreenAndShow(parent);
     }
 }

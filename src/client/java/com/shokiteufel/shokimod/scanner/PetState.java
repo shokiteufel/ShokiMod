@@ -377,7 +377,7 @@ public final class PetState {
 
     /** Der Blick ins offene Pet-Menue: nur dort steht der Fortschritt */
     public static void tick(Minecraft client) {
-        if (client == null || !(client.screen instanceof AbstractContainerScreen<?> screen)) return;
+        if (client == null || !(client.gui.screen() instanceof AbstractContainerScreen<?> screen)) return;
         long now = System.currentTimeMillis();
         if (now - lastMenuLook < MENU_GAP_MILLIS) return;
         lastMenuLook = now;

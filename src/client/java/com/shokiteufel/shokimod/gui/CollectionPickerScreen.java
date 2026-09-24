@@ -157,6 +157,6 @@ public class CollectionPickerScreen extends Screen {
     @Override
     public void onClose() {
         ModConfig.INSTANCE.saveNow();
-        if (minecraft != null) minecraft.setScreen(parent);
+        if (minecraft != null) minecraft.setScreenAndShow(parent);
     }
 }

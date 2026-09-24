@@ -38,7 +38,7 @@ public class BossNameplateRenderer {
         if (EntityHighlightManager.nameplateEntities.isEmpty()) return;
 
         Font font = client.font;
-        Camera camera = client.gameRenderer.getMainCamera();
+        Camera camera = client.gameRenderer.mainCamera();
         Vec3 cameraPos = camera.position();
         float screenWidth = client.getWindow().getGuiScaledWidth();
         float screenHeight = client.getWindow().getGuiScaledHeight();

@@ -28,7 +28,7 @@ public final class NearbyOverlay {
 
     public static boolean shown() {
         return ModConfig.INSTANCE.mobVisuals.masterEnabled && ModConfig.INSTANCE.mobVisuals.showNearbyHud
-                && !(Minecraft.getInstance().screen instanceof HudEditorScreen);
+                && !(Minecraft.getInstance().gui.screen() instanceof HudEditorScreen);
     }
 
     /**
@@ -56,7 +56,7 @@ public final class NearbyOverlay {
         // Mod nicht. Wer die Gewinnliste oder die Einstellungen offen hat, will sie
         // lesen und nicht durch Kaesten hindurchschauen; im Einrichtungsfenster
         // zeichnen sie sich ohnehin selbst, an der Stelle, an die man sie zieht.
-        net.minecraft.client.gui.screens.Screen offen = Minecraft.getInstance().screen;
+        net.minecraft.client.gui.screens.Screen offen = Minecraft.getInstance().gui.screen();
         // Der Chat gehoert dazu: Bei ihm hoert der gewoehnliche Weg auf zu zeichnen
         // (dort zaehlt jedes offene Fenster), und hier kam er bisher auch nicht durch,
         // weil er kein Behaelter-Fenster ist. So fielen die Kaesten zwischen beiden
@@ -78,7 +78,7 @@ public final class NearbyOverlay {
 
     /** Sitzt der Zeiger auf einer Zeile? Dann handeln und den Klick schlucken */
     public static boolean handleClick(double mouseX, double mouseY) {
-        if (Minecraft.getInstance().screen instanceof HudEditorScreen) return false;
+        if (Minecraft.getInstance().gui.screen() instanceof HudEditorScreen) return false;
         // Zuerst der Knopf ueber der Box: Er liegt ueber allem anderen, also bekommt
         // er den Klick auch zuerst
         if (HuntingBoxOverlay.handleClick(mouseX, mouseY)) return true;

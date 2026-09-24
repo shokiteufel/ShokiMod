@@ -257,7 +257,7 @@ public class BannerDesignScreen extends Screen {
         toggle(col2, y2, "Show tier", () -> d.showTier, v -> d.showTier = v);
         y2 += ROW;
         Button position = Button.builder(Component.literal("Position: HUD editor"), button -> {
-            if (minecraft != null) minecraft.setScreen(new HudEditorScreen(this, true));
+            if (minecraft != null) minecraft.setScreenAndShow(new HudEditorScreen(this, true));
         }).bounds(col2, y2, COLUMN_WIDTH, 20).build();
         position.setTooltip(Tooltip.create(Component.literal("Drag this banner into place. Only the Free anchor follows X/Y.")));
         addRenderableWidget(position);
@@ -645,6 +645,6 @@ public class BannerDesignScreen extends Screen {
     @Override
     public void onClose() {
         ModConfig.INSTANCE.saveNow();
-        if (minecraft != null) minecraft.setScreen(parent);
+        if (minecraft != null) minecraft.setScreenAndShow(parent);
     }
 }

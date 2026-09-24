@@ -153,57 +153,57 @@ public class ModConfig extends Config {
         INSTANCE.mobVisuals.resetNameplateScale =
                 () -> INSTANCE.mobVisuals.nameplateScale = MobVisualsCategory.DEFAULT_NAMEPLATE_SCALE;
         INSTANCE.mobVisuals.openNearbyPicker = () -> Minecraft.getInstance().execute(() ->
-                Minecraft.getInstance().setScreen(
-                        new CustomMobScreen(Minecraft.getInstance().screen, true)));
+                Minecraft.getInstance().setScreenAndShow(
+                        new CustomMobScreen(Minecraft.getInstance().gui.screen(), true)));
         INSTANCE.mobVisuals.openCustomManager = () -> Minecraft.getInstance().execute(() ->
-                Minecraft.getInstance().setScreen(
-                        new CustomMobScreen(Minecraft.getInstance().screen, false)));
+                Minecraft.getInstance().setScreenAndShow(
+                        new CustomMobScreen(Minecraft.getInstance().gui.screen(), false)));
         INSTANCE.chat.openChatRules = () -> Minecraft.getInstance().execute(() ->
-                Minecraft.getInstance().setScreen(
-                        new ChatRuleScreen(Minecraft.getInstance().screen)));
+                Minecraft.getInstance().setScreenAndShow(
+                        new ChatRuleScreen(Minecraft.getInstance().gui.screen())));
         INSTANCE.safari.openMarkerSettings = () -> Minecraft.getInstance().execute(() ->
-                Minecraft.getInstance().setScreen(
-                        new MarkerSettingsScreen(Minecraft.getInstance().screen)));
+                Minecraft.getInstance().setScreenAndShow(
+                        new MarkerSettingsScreen(Minecraft.getInstance().gui.screen())));
         INSTANCE.hud.openHudEditor = () -> Minecraft.getInstance().execute(() ->
-                Minecraft.getInstance().setScreen(
-                        new HudEditorScreen(Minecraft.getInstance().screen, false)));
+                Minecraft.getInstance().setScreenAndShow(
+                        new HudEditorScreen(Minecraft.getInstance().gui.screen(), false)));
         INSTANCE.safari.openContestSound = () -> Minecraft.getInstance().execute(() ->
-                Minecraft.getInstance().setScreen(new SoundPickerScreen(
-                        Minecraft.getInstance().screen,
+                Minecraft.getInstance().setScreenAndShow(new SoundPickerScreen(
+                        Minecraft.getInstance().gui.screen(),
                         () -> INSTANCE.safari.contestWarningSound,
                         picked -> INSTANCE.safari.contestWarningSound = picked,
                         1.0f)));
         INSTANCE.chat.rareLoot.openTier1Sound = () -> Minecraft.getInstance().execute(() ->
-                Minecraft.getInstance().setScreen(new SoundPickerScreen(
-                        Minecraft.getInstance().screen,
+                Minecraft.getInstance().setScreenAndShow(new SoundPickerScreen(
+                        Minecraft.getInstance().gui.screen(),
                         () -> INSTANCE.chat.rareLoot.tier1Sound,
                         picked -> INSTANCE.chat.rareLoot.tier1Sound = picked,
                         1.0f)));
         INSTANCE.chat.rareLoot.testTier1 = () -> RareLootHandler.test(1);
         INSTANCE.chat.rareLoot.openDyeSound = () -> Minecraft.getInstance().execute(() ->
-                Minecraft.getInstance().setScreen(new SoundPickerScreen(
-                        Minecraft.getInstance().screen,
+                Minecraft.getInstance().setScreenAndShow(new SoundPickerScreen(
+                        Minecraft.getInstance().gui.screen(),
                         () -> INSTANCE.chat.rareLoot.dyeSound,
                         picked -> INSTANCE.chat.rareLoot.dyeSound = picked,
                         1.0f)));
         INSTANCE.chat.rareLoot.testDye = RareLootHandler::testDye;
         INSTANCE.chat.rareLoot.openTier2Sound = () -> Minecraft.getInstance().execute(() ->
-                Minecraft.getInstance().setScreen(new SoundPickerScreen(
-                        Minecraft.getInstance().screen,
+                Minecraft.getInstance().setScreenAndShow(new SoundPickerScreen(
+                        Minecraft.getInstance().gui.screen(),
                         () -> INSTANCE.chat.rareLoot.tier2Sound,
                         picked -> INSTANCE.chat.rareLoot.tier2Sound = picked,
                         1.0f)));
         INSTANCE.chat.rareLoot.testTier2 = () -> RareLootHandler.test(2);
         INSTANCE.chat.rareLoot.openTier3Sound = () -> Minecraft.getInstance().execute(() ->
-                Minecraft.getInstance().setScreen(new SoundPickerScreen(
-                        Minecraft.getInstance().screen,
+                Minecraft.getInstance().setScreenAndShow(new SoundPickerScreen(
+                        Minecraft.getInstance().gui.screen(),
                         () -> INSTANCE.chat.rareLoot.tier3Sound,
                         picked -> INSTANCE.chat.rareLoot.tier3Sound = picked,
                         1.0f)));
         INSTANCE.chat.rareLoot.testTier3 = () -> RareLootHandler.test(3);
         INSTANCE.chat.rareLoot.openTier4Sound = () -> Minecraft.getInstance().execute(() ->
-                Minecraft.getInstance().setScreen(new SoundPickerScreen(
-                        Minecraft.getInstance().screen,
+                Minecraft.getInstance().setScreenAndShow(new SoundPickerScreen(
+                        Minecraft.getInstance().gui.screen(),
                         () -> INSTANCE.chat.rareLoot.tier4Sound,
                         picked -> INSTANCE.chat.rareLoot.tier4Sound = picked,
                         1.0f)));
@@ -214,16 +214,16 @@ public class ModConfig extends Config {
         INSTANCE.guild.events.testBanner = () -> Minecraft.getInstance().execute(GuildEvents::testBanner);
         INSTANCE.collections.tracker.resetTracker = () -> Minecraft.getInstance().execute(CollectionTracker::reset);
         INSTANCE.collections.tracker.openPicker = () -> Minecraft.getInstance().execute(() ->
-                Minecraft.getInstance().setScreen(new CollectionPickerScreen(Minecraft.getInstance().screen)));
+                Minecraft.getInstance().setScreenAndShow(new CollectionPickerScreen(Minecraft.getInstance().gui.screen())));
         INSTANCE.chat.reminder.testCake = () -> Minecraft.getInstance().execute(CakeReminder::test);
         INSTANCE.chat.reminder.clearCakes = () -> Minecraft.getInstance().execute(CakeReminder::clear);
         INSTANCE.chat.banner.openEditor = () -> Minecraft.getInstance().execute(() ->
-                Minecraft.getInstance().setScreen(new HudEditorScreen(Minecraft.getInstance().screen, true)));
+                Minecraft.getInstance().setScreenAndShow(new HudEditorScreen(Minecraft.getInstance().gui.screen(), true)));
         INSTANCE.chat.banner.openSandbox = () -> Minecraft.getInstance().execute(() ->
-                Minecraft.getInstance().setScreen(new BannerDesignScreen(Minecraft.getInstance().screen)));
+                Minecraft.getInstance().setScreenAndShow(new BannerDesignScreen(Minecraft.getInstance().gui.screen())));
         INSTANCE.safari.openShinyCallSound = () -> Minecraft.getInstance().execute(() ->
-                Minecraft.getInstance().setScreen(new SoundPickerScreen(
-                        Minecraft.getInstance().screen,
+                Minecraft.getInstance().setScreenAndShow(new SoundPickerScreen(
+                        Minecraft.getInstance().gui.screen(),
                         () -> INSTANCE.safari.shinyCallSoundFile,
                         picked -> INSTANCE.safari.shinyCallSoundFile = picked,
                         1.0f)));
@@ -232,8 +232,8 @@ public class ModConfig extends Config {
             // Das Holen anstossen, bevor das Fenster aufgeht - sonst steht dort
             // im ersten Moment nur "Loading"
             com.shokiteufel.shokimod.util.ShardProfitData.prefetch();
-            Minecraft.getInstance().setScreen(
-                    new com.shokiteufel.shokimod.gui.ShardProfitScreen(Minecraft.getInstance().screen));
+            Minecraft.getInstance().setScreenAndShow(
+                    new com.shokiteufel.shokimod.gui.ShardProfitScreen(Minecraft.getInstance().gui.screen()));
         });
 
         if (INSTANCE.mobVisuals.customTargets == null) INSTANCE.mobVisuals.customTargets = new ArrayList<>();

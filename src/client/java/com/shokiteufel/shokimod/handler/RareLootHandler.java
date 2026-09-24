@@ -394,8 +394,8 @@ public final class RareLootHandler {
                     ItemIcons.stackFor(itemId), Math.max(coins, 0));
         }
 
-        if (toast && client.getToastManager() != null) {
-            client.getToastManager().addToast(new ShokiModToast(
+        if (toast && client.gui.toastManager() != null) {
+            client.gui.toastManager().addToast(new ShokiModToast(
                     Component.literal(worth.isEmpty() ? headline : headline + " (" + worth + ")"),
                     TOAST_MILLIS, null));
         }

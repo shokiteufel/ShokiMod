@@ -284,7 +284,7 @@ public class CustomMobScreen extends Screen {
 
     private void openColorPicker(CustomMob mob) {
         if (minecraft == null) return;
-        minecraft.setScreen(new ColorPickerScreen(this, mob.color, 255,
+        minecraft.setScreenAndShow(new ColorPickerScreen(this, mob.color, 255,
                 (rgb, fillAlpha) -> mob.color = rgb));
     }
 
@@ -440,7 +440,7 @@ public class CustomMobScreen extends Screen {
     @Override
     public void onClose() {
         if (minecraft != null) {
-            minecraft.setScreen(parent);
+            minecraft.setScreenAndShow(parent);
         }
     }
 

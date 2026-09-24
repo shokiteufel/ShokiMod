@@ -114,7 +114,7 @@ public class MarkerSettingsScreen extends Screen {
 
     private void openPicker(Row row) {
         if (minecraft == null) return;
-        minecraft.setScreen(new ColorPickerScreen(this, row.colour().getAsInt(), 255,
+        minecraft.setScreenAndShow(new ColorPickerScreen(this, row.colour().getAsInt(), 255,
                 (rgb, fillAlpha) -> row.setColour().accept(rgb)));
     }
 
@@ -148,7 +148,7 @@ public class MarkerSettingsScreen extends Screen {
     public void onClose() {
         ModConfig.INSTANCE.saveNow();
         if (minecraft != null) {
-            minecraft.setScreen(parent);
+            minecraft.setScreenAndShow(parent);
         }
     }
 }

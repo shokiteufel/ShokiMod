@@ -30,7 +30,7 @@ public class EntityTracerRenderer {
         // 高さとは一致しない。その差がそのまま線の向きのずれになるため、
         // カメラを基準にすることで始点を画面中央に固定する。
         // 始点がカメラ原点と重なって線が見えなくなる分だけ視線方向へずらす
-        Camera camera = client.gameRenderer.getMainCamera();
+        Camera camera = client.gameRenderer.mainCamera();
         Vec3 basePos = camera.isDetached() ? client.player.getEyePosition(partialTicks) : camera.position();
         Vec3 startPos = basePos.add(client.player.getViewVector(partialTicks).scale(0.2));
 

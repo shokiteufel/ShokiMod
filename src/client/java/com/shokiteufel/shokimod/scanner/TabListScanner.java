@@ -118,14 +118,17 @@ public class TabListScanner {
         text.visit((style, part) -> {
             TextColor color = style.getColor();
             if (color != null) {
-                // ここを color.value() に修正 (カッコを追加)
-                // もし解決できない場合は color.getRgb() を試してください
                 int rgb = color.getValue();
 
+                // 26.2: ChatFormatting kennt seine Farbe nicht mehr selbst - isColor(),
+                // getColor() und getChar() sind weg. Die Zuordnung Farbe -> Code liefert
+                // jetzt TextColor.fromLegacyFormat(); fuer Nicht-Farben (fett, kursiv)
+                // gibt es null. Der Code selbst steckt in toString(), das weiterhin
+                // "§c" liefert - deshalb genuegt append(f) statt eines eigenen Zeichens
                 for (ChatFormatting f : ChatFormatting.values()) {
-                    // ChatFormatting も同様にメソッドとして呼び出す
-                    if (f.isColor() && f.getColor() != null && f.getColor().equals(rgb)) {
-                        sb.append("§").append(f.getChar());
+                    TextColor legacy = TextColor.fromLegacyFormat(f);
+                    if (legacy != null && legacy.getValue() == rgb) {
+                        sb.append(f);
                         break;
                     }
                 }

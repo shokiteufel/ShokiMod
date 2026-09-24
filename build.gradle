@@ -38,10 +38,10 @@ dependencies {
 	// Fabric API. This is technically optional, but you probably want it anyway.
 	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
 
-	implementation("org.notenoughupdates.moulconfig:modern-26.1:4.6.0")
-	include("org.notenoughupdates.moulconfig:modern-26.1:4.6.0")
+	implementation("org.notenoughupdates.moulconfig:modern-26.2:4.7.2")
+	include("org.notenoughupdates.moulconfig:modern-26.2:4.7.2")
 
-	implementation("com.terraformersmc:modmenu:18.0.0-alpha.8")
+	implementation("com.terraformersmc:modmenu:20.0.0-beta.4")
 
 	// Decoder fuer eigene Sound-Dateien. tritonus-share ist die gemeinsame Basis beider SPIs.
 	implementation("com.googlecode.soundlibs:tritonus-share:0.3.7.4")
