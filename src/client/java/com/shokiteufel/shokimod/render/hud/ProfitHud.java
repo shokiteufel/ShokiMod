@@ -34,7 +34,14 @@ public final class ProfitHud {
 
     private static final int TITLE_COLOUR = HudColours.GOLD;
     private static final int LABEL_COLOUR = HudColours.WHITE;
-    private static final int VALUE_COLOUR = HudColours.GREEN;
+    /**
+     * Coins in der Farbe der Ueberschrift.
+     *
+     * Gold ist im Spiel die Farbe des Geldes - die Muenzzeile im Menue, die Preise im
+     * Basar, die Purse. Gruen stand vorher da und sah aus wie ein Haken: gut, richtig,
+     * erledigt. Es ist aber ein Betrag.
+     */
+    private static final int VALUE_COLOUR = HudColours.GOLD;
     private static final int TIME_COLOUR = HudColours.AQUA;
 
     /** Die beiden Knoepfe vor einer Zeile, in der Reihenfolge, in der sie stehen */

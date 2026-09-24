@@ -92,6 +92,9 @@ public final class ItemChanges {
     /** "+38 Enchanted Helix Log (Enchanted Foraging Sack)" */
     private static final Pattern SACK_LINE = Pattern.compile("^([+-])\\s*([\\d,.]+)\\s+(.+?)\\s*\\(");
     private static final String SACK_MARKER = "[Sacks]";
+    /** "You Supercrafted Blessed Bait x256!" - gebaut, nicht gefunden */
+    private static final Pattern SUPERCRAFT = Pattern.compile(
+            "^You Supercrafted (?<item>.+?)(?: x(?<amount>[\\d,]+))?!$", Pattern.CASE_INSENSITIVE);
     private static final String SHARD_PREFIX = "SHARD_";
     /** Zeilen aus fremden Kanaelen erzaehlen von fremden Funden */
     private static final String[] FOREIGN_PREFIXES = {"Party >", "Guild >", "Co-op >", "From ", "To "};
@@ -201,6 +204,9 @@ public final class ItemChanges {
             windowBaseline = null;
             previousCounts = current;
             previousSignature = signature(client);
+            // Was beim Bauen oder Kaufen entsteht, kommt manchmal erst ein paar Ticks
+            // nach dem Schliessen an. Diese Sekunde gehoert noch zum Fenster
+            settleTicks = SETTLE_TICKS;
             return;
         }
 
@@ -227,7 +233,7 @@ public final class ItemChanges {
 
         Map<String, Integer> gains = diff(previousCounts, current);
         previousCounts = current;
-        if (!gains.isEmpty()) dispatch(gains);
+        if (!gains.isEmpty()) dispatch(gains, "inventory");
     }
 
     /**
@@ -239,9 +245,15 @@ public final class ItemChanges {
      */
     private static void noteWindow(Map<String, Integer> before, Map<String, Integer> after) {
         Map<String, Integer> gains = new LinkedHashMap<>();
+        long now = System.currentTimeMillis();
         for (Map.Entry<String, Integer> entry : after.entrySet()) {
             int delta = entry.getValue() - before.getOrDefault(entry.getKey(), 0);
-            if (delta > 0) gains.put(entry.getKey(), delta);
+            if (delta <= 0) continue;
+
+            gains.put(entry.getKey(), delta);
+            // Vorgemerkt, nicht nur uebergangen: Gekauftes und Gecraftetes wandert von
+            // selbst in die Saecke, und deren Sammelmeldung kaeme sonst als Fund zurueck
+            losses.add(new Loss(entry.getKey(), delta, now));
         }
         if (!gains.isEmpty()) {
             ShokiMod.LOGGER.info("[Profit] came in through a window, not counted: {}", gains);
@@ -376,6 +388,11 @@ public final class ItemChanges {
     public static void onChatMessage(Component message, String formatted, String plain) {
         if (message == null || plain == null) return;
         if (!FeatureGate.itemChanges() || !GameState.Server.isSkyblock()) return;
+
+        // Die Craft-Meldung zuerst, und ohne Ruecksicht auf offene Fenster: gecraftet
+        // wird in einem, und die Meldung ist der einzige Hinweis darauf, dass die Ware
+        // gebaut und nicht gefunden wurde
+        if (supercraft(plain)) return;
         // Wer von Hand einlagert oder in der Box raeumt, steht in einem Fenster - das
         // ist kein Fund, sondern ein Umzug
         if (Minecraft.getInstance().screen instanceof AbstractContainerScreen<?>) return;
@@ -385,6 +402,33 @@ public final class ItemChanges {
         } else {
             shards(formatted, plain);
         }
+    }
+
+    /**
+     * Was gecraftet wurde, ist kein Fund.
+     *
+     * Gebaut wird in einem Fenster, und was dabei ins Inventar kommt, zaehlt schon
+     * deshalb nicht. Von dort wandert es aber weiter in einen Sack, und dessen
+     * Sammelmeldung kommt Sekunden spaeter - dann steht das Fenster laengst offen
+     * oder zu, und die Meldung sieht aus wie ein Fund. Deshalb wird die Menge hier
+     * vorgemerkt und gegen die Sack-Meldung aufgerechnet.
+     *
+     * @return ob die Zeile eine Craft-Meldung war
+     */
+    private static boolean supercraft(String plain) {
+        Matcher matcher = SUPERCRAFT.matcher(plain.trim());
+        if (!matcher.matches()) return false;
+
+        String name = matcher.group("item").trim();
+        int amount = matcher.group("amount") == null ? 1 : number(matcher.group("amount"));
+        if (name.isEmpty() || amount <= 0) return true;
+
+        List<String> ids = ItemNames.idsFor(name);
+        if (ids.isEmpty()) return true;
+
+        losses.add(new Loss(ids.get(0), amount, System.currentTimeMillis()));
+        ShokiMod.LOGGER.info("[Profit] crafted, not found: {} x{}", ids.get(0), amount);
+        return true;
     }
 
     /**
@@ -435,7 +479,7 @@ public final class ItemChanges {
 
         Map<String, Integer> gains = new LinkedHashMap<>();
         gains.put(shard, amount);
-        dispatch(gains);
+        dispatch(gains, "shard catch");
     }
 
     /**
@@ -495,7 +539,7 @@ public final class ItemChanges {
             if (rest > 0) net.put(entry.getKey(), rest);
         }
 
-        if (!net.isEmpty()) dispatch(net);
+        if (!net.isEmpty()) dispatch(net, "sacks");
     }
 
     private static int number(String text) {
@@ -531,7 +575,21 @@ public final class ItemChanges {
         for (Component sibling : component.getSiblings()) collectHoverText(sibling, out);
     }
 
-    private static void dispatch(Map<String, Integer> gains) {
+    /**
+     * Woher der letzte Schwung Zugaenge kam.
+     *
+     * Steht im Log neben dem ersten Fund einer Ware. Wenn etwas im Kasten steht, das
+     * dort nicht hingehoert, ist das die erste Frage - und ohne diese Notiz liesse sie
+     * sich nur raten.
+     */
+    private static String lastSource = "inventory";
+
+    public static String lastSource() {
+        return lastSource;
+    }
+
+    private static void dispatch(Map<String, Integer> gains, String source) {
+        lastSource = source;
         for (int i = 0; i < listeners.size(); i++) {
             listeners.get(i).accept(gains);
         }

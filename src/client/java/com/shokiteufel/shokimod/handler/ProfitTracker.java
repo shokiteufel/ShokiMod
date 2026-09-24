@@ -93,7 +93,9 @@ public final class ProfitTracker {
                 int colour = ItemChanges.colourOf(itemId);
                 if (colour != 0) cfg().colours.put(itemId, colour);
             }
-            if (first) ShokiMod.LOGGER.info("[Profit] first {} x{}", itemId, amount);
+            if (first) {
+                ShokiMod.LOGGER.info("[Profit] first {} x{} via {}", itemId, amount, ItemChanges.lastSource());
+            }
         }
 
         if (counted) {
