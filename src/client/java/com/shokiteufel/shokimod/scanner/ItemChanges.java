@@ -77,13 +77,18 @@ public final class ItemChanges {
      */
     private static final long SACK_OFFSET_MILLIS = 65_000L;
     /**
-     * Das SkyBlock-Menue zaehlt nicht mit.
+     * Der letzte Platz der Schnellleiste zaehlt nicht mit.
      *
-     * Erkannt wird es an seiner Kennung, nicht an seinem Platz. Es liegt zwar
-     * gewoehnlich auf dem letzten Platz der Schnellleiste, aber man kann es
-     * verschieben - und dann lag dort ein gewoehnlicher Gegenstand, dessen Zugaenge
-     * niemand gezaehlt haette.
+     * Dort steht gewoehnlich das SkyBlock-Menue, aber der Platz ist in Wahrheit eine
+     * Anzeige: Wer eine Angel in die Hand nimmt, sieht dort seinen Koeder, wer einen
+     * Bogen zieht, seine Pfeile. Beides liegt in Wirklichkeit im Lager und ist nicht
+     * dazugekommen - gezaehlt sah es aber aus wie ein Fund, und beim naechsten Griff
+     * zur Angel wieder.
+     *
+     * Deshalb beides: der Platz bleibt aussen vor, und das Menue zusaetzlich an seiner
+     * Kennung - wer es verschoben hat, soll es auch dort nicht mitzaehlen.
      */
+    private static final int DISPLAY_SLOT = 8;
     private static final String MENU_ID = "SKYBLOCK_MENU";
 
     private static final Pattern COLOUR_CODE = Pattern.compile("§.");
@@ -303,6 +308,7 @@ public final class ItemChanges {
         Map<String, Integer> out = new LinkedHashMap<>();
         List<ItemStack> items = client.player.getInventory().getNonEquipmentItems();
         for (int slot = 0; slot < items.size(); slot++) {
+            if (slot == DISPLAY_SLOT) continue;
             add(out, items.get(slot));
         }
         add(out, client.player.containerMenu.getCarried());

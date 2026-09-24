@@ -119,10 +119,15 @@ public final class SkyBlockItems {
      * vor dem Namen - der gilt fuer ihn. Fuer Shards ist das die einzige Gelegenheit,
      * ihre Seltenheit zu erfahren: sie wandern in die Hunting Box und tauchen als
      * Gegenstand nie auf.
+     *
+     * Gesucht wird die letzte Erwaehnung des Namens, nicht die erste. In der
+     * CHARM-Zeile steht er zweimal - "You charmed the Wiki Tiki and received 3 Wiki
+     * Tiki Shards!" -, und die erste ist das Tier, nicht der Shard. Dessen Farbe ist
+     * die des Mobs, und die stand dann rot im Kasten.
      */
     public static int colourInLine(String formatted, String name) {
         if (formatted == null || name == null || name.isBlank()) return 0;
-        int at = formatted.indexOf(name);
+        int at = formatted.lastIndexOf(name);
         if (at < 0) return 0;
 
         for (int i = at - 2; i >= 0; i--) {
