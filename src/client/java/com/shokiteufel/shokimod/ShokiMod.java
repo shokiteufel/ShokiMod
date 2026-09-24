@@ -53,6 +53,7 @@ public class ShokiMod implements ClientModInitializer {
     private static boolean openPetProfitNextTick = false;
     private static boolean openShardProfitNextTick = false;
     private static boolean openCraftProfitNextTick = false;
+    private static boolean openProfitItemsNextTick = false;
     private static boolean openPetBuilderNextTick = false;
 
 
@@ -68,6 +69,8 @@ public class ShokiMod implements ClientModInitializer {
         FloorDropHandler.register();
         RareLootHandler.register();
         HuntingTracker.register();
+        com.shokiteufel.shokimod.scanner.ItemChanges.register();
+        com.shokiteufel.shokimod.handler.ProfitTracker.register();
         GuildEvents.register();
         CakeReminder.register();
         HotspotTracker.register();
@@ -96,6 +99,10 @@ public class ShokiMod implements ClientModInitializer {
             if (openCraftProfitNextTick) {
                 openCraftProfitNextTick = false;
                 client.setScreen(new com.shokiteufel.shokimod.gui.CraftProfitScreen(null));
+            }
+            if (openProfitItemsNextTick) {
+                openProfitItemsNextTick = false;
+                client.setScreen(new com.shokiteufel.shokimod.gui.ProfitItemScreen(null));
             }
             if (openPetBuilderNextTick) {
                 openPetBuilderNextTick = false;
@@ -166,6 +173,12 @@ public class ShokiMod implements ClientModInitializer {
                         .then(ClientCommands.literal("craftprofit").executes(context -> {
                             com.shokiteufel.shokimod.util.CraftProfitData.prefetch();
                             openCraftProfitNextTick = true;
+                            return 1;
+                        }))
+                        // /shoki profit -> die Liste des Profit-Trackers: was gefunden wurde,
+                        // was davon im Kasten steht und wie es zu Geld gemacht wird
+                        .then(ClientCommands.literal("profit").executes(context -> {
+                            openProfitItemsNextTick = true;
                             return 1;
                         }))
                         // /shoki tab -> die Tab-Liste ins Log schreiben.

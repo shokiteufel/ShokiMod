@@ -93,6 +93,8 @@ Die gesamte Safari-Seite geht auf crittermod zurück.
 | Fund-Erkennung | Portiert aus RareLootChatParser, RareLootItemIds, RareLootDisplayNames |
 | Preis-Auflösung | Reihenfolge und Quellen aus RareLootValueResolver (`ItemValue`) |
 | Profit/h | Die Idee, Pausen nicht mitzuzählen (`HuntingTracker`) |
+| Fund-Erkennung am Inventar | Der Weg selbst: jeden Tick nachzählen statt den Chat zu lesen, mit Beruhigungszeit nach einem Wechsel und Blindheit bei offenem Behälter — aus SkyBlockInventoryChanges / ProfitTrackerItemTracking (`ItemChanges`) |
+| Profit-Tracker | Aufbau und Bedienidee: Auswahl je Item, eigene Verkaufsart je Item, Preisquellen Instant Sell / Sell Order / NPC (`ProfitTracker`, `ProfitItemScreen`) |
 
 ### Skyblocker (LGPL-3.0-or-later, SkyblockerMod)
 

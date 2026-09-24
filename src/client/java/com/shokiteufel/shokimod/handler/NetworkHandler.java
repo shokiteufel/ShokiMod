@@ -23,6 +23,7 @@ public class NetworkHandler {
             NestTracker.reset();
             SessionManager.onWorldChange();
             RareLootHandler.reset();
+            com.shokiteufel.shokimod.scanner.ItemChanges.reset();
             HotspotTracker.reset();
             com.shokiteufel.shokimod.scanner.PetState.reset();
             com.shokiteufel.shokimod.scanner.PerformanceState.reset();
@@ -54,6 +55,8 @@ public class NetworkHandler {
             MiningState.onChatMessage(unformattedMsg);
             // Der Collection-Tracker braucht die Nachricht selbst: die Aufstellung haengt am Mauszeiger
             CollectionTracker.onChatMessage(message, unformattedMsg);
+            // Und der Profit-Tracker dieselbe Zeile: was in einen Sack faellt, sieht das Inventar nie
+            com.shokiteufel.shokimod.scanner.ItemChanges.onChatMessage(message, unformattedMsg);
 
             // Ein "false" blendet die Originalzeile aus
             return ChatRuleHandler.handleMessage(message, msg, unformattedMsg);

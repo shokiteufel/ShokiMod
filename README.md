@@ -65,6 +65,9 @@ Voraussetzungen: Minecraft 26.1.2, Fabric Loader 0.19.3+, Fabric API.
 - Leistung: Bilder je Sekunde, Server-Takt, selbst gemessener Ping.
 - Sammlungen: was die Saecke einsammeln, in Sammlungs-Einheiten und in Coins.
 - Hunting-Tracker: jeder gefangene Shard, bewertet und auf die Stunde gerechnet.
+- Profit-Tracker: alles, was waehrend eines Laufs ins Inventar oder in einen Sack
+  faellt — auch ohne Chatzeile. Je Item einstellbar, ob es im Kasten steht und ob es
+  sofort verkauft, in eine Order gelegt oder dem NPC gegeben wird (`/shoki profit`).
 - Contest, Tages-Zaehler, Mobs in der Naehe.
 - Alle Kaesten frei verschiebbar im HUD-Editor (`/shoki hud`).
 </details>
@@ -101,6 +104,7 @@ Voraussetzungen: Minecraft 26.1.2, Fabric Loader 0.19.3+, Fabric API.
 | `/shoki shardprofit` | Gewinn je Shard-Fusion |
 | `/shoki craftprofit` | Gewinn je Handwerks- und Forge-Rezept |
 | `/shoki petprofit` | Gewinn je Pet |
+| `/shoki profit` | Liste des Profit-Trackers: welche Funde zaehlen und wie sie verkauft werden |
 | `/shoki pet` | Pet-HUD bauen |
 | `/shoki hub` | Zurueck in den Hub |
 

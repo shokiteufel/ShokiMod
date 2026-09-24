@@ -89,6 +89,68 @@ public final class ItemValue {
     private ItemValue() {
     }
 
+    /**
+     * Wie ein Fund zu Geld gemacht wird - die Wahl des Profit-Trackers.
+     *
+     * Eine eigene Aufzaehlung neben {@link PriceMode}, weil der NPC-Verkauf nur dort
+     * eine Rolle spielt: Enchanted Pumpkin steht in keinem Basar und in keiner
+     * Auktion, der Haendler zahlt trotzdem. Die aelteren Kaesten sollen die dritte
+     * Wahl nicht in ihrem Ausklappmenue stehen haben, wo sie nichts aendern wuerde.
+     */
+    public enum SellMode {
+        INSTANT_SELL("Instant Sell"),
+        SELL_ORDER("Sell Order"),
+        NPC_SELL("NPC Sell");
+
+        private final String label;
+
+        SellMode(String label) {
+            this.label = label;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
+    }
+
+    /**
+     * Was ein Stueck bringt, nach der gewaehlten Art - oder -1, wenn es dazu keine Zahl gibt.
+     *
+     * Reihenfolge: erst die gewaehlte Art, dann der Reihe nach die anderen. Wer eine
+     * Verkaufsorder waehlt, bekommt bei einer Ware ohne Angebot den Sofortverkauf,
+     * und wo der Basar gar nichts fuehrt, das Auktionshaus oder den Haendler. Ein
+     * Fund ohne jeden Preis bleibt ohne Wert - das ist etwas anderes als null Coins.
+     */
+    public static double unitPrice(List<String> candidates, SellMode mode) {
+        if (candidates == null || candidates.isEmpty()) return -1;
+        SellMode chosen = mode == null ? SellMode.INSTANT_SELL : mode;
+
+        for (String candidate : candidates) {
+            if (candidate == null || candidate.isBlank()) continue;
+            String itemId = candidate.trim();
+
+            if (chosen == SellMode.NPC_SELL) {
+                double npc = ItemNames.npcSellPrice(itemId);
+                if (npc > 0) return npc;
+            }
+
+            BazaarPrice bazaar = freshOrStored(itemId);
+            if (bazaar != null) {
+                double price = chosen == SellMode.SELL_ORDER ? bazaar.sellOrder() : bazaar.instantSell();
+                if (price <= 0) price = chosen == SellMode.SELL_ORDER ? bazaar.instantSell() : bazaar.sellOrder();
+                if (price > 0) return price;
+            }
+
+            Double bin = LOWEST_BIN.get(itemId);
+            if (bin != null && bin > 0) return bin;
+
+            double npc = ItemNames.npcSellPrice(itemId);
+            if (npc > 0) return npc;
+        }
+        return -1;
+    }
+
     /** Ein aufgeloester Wert: Coins fuer den ganzen Stapel, und welche Kennung getroffen hat */
     public record Value(double coins, String itemId, Source source) {
     }

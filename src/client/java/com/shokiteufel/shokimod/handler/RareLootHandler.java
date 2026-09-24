@@ -17,6 +17,7 @@ import com.shokiteufel.shokimod.util.ItemNames;
 import com.shokiteufel.shokimod.util.CollectionData;
 import com.shokiteufel.shokimod.util.ItemValue;
 import com.shokiteufel.shokimod.util.ItemValue.Value;
+import com.shokiteufel.shokimod.util.SkyBlockItems;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.loader.api.FabricLoader;
@@ -35,7 +36,9 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.LinkedHashSet;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Pattern;
 
 /**
@@ -98,6 +101,15 @@ public final class RareLootHandler {
 
     private static final Deque<String> events = new ArrayDeque<>();
     private static long lastLootShareAt = 0L;
+    /**
+     * Was gerade schon gemeldet wurde, samt Zeitpunkt.
+     *
+     * Ein Fund aus dem Chat landet kurz darauf auch im Inventar. Ohne dieses
+     * Gedaechtnis kaeme derselbe Hyperion zweimal: einmal von der Zeile, einmal vom
+     * Nachzaehlen.
+     */
+    private static final Map<String, Long> announced = new HashMap<>();
+    private static final long DOUBLE_WINDOW_MILLIS = 20_000L;
 
     private RareLootHandler() {
     }
@@ -110,6 +122,8 @@ public final class RareLootHandler {
             if (!active()) return;
             ItemValue.prefetch();
         });
+        // Der zweite Weg zum Fund: was ohne Chatzeile im Inventar landet
+        com.shokiteufel.shokimod.scanner.ItemChanges.listen(RareLootHandler::onInventoryGains);
     }
 
     private static RareLootCategory cfg() {
@@ -127,6 +141,55 @@ public final class RareLootHandler {
         lastLootShareAt = 0L;
         bundleUntil = 0L;
         bundleLines = 0;
+        announced.clear();
+    }
+
+    /**
+     * Zugaenge aus dem Inventar - Funde, zu denen Hypixel nichts gesagt hat.
+     *
+     * Bewertet wird genau wie eine Chatzeile: dieselben Stufen, dieselben Schwellen.
+     * Was unter der niedrigsten Stufe liegt, loest nichts aus - und das ist der
+     * Normalfall, denn hier kommt auch jeder Kieselstein vorbei.
+     *
+     * Geteilt wird von hier aus nichts. "SHOKI hat X gefunden" in den Party-Chat zu
+     * schreiben, weil etwas im Inventar auftauchte, waere eine Behauptung ueber
+     * einen Fund, den niemand sonst gesehen hat.
+     */
+    public static void onInventoryGains(Map<String, Integer> gains) {
+        RareLootCategory cfg = cfg();
+        if (!cfg.watchInventory || !cfg.enabled) return;
+        if (!GameState.Server.isSkyblock()) return;
+
+        long now = System.currentTimeMillis();
+        for (Map.Entry<String, Integer> entry : gains.entrySet()) {
+            String itemId = entry.getKey();
+            int amount = entry.getValue() == null ? 0 : entry.getValue();
+            if (itemId == null || amount <= 0) continue;
+            if (recentlyAnnounced(itemId, now)) continue;
+
+            List<String> candidates = SkyBlockItems.priceCandidates(itemId);
+            Drop drop = new Drop(readableName(itemId), amount, "", candidates);
+            evaluate(drop, "inventory " + itemId + " x" + amount, now, false, true);
+        }
+    }
+
+    /** Der Name, wie ihn Hypixels Liste schreibt - sonst aus der Kennung gebildet */
+    private static String readableName(String itemId) {
+        String name = ItemNames.displayName(itemId);
+        return name == null || name.isBlank() ? SkyBlockItems.readableName(itemId) : name;
+    }
+
+    private static boolean recentlyAnnounced(String itemId, long now) {
+        Long at = announced.get(itemId);
+        return at != null && now - at <= DOUBLE_WINDOW_MILLIS;
+    }
+
+    /** Merkt sich einen gemeldeten Fund unter allen Schreibweisen, die zu ihm gehoeren */
+    private static void rememberAnnounced(List<String> candidates, long now) {
+        if (announced.size() > 200) announced.clear();
+        for (int i = 0; i < candidates.size(); i++) {
+            if (candidates.get(i) != null) announced.put(candidates.get(i), now);
+        }
     }
 
     /**
@@ -236,13 +299,18 @@ public final class RareLootHandler {
      * auseinanderlaufen koennen.
      */
     private static void evaluate(Drop drop, String clean, long now) {
-        evaluate(drop, clean, now, false);
+        evaluate(drop, clean, now, false, false);
+    }
+
+    private static void evaluate(Drop drop, String clean, long now, boolean dye) {
+        evaluate(drop, clean, now, dye, false);
     }
 
     /**
-     * @param dye ob der Fund eine Farbe ist - die hat ihren eigenen Alarm
+     * @param dye         ob der Fund eine Farbe ist - die hat ihren eigenen Alarm
+     * @param fromInventory ob der Fund vom Nachzaehlen kommt statt aus dem Chat
      */
-    private static void evaluate(Drop drop, String clean, long now, boolean dye) {
+    private static void evaluate(Drop drop, String clean, long now, boolean dye, boolean fromInventory) {
         RareLootCategory cfg = cfg();
         List<String> candidates = candidatesFor(drop);
         Value value = ItemValue.resolve(candidates, drop.amount(), cfg.shardPriceMode, cfg.bazaarPriceMode);
@@ -263,6 +331,7 @@ public final class RareLootHandler {
             // obwohl gerade sie die ist, die man sehen will. Deshalb feuert der
             // Farb-Alarm immer, und der Preis ist nur noch eine Zeile im Banner
             note("  dye alert" + (value == null ? " (no price known - showing it anyway)" : ""));
+            rememberAnnounced(candidates, now);
             announce(client, cfg.dyeBanner, cfg.dyeDesign, cfg.dyeToast, cfg.dyeChat, cfg.dyeSound,
                     "Dye", DYE_COLOUR, headline(drop),
                     value == null ? -1 : value.coins(),
@@ -276,12 +345,14 @@ public final class RareLootHandler {
                     note("  no alert: below every enabled tier");
                 } else {
                     note("  alert tier " + tier.number());
+                    rememberAnnounced(candidates, now);
                     announce(client, tier, headline(drop), value.coins(), value.itemId());
                 }
             }
         }
 
-        if (cfg.shareEnabled) share(client, drop, value, lootshare);
+        // Nur, was im Chat stand, wird weitergegeben - siehe onInventoryGains
+        if (cfg.shareEnabled && !fromInventory) share(client, drop, value, lootshare);
     }
 
     /**

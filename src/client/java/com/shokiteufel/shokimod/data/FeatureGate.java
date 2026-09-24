@@ -45,6 +45,16 @@ public final class FeatureGate {
                 || c.highlightNests || c.enableFloorDrops;
     }
 
+    /**
+     * Soll das Inventar ueberhaupt beobachtet werden?
+     *
+     * Ist der Profit-Tracker aus, wird nicht gezaehlt - und dann faellt das Auslesen
+     * der Kennungen weg, das sonst bei jeder Aenderung im Inventar anfaellt.
+     */
+    public static boolean itemChanges() {
+        return ModConfig.INSTANCE.profit.enabled || ModConfig.INSTANCE.chat.rareLoot.watchInventory;
+    }
+
     /** Der Kasten mit den Mobs in der Naehe */
     public static boolean nearbyPanel() {
         return ModConfig.INSTANCE.mobVisuals.masterEnabled && ModConfig.INSTANCE.mobVisuals.showNearbyHud;
