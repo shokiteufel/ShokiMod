@@ -96,9 +96,13 @@ public final class ProfitHud {
         ids.add(null);
         panel.pair("Total:", ItemValue.format(ProfitTracker.total()), LABEL_COLOUR, VALUE_COLOUR);
         ids.add(null);
-        if (cfg.timerEnabled) {
+        // Beide Zeilen einzeln: Wer nur wissen will, wie lange er schon dran ist,
+        // braucht die Coins je Stunde nicht daneben
+        if (cfg.timerEnabled && cfg.showPerHour) {
             panel.pair("Profit/h:", ItemValue.format(ProfitTracker.perHour()), LABEL_COLOUR, VALUE_COLOUR);
             ids.add(null);
+        }
+        if (cfg.timerEnabled && cfg.showTime) {
             panel.pair("Time:", clock(ProfitTracker.uptimeMillis()), LABEL_COLOUR, TIME_COLOUR);
             ids.add(null);
         }
