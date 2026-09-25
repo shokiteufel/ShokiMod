@@ -41,6 +41,9 @@ public class WorldTextRenderer {
         if (!com.shokiteufel.shokimod.scanner.MineshaftState.inMineshaft()) return;
 
         ModConfig.MineshaftCategory cfg = ModConfig.INSTANCE.mining.mineshaft;
+        // Lohnt sich der Schacht ueberhaupt? Ohne Regel immer
+        if (!cfg.shaftAllowed(com.shokiteufel.shokimod.scanner.MineshaftState.type())) return;
+
         int argb = 0xFF000000 | cfg.corpseColorRGB();
         double range = Math.max(10, cfg.corpseRange);
         double rangeSquared = range * range;

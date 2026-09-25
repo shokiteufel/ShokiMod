@@ -118,6 +118,13 @@ Bauplan aus der Seitenleiste lesen und die möglichen Stellen dieses Schachts
 einblenden. Eigene Umsetzung in Java (`MineshaftState`, `MineshaftCorpses`); von
 SkyOcean stammt der Gedanke, nicht der Code.
 
+### SkyblockCollectionTracker (LGPL-2.1-only, ChindeaOne)
+
+Der Gedanke, die Schacht-Marker an eine Bedingung zu haengen: Dort erscheinen die
+Routen nur in Schaechten mit genug Lapis-Leichen. Übernommen ist die Idee, nicht der
+Code — und hier steht die Bedingung nicht fest, sondern je Bauplan mit eigener Zahl
+je Leichen-Sorte (`MineshaftRule`, `MineshaftRuleScreen`).
+
 ### Meowdding-Repo (MIT, meowdding)
 
 Die Koordinaten der Leichen-Stellen selbst: `repo/mining/mineshaft_corpses` — sechzehn
