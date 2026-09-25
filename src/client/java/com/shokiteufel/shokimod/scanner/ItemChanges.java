@@ -432,15 +432,25 @@ public final class ItemChanges {
 
         // Teilt der Server gerade Beute aus, zaehlt sie auch bei offenem Fenster
         if (KILL_REWARD.matcher(plain.trim()).matches()) lootUntil = System.currentTimeMillis() + LOOT_MILLIS;
-        // Wer von Hand einlagert oder in der Box raeumt, steht in einem Fenster - das
-        // ist kein Fund, sondern ein Umzug
-        if (Minecraft.getInstance().screen instanceof AbstractContainerScreen<?>) return;
 
         if (plain.contains(SACK_MARKER)) {
-            sacks(message);
-        } else {
-            shards(formatted, plain);
+            // Wer von Hand einlagert, hat den Sack offen - das ist kein Fund, sondern
+            // ein Umzug. Waehrend Beute fliesst aber schon: wer seine Fallen leert,
+            // steht dabei im Fallen-Menue, und die Ernte geht trotzdem in die Saecke
+            boolean umzug = Minecraft.getInstance().screen instanceof AbstractContainerScreen<?>
+                    && System.currentTimeMillis() >= lootUntil;
+            if (!umzug) sacks(message);
+            return;
         }
+
+        // Ein gefangener Shard zaehlt immer.
+        //
+        // Die Zeile "CHARM! ..." ist keine Frage des Bildschirms - sie ist die einzige
+        // Meldung, die es zu dem Fang gibt. Bisher hing sie an derselben Bedingung wie
+        // die Sack-Zeile, und wer beim Leeren der Fallen einen Shard fing, verlor ihn:
+        // im Log vom 25.09. um 13:59:37 zwei Lunar-Moth-Shards, die der Fund-Alarm
+        // gemeldet hat und der Kasten nie zu sehen bekam
+        shards(formatted, plain);
     }
 
     /**
