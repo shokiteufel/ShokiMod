@@ -108,6 +108,11 @@ public final class FeatureGate {
      * Text zu verwandeln - der teuerste Handgriff dieser Mod, und ohne Abnehmer
      * reine Verschwendung. Billige Schalter stehen deshalb vorn.
      */
+    /** Die Leichen-Stellen im Mineshaft lesen die Seitenleiste mit */
+    public static boolean mineshaftCorpses() {
+        return ModConfig.INSTANCE.mining.mineshaft.corpseWaypoints;
+    }
+
     /** Die Erinnerung an volle Pest-Fallen liest die Tab-Liste mit */
     public static boolean pestTraps() {
         return ModConfig.INSTANCE.chat.reminder.pestTrapAlert;

@@ -705,6 +705,10 @@ public class ModConfig extends Config {
         @Expose
         @Category(name = "Mining HUD", desc = "One panel with what matters underground: commissions, the pickaxe ability with its cooldown, the Sky Mall buff. The numbers come from the tab list.")
         public MiningHudCategory hud = new MiningHudCategory();
+
+        @Expose
+        @Category(name = "Mineshaft", desc = "Glacite Mineshafts: where a corpse can stand in the shaft you are in.")
+        public MineshaftCategory mineshaft = new MineshaftCategory();
     }
 
     /** Welche gefrorenen Leichen im Mining-HUD stehen sollen */
@@ -776,6 +780,46 @@ public class ModConfig extends Config {
      * Deshalb bleibt der zuletzt gelesene Stand stehen, wenn man die Insel verlaesst -
      * sonst waere die Einstellung "Everywhere" wertlos, weil der Kasten dort leer bliebe.
      */
+    /**
+     * Glacite Mineshafts.
+     *
+     * Die Schaechte sind sechzehn feste Bauplaene; die Leichen stehen darin immer an
+     * denselben Stellen. Welcher Bauplan steht, sagt die Seitenleiste.
+     */
+    public static class MineshaftCategory {
+
+        @ConfigOption(name = "Mineshaft", desc = "A Glacite Mineshaft is always one of sixteen fixed layouts, and in each layout the corpses can only stand in a handful of spots. Which layout you are in is written in the sidebar - so the spots can be shown.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Corpse spots", desc = "Marks every spot where a corpse can stand in this shaft. Not every spot has one - it is where to look, not where one is.")
+        @ConfigEditorBoolean
+        public boolean corpseWaypoints = false;
+
+        /** Wie bei den anderen Markern: sechs Stellen, wie sie der Farbwaehler schreibt */
+        @Expose
+        public String corpseColor = "55FFFF";
+
+        @Expose
+        @ConfigOption(name = "Box", desc = "A frame around the spot as well as the label. Off leaves just the text.")
+        @ConfigEditorBoolean
+        public boolean corpseBox = true;
+
+        @Expose
+        @ConfigOption(name = "Distance", desc = "How far away a spot is still shown, in blocks. The shafts are small; far away the labels only clutter the view.")
+        @ConfigEditorSlider(minValue = 10f, maxValue = 150f, minStep = 5f)
+        public int corpseRange = 80;
+
+        public int corpseColorRGB() {
+            try {
+                return Integer.parseInt(corpseColor.trim().replace("#", ""), 16) & 0xFFFFFF;
+            } catch (RuntimeException e) {
+                return 0x55FFFF;
+            }
+        }
+    }
+
     public static class MiningHudCategory {
 
         @Expose
