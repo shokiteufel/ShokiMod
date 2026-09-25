@@ -108,10 +108,28 @@ Die gesamte Safari-Seite geht auf crittermod zurück.
 | Preis-Rückfall | hysky.de als Tiefstpreis-Quelle |
 | Floor Drops | Mittelbar — GanKura hatte es von dort |
 
-### SkyOcean (Modified MIT, meowdding)
+### SkyOcean (SkyOcean License v1 — Quelltext MIT, meowdding)
 
 Der Hotspot-Kreis beim Angeln: Erkennung über den unsichtbaren Armorstand, Kreis in
 der Farbe des Bonus, Warnung beim Verschwinden (`HotspotTracker`, `HotspotRenderer`).
+
+Die Leichen-Stellen im Glacite Mineshaft: die Funktionsidee aus `CorpseWaypoint` —
+Bauplan aus der Seitenleiste lesen und die möglichen Stellen dieses Schachts
+einblenden. Eigene Umsetzung in Java (`MineshaftState`, `MineshaftCorpses`); von
+SkyOcean stammt der Gedanke, nicht der Code.
+
+### Meowdding-Repo (MIT, meowdding)
+
+Die Koordinaten der Leichen-Stellen selbst: `repo/mining/mineshaft_corpses` — sechzehn
+Baupläne mit ein bis drei Ausführungen, von Spielern zusammengetragen. Die Datei wird
+zur Laufzeit geholt und liegt im Config-Ordner, statt mitgeliefert zu werden: So kommen
+neu gefundene Stellen von selbst dazu.
+
+### SkyBlock API (MIT, thatgravyboat)
+
+Wo Hypixel den Schacht hinschreibt: in der untersten Zeile der Seitenleiste, hinter
+Datum und Server, als `TUNG_1` (Bauplan und Ausführung). Das ist eine Tatsache über
+Hypixels Anzeige — übernommen wurde das Muster, kein Code.
 
 ### RiccioFishingUtils (GPL-3.0-or-later, Riccio)
 

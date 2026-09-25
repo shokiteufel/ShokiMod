@@ -65,6 +65,8 @@ die Spielversion beim Start — die falsche Datei laedt der Loader gar nicht ers
 <summary><b>Anzeigen</b></summary>
 
 - Mining: laufende Auftraege, Spitzhacken-Faehigkeit mit Abklingzeit, Sky-Mall-Buff.
+- Mineshaft: die moeglichen Leichen-Stellen des Schachts, in dem man steht — der
+  Bauplan steht in der Seitenleiste, die Stellen kommen aus dem Repo von Meowdding.
 - Pet: Name, Stufe, Fortschritt — samt Overflow-Stufen und Meldung beim Aufstieg.
 - Leistung: Bilder je Sekunde, Server-Takt, selbst gemessener Ping und auf Wunsch der
   Tages-Zaehler - untereinander oder nebeneinander in einer Zeile.

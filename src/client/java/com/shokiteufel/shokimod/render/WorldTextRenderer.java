@@ -27,6 +27,35 @@ public class WorldTextRenderer {
         renderMounds();
         renderFloorDrops();
         renderNests();
+        renderMineshaftCorpses(client);
+    }
+
+    /**
+     * Die moeglichen Leichen-Stellen im Glacite Mineshaft.
+     *
+     * Gezeigt wird, wo eine stehen kann - nicht, wo eine steht. Das ist der Sinn der
+     * Sache: Der Schacht hat ein festes Muster, und wer die fuenf Stellen abgeht,
+     * sucht nicht den ganzen Bau ab.
+     */
+    private static void renderMineshaftCorpses(Minecraft client) {
+        if (!com.shokiteufel.shokimod.scanner.MineshaftState.inMineshaft()) return;
+
+        ModConfig.MineshaftCategory cfg = ModConfig.INSTANCE.mining.mineshaft;
+        int argb = 0xFF000000 | cfg.corpseColorRGB();
+        double range = Math.max(10, cfg.corpseRange);
+        double rangeSquared = range * range;
+        Vec3 eye = client.player.position();
+
+        for (BlockPos pos : com.shokiteufel.shokimod.scanner.MineshaftState.corpses()) {
+            if (eye.distanceToSqr(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5) > rangeSquared) {
+                continue;
+            }
+            if (cfg.corpseBox) {
+                GizmoProperties box = Gizmos.cuboid(pos, GizmoStyle.stroke(argb, MARKER_LINE_WIDTH));
+                box.setAlwaysOnTop();
+            }
+            renderGizmoLabel("Corpse", pos, argb);
+        }
     }
 
     // Bienenstoecke im Forest. Abgeerntete bleiben stehen, die zeigen wir nicht mehr
