@@ -143,6 +143,15 @@ public final class ItemChanges {
      * der Kasten still gar nichts mehr.
      */
     private static int settleTicks = SETTLE_TICKS;
+    /**
+     * Kam die Wartezeit von einem Fenster oder von einem Wechsel?
+     *
+     * Der Unterschied entscheidet, ob sie abgebrochen werden darf. Nach einem Wechsel
+     * nicht - dort kommt das halbe Inventar nach und saehe wie ein Fund aus. Nach einem
+     * Fenster schon: Wenn der Server in genau dieser Sekunde Beute austeilt, gehoert
+     * sie gezaehlt, und die Wartezeit war fuer Craft-Ergebnisse gedacht, nicht fuer sie.
+     */
+    private static boolean settleAfterWindow = false;
     /** Der Stand, als ein Fenster aufging - um danach zu sehen, was hindurchkam */
     private static Map<String, Integer> windowBaseline = null;
     /**
@@ -235,6 +244,7 @@ public final class ItemChanges {
             // Nach einem Wechsel kommt das Inventar Stueck fuer Stueck an; erst danach
             // ist ein Vergleich etwas wert
             settleTicks = SETTLE_TICKS;
+            settleAfterWindow = false;
             previousCounts = null;
             windowBaseline = null;
             return;
@@ -252,14 +262,27 @@ public final class ItemChanges {
             // nach dem Schliessen an. Diese Sekunde gehoert noch zum Fenster - ausser
             // der Server teilt gerade Beute aus, dann faellt sie genau in die Sekunde,
             // in der die Buecher der Schaedlinge ankommen
-            if (!lootFlowing) settleTicks = SETTLE_TICKS;
+            if (!lootFlowing) {
+                settleTicks = SETTLE_TICKS;
+                settleAfterWindow = true;
+            }
             return;
         }
 
         if (settleTicks > 0) {
             settleTicks--;
             if (settleTicks == 0) {
-                previousCounts = counts(client);
+                Map<String, Integer> current = counts(client);
+                // Was in dieser Sekunde ankam, zaehlt nicht - aber es soll nicht
+                // spurlos verschwinden. Genau hier waren die vier Buecher weg, und im
+                // Log stand nichts darueber
+                if (debug() && previousCounts != null) {
+                    Map<String, Integer> verschluckt = onlyGains(previousCounts, current);
+                    if (!verschluckt.isEmpty()) {
+                        ShokiMod.LOGGER.info("[Profit] arrived while settling, not counted: {}", verschluckt);
+                    }
+                }
+                previousCounts = current;
                 previousSignature = signature(client);
             }
             return;
@@ -293,6 +316,16 @@ public final class ItemChanges {
      * Antwort hat. Truhe, Basar, Auktionshaus, Sack und Craft laufen alle ueber ein
      * Fenster, und nichts davon ist ein Fund.
      */
+    /** Die reinen Zugaenge zwischen zwei Staenden - ohne Verrechnung, nur zum Hinsehen */
+    private static Map<String, Integer> onlyGains(Map<String, Integer> before, Map<String, Integer> after) {
+        Map<String, Integer> gains = new LinkedHashMap<>();
+        for (Map.Entry<String, Integer> entry : after.entrySet()) {
+            int delta = entry.getValue() - before.getOrDefault(entry.getKey(), 0);
+            if (delta > 0) gains.put(entry.getKey(), delta);
+        }
+        return gains;
+    }
+
     private static void noteWindow(Map<String, Integer> before, Map<String, Integer> after) {
         Map<String, Integer> gains = new LinkedHashMap<>();
         long now = System.currentTimeMillis();
@@ -453,7 +486,18 @@ public final class ItemChanges {
         if (supercraft(plain)) return;
 
         // Teilt der Server gerade Beute aus, zaehlt sie auch bei offenem Fenster
-        if (KILL_REWARD.matcher(plain.trim()).matches()) lootUntil = System.currentTimeMillis() + LOOT_MILLIS;
+        if (KILL_REWARD.matcher(plain.trim()).matches()) {
+            lootUntil = System.currentTimeMillis() + LOOT_MILLIS;
+            // Und eine laufende Wartezeit nach einem Fenster ist damit hinfaellig.
+            // Im Log vom 25.09. um 19:24:43 lag genau dort der Fehler: Falle geleert,
+            // Fenster zu, Wartezeit an - und die vier Buecher, die eine halbe Sekunde
+            // spaeter ankamen, verschwanden in ihr. Ohne Neuansetzen abbrechen, sonst
+            // waere der Vergleichspunkt schon hinter den Buechern
+            if (settleAfterWindow && settleTicks > 0) {
+                settleTicks = 0;
+                settleAfterWindow = false;
+            }
+        }
 
         if (plain.contains(SACK_MARKER)) {
             // Wer von Hand einlagert, hat den Sack offen - das ist kein Fund, sondern
@@ -680,6 +724,7 @@ public final class ItemChanges {
         previousContext = null;
         previousSignature = 0;
         settleTicks = SETTLE_TICKS;
+        settleAfterWindow = false;
         windowBaseline = null;
         losses.clear();
     }
