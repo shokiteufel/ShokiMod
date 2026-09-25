@@ -250,8 +250,36 @@ public final class ProfitTracker {
         return rarity != 0 ? rarity : 0xFFFFFFFF;
     }
 
-    /** Was ein Stueck bringt, oder -1 wenn es dazu keine Zahl gibt */
+    /** Der selbst eingetragene Preis je Stueck, oder 0 */
+    public static double customPrice(String itemId) {
+        Double own = cfg().customPrices.get(itemId);
+        return own == null || own <= 0 ? 0 : own;
+    }
+
+    /**
+     * 0 oder weniger loescht den Eintrag wieder.
+     *
+     * Geschrieben wird hier nicht: Das Feld meldet jeden Tastendruck, und die Config
+     * bei jedem Buchstaben auf die Platte zu legen waere ein Dutzend Schreibvorgaenge
+     * je Zahl. Der Wert gilt sofort, gespeichert wird beim Schliessen des Fensters.
+     */
+    public static void setCustomPrice(String itemId, double coins) {
+        if (itemId == null) return;
+        if (coins > 0) cfg().customPrices.put(itemId, coins);
+        else cfg().customPrices.remove(itemId);
+    }
+
+    /**
+     * Was ein Stueck bringt, oder -1 wenn es dazu keine Zahl gibt.
+     *
+     * Der eigene Preis geht vor - aber nur, wenn einer eingetragen ist. Wer Custom
+     * waehlt und das Feld leer laesst, sieht weiter den Marktpreis statt einer Null.
+     */
     public static double unitPrice(String itemId) {
+        if (modeOf(itemId) == SellMode.CUSTOM) {
+            double own = customPrice(itemId);
+            if (own > 0) return own;
+        }
         return ItemValue.unitPrice(SkyBlockItems.priceCandidates(itemId), modeOf(itemId));
     }
 

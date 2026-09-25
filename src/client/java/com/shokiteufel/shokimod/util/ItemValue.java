@@ -100,7 +100,16 @@ public final class ItemValue {
     public enum SellMode {
         INSTANT_SELL("Instant Sell"),
         SELL_ORDER("Sell Order"),
-        NPC_SELL("NPC Sell");
+        NPC_SELL("NPC Sell"),
+        /**
+         * Ein selbst eingetragener Preis.
+         *
+         * Wo weder Basar noch Auktionshaus etwas hergeben - oder wo man es besser
+         * weiss, weil man seine Ware ohnehin zu einem festen Kurs abgibt -, zaehlt
+         * die eigene Zahl. Sie steht je Item in der Liste unter /shoki profit; hier
+         * wird sie nicht aufgeloest, sondern vom Tracker vorher eingesetzt.
+         */
+        CUSTOM("Custom");
 
         private final String label;
 
@@ -130,6 +139,8 @@ public final class ItemValue {
             if (candidate == null || candidate.isBlank()) continue;
             String itemId = candidate.trim();
 
+            // Ein eigener Preis wird vom Tracker eingesetzt, bevor er hier landet.
+            // Kommt die Wahl trotzdem an, ist keiner eingetragen: dann gilt der Markt
             if (chosen == SellMode.NPC_SELL) {
                 double npc = ItemNames.npcSellPrice(itemId);
                 if (npc > 0) return npc;

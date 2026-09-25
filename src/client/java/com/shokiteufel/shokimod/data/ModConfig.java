@@ -1209,6 +1209,9 @@ public class ModConfig extends Config {
          * Steht hier, weil sie sonst mit jedem Neustart verloren waere: gesehen wird
          * sie nur im Augenblick des Fundes, am Gegenstand selbst oder an der Chatzeile.
          */
+        /** Selbst eingetragene Preise je Stueck, fuer die Verkaufsart Custom */
+        @Expose
+        public Map<String, Double> customPrices = new HashMap<>();
         @Expose
         public Map<String, Integer> colours = new HashMap<>();
         /**

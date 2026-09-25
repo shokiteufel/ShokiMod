@@ -23,9 +23,14 @@ import java.util.Locale;
  *
  * Eine Zeile je Fund. Links der Name mit Haken - ein Klick nimmt ihn heraus oder
  * holt ihn herein, je nachdem, welche Betriebsart eingestellt ist. Rechts daneben
- * die Verkaufsart: Default, Insta, Order, NPC, im Kreis. Default heisst, dass das
- * Item der Voreinstellung des Kastens folgt; sie steht oben, damit man sie sieht,
- * bevor man vierzig Items einzeln einstellt.
+ * die Verkaufsart: Default, Insta, Order, NPC, Custom, im Kreis. Default heisst,
+ * dass das Item der Voreinstellung des Kastens folgt; sie steht oben, damit man sie
+ * sieht, bevor man vierzig Items einzeln einstellt.
+ *
+ * Bei Custom erscheint ein Feld fuer den eigenen Preis je Stueck. Kurzformen sind
+ * erlaubt - 550k und 1.2m werden gelesen wie ueberall sonst in dieser Mod. Bleibt
+ * das Feld leer, gilt weiter der Marktpreis; so steht nach einem versehentlichen
+ * Klick keine Null im Kasten.
  *
  * Aufgelistet wird, was seit dem Reset tatsaechlich angekommen ist. Eine Liste
  * aller 5.000 SkyBlock-Items waere nutzlos: man richtet sie fuer den Lauf ein, den
@@ -36,6 +41,7 @@ public class ProfitItemScreen extends Screen {
     private static final int ROW_HEIGHT = 22;
     private static final int NAME_WIDTH = 210;
     private static final int MODE_WIDTH = 64;
+    private static final int PRICE_WIDTH = 72;
     private static final int LIST_TOP = 74;
 
     private final Screen parent;
@@ -87,7 +93,7 @@ public class ProfitItemScreen extends Screen {
         page = Math.min(page, pageCount() - 1);
 
         List<String> items = visible();
-        int gridWidth = NAME_WIDTH + 4 + MODE_WIDTH;
+        int gridWidth = NAME_WIDTH + 4 + MODE_WIDTH + 4 + PRICE_WIDTH;
         int left = width / 2 - gridWidth / 2;
 
         EditBox search = new EditBox(font, left, 34, NAME_WIDTH, 20, Component.literal("Search"));
@@ -124,6 +130,17 @@ public class ProfitItemScreen extends Screen {
                 button.setMessage(modeLabel(itemId));
                 rebuild();
             }).bounds(left + NAME_WIDTH + 4, y, MODE_WIDTH, 20).build());
+
+            // Das Feld gehoert nur zu Custom - sonst stuenden vierzig leere Kaesten da
+            if (ProfitTracker.hasOwnMode(itemId) && ProfitTracker.modeOf(itemId) == SellMode.CUSTOM) {
+                EditBox price = new EditBox(font, left + NAME_WIDTH + 8 + MODE_WIDTH, y,
+                        PRICE_WIDTH, 20, Component.literal("Price"));
+                double own = ProfitTracker.customPrice(itemId);
+                price.setValue(own > 0 ? String.valueOf((long) own) : "");
+                price.setHint(Component.literal("per item").withStyle(ChatFormatting.DARK_GRAY));
+                price.setResponder(value -> ProfitTracker.setCustomPrice(itemId, ItemValue.parseAmount(value)));
+                addRenderableWidget(price);
+            }
         }
 
         int y = height - 30;
@@ -200,16 +217,18 @@ public class ProfitItemScreen extends Screen {
             case INSTANT_SELL -> Component.literal("Insta").withStyle(ChatFormatting.GREEN);
             case SELL_ORDER -> Component.literal("Order").withStyle(ChatFormatting.AQUA);
             case NPC_SELL -> Component.literal("NPC").withStyle(ChatFormatting.GOLD);
+            case CUSTOM -> Component.literal("Custom").withStyle(ChatFormatting.LIGHT_PURPLE);
         };
     }
 
-    /** Default, Insta, Order, NPC und wieder von vorn */
+    /** Default, Insta, Order, NPC, Custom und wieder von vorn */
     private static SellMode nextMode(String itemId) {
         if (!ProfitTracker.hasOwnMode(itemId)) return SellMode.INSTANT_SELL;
         return switch (ProfitTracker.modeOf(itemId)) {
             case INSTANT_SELL -> SellMode.SELL_ORDER;
             case SELL_ORDER -> SellMode.NPC_SELL;
-            case NPC_SELL -> null;
+            case NPC_SELL -> SellMode.CUSTOM;
+            case CUSTOM -> null;
         };
     }
 
