@@ -128,9 +128,16 @@ public final class ProfitTracker {
             ItemNames.prefetch();
         }
 
+        // Bei 0 laeuft die Uhr durch: kein Anhalten bei Stille, und auch nicht, wenn das
+        // Fenster im Hintergrund liegt. Wer das einstellt, will eine durchlaufende Uhr
+        boolean neverPause = cfg().pauseAfterSeconds <= 0;
         long pauseAfter = Math.max(5, cfg().pauseAfterSeconds) * 1000L;
-        boolean active = cfg().timerEnabled && lastActivityMillis > 0L && now - lastActivityMillis <= pauseAfter
-                && client.isWindowActive();
+        boolean active = cfg().timerEnabled && lastActivityMillis > 0L
+                && (neverPause || (now - lastActivityMillis <= pauseAfter && client.isWindowActive()));
+
+        // Ohne Anhalten gibt es auch nichts zurueckzurechnen - sonst zieht ein spaeteres
+        // Umstellen auf "mit Pause" die ganze durchgelaufene Zeit wieder ab
+        if (neverPause) unconfirmedMillis = 0L;
 
         if (active) {
             if (delta > 0 && delta < 5_000L) {

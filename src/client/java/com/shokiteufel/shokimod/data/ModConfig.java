@@ -1405,8 +1405,18 @@ public class ModConfig extends Config {
         public boolean timerEnabled = true;
 
         @Expose
-        @ConfigOption(name = "Pause after", desc = "Seconds without a find before the timer pauses. The idle time since the last find is taken off again, so Profit/h does not drop while you are away.")
-        @ConfigEditorSlider(minValue = 10f, maxValue = 600f, minStep = 5f)
+        @ConfigOption(name = "Show Profit/h", desc = "The Profit/h line in the panel. Off leaves the time standing - useful when you only want to know how long you have been at it.")
+        @ConfigEditorBoolean
+        public boolean showPerHour = true;
+
+        @Expose
+        @ConfigOption(name = "Show Time", desc = "The Time line in the panel.")
+        @ConfigEditorBoolean
+        public boolean showTime = true;
+
+        @Expose
+        @ConfigOption(name = "Pause after", desc = "Seconds without a find before the timer pauses. The idle time since the last find is taken off again, so Profit/h does not drop while you are away. At 0 it never pauses - the clock runs from the first find until you reset it, whether something drops or not.")
+        @ConfigEditorSlider(minValue = 0f, maxValue = 600f, minStep = 5f)
         public int pauseAfterSeconds = 120;
 
         @Expose
