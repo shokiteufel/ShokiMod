@@ -145,6 +145,19 @@ public class ModConfig extends Config {
 
         adoptLegacyCategory();
 
+        // Der Inventar-Weg war bis 1.7.11 aus Vorgabe aus. Das hat genau den Fall
+        // gekostet, fuer den er gebaut wurde: ein geangelter Moby-Duck, 1,4M wert, ohne
+        // Chatzeile und damit ohne Alarm. Die neue Vorgabe erreicht nur neue Dateien,
+        // deshalb wird sie hier einmal aktiv nachgezogen
+        if (INSTANCE.chat.rareLoot.watchVersion < 1) {
+            INSTANCE.chat.rareLoot.watchVersion = 1;
+            if (!INSTANCE.chat.rareLoot.watchInventory) {
+                INSTANCE.chat.rareLoot.watchInventory = true;
+                com.shokiteufel.shokimod.ShokiMod.LOGGER.info("[RareLoot] watch inventory switched on once - finds without a chat line now reach the tiers");
+            }
+            INSTANCE.saveNow();
+        }
+
         // Bis 1.7.8 war eine Regel vier Mindestzahlen plus "alle oder eine". Jetzt ist
         // sie eine Zahl und zwei Haken - wer schon etwas eingetragen hatte, behaelt es
         boolean adopted = false;
@@ -2168,6 +2181,17 @@ public class ModConfig extends Config {
          * ankuendigt. Die Stufen entscheiden weiter, es kommt also nur durch, was
          * ohnehin teuer genug ist.
          */
+        /**
+         * Wie oft die Vorgabe schon durchgesetzt wurde.
+         *
+         * Eine geaenderte Vorgabe hilft nur neuen Dateien: Wer den Schalter schon einmal
+         * gespeichert hatte - und das tut jede Fassung, die das Feld kannte -, behaelt
+         * die alte Null. Genau das war der gemeldete Fall. Deshalb wird die Umstellung
+         * einmal aktiv nachgezogen; wer sie danach selbst ausmacht, behaelt das.
+         */
+        @Expose
+        public int watchVersion = 0;
+
         @Expose
         @ConfigOption(name = "Watch inventory", desc = "Also alert on items that simply appear in your inventory, without a chat line - the same way the profit tracker sees them. Catches the finds Hypixel never announces, like a fished Moby-Duck. The tier thresholds still decide, and party sharing stays off for these.")
         @ConfigEditorBoolean

@@ -169,7 +169,8 @@ public final class ItemValue {
     public enum Source {
         BAZAAR_INSTANT_SELL,
         BAZAAR_SELL_ORDER,
-        LOWEST_BIN
+        LOWEST_BIN,
+        NPC_SELL
     }
 
     /** Einmal aufgeloeste Shard-Kennungen, damit der Abgleich nicht bei jedem Fang laeuft */
@@ -275,6 +276,14 @@ public final class ItemValue {
 
             Double bin = LOWEST_BIN.get(itemId);
             if (bin != null && bin > 0) return new Value(bin * multiplier, itemId, Source.LOWEST_BIN);
+
+            // Zuletzt der Haendler - genau wie in unitPrice, wo der Kasten seine Zahlen
+            // holt. Ohne diese Zeile sah der Alarm Waren, die es weder im Basar noch in
+            // einer Auktion gibt, als wertlos an und schwieg: Ein Old Leather Boot steht
+            // in keiner Auktion, bringt beim Haendler aber 100k - und war damit fuer den
+            // Kasten sechsstellig und fuer den Alarm nichts
+            double npc = ItemNames.npcSellPrice(itemId);
+            if (npc > 0) return new Value(npc * multiplier, itemId, Source.NPC_SELL);
         }
         return null;
     }
