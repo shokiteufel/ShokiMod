@@ -37,8 +37,8 @@ public class MineshaftRuleScreen extends Screen {
     private static final int TOGGLE_WIDTH = 92;
     private static final int GAP = 4;
     private static final int LIST_TOP = 62;
-    /** Mehr Leichen hat kein Schacht; danach faengt die Zahl wieder bei "off" an */
-    private static final int MAX_MIN = 6;
+    /** Mehr als vier Lapis hat kein Schacht; danach faengt die Zahl wieder bei "off" an */
+    private static final int MAX_MIN = 4;
 
     private final Screen parent;
     private int page;
@@ -53,16 +53,23 @@ public class MineshaftRuleScreen extends Screen {
     }
 
     /**
-     * Die Bauplaene, fuer die es Stellen gibt.
+     * Die Bauplaene, fuer die diese Regel etwas entscheidet.
      *
      * Gelesen aus derselben Liste, aus der auch die Marker kommen - so steht hier genau
      * das, was der Mod bekannt ist, und nicht eine zweite gepflegte Aufzaehlung daneben.
+     *
+     * Draussen bleiben die Bauplaene ohne Edelstein: Titanium, Tungsten, Umber und
+     * Fairy. Die Regel haelt Edelstein-Marker zurueck, und wo keine sind, entscheidet
+     * sie nichts - eine Zeile, die nichts tut, ist eine Zeile zu viel. Kommt ein neuer
+     * Edelstein-Bauplan dazu, steht er von selbst da.
+     *
      * Der Schacht, in dem man gerade steht, kommt nach oben.
      */
     private List<String> shafts() {
         List<String> out = new ArrayList<>();
         for (String key : MineshaftCorpses.FEED.keys()) {
             String type = key.contains("_") ? key.substring(0, key.indexOf('_')) : key;
+            if (com.shokiteufel.shokimod.util.Gemstones.ofShaft(type) == null) continue;
             if (!out.contains(type)) out.add(type);
         }
         out.sort(String::compareTo);
@@ -172,10 +179,10 @@ public class MineshaftRuleScreen extends Screen {
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
 
         int centerX = width / 2;
-        graphics.centeredText(font, Component.literal("Mineshaft - when to show the corpse spots"),
+        graphics.centeredText(font, Component.literal("Mineshaft - when to mark the gemstone veins"),
                 centerX, 16, 0xFFFFFFFF);
         graphics.centeredText(font, Component.literal(
-                        "Per layout: from how many corpses on. Umber and Tungsten count too when switched on.")
+                        "Per layout: from how many corpses in the shaft on. Umber and Tungsten count towards it when switched on.")
                 .withStyle(ChatFormatting.GRAY), centerX, 32, 0xFFAAAAAA);
 
         List<String> shafts = shafts();
