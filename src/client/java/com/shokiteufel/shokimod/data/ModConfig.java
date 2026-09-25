@@ -145,6 +145,14 @@ public class ModConfig extends Config {
 
         adoptLegacyCategory();
 
+        // Wer den Tages-Kasten anhatte, soll den Tag weiter sehen - jetzt im
+        // Leistungs-Kasten. Danach ist der alte Schalter erledigt
+        if (INSTANCE.hud.day != null && INSTANCE.hud.day.showHud) {
+            INSTANCE.hud.day.showHud = false;
+            INSTANCE.hud.performance.showDay = true;
+            INSTANCE.hud.performance.showHud = true;
+        }
+
         // Die Farbe eines Shards kam bis 1.6.14 aus der falschen Haelfte der CHARM-Zeile
         // und stand deshalb rot im Kasten. Gespeichert ist sie trotzdem - einmal leeren,
         // der naechste Fund traegt sie richtig ein
@@ -500,18 +508,13 @@ public class ModConfig extends Config {
      * aus der Welt des Clients. In der Praxis ist das dieselbe Zahl - Hypixel haelt beide
      * gleich - nur direkt nach dem Betreten kann sie einen Augenblick hinterherhinken.
      */
+    /** Nur noch Ablage fuer den alten Stand - siehe HudCategory.day */
     public static class DayHudCategory {
 
         @Expose
-        @ConfigOption(name = "Show panel", desc = "The day counter on screen. Move it with /shoki hud.")
-        @ConfigEditorBoolean
         public boolean showHud = false;
-
         @Expose
-        @ConfigOption(name = "Where", desc = "Mining islands only, or everywhere in SkyBlock. Areas in the HUD editor override this.")
-        @ConfigEditorDropdown
         public HudVisibility visibility = HudVisibility.EVERYWHERE;
-
         @Expose
         public float hudX = 0.02f;
         @Expose
@@ -1460,8 +1463,15 @@ public class ModConfig extends Config {
         @ConfigEditorBoolean
         public boolean editorShowsAll = true;
 
+        /**
+         * Bis 1.7.1 ein eigener Kasten.
+         *
+         * Der Tag steht jetzt im Leistungs-Kasten - eine Zahl braucht keinen eigenen
+         * Rahmen, und zwei Kaesten fuer dieselbe Zahl schon gar nicht. Das Feld bleibt
+         * nur stehen, um die alte Einstellung einmal zu uebernehmen; im Menue taucht
+         * es nicht mehr auf.
+         */
         @Expose
-        @Category(name = "Day", desc = "A small panel with the SkyBlock day count, like the one GanKura had.")
         public DayHudCategory day = new DayHudCategory();
 
         @Expose

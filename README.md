@@ -66,13 +66,14 @@ die Spielversion beim Start — die falsche Datei laedt der Loader gar nicht ers
 
 - Mining: laufende Auftraege, Spitzhacken-Faehigkeit mit Abklingzeit, Sky-Mall-Buff.
 - Pet: Name, Stufe, Fortschritt — samt Overflow-Stufen und Meldung beim Aufstieg.
-- Leistung: Bilder je Sekunde, Server-Takt, selbst gemessener Ping.
+- Leistung: Bilder je Sekunde, Server-Takt, selbst gemessener Ping und auf Wunsch der
+  Tages-Zaehler - untereinander oder nebeneinander in einer Zeile.
 - Sammlungen: was die Saecke einsammeln, in Sammlungs-Einheiten und in Coins.
 - Hunting-Tracker: jeder gefangene Shard, bewertet und auf die Stunde gerechnet.
 - Profit-Tracker: alles, was waehrend eines Laufs ins Inventar oder in einen Sack
   faellt — auch ohne Chatzeile. Je Item einstellbar, ob es im Kasten steht und ob es
   sofort verkauft, in eine Order gelegt oder dem NPC gegeben wird (`/shoki profit`).
-- Contest, Tages-Zaehler, Mobs in der Naehe.
+- Contest, Mobs in der Naehe.
 - Alle Kaesten frei verschiebbar im HUD-Editor (`/shoki hud`).
 </details>
 
@@ -96,6 +97,8 @@ die Spielversion beim Start — die falsche Datei laedt der Loader gar nicht ers
 - Chat-Regeln: ausblenden, ersetzen, Action Bar, Einblendung, Toast — mit eigenen
   Audiodateien.
 - Kuchen-Erinnerung mit einem Klick zum Nachholen.
+- Pest-Fallen: Warnung, sobald genug Fallen voll sind, und beim Verlassen des
+  Gartens mit vollen Fallen. Der Stand kommt aus Hypixels Tab-Widget.
 - Gilden-Events aus dem ShokiTeufelBot: Banner zum Start, laufende Rangliste im Kasten.
 </details>
 
