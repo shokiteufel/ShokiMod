@@ -76,6 +76,7 @@ public class ShokiMod implements ClientModInitializer {
         com.shokiteufel.shokimod.handler.PestReminder.register();
         com.shokiteufel.shokimod.scanner.MineshaftState.register();
         com.shokiteufel.shokimod.scanner.CorpseFinder.register();
+        com.shokiteufel.shokimod.scanner.OreVeins.register();
         HotspotTracker.register();
         CollectionTracker.register();
         NestTracker.register();

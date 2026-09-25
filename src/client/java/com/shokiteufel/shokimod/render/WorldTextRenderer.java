@@ -28,6 +28,51 @@ public class WorldTextRenderer {
         renderFloorDrops();
         renderNests();
         renderMineshaftCorpses(client);
+        renderGemstoneVeins(client);
+    }
+
+    /**
+     * Die Edelstein-Adern des Schachts.
+     *
+     * Jede Ader bekommt ihren Rahmen und ihren Namen in ihrer eigenen Farbe, die
+     * naechste dazu die Entfernung und einen Strich vom Spieler dorthin - die Frage
+     * beim Ausminen ist nicht, wo ueberall etwas liegt, sondern wohin man als
+     * Naechstes laeuft. Was in der Wand steckt, steht dabei, damit man weiss, dass
+     * man graben muss.
+     */
+    private static void renderGemstoneVeins(Minecraft client) {
+        ModConfig.MineshaftCategory cfg = ModConfig.INSTANCE.mining.mineshaft;
+        if (cfg.veins == ModConfig.VeinFilter.OFF) return;
+
+        java.util.List<com.shokiteufel.shokimod.scanner.OreVeins.Vein> veins =
+                com.shokiteufel.shokimod.scanner.OreVeins.veins();
+        boolean first = true;
+
+        for (var vein : veins) {
+            if (vein.size() < Math.max(1, cfg.veinMinSize)) continue;
+            int argb = vein.kind().argb();
+
+            if (cfg.veinBox) {
+                GizmoProperties box = Gizmos.cuboid(vein.box(), GizmoStyle.stroke(argb, MARKER_LINE_WIDTH));
+                box.setAlwaysOnTop();
+            }
+
+            StringBuilder text = new StringBuilder();
+            if (first) text.append("-> ");
+            text.append(vein.kind().label());
+            if (vein.size() > 1) text.append(" x").append(vein.size());
+            if (vein.hidden()) text.append(" (in wall)");
+            if (first) text.append(" - ").append(Math.round(vein.distance())).append('m');
+            renderGizmoLabel(text.toString(), vein.anchor(), argb);
+
+            // Der Strich geht von den Fuessen aus, nicht aus dem Gesicht
+            if (first && cfg.veinArrow && client.player != null) {
+                GizmoProperties arrow = Gizmos.arrow(client.player.position().add(0, 0.5, 0),
+                        vein.box().getCenter(), argb, MARKER_LINE_WIDTH);
+                arrow.setAlwaysOnTop();
+            }
+            first = false;
+        }
     }
 
     /**
@@ -41,9 +86,6 @@ public class WorldTextRenderer {
         if (!com.shokiteufel.shokimod.scanner.MineshaftState.inMineshaft()) return;
 
         ModConfig.MineshaftCategory cfg = ModConfig.INSTANCE.mining.mineshaft;
-        // Lohnt sich der Schacht ueberhaupt? Ohne Regel immer
-        if (!cfg.shaftAllowed(com.shokiteufel.shokimod.scanner.MineshaftState.type())) return;
-
         int argb = 0xFF000000 | cfg.corpseColorRGB();
         double range = Math.max(10, cfg.corpseRange);
         double rangeSquared = range * range;

@@ -749,6 +749,24 @@ public class ModConfig extends Config {
     }
 
     /** Welche gefrorenen Leichen im Mining-HUD stehen sollen */
+    /** Welche Edelstein-Adern im Schacht angeschrieben werden */
+    public enum VeinFilter {
+        OFF("Off"),
+        SHAFT("Only this shaft's gemstone"),
+        ALL("Every gemstone");
+
+        private final String label;
+
+        VeinFilter(String label) {
+            this.label = label;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
+    }
+
     public enum CorpseFilter {
         OFF("Off"),
         LAPIS_ONLY("Lapis only"),
@@ -873,6 +891,31 @@ public class ModConfig extends Config {
         public int corpseRange = 80;
 
         @Expose
+        @ConfigOption(name = "Gemstone veins", desc = "Marks the gemstone veins lying in this shaft - read from the blocks themselves, so it works in every layout. The shaft names its gemstone: an Amethyst shaft carries amethyst.")
+        @ConfigEditorDropdown
+        public VeinFilter veins = VeinFilter.OFF;
+
+        @Expose
+        @ConfigOption(name = "Arrow to the nearest", desc = "Draws a line from you to the nearest vein, so you know which way to walk. The label says how far it is.")
+        @ConfigEditorBoolean
+        public boolean veinArrow = true;
+
+        @Expose
+        @ConfigOption(name = "Vein box", desc = "A frame around the whole vein. Off leaves just the label above it.")
+        @ConfigEditorBoolean
+        public boolean veinBox = true;
+
+        @Expose
+        @ConfigOption(name = "Vein distance", desc = "How far away a vein is still looked for, in blocks. Farther costs a little more work per second.")
+        @ConfigEditorSlider(minValue = 16f, maxValue = 128f, minStep = 8f)
+        public int veinRange = 48;
+
+        @Expose
+        @ConfigOption(name = "Smallest vein", desc = "Veins with fewer blocks than this are not shown. A single block is often a leftover, a real vein has several.")
+        @ConfigEditorSlider(minValue = 1f, maxValue = 10f, minStep = 1f)
+        public int veinMinSize = 1;
+
+        @Expose
         @ConfigOption(name = "Frozen corpses", desc = "The frozen corpses of the mineshaft you are in, and how many of each are still unlooted. Shown in the mining panel. Vanguard is never listed.")
         @ConfigEditorDropdown
         public CorpseFilter corpses = CorpseFilter.OFF;
@@ -882,7 +925,7 @@ public class ModConfig extends Config {
         @ConfigEditorDropdown
         public CorpseCall corpseCall = CorpseCall.OFF;
 
-        @ConfigOption(name = "Only in shafts worth it", desc = "Set per layout from how many corpses on the spots are shown, and whether Umber and Tungsten count towards that. Off means the layout always shows them.")
+        @ConfigOption(name = "Only mine shafts worth it", desc = "Set per layout from how many corpses on the gemstone veins are marked, and whether Umber and Tungsten count towards that. Off means the layout always marks them. The corpse spots are not affected - those always show.")
         @ConfigEditorButton(buttonText = "Open")
         public transient Runnable openShaftRules = () -> {
         };
@@ -894,8 +937,12 @@ public class ModConfig extends Config {
         /**
          * Erfuellt der Schacht, in dem man steht, seine Regel?
          *
-         * Ohne Regel - und ohne Leichen-Zeilen in der Tab-Liste - gilt er als erfuellt:
-         * Lieber die Stellen zeigen, als sie wegen einer fehlenden Zahl zu verschweigen.
+         * Gefragt wird das fuer die Erz-Marker: Ob sich das Ausminen lohnt, entscheidet,
+         * wie viel drin liegt. Die Leichen-Stellen fragen nicht - die stehen immer da,
+         * solange "Corpse spots" an ist.
+         *
+         * Ohne Regel - und ohne Leichen-Zeilen in der Tab-Liste - gilt der Schacht als
+         * erfuellt: Lieber zeigen, als wegen einer fehlenden Zahl zu verschweigen.
          */
         public boolean shaftAllowed(String type) {
             if (type == null) return true;
