@@ -141,6 +141,11 @@ public final class PestTraps {
         }
     }
 
+    /** Wird lange genug im Garden gesucht, ohne dass eine Zeile kam? */
+    public static boolean waitingForWidget() {
+        return !seen && firstAskedAt > 0L && System.currentTimeMillis() - firstAskedAt >= HINT_AFTER_MILLIS;
+    }
+
     /**
      * Einmal je Welt: der Hinweis, dass das Widget fehlt.
      *
