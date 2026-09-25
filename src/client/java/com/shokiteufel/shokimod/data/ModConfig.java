@@ -145,6 +145,14 @@ public class ModConfig extends Config {
 
         adoptLegacyCategory();
 
+        // Bis 1.7.8 war eine Regel vier Mindestzahlen plus "alle oder eine". Jetzt ist
+        // sie eine Zahl und zwei Haken - wer schon etwas eingetragen hatte, behaelt es
+        boolean adopted = false;
+        for (MineshaftRule rule : INSTANCE.mining.mineshaft.shaftRules.values()) {
+            if (rule.adopt()) adopted = true;
+        }
+        if (adopted) INSTANCE.saveNow();
+
         // Die beiden Leichen-Einstellungen standen bis 1.7.5 im Mining-HUD. Sie gehoeren
         // zum Mineshaft und stehen jetzt dort; wer sie gesetzt hatte, behaelt sie
         if (INSTANCE.mining.hud.corpses != CorpseFilter.OFF
@@ -874,7 +882,7 @@ public class ModConfig extends Config {
         @ConfigEditorDropdown
         public CorpseCall corpseCall = CorpseCall.OFF;
 
-        @ConfigOption(name = "Only in shafts worth it", desc = "Set per layout how many corpses of which kind it takes before the spots are shown. Empty means it does not matter - then they show everywhere, as before.")
+        @ConfigOption(name = "Only in shafts worth it", desc = "Set per layout from how many corpses on the spots are shown, and whether Umber and Tungsten count towards that. Off means the layout always shows them.")
         @ConfigEditorButton(buttonText = "Open")
         public transient Runnable openShaftRules = () -> {
         };
@@ -882,10 +890,6 @@ public class ModConfig extends Config {
         /** Je Bauplan eine Regel. Was nicht drinsteht, laesst alles durch */
         @Expose
         public Map<String, MineshaftRule> shaftRules = new HashMap<>();
-
-        /** true: jede eingetragene Zahl muss erreicht sein. false: eine genuegt */
-        @Expose
-        public boolean shaftRuleAll = true;
 
         /**
          * Erfuellt der Schacht, in dem man steht, seine Regel?
@@ -901,7 +905,7 @@ public class ModConfig extends Config {
             java.util.List<com.shokiteufel.shokimod.scanner.MiningState.Corpse> corpses =
                     com.shokiteufel.shokimod.scanner.MiningState.allCorpses();
             if (corpses.isEmpty()) return true;
-            return rule.matches(corpses, shaftRuleAll);
+            return rule.matches(corpses);
         }
 
         public int corpseColorRGB() {
