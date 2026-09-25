@@ -24,6 +24,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -89,6 +90,8 @@ public final class ItemChanges {
      * Deshalb beides: der Platz bleibt aussen vor, und das Menue zusaetzlich an seiner
      * Kennung - wer es verschoben hat, soll es auch dort nicht mitzaehlen.
      */
+    /** So weit darf das liegengelassene Stueck entfernt sein, in Bloecken */
+    private static final double FLOOR_REACH = 16.0;
     private static final int DISPLAY_SLOT = 8;
     private static final String MENU_ID = "SKYBLOCK_MENU";
 
@@ -186,7 +189,8 @@ public final class ItemChanges {
     private static final class Loss {
         final String itemId;
         int amount;
-        final long at;
+        /** Nicht endgueltig: Solange das Stueck noch auf dem Boden liegt, wird er nachgezogen */
+        long at;
         final boolean sackOnly;
 
         Loss(String itemId, int amount, long at, boolean sackOnly) {
@@ -276,10 +280,18 @@ public final class ItemChanges {
                 // Was in dieser Sekunde ankam, zaehlt nicht - aber es soll nicht
                 // spurlos verschwinden. Genau hier waren die vier Buecher weg, und im
                 // Log stand nichts darueber
-                if (debug() && previousCounts != null) {
-                    Map<String, Integer> verschluckt = onlyGains(previousCounts, current);
-                    if (!verschluckt.isEmpty()) {
-                        ShokiMod.LOGGER.info("[Profit] arrived while settling, not counted: {}", verschluckt);
+                if (previousCounts != null) {
+                    if (debug()) {
+                        Map<String, Integer> verschluckt = onlyGains(previousCounts, current);
+                        if (!verschluckt.isEmpty()) {
+                            ShokiMod.LOGGER.info("[Profit] arrived while settling, not counted: {}", verschluckt);
+                        }
+                    }
+                    // Abgaenge aus dieser Sekunde zaehlen weiter mit: Wer in ihr wegwirft
+                    // und danach aufhebt, hat nichts gefunden
+                    long jetzt = System.currentTimeMillis();
+                    for (Map.Entry<String, Integer> entry : onlyGains(current, previousCounts).entrySet()) {
+                        losses.add(new Loss(entry.getKey(), entry.getValue(), jetzt, false));
                     }
                 }
                 previousCounts = current;
@@ -300,6 +312,7 @@ public final class ItemChanges {
             return;
         }
 
+        refreshFloorLosses(client, System.currentTimeMillis());
         Map<String, Integer> gains = diff(previousCounts, current);
         previousCounts = current;
         // Beute bei offenem Fenster: der Vergleichspunkt des Fensters wandert mit.
@@ -340,6 +353,15 @@ public final class ItemChanges {
             // Einkauf nicht im Weg stehen
             losses.add(new Loss(entry.getKey(), delta, now, true));
         }
+        // Und was hinausging. Ohne diese Schleife war ein Wegwerfen bei offenem
+        // Inventar unsichtbar: Das Fenster hielt den Vergleich an, beim Schliessen wurde
+        // neu geeicht, und das Wiederaufheben kam als Fund herein. Genau so sind drei
+        // Moby-Ducks in den Kasten gewandert, die einer waren
+        for (Map.Entry<String, Integer> entry : before.entrySet()) {
+            int delta = entry.getValue() - after.getOrDefault(entry.getKey(), 0);
+            if (delta > 0) losses.add(new Loss(entry.getKey(), delta, now, false));
+        }
+
         if (!gains.isEmpty()) {
             ShokiMod.LOGGER.info("[Profit] came in through a window, not counted: {}", gains);
         }
@@ -467,6 +489,51 @@ public final class ItemChanges {
     private static void expireLosses(long now) {
         if (losses.isEmpty()) return;
         losses.removeIf(loss -> now - loss.at > SACK_OFFSET_MILLIS);
+    }
+
+    /**
+     * Ein Abgang bleibt vorgemerkt, solange sein Stueck noch daliegt.
+     *
+     * Ein Fenster von zehn Sekunden ist eine Wette darauf, wie schnell jemand sein
+     * Zeug wieder aufhebt. Wer es hinlegt, herumlaeuft und in einer Minute zurueckkommt,
+     * verliert die Wette - und der Kasten zaehlt dasselbe Stueck ein zweites Mal. Die
+     * Frage ist aber gar keine Zeitfrage: Solange das Stueck in Sichtweite auf dem
+     * Boden liegt, ist sein Wiederaufheben kein Fund. Also wird der Zeitpunkt
+     * nachgezogen, so lange es dort liegt.
+     *
+     * Der Preis dafuer ist klein und benannt: Liegt eine Ware unaufgehoben herum und man
+     * findet dieselbe noch einmal, geht der neue Fund gegen den alten Posten. Das ist
+     * seltener als der Fall, den es behebt, und in der Richtung, die nichts erfindet.
+     */
+    private static void refreshFloorLosses(Minecraft client, long now) {
+        if (losses.isEmpty() || client.level == null || client.player == null) return;
+
+        Set<String> onFloor = null;
+        for (int i = 0; i < losses.size(); i++) {
+            Loss loss = losses.get(i);
+            // Frische Posten brauchen es nicht, Sack-Posten geht der Boden nichts an
+            if (loss.sackOnly || now - loss.at <= OFFSET_MILLIS) continue;
+
+            if (onFloor == null) onFloor = floorIds(client);
+            if (onFloor.isEmpty()) return;
+            if (onFloor.contains(loss.itemId)) loss.at = now;
+        }
+    }
+
+    /** Was in der Naehe auf dem Boden liegt */
+    private static Set<String> floorIds(Minecraft client) {
+        Set<String> out = new java.util.HashSet<>();
+        double reach = FLOOR_REACH * FLOOR_REACH;
+        net.minecraft.world.phys.Vec3 eye = client.player.position();
+
+        for (net.minecraft.world.entity.Entity entity : client.level.entitiesForRendering()) {
+            if (!(entity instanceof net.minecraft.world.entity.item.ItemEntity item)) continue;
+            if (entity.position().distanceToSqr(eye) > reach) continue;
+
+            String id = SkyBlockItems.idOf(item.getItem());
+            if (id != null) out.add(id);
+        }
+        return out;
     }
 
     /**
