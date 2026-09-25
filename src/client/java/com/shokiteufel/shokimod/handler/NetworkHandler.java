@@ -24,6 +24,7 @@ public class NetworkHandler {
             SessionManager.onWorldChange();
             RareLootHandler.reset();
             com.shokiteufel.shokimod.scanner.ItemChanges.reset();
+            PestReminder.reset();
             HotspotTracker.reset();
             com.shokiteufel.shokimod.scanner.PetState.reset();
             com.shokiteufel.shokimod.scanner.PerformanceState.reset();

@@ -100,6 +100,8 @@ public class TabListScanner {
         PetState.processTabList(unformattedLines);
         // Auftraege und Spitzhacken-Faehigkeit stehen dort ebenfalls - aber nur in den Minen
         if (ModConfig.INSTANCE.mining.hud.showHud) MiningState.processTabList(unformattedLines);
+        // Der Stand der Pest-Fallen steht ebenfalls dort, sobald das Widget an ist
+        if (FeatureGate.pestTraps()) PestTraps.processTabList(unformattedLines);
         // Die Contest-Zeilen nur auswerten, solange sie jemand anzeigt
         if (FeatureGate.contest()) {
             TabContest.processTabList(unformattedLines);
