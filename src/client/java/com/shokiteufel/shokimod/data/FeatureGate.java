@@ -113,6 +113,18 @@ public final class FeatureGate {
         return ModConfig.INSTANCE.mining.mineshaft.corpseWaypoints;
     }
 
+    /**
+     * Muss ueberhaupt bekannt sein, in welchem Schacht man steht?
+     *
+     * Beides braucht es: Die Leichen-Stellen kommen je Bauplan, und die Erz-Marker
+     * suchen den Stein, den der Bauplan nennt. Ist keines von beiden an, muss die
+     * Seitenleiste auch nicht gelesen werden.
+     */
+    public static boolean mineshaftKnown() {
+        return ModConfig.INSTANCE.mining.mineshaft.corpseWaypoints
+                || ModConfig.INSTANCE.mining.mineshaft.veins != ModConfig.VeinFilter.OFF;
+    }
+
     /** Die Erinnerung an volle Pest-Fallen liest die Tab-Liste mit */
     public static boolean pestTraps() {
         return ModConfig.INSTANCE.chat.reminder.pestTrapAlert;

@@ -179,8 +179,12 @@ drinsteckt.
 - **SkyHanni** (AGPL-3.0) — dagegen gegengeprüft wurden: die Sky-Mall-Platzierung, die
   Mengen in der Hunting Box, das Whale-Bait-Rezept und die vier Helme, an denen eine
   gefrorene Leiche zu erkennen ist (`LAPIS_ARMOR_HELMET`, `ARMOR_OF_YOG_HELMET`,
-  `MINERAL_HELMET`, `VANGUARD_HELMET` — Lapis, Umber, Tungsten, Vanguard). Das ist eine
-  Tatsache über Hypixel, nachgesehen in `CorpseType`; der Scanner hier ist eigener Code.
+  `MINERAL_HELMET`, `VANGUARD_HELMET` — Lapis, Umber, Tungsten, Vanguard) sowie die
+  Farben, an denen eine Edelstein-Ader zu erkennen ist (gefärbtes Glas bzw. Glasscheibe:
+  rot = Ruby, lila = Amethyst, hellblau = Sapphire, blau = Aquamarine, braun = Citrine,
+  grün = Peridot, lime = Jade, magenta = Jasper, weiß = Opal, schwarz = Onyx, gelb =
+  Topaz, orange = Amber — nachgesehen in `OreBlock`). Das sind Tatsachen über Hypixel;
+  Scanner und Marker hier sind eigener Code.
   Die AGPL wäre mit der LGPL **nicht** vereinbar, deshalb ist hier bewusst nie Code
   übernommen worden, nur Tatsachen abgelesen.
 - **Odin** — die Ping-Anzeige wurde gegen seine gehalten, um den eigenen Messfehler zu

@@ -103,22 +103,25 @@ public final class MineshaftState {
      */
     private static void explain(Minecraft client) {
         ModConfig.MineshaftCategory cfg = ModConfig.INSTANCE.mining.mineshaft;
-        if (explained || !cfg.corpseWaypoints || !cfg.corpseExplain || client.player == null) return;
+        if (explained || !cfg.corpseExplain || client.player == null) return;
+        if (!cfg.corpseWaypoints && cfg.veins == ModConfig.VeinFilter.OFF) return;
 
         String where = readable(type) + " " + variant;
-        if (corpses().isEmpty()) {
+        // Die Regel haelt die Erz-Marker zurueck, nicht die Leichen-Stellen
+        if (cfg.veins != ModConfig.VeinFilter.OFF && !cfg.shaftAllowed(type)) {
+            MineshaftRule rule = cfg.shaftRules.get(type);
+            say(client, where + ": your rule wants " + (rule == null ? "more corpses" : rule.describe())
+                    + " - no gemstone markers here.");
+            explained = true;
+            return;
+        }
+        if (cfg.corpseWaypoints && corpses().isEmpty()) {
             // Die Liste kommt aus dem Netz; bevor sie da ist, ist leer keine Aussage
             if (!MineshaftCorpses.ready()) return;
             say(client, where + ": no corpse spots known for this layout yet"
                     + (cfg.corpseLearn ? " - the ones you find get remembered." : "."));
             explained = true;
             return;
-        }
-        if (!cfg.shaftAllowed(type)) {
-            MineshaftRule rule = cfg.shaftRules.get(type);
-            say(client, where + ": your rule wants " + (rule == null ? "more corpses" : rule.describe())
-                    + " - spots stay hidden here.");
-            explained = true;
         }
     }
 
@@ -130,7 +133,7 @@ public final class MineshaftState {
     }
 
     private static void tick(Minecraft client) {
-        if (!FeatureGate.mineshaftCorpses()) {
+        if (!FeatureGate.mineshaftKnown()) {
             forget();
             return;
         }
