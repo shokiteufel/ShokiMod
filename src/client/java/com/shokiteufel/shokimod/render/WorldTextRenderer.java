@@ -49,7 +49,11 @@ public class WorldTextRenderer {
         double rangeSquared = range * range;
         Vec3 eye = client.player.position();
 
-        for (BlockPos pos : com.shokiteufel.shokimod.scanner.MineshaftState.corpses()) {
+        // Was wirklich dasteht, zuerst: dort braucht es keine Vermutung mehr
+        java.util.List<com.shokiteufel.shokimod.scanner.CorpseFinder.Corpse> real =
+                cfg.corpseLive ? com.shokiteufel.shokimod.scanner.CorpseFinder.visible() : java.util.List.of();
+        for (var corpse : real) {
+            BlockPos pos = corpse.pos();
             if (eye.distanceToSqr(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5) > rangeSquared) {
                 continue;
             }
@@ -57,8 +61,31 @@ public class WorldTextRenderer {
                 GizmoProperties box = Gizmos.cuboid(pos, GizmoStyle.stroke(argb, MARKER_LINE_WIDTH));
                 box.setAlwaysOnTop();
             }
+            renderGizmoLabel(corpse.type(), pos, argb);
+        }
+
+        for (BlockPos pos : com.shokiteufel.shokimod.scanner.MineshaftState.corpses()) {
+            if (eye.distanceToSqr(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5) > rangeSquared) {
+                continue;
+            }
+            // Steht dort schon eine erkannte Leiche, ist das Wort "Corpse" daneben nur Laerm
+            if (standsThere(real, pos)) continue;
+
+            if (cfg.corpseBox) {
+                GizmoProperties box = Gizmos.cuboid(pos, GizmoStyle.stroke(argb, MARKER_LINE_WIDTH));
+                box.setAlwaysOnTop();
+            }
             renderGizmoLabel("Corpse", pos, argb);
         }
+    }
+
+    /** Liegt auf dieser Stelle eine Leiche, die gerade zu sehen ist? */
+    private static boolean standsThere(
+            java.util.List<com.shokiteufel.shokimod.scanner.CorpseFinder.Corpse> real, BlockPos pos) {
+        for (int i = 0; i < real.size(); i++) {
+            if (real.get(i).pos().distSqr(pos) <= 4) return true;
+        }
+        return false;
     }
 
     // Bienenstoecke im Forest. Abgeerntete bleiben stehen, die zeigen wir nicht mehr

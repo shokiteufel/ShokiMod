@@ -3,6 +3,8 @@ package com.shokiteufel.shokimod.scanner;
 import com.shokiteufel.shokimod.ShokiMod;
 import com.shokiteufel.shokimod.data.FeatureGate;
 import com.shokiteufel.shokimod.data.GameState;
+import com.shokiteufel.shokimod.data.MineshaftRule;
+import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.util.MineshaftCorpses;
 import com.shokiteufel.shokimod.util.ScoreboardUtils;
 
@@ -36,6 +38,8 @@ public final class MineshaftState {
     private static String type = null;
     private static String variant = null;
     private static int ticks = 0;
+    /** Hoechstens eine Erklaerung je Schacht - sie soll helfen, nicht zutexten */
+    private static boolean explained = false;
 
     private MineshaftState() {
     }
@@ -60,7 +64,69 @@ public final class MineshaftState {
 
     /** Die bekannten Stellen fuer den Schacht, in dem man steht */
     public static List<net.minecraft.core.BlockPos> corpses() {
-        return inMineshaft() ? MineshaftCorpses.forShaft(type, variant) : List.of();
+        return inMineshaft() ? CorpseFinder.allSpots(type, variant) : List.of();
+    }
+
+    /** "TUNG" wird zu "Tungsten" - die Seitenleiste kuerzt, Menue und Chat nicht */
+    public static String readable(String shaft) {
+        if (shaft == null) return "";
+        return switch (shaft.toUpperCase(java.util.Locale.ROOT)) {
+            case "FAIR" -> "Fairy";
+            case "LITT" -> "Little";
+            case "TITA" -> "Titanium";
+            case "TUNG" -> "Tungsten";
+            case "UMBE" -> "Umber";
+            case "RUBY" -> "Ruby";
+            case "JADE" -> "Jade";
+            case "SAPP" -> "Sapphire";
+            case "AMBE" -> "Amber";
+            case "AMET" -> "Amethyst";
+            case "TOPA" -> "Topaz";
+            case "JASP" -> "Jasper";
+            case "OPAL" -> "Opal";
+            case "ONYX" -> "Onyx";
+            case "CITR" -> "Citrine";
+            case "PERI" -> "Peridot";
+            case "AQUA" -> "Aquamarine";
+            default -> shaft.charAt(0) + shaft.substring(1).toLowerCase(java.util.Locale.ROOT);
+        };
+    }
+
+    /**
+     * Warum hier keine Marker stehen.
+     *
+     * Ein leerer Schacht sieht aus wie eine kaputte Mod, und genau so wurde er auch
+     * gemeldet: "bei Amethyst mit 2 Lapis keine Waypoints, obwohl ab 1 eingestellt".
+     * Es lag an der geteilten Liste, die Amethyst nur in der ersten Ausfuehrung kennt -
+     * das haette dastehen muessen, statt es raten zu lassen. Also steht es jetzt da,
+     * hoechstens eine Zeile je Schacht.
+     */
+    private static void explain(Minecraft client) {
+        ModConfig.MineshaftCategory cfg = ModConfig.INSTANCE.mining.mineshaft;
+        if (explained || !cfg.corpseWaypoints || !cfg.corpseExplain || client.player == null) return;
+
+        String where = readable(type) + " " + variant;
+        if (corpses().isEmpty()) {
+            // Die Liste kommt aus dem Netz; bevor sie da ist, ist leer keine Aussage
+            if (!MineshaftCorpses.ready()) return;
+            say(client, where + ": no corpse spots known for this layout yet"
+                    + (cfg.corpseLearn ? " - the ones you find get remembered." : "."));
+            explained = true;
+            return;
+        }
+        if (!cfg.shaftAllowed(type)) {
+            MineshaftRule rule = cfg.shaftRules.get(type);
+            say(client, where + ": your rule wants " + (rule == null ? "more corpses" : rule.describe())
+                    + " - spots stay hidden here.");
+            explained = true;
+        }
+    }
+
+    private static void say(Minecraft client, String text) {
+        client.player.sendSystemMessage(net.minecraft.network.chat.Component.literal("[ShokiMod] ")
+                .withStyle(net.minecraft.ChatFormatting.DARK_AQUA)
+                .append(net.minecraft.network.chat.Component.literal(text)
+                        .withStyle(net.minecraft.ChatFormatting.GRAY)));
     }
 
     private static void tick(Minecraft client) {
@@ -95,15 +161,18 @@ public final class MineshaftState {
         if (!foundType.equals(type) || !foundVariant.equals(variant)) {
             type = foundType;
             variant = foundVariant;
+            explained = false;
             // Die Liste liegt auf der Platte; der Abruf laeuft nur, wenn sie alt ist
             MineshaftCorpses.prefetch();
-            ShokiMod.LOGGER.info("[Mineshaft] {}_{} - {} known corpse spots",
-                    type, variant, corpses().size());
+            ShokiMod.LOGGER.info("[Mineshaft] {}_{} - {} known corpse spots ({} of them your own finds)",
+                    type, variant, corpses().size(), CorpseFinder.learnedCount(type, variant));
         }
+        explain(client);
     }
 
     private static void forget() {
         type = null;
         variant = null;
+        explained = false;
     }
 }
