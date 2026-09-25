@@ -252,6 +252,19 @@ public class ModConfig extends Config {
                         new com.shokiteufel.shokimod.gui.ProfitItemScreen(Minecraft.getInstance().gui.screen())));
         INSTANCE.chat.reminder.testCake = () -> Minecraft.getInstance().execute(CakeReminder::test);
         INSTANCE.chat.reminder.testPestTrap = () -> Minecraft.getInstance().execute(PestReminder::test);
+        INSTANCE.mining.mineshaft.forgetLearned = () -> Minecraft.getInstance().execute(() -> {
+            int shafts = INSTANCE.mining.mineshaft.learnedCorpses.size();
+            INSTANCE.mining.mineshaft.learnedCorpses.clear();
+            INSTANCE.saveNow();
+            Minecraft client = Minecraft.getInstance();
+            if (client.player != null) {
+                client.player.sendSystemMessage(net.minecraft.network.chat.Component
+                        .literal("[ShokiMod] ").withStyle(net.minecraft.ChatFormatting.DARK_AQUA)
+                        .append(net.minecraft.network.chat.Component
+                                .literal("Forgot the corpse spots found in " + shafts + " shaft(s).")
+                                .withStyle(net.minecraft.ChatFormatting.YELLOW)));
+            }
+        });
         INSTANCE.mining.mineshaft.openShaftRules = () -> Minecraft.getInstance().execute(() ->
                 Minecraft.getInstance().setScreenAndShow(
                         new com.shokiteufel.shokimod.gui.MineshaftRuleScreen(Minecraft.getInstance().gui.screen())));
@@ -816,6 +829,30 @@ public class ModConfig extends Config {
         /** Wie bei den anderen Markern: sechs Stellen, wie sie der Farbwaehler schreibt */
         @Expose
         public String corpseColor = "55FFFF";
+
+        @Expose
+        @ConfigOption(name = "Mark the ones you can see", desc = "A corpse standing within render distance is marked with its kind - Lapis, Umber, Tungsten or Vanguard. That is not a guess: it reads the helmet the corpse wears.")
+        @ConfigEditorBoolean
+        public boolean corpseLive = true;
+
+        @Expose
+        @ConfigOption(name = "Remember what you find", desc = "Keeps the spot of every corpse you see, per layout. The shared list knows five layouts only in their first version - Amethyst 2 is empty there. What you find yourself is a known spot on your next visit.")
+        @ConfigEditorBoolean
+        public boolean corpseLearn = true;
+
+        @Expose
+        @ConfigOption(name = "Say why nothing shows", desc = "One line when you enter a shaft that shows no spots: because none are known for this layout yet, or because your rule is not met. Beats wondering whether the mod is broken.")
+        @ConfigEditorBoolean
+        public boolean corpseExplain = true;
+
+        @ConfigOption(name = "Forget found spots", desc = "Throws away the spots remembered from your own finds. The shared list stays untouched.")
+        @ConfigEditorButton(buttonText = "Clear")
+        public transient Runnable forgetLearned = () -> {
+        };
+
+        /** Je Bauplan und Ausfuehrung die selbst gefundenen Stellen als "x,y,z" */
+        @Expose
+        public Map<String, java.util.List<String>> learnedCorpses = new HashMap<>();
 
         @Expose
         @ConfigOption(name = "Box", desc = "A frame around the spot as well as the label. Off leaves just the text.")

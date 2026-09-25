@@ -14,7 +14,6 @@ import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 /**
  * Wann die Leichen-Marker eines Schachts erscheinen sollen - je Bauplan einzeln.
@@ -184,7 +183,7 @@ public class MineshaftRuleScreen extends Screen {
             String shaft = shafts.get(start + i);
             boolean here = shaft.equals(current);
             graphics.text(font,
-                    Component.literal(name(shaft) + (here ? " (here)" : ""))
+                    Component.literal(MineshaftState.readable(shaft) + (here ? " (here)" : ""))
                             .withStyle(here ? ChatFormatting.GREEN : ChatFormatting.WHITE),
                     left, LIST_TOP + i * ROW_HEIGHT + 6, 0xFFFFFFFF);
         }
@@ -193,30 +192,6 @@ public class MineshaftRuleScreen extends Screen {
             graphics.centeredText(font, Component.literal((page + 1) + " / " + pageCount())
                     .withStyle(ChatFormatting.GRAY), centerX, height - 46, 0xFFAAAAAA);
         }
-    }
-
-    /** TUNG wird zu "Tungsten" - die Seitenleiste kuerzt, das Menue nicht */
-    private static String name(String shaft) {
-        return switch (shaft) {
-            case "FAIR" -> "Fairy";
-            case "LITT" -> "Little";
-            case "TITA" -> "Titanium";
-            case "TUNG" -> "Tungsten";
-            case "UMBE" -> "Umber";
-            case "RUBY" -> "Ruby";
-            case "JADE" -> "Jade";
-            case "SAPP" -> "Sapphire";
-            case "AMBE" -> "Amber";
-            case "AMET" -> "Amethyst";
-            case "TOPA" -> "Topaz";
-            case "JASP" -> "Jasper";
-            case "OPAL" -> "Opal";
-            case "ONYX" -> "Onyx";
-            case "CITR" -> "Citrine";
-            case "PERI" -> "Peridot";
-            case "AQUA" -> "Aquamarine";
-            default -> shaft.charAt(0) + shaft.substring(1).toLowerCase(Locale.ROOT);
-        };
     }
 
     @Override

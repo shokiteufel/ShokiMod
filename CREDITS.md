@@ -177,9 +177,12 @@ Diese Mods stehen hier, weil gegen sie geprüft wurde, nicht weil etwas von ihne
 drinsteckt.
 
 - **SkyHanni** (AGPL-3.0) — dagegen gegengeprüft wurden: die Sky-Mall-Platzierung, die
-  Mengen in der Hunting Box, das Whale-Bait-Rezept. Die AGPL wäre mit der LGPL
-  **nicht** vereinbar, deshalb ist hier bewusst nie Code übernommen worden, nur
-  Tatsachen abgelesen.
+  Mengen in der Hunting Box, das Whale-Bait-Rezept und die vier Helme, an denen eine
+  gefrorene Leiche zu erkennen ist (`LAPIS_ARMOR_HELMET`, `ARMOR_OF_YOG_HELMET`,
+  `MINERAL_HELMET`, `VANGUARD_HELMET` — Lapis, Umber, Tungsten, Vanguard). Das ist eine
+  Tatsache über Hypixel, nachgesehen in `CorpseType`; der Scanner hier ist eigener Code.
+  Die AGPL wäre mit der LGPL **nicht** vereinbar, deshalb ist hier bewusst nie Code
+  übernommen worden, nur Tatsachen abgelesen.
 - **Odin** — die Ping-Anzeige wurde gegen seine gehalten, um den eigenen Messfehler zu
   finden.
 
