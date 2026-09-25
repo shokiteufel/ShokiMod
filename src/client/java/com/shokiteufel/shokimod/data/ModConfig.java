@@ -1223,6 +1223,11 @@ public class ModConfig extends Config {
         @ConfigEditorSlider(minValue = 1f, maxValue = 20f, minStep = 1f)
         public int maxRows = 8;
 
+        @Expose
+        @ConfigOption(name = "Diagnostics", desc = "Writes every counted find, every suppressed one and every batch that came in through a window into the log. Only for troubleshooting - switch it on for one run, then send the log.")
+        @ConfigEditorBoolean
+        public boolean debugLogging = false;
+
         @ConfigOption(name = "Reset", desc = "Clears the count and the timer. Your item choices stay.")
         @ConfigEditorButton(buttonText = "Reset")
         public transient Runnable resetTracker = () -> {

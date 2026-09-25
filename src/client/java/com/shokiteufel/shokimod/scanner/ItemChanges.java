@@ -3,6 +3,7 @@ package com.shokiteufel.shokimod.scanner;
 import com.shokiteufel.shokimod.ShokiMod;
 import com.shokiteufel.shokimod.data.FeatureGate;
 import com.shokiteufel.shokimod.data.GameState;
+import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.data.RareLootParser;
 import com.shokiteufel.shokimod.data.RareLootParser.Drop;
 import com.shokiteufel.shokimod.util.ItemValue;
@@ -162,16 +163,28 @@ public final class ItemChanges {
      */
     private static final List<Loss> losses = new ArrayList<>();
 
-    /** Ein Abgang: so viele Stueck dieser Ware sind zu diesem Zeitpunkt verschwunden */
+    /**
+     * Ein vorgemerkter Posten: so viele Stueck dieser Ware sind schon verbucht.
+     *
+     * {@code sackOnly} trennt die beiden Faelle, und diese Trennung ist wichtiger als
+     * sie aussieht. Ein Abgang aus dem Inventar darf gegen alles aufgerechnet werden -
+     * wer etwas wegwirft und wieder aufhebt, hat nichts gefunden. Was dagegen durch ein
+     * Fenster hereinkam, ist nur fuer die Sack-Meldung vorgemerkt: Gekauftes wandert von
+     * selbst in die Saecke und kaeme sonst als Fund zurueck. Gegen einen spaeteren Fund
+     * derselben Ware im Inventar darf es nichts ausrichten - sonst frisst ein Einkauf
+     * eine Minute lang jeden echten Fund derselben Ware.
+     */
     private static final class Loss {
         final String itemId;
         int amount;
         final long at;
+        final boolean sackOnly;
 
-        Loss(String itemId, int amount, long at) {
+        Loss(String itemId, int amount, long at, boolean sackOnly) {
             this.itemId = itemId;
             this.amount = amount;
             this.at = at;
+            this.sackOnly = sackOnly;
         }
     }
 
@@ -236,8 +249,10 @@ public final class ItemChanges {
             previousCounts = current;
             previousSignature = signature(client);
             // Was beim Bauen oder Kaufen entsteht, kommt manchmal erst ein paar Ticks
-            // nach dem Schliessen an. Diese Sekunde gehoert noch zum Fenster
-            settleTicks = SETTLE_TICKS;
+            // nach dem Schliessen an. Diese Sekunde gehoert noch zum Fenster - ausser
+            // der Server teilt gerade Beute aus, dann faellt sie genau in die Sekunde,
+            // in der die Buecher der Schaedlinge ankommen
+            if (!lootFlowing) settleTicks = SETTLE_TICKS;
             return;
         }
 
@@ -287,8 +302,10 @@ public final class ItemChanges {
 
             gains.put(entry.getKey(), delta);
             // Vorgemerkt, nicht nur uebergangen: Gekauftes und Gecraftetes wandert von
-            // selbst in die Saecke, und deren Sammelmeldung kaeme sonst als Fund zurueck
-            losses.add(new Loss(entry.getKey(), delta, now));
+            // selbst in die Saecke, und deren Sammelmeldung kaeme sonst als Fund zurueck.
+            // Nur dafuer - einem spaeteren Fund derselben Ware im Inventar darf ein
+            // Einkauf nicht im Weg stehen
+            losses.add(new Loss(entry.getKey(), delta, now, true));
         }
         if (!gains.isEmpty()) {
             ShokiMod.LOGGER.info("[Profit] came in through a window, not counted: {}", gains);
@@ -373,7 +390,7 @@ public final class ItemChanges {
             int delta = entry.getValue() - before.getOrDefault(entry.getKey(), 0);
             if (delta <= 0) continue;
 
-            int rest = offset(entry.getKey(), delta, OFFSET_MILLIS, now);
+            int rest = offset(entry.getKey(), delta, OFFSET_MILLIS, now, false);
             if (rest > 0) gains.put(entry.getKey(), rest);
         }
         // Was verschwunden ist, bleibt vorgemerkt. Zwei Faelle laufen darueber: wer
@@ -382,7 +399,7 @@ public final class ItemChanges {
         // wieder auf
         for (Map.Entry<String, Integer> entry : before.entrySet()) {
             int delta = entry.getValue() - after.getOrDefault(entry.getKey(), 0);
-            if (delta > 0) losses.add(new Loss(entry.getKey(), delta, now));
+            if (delta > 0) losses.add(new Loss(entry.getKey(), delta, now, false));
         }
         return gains;
     }
@@ -395,17 +412,22 @@ public final class ItemChanges {
      * ausserhalb des Fensters liegt, bleibt liegen statt verworfen zu werden - das
      * Fenster der Sack-Meldung ist laenger als das des Wiederaufhebens.
      */
-    private static int offset(String itemId, int amount, long window, long now) {
+    private static int offset(String itemId, int amount, long window, long now, boolean forSack) {
         int rest = amount;
         for (int i = 0; i < losses.size() && rest > 0; i++) {
             Loss loss = losses.get(i);
             if (!loss.itemId.equals(itemId) || now - loss.at > window) continue;
+            // Was nur fuer die Saecke vorgemerkt ist, geht das Inventar nichts an
+            if (loss.sackOnly && !forSack) continue;
 
             int used = Math.min(loss.amount, rest);
             loss.amount -= used;
             rest -= used;
         }
         losses.removeIf(loss -> loss.amount <= 0);
+        if (rest < amount && debug()) {
+            ShokiMod.LOGGER.info("[Profit] {} x{} already booked, {} left over", itemId, amount, rest);
+        }
         return rest;
     }
 
@@ -475,7 +497,9 @@ public final class ItemChanges {
         List<String> ids = ItemNames.idsFor(name);
         if (ids.isEmpty()) return true;
 
-        losses.add(new Loss(ids.get(0), amount, System.currentTimeMillis()));
+        // Gecraftetes ist nur fuer die Sack-Meldung vorgemerkt - im Inventar liegt es
+        // schon, und was danach dort ankommt, ist wieder ein Fund
+        losses.add(new Loss(ids.get(0), amount, System.currentTimeMillis(), true));
         ShokiMod.LOGGER.info("[Profit] crafted, not found: {} x{}", ids.get(0), amount);
         return true;
     }
@@ -515,7 +539,7 @@ public final class ItemChanges {
         int amount = Math.max(1, drop.amount());
         // Ist die Box voll, faellt der Shard doch ins Inventar. Dann steht er hier
         // schon verbucht und zaehlt beim Nachzaehlen nicht noch einmal
-        losses.add(new Loss(shard, amount, System.currentTimeMillis()));
+        losses.add(new Loss(shard, amount, System.currentTimeMillis(), false));
 
         // Die Seltenheit steht in der Farbe des Namens - fuer Shards die einzige
         // Gelegenheit, sie ueberhaupt zu erfahren
@@ -584,7 +608,7 @@ public final class ItemChanges {
         expireLosses(now);
         Map<String, Integer> net = new LinkedHashMap<>();
         for (Map.Entry<String, Integer> entry : gains.entrySet()) {
-            int rest = offset(entry.getKey(), entry.getValue(), SACK_OFFSET_MILLIS, now);
+            int rest = offset(entry.getKey(), entry.getValue(), SACK_OFFSET_MILLIS, now, true);
             if (rest > 0) net.put(entry.getKey(), rest);
         }
 
@@ -637,8 +661,14 @@ public final class ItemChanges {
         return lastSource;
     }
 
+    /** Der Schalter unter Profit -> Diagnostics. Aus kostet er nichts */
+    private static boolean debug() {
+        return ModConfig.INSTANCE.profit.debugLogging;
+    }
+
     private static void dispatch(Map<String, Integer> gains, String source) {
         lastSource = source;
+        if (debug()) ShokiMod.LOGGER.info("[Profit] +{} via {}", gains, source);
         for (int i = 0; i < listeners.size(); i++) {
             listeners.get(i).accept(gains);
         }
