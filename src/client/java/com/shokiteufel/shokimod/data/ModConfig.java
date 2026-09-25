@@ -252,6 +252,9 @@ public class ModConfig extends Config {
                         new com.shokiteufel.shokimod.gui.ProfitItemScreen(Minecraft.getInstance().screen)));
         INSTANCE.chat.reminder.testCake = () -> Minecraft.getInstance().execute(CakeReminder::test);
         INSTANCE.chat.reminder.testPestTrap = () -> Minecraft.getInstance().execute(PestReminder::test);
+        INSTANCE.mining.mineshaft.openShaftRules = () -> Minecraft.getInstance().execute(() ->
+                Minecraft.getInstance().setScreen(
+                        new com.shokiteufel.shokimod.gui.MineshaftRuleScreen(Minecraft.getInstance().screen)));
         INSTANCE.chat.reminder.clearCakes = () -> Minecraft.getInstance().execute(CakeReminder::clear);
         INSTANCE.chat.banner.openEditor = () -> Minecraft.getInstance().execute(() ->
                 Minecraft.getInstance().setScreen(new HudEditorScreen(Minecraft.getInstance().screen, true)));
@@ -833,6 +836,36 @@ public class ModConfig extends Config {
         @ConfigOption(name = "Tell the party", desc = "Writes the corpses of a mineshaft into the party chat, once per shaft, as soon as they show up. Only fires when there are at least this many Lapis corpses.")
         @ConfigEditorDropdown
         public CorpseCall corpseCall = CorpseCall.OFF;
+
+        @ConfigOption(name = "Only in shafts worth it", desc = "Set per layout how many corpses of which kind it takes before the spots are shown. Empty means it does not matter - then they show everywhere, as before.")
+        @ConfigEditorButton(buttonText = "Open")
+        public transient Runnable openShaftRules = () -> {
+        };
+
+        /** Je Bauplan eine Regel. Was nicht drinsteht, laesst alles durch */
+        @Expose
+        public Map<String, MineshaftRule> shaftRules = new HashMap<>();
+
+        /** true: jede eingetragene Zahl muss erreicht sein. false: eine genuegt */
+        @Expose
+        public boolean shaftRuleAll = true;
+
+        /**
+         * Erfuellt der Schacht, in dem man steht, seine Regel?
+         *
+         * Ohne Regel - und ohne Leichen-Zeilen in der Tab-Liste - gilt er als erfuellt:
+         * Lieber die Stellen zeigen, als sie wegen einer fehlenden Zahl zu verschweigen.
+         */
+        public boolean shaftAllowed(String type) {
+            if (type == null) return true;
+            MineshaftRule rule = shaftRules.get(type);
+            if (rule == null || rule.empty()) return true;
+
+            java.util.List<com.shokiteufel.shokimod.scanner.MiningState.Corpse> corpses =
+                    com.shokiteufel.shokimod.scanner.MiningState.allCorpses();
+            if (corpses.isEmpty()) return true;
+            return rule.matches(corpses, shaftRuleAll);
+        }
 
         public int corpseColorRGB() {
             try {

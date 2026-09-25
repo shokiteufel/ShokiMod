@@ -305,6 +305,17 @@ public final class MiningState {
      *
      * Vanguard bleibt immer aussen vor - die ist dem Auftraggeber egal.
      */
+    /**
+     * Alle Leichen des Schachts, ohne die Anzeige-Einstellung.
+     *
+     * Die Regel fragt, was drin ist - nicht, was der Kasten davon zeigen soll. Wer
+     * nur Lapis anzeigen laesst, will trotzdem eine Regel ueber Tungsten stellen
+     * koennen.
+     */
+    public static List<Corpse> allCorpses() {
+        return List.copyOf(corpses);
+    }
+
     public static List<Corpse> corpses() {
         ModConfig.CorpseFilter filter = ModConfig.INSTANCE.mining.mineshaft.corpses;
         if (filter == ModConfig.CorpseFilter.OFF) return List.of();
