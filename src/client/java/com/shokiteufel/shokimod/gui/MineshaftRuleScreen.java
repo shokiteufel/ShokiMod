@@ -8,7 +8,6 @@ import com.shokiteufel.shokimod.util.MineshaftCorpses;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
@@ -16,24 +15,30 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Wann die Leichen-Marker eines Schachts erscheinen sollen - je Bauplan einzeln.
+ * Ab wann die Leichen-Marker eines Schachts erscheinen - je Bauplan einzeln.
  *
- * Eine Zeile je Bauplan, dahinter vier Felder: wie viele Lapis, Umber, Tungsten und
- * Vanguard drin sein muessen. Leer oder null heisst "ist mir egal". Wer gar nichts
- * eintraegt, bekommt die Marker ueberall - so wie vorher.
+ * Eine Zeile je Bauplan, darin drei Knoepfe: ab wie vielen Leichen, und ob Umber und
+ * Tungsten mitzaehlen. Kein Tippen, keine leeren Felder - klicken, bis die Zahl passt.
+ * "off" heisst: dieser Bauplan zeigt seine Stellen immer.
  *
- * Der Gedanke stammt vom SkyblockCollectionTracker (LGPL-2.1), der seine Routen nur
- * in Schaechten mit genug Lapis-Leichen zeigt. Hier steht die Bedingung nicht fest,
- * sondern je Bauplan: Ein Tungsten-Schacht ist fuer andere Sachen gut als ein
+ * Vanguard steht nicht dabei. Es gibt ihn nur in einem Bauplan, und dort ist er kein
+ * Kriterium, sondern der Grund, ueberhaupt hinzugehen.
+ *
+ * Der Gedanke stammt vom SkyblockCollectionTracker (LGPL-2.1), der seine Routen nur in
+ * Schaechten mit genug Lapis-Leichen zeigt. Dort steht die Schwelle fest; hier steht
+ * sie je Bauplan, denn ein Tungsten-Schacht ist fuer andere Sachen gut als ein
  * Peridot-Schacht, und was sich lohnt, weiss der Spieler besser als die Mod.
  */
 public class MineshaftRuleScreen extends Screen {
 
-    private static final int ROW_HEIGHT = 22;
-    private static final int NAME_WIDTH = 120;
-    private static final int FIELD_WIDTH = 46;
+    private static final int ROW_HEIGHT = 24;
+    private static final int NAME_WIDTH = 110;
+    private static final int COUNT_WIDTH = 82;
+    private static final int TOGGLE_WIDTH = 92;
     private static final int GAP = 4;
-    private static final int LIST_TOP = 78;
+    private static final int LIST_TOP = 62;
+    /** Mehr Leichen hat kein Schacht; danach faengt die Zahl wieder bei "off" an */
+    private static final int MAX_MIN = 6;
 
     private final Screen parent;
     private int page;
@@ -50,9 +55,9 @@ public class MineshaftRuleScreen extends Screen {
     /**
      * Die Bauplaene, fuer die es Stellen gibt.
      *
-     * Gelesen aus derselben Liste, aus der auch die Marker kommen - so steht hier
-     * genau das, was der Mod bekannt ist, und nicht eine zweite gepflegte Aufzaehlung
-     * daneben. Der Schacht, in dem man gerade steht, kommt nach oben.
+     * Gelesen aus derselben Liste, aus der auch die Marker kommen - so steht hier genau
+     * das, was der Mod bekannt ist, und nicht eine zweite gepflegte Aufzaehlung daneben.
+     * Der Schacht, in dem man gerade steht, kommt nach oben.
      */
     private List<String> shafts() {
         List<String> out = new ArrayList<>();
@@ -72,11 +77,15 @@ public class MineshaftRuleScreen extends Screen {
     }
 
     private int rowsPerPage() {
-        return Math.max(1, (height - 70 - LIST_TOP) / ROW_HEIGHT);
+        return Math.max(1, (height - 60 - LIST_TOP) / ROW_HEIGHT);
     }
 
     private int pageCount() {
         return Math.max(1, (shafts().size() + rowsPerPage() - 1) / rowsPerPage());
+    }
+
+    private int gridWidth() {
+        return NAME_WIDTH + COUNT_WIDTH + GAP + (TOGGLE_WIDTH + GAP) * 2;
     }
 
     @Override
@@ -85,32 +94,37 @@ public class MineshaftRuleScreen extends Screen {
         page = Math.min(page, pageCount() - 1);
 
         List<String> shafts = shafts();
-        int gridWidth = NAME_WIDTH + (FIELD_WIDTH + GAP) * MineshaftRule.TYPES.length;
-        int left = width / 2 - gridWidth / 2;
-
-        // Die Bedingung gilt fuer alle Zeilen, deshalb steht sie ueber ihnen
-        addRenderableWidget(Button.builder(matchLabel(), button -> {
-            cfg().shaftRuleAll = !cfg().shaftRuleAll;
-            ModConfig.INSTANCE.saveNow();
-            button.setMessage(matchLabel());
-        }).bounds(left, 46, 150, 20).build());
-
+        int left = width / 2 - gridWidth() / 2;
         int start = page * rowsPerPage();
+
         for (int i = 0; i < rowsPerPage() && start + i < shafts.size(); i++) {
             String shaft = shafts.get(start + i);
             int y = LIST_TOP + i * ROW_HEIGHT;
+            int x = left + NAME_WIDTH;
 
-            for (int t = 0; t < MineshaftRule.TYPES.length; t++) {
-                String type = MineshaftRule.TYPES[t];
-                int x = left + NAME_WIDTH + t * (FIELD_WIDTH + GAP);
+            // Die Zahl: ein Knopf, der weiterzaehlt. Nach der letzten Stufe wieder "off"
+            addRenderableWidget(Button.builder(countLabel(shaft), button -> {
+                MineshaftRule rule = rule(shaft);
+                rule.min = rule.min >= MAX_MIN ? 0 : rule.min + 1;
+                ModConfig.INSTANCE.saveNow();
+                button.setMessage(countLabel(shaft));
+            }).bounds(x, y, COUNT_WIDTH, 20).build());
+            x += COUNT_WIDTH + GAP;
 
-                EditBox field = new EditBox(font, x, y, FIELD_WIDTH, 20, Component.literal(type));
-                int value = rule(shaft).minimum(type);
-                field.setValue(value > 0 ? String.valueOf(value) : "");
-                field.setHint(Component.literal("-").withStyle(ChatFormatting.DARK_GRAY));
-                field.setResponder(text -> rule(shaft).setMinimum(type, number(text)));
-                addRenderableWidget(field);
-            }
+            addRenderableWidget(Button.builder(toggleLabel("Umber", rule(shaft).withUmber), button -> {
+                MineshaftRule rule = rule(shaft);
+                rule.withUmber = !rule.withUmber;
+                ModConfig.INSTANCE.saveNow();
+                button.setMessage(toggleLabel("Umber", rule.withUmber));
+            }).bounds(x, y, TOGGLE_WIDTH, 20).build());
+            x += TOGGLE_WIDTH + GAP;
+
+            addRenderableWidget(Button.builder(toggleLabel("Tungsten", rule(shaft).withTungsten), button -> {
+                MineshaftRule rule = rule(shaft);
+                rule.withTungsten = !rule.withTungsten;
+                ModConfig.INSTANCE.saveNow();
+                button.setMessage(toggleLabel("Tungsten", rule.withTungsten));
+            }).bounds(x, y, TOGGLE_WIDTH, 20).build());
         }
 
         int y = height - 30;
@@ -132,22 +146,20 @@ public class MineshaftRuleScreen extends Screen {
         }
 
         addRenderableWidget(Button.builder(Component.literal("Done"), button -> onClose())
-                .bounds(left + gridWidth - 60, y, 60, 20).build());
+                .bounds(left + gridWidth() - 60, y, 60, 20).build());
     }
 
-    private static Component matchLabel() {
-        boolean all = cfg().shaftRuleAll;
-        return Component.literal(all ? "Match: all of them" : "Match: any of them")
-                .withStyle(all ? ChatFormatting.AQUA : ChatFormatting.GREEN);
+    /** "Lapis: off" oder "Lapis: 2" - gruen, sobald eine Schwelle steht */
+    private static Component countLabel(String shaft) {
+        int min = rule(shaft).min;
+        return Component.literal(min <= 0 ? "Lapis: off" : "Lapis: " + min)
+                .withStyle(min <= 0 ? ChatFormatting.GRAY : ChatFormatting.GREEN);
     }
 
-    private static int number(String text) {
-        if (text == null || text.isBlank()) return 0;
-        try {
-            return Math.max(0, Integer.parseInt(text.trim()));
-        } catch (NumberFormatException e) {
-            return 0;
-        }
+    /** "+ Umber" gruen, wenn es mitzaehlt, sonst dunkel */
+    private static Component toggleLabel(String type, boolean on) {
+        return Component.literal((on ? "+ " : "- ") + type)
+                .withStyle(on ? ChatFormatting.GREEN : ChatFormatting.DARK_GRAY);
     }
 
     private void rebuild() {
@@ -161,24 +173,16 @@ public class MineshaftRuleScreen extends Screen {
 
         int centerX = width / 2;
         graphics.centeredText(font, Component.literal("Mineshaft - when to show the corpse spots"),
-                centerX, 14, 0xFFFFFFFF);
+                centerX, 16, 0xFFFFFFFF);
         graphics.centeredText(font, Component.literal(
-                        "Per layout: how many corpses of each kind it takes. Empty means it does not matter.")
-                .withStyle(ChatFormatting.GRAY), centerX, 28, 0xFFAAAAAA);
+                        "Per layout: from how many corpses on. Umber and Tungsten count too when switched on.")
+                .withStyle(ChatFormatting.GRAY), centerX, 32, 0xFFAAAAAA);
 
         List<String> shafts = shafts();
-        int gridWidth = NAME_WIDTH + (FIELD_WIDTH + GAP) * MineshaftRule.TYPES.length;
-        int left = width / 2 - gridWidth / 2;
-
-        // Die Ueberschriften der vier Spalten
-        for (int t = 0; t < MineshaftRule.TYPES.length; t++) {
-            int x = left + NAME_WIDTH + t * (FIELD_WIDTH + GAP);
-            graphics.text(font, Component.literal(MineshaftRule.TYPES[t]).withStyle(ChatFormatting.GRAY),
-                    x, LIST_TOP - 11, 0xFFAAAAAA);
-        }
-
+        int left = width / 2 - gridWidth() / 2;
         String current = MineshaftState.type();
         int start = page * rowsPerPage();
+
         for (int i = 0; i < rowsPerPage() && start + i < shafts.size(); i++) {
             String shaft = shafts.get(start + i);
             boolean here = shaft.equals(current);

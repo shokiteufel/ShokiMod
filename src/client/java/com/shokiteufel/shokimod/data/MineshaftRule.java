@@ -4,21 +4,43 @@ import com.google.gson.annotations.Expose;
 import com.shokiteufel.shokimod.scanner.MiningState;
 
 import java.util.List;
-import java.util.Locale;
 
 /**
  * Wann ein Schacht die Muehe wert ist.
  *
- * Je Bauplan eine Regel: wie viele Leichen welcher Sorte drin sein muessen, damit
- * die Stellen-Marker erscheinen. Null heisst "ist mir egal" - wer nur auf Lapis aus
- * ist, traegt dort eine Zwei ein und laesst den Rest stehen.
+ * Eine Zahl und zwei Haken, je Bauplan: ab wie vielen Leichen die Marker erscheinen,
+ * und ob Umber und Tungsten dabei mitgezaehlt werden. Null heisst "ist mir egal" -
+ * dann zeigt der Bauplan seine Stellen wie vorher.
  *
- * Ob alle eingetragenen Zahlen erreicht sein muessen oder eine genuegt, entscheidet
- * eine Einstellung daneben. Beides ist sinnvoll: "mindestens zwei Lapis und ein
- * Tungsten" ist eine andere Frage als "irgendetwas Gutes drin".
+ * Bis 1.7.8 standen hier vier Mindestzahlen und daneben ein Schalter "alle oder eine".
+ * Das war eine Frage zu viel: Gefragt ist "ab zwei Lapis", nicht eine Matrix. Die
+ * alten Zahlen bleiben als Felder stehen, damit eine bestehende Config einmal
+ * uebernommen werden kann - danach sind sie leer.
+ *
+ * Vanguard steht nicht mehr dabei: Es gibt ihn nur in einem Bauplan, und dort ist er
+ * kein Kriterium, sondern der Grund, ueberhaupt hinzugehen.
  */
 public class MineshaftRule {
 
+    /** Ab wie vielen Leichen die Stellen erscheinen. 0 heisst: immer */
+    @Expose
+    public int min = 0;
+
+    /** Zaehlen Umber-Leichen mit? */
+    @Expose
+    public boolean withUmber = false;
+
+    /** Zaehlen Tungsten-Leichen mit? */
+    @Expose
+    public boolean withTungsten = false;
+
+    /**
+     * Die vier Zahlen aus 1.7.7/1.7.8.
+     *
+     * Sie werden nur noch gelesen, einmal, beim Uebernehmen der alten Config. Ihre
+     * Namen und Typen bleiben unveraendert - eine Zahl, die ploetzlich ein Haken ist,
+     * wuerde Gson beim Einlesen zerreissen und die ganze Config mitnehmen.
+     */
     @Expose
     public int lapis = 0;
     @Expose
@@ -31,39 +53,34 @@ public class MineshaftRule {
     public MineshaftRule() {
     }
 
-    public MineshaftRule(int lapis, int umber, int tungsten, int vanguard) {
-        this.lapis = lapis;
-        this.umber = umber;
-        this.tungsten = tungsten;
-        this.vanguard = vanguard;
+    public MineshaftRule(int min, boolean withUmber, boolean withTungsten) {
+        this.min = min;
+        this.withUmber = withUmber;
+        this.withTungsten = withTungsten;
     }
 
     /** Steht ueberhaupt eine Bedingung drin? Eine leere Regel laesst alles durch */
     public boolean empty() {
-        return lapis <= 0 && umber <= 0 && tungsten <= 0 && vanguard <= 0;
+        return min <= 0;
     }
 
-    public int minimum(String type) {
-        return switch (type == null ? "" : type.toLowerCase(Locale.ROOT)) {
-            case "lapis" -> lapis;
-            case "umber" -> umber;
-            case "tungsten" -> tungsten;
-            case "vanguard" -> vanguard;
-            default -> 0;
-        };
-    }
+    /**
+     * Die alten vier Zahlen in die neue Form bringen.
+     *
+     * Die Lapis-Zahl war die gemeinte Schwelle; stand dort nichts, nimmt die groesste
+     * der anderen ihren Platz. Welche Sorten mitzaehlen, sagt, wo ueberhaupt eine Zahl
+     * stand. Vanguard fliegt dabei heraus - so war er nie gemeint.
+     *
+     * @return true, wenn etwas uebernommen wurde
+     */
+    public boolean adopt() {
+        if (min > 0 || (lapis <= 0 && umber <= 0 && tungsten <= 0 && vanguard <= 0)) return false;
 
-    public void setMinimum(String type, int value) {
-        int clamped = Math.max(0, value);
-        switch (type == null ? "" : type.toLowerCase(Locale.ROOT)) {
-            case "lapis" -> lapis = clamped;
-            case "umber" -> umber = clamped;
-            case "tungsten" -> tungsten = clamped;
-            case "vanguard" -> vanguard = clamped;
-            default -> {
-                // Eine fuenfte Sorte gibt es nicht - und wenn doch, wird sie nicht geraten
-            }
-        }
+        min = lapis > 0 ? lapis : Math.max(umber, Math.max(tungsten, vanguard));
+        withUmber = umber > 0;
+        withTungsten = tungsten > 0;
+        lapis = umber = tungsten = vanguard = 0;
+        return true;
     }
 
     /**
@@ -71,26 +88,15 @@ public class MineshaftRule {
      *
      * Gezaehlt wird, was der Schacht insgesamt hat, nicht was noch offen ist: Die
      * Frage ist, ob er sich lohnt, nicht wie weit man schon ist.
-     *
-     * @param all true: jede eingetragene Zahl muss erreicht sein. false: eine genuegt
      */
-    public boolean matches(List<MiningState.Corpse> corpses, boolean all) {
+    public boolean matches(List<MiningState.Corpse> corpses) {
         if (empty()) return true;
 
-        boolean irgendeine = false;
-        for (String type : TYPES) {
-            int needed = minimum(type);
-            if (needed <= 0) continue;
-
-            int found = count(corpses, type);
-            if (found >= needed) irgendeine = true;
-            else if (all) return false;
-        }
-        return all || irgendeine;
+        int sum = count(corpses, "Lapis");
+        if (withUmber) sum += count(corpses, "Umber");
+        if (withTungsten) sum += count(corpses, "Tungsten");
+        return sum >= min;
     }
-
-    /** Die vier Sorten, in der Reihenfolge, in der sie im Menue stehen */
-    public static final String[] TYPES = {"Lapis", "Umber", "Tungsten", "Vanguard"};
 
     private static int count(List<MiningState.Corpse> corpses, String type) {
         int sum = 0;
@@ -100,16 +106,12 @@ public class MineshaftRule {
         return sum;
     }
 
-    /** Eine Zeile fuer das Menue: "2 Lapis, 1 Tungsten" oder "egal" */
+    /** Eine Zeile fuer Menue und Chat: "2 Lapis", "3 Lapis/Umber" oder "any" */
     public String describe() {
         if (empty()) return "any";
-        StringBuilder out = new StringBuilder();
-        for (String type : TYPES) {
-            int needed = minimum(type);
-            if (needed <= 0) continue;
-            if (!out.isEmpty()) out.append(", ");
-            out.append(needed).append(' ').append(type);
-        }
+        StringBuilder out = new StringBuilder().append(min).append(" Lapis");
+        if (withUmber) out.append("/Umber");
+        if (withTungsten) out.append("/Tungsten");
         return out.toString();
     }
 }
