@@ -2160,13 +2160,18 @@ public class ModConfig extends Config {
          * zusaetzlich das Inventar beobachtet; die Stufen gelten unveraendert, es
          * kommt also nur durch, was ohnehin teuer genug waere.
          *
-         * Aus Vorgabe, weil es ein anderes Verhalten ist als bisher: Wer den Alarm
-         * kennt, soll ihn nach dem Update nicht ploetzlich anders erleben.
+         * An Vorgabe, seit 1.7.12. Aus war es die Vorsicht, das Verhalten nicht ohne
+         * Ansage zu aendern - gekostet hat sie genau den Fall, fuer den der Schalter
+         * gebaut wurde: Ein geangelter Moby-Duck, 1,4M im Auktionshaus, loeste keinen
+         * Alarm aus, weil Hypixel dazu keine Zeile schreibt. Wer den Alarm anmacht,
+         * will teure Funde sehen und nicht wissen muessen, welche davon Hypixel
+         * ankuendigt. Die Stufen entscheiden weiter, es kommt also nur durch, was
+         * ohnehin teuer genug ist.
          */
         @Expose
-        @ConfigOption(name = "Watch inventory", desc = "Also alert on items that simply appear in your inventory, without a chat line. Catches the drops Hypixel never announces. The tier thresholds still decide, and party sharing stays off for these.")
+        @ConfigOption(name = "Watch inventory", desc = "Also alert on items that simply appear in your inventory, without a chat line - the same way the profit tracker sees them. Catches the finds Hypixel never announces, like a fished Moby-Duck. The tier thresholds still decide, and party sharing stays off for these.")
         @ConfigEditorBoolean
-        public boolean watchInventory = false;
+        public boolean watchInventory = true;
 
         @ConfigOption(name = "Diagnostics", desc = "Writes what the mod saw and decided into logs/shokimod-diagnostics.txt and opens that folder. Send that file together with latest.log when something did not fire.")
         @ConfigEditorButton(buttonText = "Open")
