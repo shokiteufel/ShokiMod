@@ -73,6 +73,7 @@ public class ShokiMod implements ClientModInitializer {
         com.shokiteufel.shokimod.handler.ProfitTracker.register();
         GuildEvents.register();
         CakeReminder.register();
+        com.shokiteufel.shokimod.handler.PestReminder.register();
         HotspotTracker.register();
         CollectionTracker.register();
         NestTracker.register();

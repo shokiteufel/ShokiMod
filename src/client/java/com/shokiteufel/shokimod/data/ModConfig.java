@@ -17,6 +17,7 @@ import com.shokiteufel.shokimod.handler.CakeReminder;
 import com.shokiteufel.shokimod.handler.CollectionTracker;
 import com.shokiteufel.shokimod.handler.GuildEvents;
 import com.shokiteufel.shokimod.handler.HuntingTracker;
+import com.shokiteufel.shokimod.handler.PestReminder;
 import com.shokiteufel.shokimod.handler.ProfitTracker;
 import com.shokiteufel.shokimod.handler.RareLootHandler;
 import com.google.gson.Gson;
@@ -229,6 +230,7 @@ public class ModConfig extends Config {
                 Minecraft.getInstance().setScreenAndShow(
                         new com.shokiteufel.shokimod.gui.ProfitItemScreen(Minecraft.getInstance().gui.screen())));
         INSTANCE.chat.reminder.testCake = () -> Minecraft.getInstance().execute(CakeReminder::test);
+        INSTANCE.chat.reminder.testPestTrap = () -> Minecraft.getInstance().execute(PestReminder::test);
         INSTANCE.chat.reminder.clearCakes = () -> Minecraft.getInstance().execute(CakeReminder::clear);
         INSTANCE.chat.banner.openEditor = () -> Minecraft.getInstance().execute(() ->
                 Minecraft.getInstance().setScreenAndShow(new HudEditorScreen(Minecraft.getInstance().gui.screen(), true)));
@@ -626,6 +628,28 @@ public class ModConfig extends Config {
         public float hudOpacity = 0.5f;
     }
 
+    /**
+     * Wie die Zahlen im Kasten stehen.
+     *
+     * Untereinander liest sich jede Zahl fuer sich; nebeneinander braucht der Kasten
+     * eine Zeile statt vier und passt an den Bildschirmrand, wo sonst nichts hinpasst.
+     */
+    public enum HudArrangement {
+        STACKED("Below each other"),
+        INLINE("Side by side");
+
+        private final String label;
+
+        HudArrangement(String label) {
+            this.label = label;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
+    }
+
     public static class PerformanceHudCategory {
 
         @Expose
@@ -647,6 +671,16 @@ public class ModConfig extends Config {
         @ConfigOption(name = "Show ping", desc = "Round trip to the server, from the player list.")
         @ConfigEditorBoolean
         public boolean showPing = true;
+
+        @Expose
+        @ConfigOption(name = "Show day", desc = "The SkyBlock day count, in the same panel. Saves having a second box for one number - the separate Day panel can stay off then.")
+        @ConfigEditorBoolean
+        public boolean showDay = false;
+
+        @Expose
+        @ConfigOption(name = "Arrangement", desc = "Below each other, one per line - or side by side in a single line.")
+        @ConfigEditorDropdown
+        public HudArrangement arrangement = HudArrangement.STACKED;
 
         @Expose
         @ConfigOption(name = "Where", desc = "Everywhere in SkyBlock, or only on mining islands. Areas in the HUD editor override this.")
@@ -1840,6 +1874,40 @@ public class ModConfig extends Config {
         @ConfigOption(name = "Clear cakes", desc = "Forgets every remembered cake - for example after eating on another profile.")
         @ConfigEditorButton(buttonText = "Clear")
         public transient Runnable clearCakes = () -> {
+        };
+
+        @ConfigOption(name = "Pest traps", desc = "Warns once the pest traps in your garden are full. A full trap catches nothing more.\nThe state is read from the tab list - switch on Hypixel's Pest Traps widget, otherwise there is nothing to read.")
+        @ConfigEditorInfoText
+        public transient String pestAbout = "";
+
+        @Expose
+        @ConfigOption(name = "Full trap alert", desc = "Warns in chat when enough traps are full.")
+        @ConfigEditorBoolean
+        public boolean pestTrapAlert = false;
+
+        @Expose
+        @ConfigOption(name = "Warn at", desc = "How many full traps it takes. One warns at the first, three only once every trap is full.")
+        @ConfigEditorSlider(minValue = 1f, maxValue = 4f, minStep = 1f)
+        public int pestTrapAt = 3;
+
+        @Expose
+        @ConfigOption(name = "Repeat minutes", desc = "How often the warning repeats while the traps stay full. 0: only once until you empty them.")
+        @ConfigEditorSlider(minValue = 0f, maxValue = 60f, minStep = 1f)
+        public int pestTrapRepeatMinutes = 10;
+
+        @Expose
+        @ConfigOption(name = "Trap command", desc = "Runs when you click [Go] in the warning.")
+        @ConfigEditorText
+        public String pestTrapCommand = "/warp garden";
+
+        @Expose
+        @ConfigOption(name = "Trap sound", desc = "A short ping with the warning, at the alert volume.")
+        @ConfigEditorBoolean
+        public boolean pestTrapSound = true;
+
+        @ConfigOption(name = "Test trap warning", desc = "Shows the warning line with three full traps.")
+        @ConfigEditorButton(buttonText = "Test")
+        public transient Runnable testPestTrap = () -> {
         };
 
         /** Kuchen und wann er gegessen wurde (Millisekunden) */
