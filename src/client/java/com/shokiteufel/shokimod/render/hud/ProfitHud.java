@@ -148,6 +148,8 @@ public final class ProfitHud {
             case INSTANT_SELL -> " (insta)";
             case SELL_ORDER -> " (order)";
             case NPC_SELL -> " (npc)";
+            // Ohne eingetragene Zahl gilt weiter der Markt, und dann steht hier auch nichts
+            case CUSTOM -> ProfitTracker.customPrice(itemId) > 0 ? " (own)" : "";
         };
     }
 
