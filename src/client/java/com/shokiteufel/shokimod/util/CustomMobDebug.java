@@ -40,16 +40,21 @@ public final class CustomMobDebug {
     private static final long[] MIXIN_SLOT = {0};
     private static final long[] TYPE_SLOT = {0};
 
-    public static void summary(int targetCount, int namedEntities, int matches,
-                               int highlighted, boolean globalHighlight) {
-        if (!enabled()) return;
+    /**
+     * @return ob diese Runde wirklich geschrieben wurde - die Regeln darunter gehoeren
+     *         dazu und werden sonst uebersprungen
+     */
+    public static boolean summary(int targetCount, int namedEntities, int matches,
+                                  int highlighted, boolean globalHighlight) {
+        if (!enabled()) return false;
         long now = System.currentTimeMillis();
-        if (now - SUMMARY_SLOT[0] < THROTTLE_MS) return;
+        if (now - SUMMARY_SLOT[0] < THROTTLE_MS) return false;
         SUMMARY_SLOT[0] = now;
 
         LOGGER.info("[1/5] Scan: eigene Regeln={}, Entities mit Namen={}, Treffer={}, "
                         + "highlightedEntities={}, Mob-Visuals-Highlight-Schalter={}",
                 targetCount, namedEntities, matches, highlighted, globalHighlight);
+        return true;
     }
 
     /** 各ルールの有効判定。なぜ表示されないかはここでほぼ決まる */
