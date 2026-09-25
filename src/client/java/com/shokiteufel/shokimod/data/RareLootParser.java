@@ -49,6 +49,23 @@ public final class RareLootParser {
     private static final Pattern CHARM = Pattern.compile(
             "^CHARM!\\s+You charmed the .+? and received (?<amount>\\d+|an?) (?<shard>.+?) Shards?!?$",
             Pattern.CASE_INSENSITIVE);
+    /**
+     * Was beim Angeln herauskommt.
+     *
+     * Hypixel meldet jeden Fang als "<GUT> JUNK CATCH! You caught an Old Leather Boot!"
+     * oder mit TREASURE statt JUNK, dahinter manchmal ein Zaehler in Klammern. Das ist
+     * keine "RARE DROP!"-Zeile, und damit sah der Alarm bisher keinen einzigen Fang -
+     * gemeldet wurde es an einem Old Leather Boot, der still blieb.
+     *
+     * Das Wort vor CATCH wird nicht aufgezaehlt: Hypixel hat GOOD, GREAT, OUTSTANDING
+     * und kann morgen ein weiteres haben. Gelesen wird deshalb "irgendein Wort, dann
+     * CATCH!" - so traegt die Erkennung auch die Stufe, die es heute noch nicht gibt.
+     */
+    private static final Pattern FISH_CATCH = Pattern.compile(
+            "^(?:\\w+\\s+)?(?:JUNK|TREASURE)?\\s*CATCH!\\s+You caught (?:an?|the)\\s+(?<drop>.+?)!"
+                    + "(?:\\s*\\(\\d+\\))?$",
+            Pattern.CASE_INSENSITIVE);
+
     /** Derselbe Shard, anders gemeldet: "You caught x3 Timil Shards! (2)" */
     private static final Pattern CAUGHT = Pattern.compile(
             "^You caught (?:x(?<amount>\\d+) |an? )?(?<shard>.+?) Shards?!(?:\\s*\\(\\d+\\))?$",
@@ -266,6 +283,14 @@ public final class RareLootParser {
             return name == null ? null : build(name, null);
         }
 
+        // Der Fang beim Angeln. Steht hinter den Shard-Zeilen, weil "You caught x3 Timil
+        // Shards!" seine eigene Form hat und dort schon behandelt ist
+        Matcher fang = FISH_CATCH.matcher(clean);
+        if (fang.matches()) {
+            String name = cleanDropName(fang.group("drop"));
+            return name == null ? null : build(name, null);
+        }
+
         Matcher direct = DIRECT.matcher(clean);
         if (!direct.matches()) return null;
 
@@ -350,9 +375,15 @@ public final class RareLootParser {
         else if (clean.regionMatches(true, 0, "an ", 0, 3)) clean = clean.substring(3).trim();
 
         if (clean.isBlank()) return null;
-        // Die Griffin-Zeile nennt einen Ort, keinen Fund; Coins haben keinen Preis
+        // Die Griffin-Zeile nennt einen Ort, keinen Fund
         if (clean.equalsIgnoreCase("Griffin Burrow")) return null;
-        if (clean.toLowerCase(Locale.ROOT).contains("coin")) return null;
+
+        // Blanke Coins sind kein Gegenstand und haben keinen Preis. Bis 1.7.13 fiel
+        // deshalb alles mit "coin" darin weg - und damit auch der Rusty Coin, den man
+        // angelt und der im Basar 20k bringt. Weg faellt jetzt nur, was selbst nichts
+        // als Coins ist: "2,000 Coins" ja, "Rusty Coin" nein
+        String ohneZahlen = clean.replaceAll("[\\d.,]", "").trim();
+        if (ohneZahlen.equalsIgnoreCase("coin") || ohneZahlen.equalsIgnoreCase("coins")) return null;
         return clean;
     }
 
