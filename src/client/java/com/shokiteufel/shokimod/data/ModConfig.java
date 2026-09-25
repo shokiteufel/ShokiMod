@@ -253,8 +253,8 @@ public class ModConfig extends Config {
         INSTANCE.chat.reminder.testCake = () -> Minecraft.getInstance().execute(CakeReminder::test);
         INSTANCE.chat.reminder.testPestTrap = () -> Minecraft.getInstance().execute(PestReminder::test);
         INSTANCE.mining.mineshaft.openShaftRules = () -> Minecraft.getInstance().execute(() ->
-                Minecraft.getInstance().setScreen(
-                        new com.shokiteufel.shokimod.gui.MineshaftRuleScreen(Minecraft.getInstance().screen)));
+                Minecraft.getInstance().setScreenAndShow(
+                        new com.shokiteufel.shokimod.gui.MineshaftRuleScreen(Minecraft.getInstance().gui.screen())));
         INSTANCE.chat.reminder.clearCakes = () -> Minecraft.getInstance().execute(CakeReminder::clear);
         INSTANCE.chat.banner.openEditor = () -> Minecraft.getInstance().execute(() ->
                 Minecraft.getInstance().setScreenAndShow(new HudEditorScreen(Minecraft.getInstance().gui.screen(), true)));
