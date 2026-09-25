@@ -145,6 +145,19 @@ public class ModConfig extends Config {
 
         adoptLegacyCategory();
 
+        // Die beiden Leichen-Einstellungen standen bis 1.7.5 im Mining-HUD. Sie gehoeren
+        // zum Mineshaft und stehen jetzt dort; wer sie gesetzt hatte, behaelt sie
+        if (INSTANCE.mining.hud.corpses != CorpseFilter.OFF
+                && INSTANCE.mining.mineshaft.corpses == CorpseFilter.OFF) {
+            INSTANCE.mining.mineshaft.corpses = INSTANCE.mining.hud.corpses;
+            INSTANCE.mining.hud.corpses = CorpseFilter.OFF;
+        }
+        if (INSTANCE.mining.hud.corpseCall != CorpseCall.OFF
+                && INSTANCE.mining.mineshaft.corpseCall == CorpseCall.OFF) {
+            INSTANCE.mining.mineshaft.corpseCall = INSTANCE.mining.hud.corpseCall;
+            INSTANCE.mining.hud.corpseCall = CorpseCall.OFF;
+        }
+
         // Wer den Tages-Kasten anhatte, soll den Tag weiter sehen - jetzt im
         // Leistungs-Kasten. Danach ist der alte Schalter erledigt
         if (INSTANCE.hud.day != null && INSTANCE.hud.day.showHud) {
@@ -811,6 +824,16 @@ public class ModConfig extends Config {
         @ConfigEditorSlider(minValue = 10f, maxValue = 150f, minStep = 5f)
         public int corpseRange = 80;
 
+        @Expose
+        @ConfigOption(name = "Frozen corpses", desc = "The frozen corpses of the mineshaft you are in, and how many of each are still unlooted. Shown in the mining panel. Vanguard is never listed.")
+        @ConfigEditorDropdown
+        public CorpseFilter corpses = CorpseFilter.OFF;
+
+        @Expose
+        @ConfigOption(name = "Tell the party", desc = "Writes the corpses of a mineshaft into the party chat, once per shaft, as soon as they show up. Only fires when there are at least this many Lapis corpses.")
+        @ConfigEditorDropdown
+        public CorpseCall corpseCall = CorpseCall.OFF;
+
         public int corpseColorRGB() {
             try {
                 return Integer.parseInt(corpseColor.trim().replace("#", ""), 16) & 0xFFFFFF;
@@ -852,9 +875,13 @@ public class ModConfig extends Config {
         @ConfigEditorBoolean
         public boolean showSkyMall = true;
 
+        /**
+         * Bis 1.7.5 stand die Wahl hier.
+         *
+         * Sie gehoert zum Mineshaft, nicht zum Kasten - dort steht sie jetzt. Das Feld
+         * bleibt nur, um die alte Einstellung einmal zu uebernehmen.
+         */
         @Expose
-        @ConfigOption(name = "Frozen corpses", desc = "The frozen corpses of the mineshaft you are in, and how many of each are still unlooted. Only mineshafts carry them. Vanguard is never listed.")
-        @ConfigEditorDropdown
         public CorpseFilter corpses = CorpseFilter.OFF;
 
         @Expose
@@ -862,9 +889,8 @@ public class ModConfig extends Config {
         @ConfigEditorBoolean
         public boolean readyAlert = false;
 
+        /** Bis 1.7.5 stand die Wahl hier - siehe MineshaftCategory.corpseCall */
         @Expose
-        @ConfigOption(name = "Tell the party", desc = "Writes the corpses of a mineshaft into the party chat, once per shaft, as soon as they show up. Only fires when there are at least this many Lapis corpses.")
-        @ConfigEditorDropdown
         public CorpseCall corpseCall = CorpseCall.OFF;
 
         @Expose
