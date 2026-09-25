@@ -127,11 +127,18 @@ public class EntityHighlightManager {
 
         if (CustomMobDebug.enabled()) {
             List<CustomMob> customs = ModConfig.INSTANCE.mobVisuals.customTargets;
-            CustomMobDebug.summary(customs.size(), debugNamedCount, debugMatchCount,
-                    highlightedEntities.size(), ModConfig.INSTANCE.mobVisuals.enableHighlight);
-            for (CustomMob c : customs) {
-                CustomMobDebug.rule(c.pattern, c.enabled, c.anyEnabled(), c.highlight(),
-                        customs.contains(c));
+            // Die Regeln gehoeren zur Uebersicht darueber und werden nur mit ihr
+            // geschrieben. Sonst stehen sie in jedem Durchgang da - bei sechs Regeln
+            // und mehreren Durchgaengen je Sekunde ist das Log danach unlesbar, und
+            // genau das ist passiert
+            boolean geschrieben = CustomMobDebug.summary(customs.size(), debugNamedCount,
+                    debugMatchCount, highlightedEntities.size(),
+                    ModConfig.INSTANCE.mobVisuals.enableHighlight);
+            if (geschrieben) {
+                for (CustomMob c : customs) {
+                    CustomMobDebug.rule(c.pattern, c.enabled, c.anyEnabled(), c.highlight(),
+                            customs.contains(c));
+                }
             }
         }
         debugNamedCount = 0;
