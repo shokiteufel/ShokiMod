@@ -306,7 +306,7 @@ public final class MiningState {
      * Vanguard bleibt immer aussen vor - die ist dem Auftraggeber egal.
      */
     public static List<Corpse> corpses() {
-        ModConfig.CorpseFilter filter = cfg().corpses;
+        ModConfig.CorpseFilter filter = ModConfig.INSTANCE.mining.mineshaft.corpses;
         if (filter == ModConfig.CorpseFilter.OFF) return List.of();
         List<Corpse> out = new ArrayList<>(corpses.size());
         for (Corpse c : corpses) {
@@ -325,7 +325,7 @@ public final class MiningState {
      * nebenher mit, sind aber kein Grund, die Party anzuschreiben.
      */
     private static void callParty(List<Corpse> found) {
-        int threshold = ModConfig.INSTANCE.mining.hud.corpseCall.threshold();
+        int threshold = ModConfig.INSTANCE.mining.mineshaft.corpseCall.threshold();
         if (threshold <= 0) return;
 
         String shaft = GameState.Server.id;
