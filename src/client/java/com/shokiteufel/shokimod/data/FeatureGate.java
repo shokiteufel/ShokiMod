@@ -52,7 +52,11 @@ public final class FeatureGate {
      * der Kennungen weg, das sonst bei jeder Aenderung im Inventar anfaellt.
      */
     public static boolean itemChanges() {
-        return ModConfig.INSTANCE.profit.enabled || ModConfig.INSTANCE.chat.rareLoot.watchInventory;
+        // Auch fuer die Schacht-Bilanz: Sie zaehlt dieselben Zugaenge und braucht deshalb
+        // denselben Vergleich. Wer die Mineshaft-Sachen anhat, bekommt sie ohne Zutun
+        return ModConfig.INSTANCE.profit.enabled
+                || ModConfig.INSTANCE.chat.rareLoot.watchInventory
+                || mineshaftKnown();
     }
 
     /** Der Kasten mit den Mobs in der Naehe */
