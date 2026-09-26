@@ -274,21 +274,6 @@ public class ModConfig extends Config {
                         new com.shokiteufel.shokimod.gui.ProfitItemScreen(Minecraft.getInstance().gui.screen())));
         INSTANCE.chat.reminder.testCake = () -> Minecraft.getInstance().execute(CakeReminder::test);
         INSTANCE.chat.reminder.testPestTrap = () -> Minecraft.getInstance().execute(PestReminder::test);
-        INSTANCE.mining.mineshaft.exportLearned = () -> Minecraft.getInstance().execute(
-                com.shokiteufel.shokimod.scanner.CorpseFinder::export);
-        INSTANCE.mining.mineshaft.forgetLearned = () -> Minecraft.getInstance().execute(() -> {
-            int shafts = INSTANCE.mining.mineshaft.learnedCorpses.size();
-            INSTANCE.mining.mineshaft.learnedCorpses.clear();
-            INSTANCE.saveNow();
-            Minecraft client = Minecraft.getInstance();
-            if (client.player != null) {
-                client.player.sendSystemMessage(net.minecraft.network.chat.Component
-                        .literal("[ShokiMod] ").withStyle(net.minecraft.ChatFormatting.DARK_AQUA)
-                        .append(net.minecraft.network.chat.Component
-                                .literal("Forgot the corpse spots found in " + shafts + " shaft(s).")
-                                .withStyle(net.minecraft.ChatFormatting.YELLOW)));
-            }
-        });
         INSTANCE.mining.mineshaft.openShaftRules = () -> Minecraft.getInstance().execute(() ->
                 Minecraft.getInstance().setScreenAndShow(
                         new com.shokiteufel.shokimod.gui.MineshaftRuleScreen(Minecraft.getInstance().gui.screen())));
@@ -927,17 +912,7 @@ public class ModConfig extends Config {
         @ConfigAccordionId(id = 40)
         public int corpseLiveRange = 16;
 
-        @Expose
-        @ConfigOption(name = "Colour by kind", desc = "A corpse you can see is drawn in its own colour - Lapis blue, Umber gold, Tungsten grey, Vanguard white. Off uses the colour above for all of them.")
-        @ConfigEditorBoolean
-        @ConfigAccordionId(id = 40)
-        public boolean corpseKindColour = true;
 
-        @Expose
-        @ConfigOption(name = "Corpse keys", desc = "Which corpse keys you are carrying, in the mining panel - and a red mark next to a corpse you have no key for. A Lapis corpse needs none, Tungsten and Umber need theirs, Vanguard needs a Skeleton Key.")
-        @ConfigEditorBoolean
-        @ConfigAccordionId(id = 40)
-        public boolean corpseKeys = true;
 
         @Expose
         @ConfigOption(name = "Spots from the party", desc = "Takes corpse spots that party members post with this mod and marks them in the colour of their kind, with (party) on the label. Their message is as good as your own look - they are standing in front of the corpse.")
@@ -952,47 +927,12 @@ public class ModConfig extends Config {
         public boolean corpseHideWhenDone = true;
 
 
-        @Expose
-        @ConfigOption(name = "Hide spots you visited", desc = "A spot you have stood at is taken off the list until you leave the shaft. Walking the five spots you then see only what is left, instead of the same markers again.")
-        @ConfigEditorBoolean
-        @ConfigAccordionId(id = 40)
-        public boolean corpseHideVisited = true;
 
-        @Expose
-        @ConfigOption(name = "Box", desc = "A frame around the spot as well as the label. Off leaves just the text.")
-        @ConfigEditorBoolean
-        @ConfigAccordionId(id = 40)
-        public boolean corpseBox = true;
 
-        @Expose
-        @ConfigOption(name = "Distance", desc = "How far away a spot is still shown, in blocks. The shafts are small; far away the labels only clutter the view.")
-        @ConfigEditorSlider(minValue = 10f, maxValue = 150f, minStep = 5f)
-        @ConfigAccordionId(id = 40)
-        public int corpseRange = 80;
 
-        @Expose
-        @ConfigOption(name = "Say why nothing shows", desc = "One line when you enter a shaft that shows no spots: because none are known for this layout yet, or because your rule is not met. Beats wondering whether the mod is broken.")
-        @ConfigEditorBoolean
-        @ConfigAccordionId(id = 40)
-        public boolean corpseExplain = true;
 
-        @Expose
-        @ConfigOption(name = "Remember what you find", desc = "Keeps the spot of every corpse you see, per layout. The shared list knows five layouts only in their first version - Amethyst 2 is empty there. What you find yourself is a known spot on your next visit.")
-        @ConfigEditorBoolean
-        @ConfigAccordionId(id = 40)
-        public boolean corpseLearn = true;
 
-        @ConfigOption(name = "Export found spots", desc = "Writes the spots you found yourself into logs/shokimod-mineshaft-spots.json, in the same shape the shared list uses, and opens the folder. Made to be handed on: the shared list knows no Little shaft at all.")
-        @ConfigEditorButton(buttonText = "Write")
-        @ConfigAccordionId(id = 40)
-        public transient Runnable exportLearned = () -> {
-        };
 
-        @ConfigOption(name = "Forget found spots", desc = "Throws away the spots remembered from your own finds. The shared list stays untouched.")
-        @ConfigEditorButton(buttonText = "Clear")
-        @ConfigAccordionId(id = 40)
-        public transient Runnable forgetLearned = () -> {
-        };
 
         /** Je Bauplan und Ausfuehrung die selbst gefundenen Stellen als "x,y,z" */
         @Expose

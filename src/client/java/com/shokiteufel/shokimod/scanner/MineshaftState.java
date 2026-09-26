@@ -103,7 +103,7 @@ public final class MineshaftState {
      */
     private static void explain(Minecraft client) {
         ModConfig.MineshaftCategory cfg = ModConfig.INSTANCE.mining.mineshaft;
-        if (explained || !cfg.corpseExplain || client.player == null) return;
+        if (explained || client.player == null) return;
         if (!cfg.corpseWaypoints && cfg.veins == ModConfig.VeinFilter.OFF) return;
 
         String where = readable(type) + " " + variant;
@@ -119,7 +119,7 @@ public final class MineshaftState {
             // Die Liste kommt aus dem Netz; bevor sie da ist, ist leer keine Aussage
             if (!MineshaftCorpses.ready()) return;
             say(client, where + ": no corpse spots known for this layout yet"
-                    + (cfg.corpseLearn ? " - the ones you find get remembered." : "."));
+                    + " - the ones you find get remembered.");
             explained = true;
             return;
         }
