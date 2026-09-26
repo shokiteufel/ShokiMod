@@ -1007,7 +1007,7 @@ public class ModConfig extends Config {
         public transient boolean veinFolder = false;
 
         @Expose
-        @ConfigOption(name = "Arrow to the nearest", desc = "Draws a line from you to the nearest vein, so you know which way to walk. The label says how far it is.")
+        @ConfigOption(name = "Line to the nearest", desc = "Draws a line from your crosshair to the nearest vein, and fills its box, so you see which way to walk. The label says how far it is.")
         @ConfigEditorBoolean
         @ConfigAccordionId(id = 41)
         public boolean veinArrow = true;

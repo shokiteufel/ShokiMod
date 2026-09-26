@@ -187,7 +187,12 @@ drinsteckt.
   welcher Schlüssel zu welcher Leiche gehört: Tungsten und Umber je ihren, Vanguard den
   `SKELETON_KEY`, Lapis keinen — und die Farbe je Sorte (Lapis blau, Tungsten grau, Umber
   gold, Vanguard weiß). Das sind Tatsachen über Hypixel; Scanner und Marker hier sind
-  eigener Code.
+  eigener Code. Dagegen gehalten wurde außerdem das **Aussehen** seiner Wegweiser: Die
+  Führungslinie beginnt zwei Blöcke vor der Kamera — am Fadenkreuz, nicht an den Füßen —
+  und das Ziel wird gefüllt statt nur umrissen, mit einer Deckkraft, die mit der
+  Entfernung wächst (`WorldRenderUtils.drawLineToCrosshair`, `drawWaypointFilled`).
+  Abgelesen, nicht übernommen: Die Umsetzung hier nutzt die Gizmos der Spielversion,
+  und die Steigung der Deckkraft ist flacher, weil eine Ader mehr als einen Block füllt.
   Die AGPL wäre mit der LGPL **nicht** vereinbar, deshalb ist hier bewusst nie Code
   übernommen worden, nur Tatsachen abgelesen.
 - **Odin** — die Ping-Anzeige wurde gegen seine gehalten, um den eigenen Messfehler zu

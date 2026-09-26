@@ -53,7 +53,12 @@ public class WorldTextRenderer {
             int argb = vein.kind().argb();
 
             if (cfg.veinBox) {
-                GizmoProperties box = Gizmos.cuboid(vein.box(), GizmoStyle.stroke(argb, MARKER_LINE_WIDTH));
+                // Die naechste Ader wird gefuellt, die anderen bleiben Umriss: Das Ziel
+                // soll man auf einen Blick von den uebrigen unterscheiden
+                GizmoStyle style = first
+                        ? GizmoStyle.strokeAndFill(argb, MARKER_LINE_WIDTH, fillOf(argb, vein.distance()))
+                        : GizmoStyle.stroke(argb, MARKER_LINE_WIDTH);
+                GizmoProperties box = Gizmos.cuboid(vein.box(), style);
                 box.setAlwaysOnTop();
             }
 
@@ -65,11 +70,14 @@ public class WorldTextRenderer {
             if (first) text.append(" - ").append(Math.round(vein.distance())).append('m');
             renderGizmoLabel(text.toString(), vein.anchor(), argb);
 
-            // Der Strich geht von den Fuessen aus, nicht aus dem Gesicht
-            if (first && cfg.veinArrow && client.player != null) {
-                GizmoProperties arrow = Gizmos.arrow(client.player.position().add(0, 0.5, 0),
-                        vein.box().getCenter(), argb, MARKER_LINE_WIDTH);
-                arrow.setAlwaysOnTop();
+            // Die Fuehrungslinie beginnt am Fadenkreuz. Von den Fuessen aus lief sie quer
+            // durchs Bild und wanderte bei jedem Schritt mit; vom Blickpunkt aus zeigt sie
+            // dorthin, wo man sowieso hinsieht. So macht es SkyHanni, und darum sieht es
+            // dort ruhig aus
+            if (first && cfg.veinArrow) {
+                GizmoProperties line = Gizmos.line(crosshair(), vein.box().getCenter(),
+                        argb, MARKER_LINE_WIDTH);
+                line.setAlwaysOnTop();
             }
             first = false;
         }
@@ -147,6 +155,32 @@ public class WorldTextRenderer {
             }
             renderGizmoLabel("Corpse", pos, argb);
         }
+    }
+
+    /**
+     * Zwei Bloecke vor der Kamera - dort, wo das Fadenkreuz steht.
+     *
+     * Derselbe Ansatzpunkt, den SkyHanni fuer seine Wegweiser nimmt (abgelesen, kein
+     * Code uebernommen): Eine Linie, die am Blickpunkt beginnt, laeuft mit dem Blick
+     * statt quer durchs Bild.
+     */
+    private static Vec3 crosshair() {
+        var camera = Minecraft.getInstance().gameRenderer.getMainCamera();
+        org.joml.Vector3f look = new org.joml.Vector3f(0.0F, 0.0F, -1.0F).rotate(camera.rotation());
+        return camera.position().add(look.x() * 2.0, look.y() * 2.0, look.z() * 2.0);
+    }
+
+    /**
+     * Wie deckend die Fuellung der naechsten Ader ist.
+     *
+     * Ferner heisst deutlicher - sonst verschwindet das Ziel in der Entfernung. Die
+     * Steigung ist flacher als bei SkyHanni, dessen Wegweiser einen einzelnen Block
+     * fuellen: Eine Ader ist ein Klumpen aus mehreren, und die will man noch durch die
+     * Fuellung hindurch sehen.
+     */
+    private static int fillOf(int argb, double distance) {
+        double alpha = Math.min(0.45, 0.10 + 0.0015 * distance * distance);
+        return ((int) (Math.max(0.12, alpha) * 255.0) << 24) | (argb & 0xFFFFFF);
     }
 
     /**
