@@ -15,10 +15,15 @@ Lizenz und dem, was genau uebernommen wurde.
 ## Download
 
 Die fertige `.jar` liegt bei den **[Releases](https://github.com/shokiteufel/ShokiMod/releases)** —
-immer die oberste Version nehmen, `shokimod-<version>+26.1.x.jar` herunterladen und in den
-`mods/`-Ordner legen. Die `-sources.jar` wird **nicht** gebraucht, die ist nur der Quelltext.
+immer die oberste Version nehmen und in den `mods/`-Ordner legen. Es gibt sie fuer beide
+Spielversionen:
 
-Voraussetzungen: Minecraft 26.1.2, Fabric Loader 0.19.3+, Fabric API.
+- Minecraft **26.1.2** → `shokimod-<version>+26.1.x.jar`
+- Minecraft **26.2** → `shokimod-<version>+26.2.jar`
+
+Die `-sources.jar` wird **nicht** gebraucht, die ist nur der Quelltext.
+
+Voraussetzungen: Fabric Loader 0.19.3+ und Fabric API.
 
 ## Was die Mod kann
 
@@ -26,12 +31,17 @@ Voraussetzungen: Minecraft 26.1.2, Fabric Loader 0.19.3+, Fabric API.
 <summary><b>Seltene Funde</b></summary>
 
 - Liest Hypixels `RARE DROP!`-Zeilen, die Beutebuendel aus dem Crystal Nucleus und aus
-  den Leichen der Gletscherschaechte, gefangene Shards und die Farbmeldungen
-  (`WOW! ... found a Necron Dye!`).
-- Bewertet jeden Fund im Bazaar, sonst im Auktionshaus.
+  den Leichen der Gletscherschaechte, gefangene Shards, die Angel-Faenge
+  (`OUTSTANDING JUNK CATCH! ...`) und die Farbmeldungen (`WOW! ... found a Necron Dye!`).
+- Sieht ausserdem ins Inventar: Funde, zu denen Hypixel gar nichts schreibt, loesen
+  trotzdem aus. Ein offener Behaelter sperrt ab, damit Gekauftes kein Fund wird.
+- Bewertet jeden Fund im Bazaar, sonst im Auktionshaus, sonst beim Haendler. Ein selbst
+  eingetragener Preis geht allen vor.
 - Vier Stufen mit eigener Schwelle, jede mit eigenem Banner, Toast, Chatzeile und Ton.
-- Eigener Dye-Alarm, der auch dann kommt, wenn die Farbe gerade keinen Preis hat.
+- Eigener Dye-Alarm, der auch dann kommt, wenn die Farbe gerade keinen Preis hat — und
+  auf Wunsch ein Dye-Teilen, das die Schwelle nicht fragt.
 - Teilen in Party und Gilde ab einer eigenen Schwelle.
+- Diagnose-Knopf: schreibt fuer jeden Fund mit, was die Mod gesehen und entschieden hat.
 </details>
 
 <details>
@@ -61,18 +71,55 @@ Voraussetzungen: Minecraft 26.1.2, Fabric Loader 0.19.3+, Fabric API.
 <summary><b>Anzeigen</b></summary>
 
 - Mining: laufende Auftraege, Spitzhacken-Faehigkeit mit Abklingzeit, Sky-Mall-Buff.
-- Mineshaft: die moeglichen Leichen-Stellen des Schachts, in dem man steht — der
-  Bauplan steht in der Seitenleiste, die Stellen kommen aus dem Repo von Meowdding.
+- Mineshaft: Leichen, Schluessel und Edelstein-Adern des Schachts — siehe den Abschnitt
+  **Gletscherschaechte**.
 - Pet: Name, Stufe, Fortschritt — samt Overflow-Stufen und Meldung beim Aufstieg.
 - Leistung: Bilder je Sekunde, Server-Takt, selbst gemessener Ping und auf Wunsch der
   Tages-Zaehler - untereinander oder nebeneinander in einer Zeile.
 - Sammlungen: was die Saecke einsammeln, in Sammlungs-Einheiten und in Coins.
 - Hunting-Tracker: jeder gefangene Shard, bewertet und auf die Stunde gerechnet.
-- Profit-Tracker: alles, was waehrend eines Laufs ins Inventar oder in einen Sack
-  faellt — auch ohne Chatzeile. Je Item einstellbar, ob es im Kasten steht und ob es
-  sofort verkauft, in eine Order gelegt oder dem NPC gegeben wird (`/shoki profit`).
+- Profit-Tracker: alles, was waehrend eines Laufs ins Inventar oder in einen Sack faellt
+  — auch ohne Chatzeile. Je Item einstellbar, ob es im Kasten steht und ob es sofort
+  verkauft, in eine Order gelegt, dem NPC gegeben oder mit einem eigenen Preis gerechnet
+  wird (`/shoki profit`). Zahlen bei offenem Inventar per `[-]` und `[+]` von Hand
+  richtigstellen. Zeit und Profit/h einzeln abschaltbar, die Uhr laeuft auf Wunsch durch.
+  Wegwerfen und wieder aufheben zaehlt nicht mit.
 - Contest, Mobs in der Naehe.
 - Alle Kaesten frei verschiebbar im HUD-Editor (`/shoki hud`).
+</details>
+
+<details>
+<summary><b>Gletscherschaechte</b></summary>
+
+- Zeigt die moeglichen Leichen-Stellen des Bauplans, in dem man steht. Den Bauplan nennt
+  die Seitenleiste, die Stellen kommen aus dem Repo von Meowdding.
+- Erkennt die Leichen, die wirklich dastehen, an ihrem Helm — mit Sorte und in ihrer
+  Farbe: Lapis blau, Umber gold, Tungsten grau, Vanguard weiss.
+- Merkt sich selbst gefundene Stellen je Bauplan und Ausfuehrung. Die geteilte Liste kennt
+  fuenf Bauplaene nur in ihrer ersten Ausfuehrung und den Little-Schacht gar nicht — was
+  man selbst findet, steht beim naechsten Besuch da. Export als JSON zum Einreichen.
+- Schluessel: welche man dabei hat, und `(no key)` an der Leiche, die man nicht aufbekommt.
+  Lapis braucht keinen, Tungsten und Umber ihren eigenen, Vanguard einen Skeleton Key.
+- Stellen, an denen man stand, verschwinden. Sind so viele Leichen bekannt, wie noch offen
+  sind, verschwinden auch die restlichen Stellen.
+- Edelstein-Adern, aus den Bloecken selbst gelesen: Rahmen, Sorte und Groesse, bei der
+  naechsten dazu die Entfernung und ein Strich dorthin. Adern ohne Luft daneben stehen als
+  `(in wall)`. Je Bauplan einstellbar oder alle Sorten.
+- Je Bauplan einstellbar, ab wie vielen Leichen sich das Ausminen lohnt — Lapis, auf
+  Wunsch mit Umber und Tungsten zusammengezaehlt.
+- Party: eine gesehene Leiche mit Koordinaten teilen (nur Lapis oder alle ausser Vanguard),
+  und ein Ruf, wenn eine Vanguard-Leiche im Schacht ist. Wer die Mod ebenfalls hat, bekommt
+  aus der Meldung einen Marker in der Farbe der Sorte.
+- Sagt im Chat, warum nichts angezeigt wird — unbekannter Bauplan oder Regel nicht
+  erfuellt — statt stumm zu bleiben.
+</details>
+
+<details>
+<summary><b>Angeln</b></summary>
+
+- Hotspots: Kreis in der Farbe seines Bonus, Warnung bevor er verschwindet, samt Ton.
+- Angel-Faenge laufen in Alarm und Profit-Tracker mit — auch die, zu denen Hypixel keine
+  `RARE DROP!`-Zeile schreibt.
 </details>
 
 <details>
