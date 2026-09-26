@@ -165,7 +165,7 @@ public class WorldTextRenderer {
      * statt quer durchs Bild.
      */
     private static Vec3 crosshair() {
-        var camera = Minecraft.getInstance().gameRenderer.getMainCamera();
+        var camera = Minecraft.getInstance().gameRenderer.mainCamera();
         org.joml.Vector3f look = new org.joml.Vector3f(0.0F, 0.0F, -1.0F).rotate(camera.rotation());
         return camera.position().add(look.x() * 2.0, look.y() * 2.0, look.z() * 2.0);
     }
