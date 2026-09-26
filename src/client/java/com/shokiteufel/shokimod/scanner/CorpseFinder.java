@@ -221,39 +221,6 @@ public final class CorpseFinder {
     }
 
     /**
-     * Die selbst gefundenen Stellen als Datei, im Aufbau der geteilten Liste.
-     *
-     * Absicht ist das Weitergeben: Die geteilte Liste kennt fuenf Baupläne nur in ihrer
-     * ersten Ausfuehrung und den Little-Schacht ueberhaupt nicht. Was hier steht, kann
-     * man dort einreichen - dann haben alle etwas davon, nicht nur diese Mod.
-     */
-    public static void export() {
-        java.nio.file.Path logs = net.fabricmc.loader.api.FabricLoader.getInstance().getGameDir().resolve("logs");
-        java.nio.file.Path file = logs.resolve("shokimod-mineshaft-spots.json");
-
-        java.util.Map<String, java.util.Map<String, java.util.List<String>>> tree = exportTree();
-        String json = new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(tree);
-        Minecraft client = Minecraft.getInstance();
-        try {
-            java.nio.file.Files.createDirectories(logs);
-            java.nio.file.Files.writeString(file, json, java.nio.charset.StandardCharsets.UTF_8);
-            ShokiMod.LOGGER.info("[Mineshaft] {} layout(s) written to {}", tree.size(), file);
-            if (client.player != null) {
-                client.player.sendSystemMessage(net.minecraft.network.chat.Component
-                        .literal("[ShokiMod] ").withStyle(net.minecraft.ChatFormatting.DARK_AQUA)
-                        .append(net.minecraft.network.chat.Component
-                                .literal(tree.isEmpty()
-                                        ? "No spots of your own yet - they come from corpses you see in a shaft."
-                                        : tree.size() + " layout(s) written to " + file.getFileName())
-                                .withStyle(net.minecraft.ChatFormatting.YELLOW)));
-            }
-        } catch (java.io.IOException e) {
-            ShokiMod.LOGGER.warn("[Mineshaft] could not write the spots: {}", e.toString());
-        }
-        net.minecraft.util.Util.getPlatform().openPath(logs);
-    }
-
-    /**
      * Die selbst gefundenen Stellen dieses Schachts.
      *
      * Gemerkt wird je Bauplan und Ausfuehrung, denn genau das bestimmt den Bau -
@@ -326,7 +293,9 @@ public final class CorpseFinder {
 
         share(nah);
 
-        if (ModConfig.INSTANCE.mining.mineshaft.corpseLearn) remember(nah);
+        // Gemerkt wird immer: Die geteilte Liste kennt fuenf Bauplaene nur in ihrer
+        // ersten Ausfuehrung, und was man selbst findet, fuellt genau diese Luecke
+        remember(nah);
     }
 
     /**
@@ -404,36 +373,7 @@ public final class CorpseFinder {
     }
 
     /** Stellen, an denen man gerade steht, als gesehen merken */
-    /**
-     * Die gelernten Stellen im Aufbau der geteilten Liste.
-     *
-     * Dort steht je Bauplan ein Objekt mit den ausgeschriebenen Ausfuehrungen:
-     * {@code {"AMET": {"TWO": ["x,y,z", ...]}}}. Genau so wird es geschrieben, damit man
-     * es ohne Umbau einreichen kann.
-     */
-    static java.util.Map<String, java.util.Map<String, java.util.List<String>>> exportTree() {
-        java.util.Map<String, java.util.Map<String, java.util.List<String>>> tree = new java.util.TreeMap<>();
-        for (var entry : ModConfig.INSTANCE.mining.mineshaft.learnedCorpses.entrySet()) {
-            String key = entry.getKey();
-            int cut = key == null ? -1 : key.lastIndexOf('_');
-            if (cut <= 0 || entry.getValue() == null || entry.getValue().isEmpty()) continue;
-
-            String type = key.substring(0, cut);
-            String variant = switch (key.substring(cut + 1)) {
-                case "1" -> "ONE";
-                case "2" -> "TWO";
-                case "C" -> "CRYSTAL";
-                default -> key.substring(cut + 1);
-            };
-            tree.computeIfAbsent(type, k -> new java.util.TreeMap<>())
-                    .put(variant, java.util.List.copyOf(entry.getValue()));
-        }
-        return tree;
-    }
-
     private static void noteVisited(Minecraft client) {
-        if (!ModConfig.INSTANCE.mining.mineshaft.corpseHideVisited) return;
-
         net.minecraft.world.phys.Vec3 at = client.player.position();
         double reach = VISIT_REACH * VISIT_REACH;
         for (BlockPos pos : spots()) {

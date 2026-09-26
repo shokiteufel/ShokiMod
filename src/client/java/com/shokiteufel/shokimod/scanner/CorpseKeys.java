@@ -115,9 +115,7 @@ public final class CorpseKeys {
      * Schluessel mehr.
      */
     public static List<String> missingFor(List<MiningState.Corpse> corpses) {
-        if (corpses == null || corpses.isEmpty() || !ModConfig.INSTANCE.mining.mineshaft.corpseKeys) {
-            return List.of();
-        }
+        if (corpses == null || corpses.isEmpty()) return List.of();
         java.util.List<String> out = new java.util.ArrayList<>();
         for (int i = 0; i < corpses.size(); i++) {
             MiningState.Corpse corpse = corpses.get(i);

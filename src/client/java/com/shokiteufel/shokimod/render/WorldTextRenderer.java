@@ -20,6 +20,8 @@ public class WorldTextRenderer {
      * Eine gefüllte Box verdeckt genau das, was man sehen will.
      */
     private static final float MARKER_LINE_WIDTH = 2.0F;
+    /** Wie weit eine Leichen-Stelle noch angeschrieben wird, in Bloecken. Fest */
+    private static final double CORPSE_RANGE = 80.0;
 
     public static void render(Minecraft client) {
         if (client.player == null) return;
@@ -80,7 +82,7 @@ public class WorldTextRenderer {
 
         ModConfig.MineshaftCategory cfg = ModConfig.INSTANCE.mining.mineshaft;
         int argb = 0xFF000000 | cfg.corpseColorRGB();
-        double range = Math.max(10, cfg.corpseRange);
+        double range = CORPSE_RANGE;
         double rangeSquared = range * range;
         Vec3 eye = client.player.position();
 
@@ -94,11 +96,9 @@ public class WorldTextRenderer {
             }
             // Jede Sorte in ihrer Farbe: Lapis blau, Umber gold, Tungsten grau, Vanguard
             // weiss - so sieht man schon von weitem, ob der Weg sich lohnt
-            int colour = cfg.corpseKindColour ? corpseColour(corpse.type(), argb) : argb;
-            if (cfg.corpseBox) {
-                GizmoProperties box = Gizmos.cuboid(pos, GizmoStyle.stroke(colour, MARKER_LINE_WIDTH));
-                box.setAlwaysOnTop();
-            }
+            int colour = corpseColour(corpse.type(), argb);
+            GizmoProperties box = Gizmos.cuboid(pos, GizmoStyle.stroke(colour, MARKER_LINE_WIDTH));
+            box.setAlwaysOnTop();
             // Fehlt der Schluessel, steht es dran, statt vor der Leiche aufzufallen
             String text = corpse.type()
                     + (com.shokiteufel.shokimod.scanner.CorpseKeys.missing(corpse.type()) ? " (no key)" : "");
@@ -114,11 +114,9 @@ public class WorldTextRenderer {
             // Sieht man sie selbst, gilt der eigene Marker
             if (standsThere(real, pos)) continue;
 
-            int colour = cfg.corpseKindColour ? corpseColour(entry.getValue(), argb) : argb;
-            if (cfg.corpseBox) {
-                GizmoProperties box = Gizmos.cuboid(pos, GizmoStyle.stroke(colour, MARKER_LINE_WIDTH));
-                box.setAlwaysOnTop();
-            }
+            int colour = corpseColour(entry.getValue(), argb);
+            GizmoProperties box = Gizmos.cuboid(pos, GizmoStyle.stroke(colour, MARKER_LINE_WIDTH));
+            box.setAlwaysOnTop();
             renderGizmoLabel(entry.getValue() + " (party)", pos, colour);
         }
 
@@ -132,12 +130,10 @@ public class WorldTextRenderer {
             // Steht dort schon eine erkannte Leiche, ist das Wort "Corpse" daneben nur Laerm
             if (standsThere(real, pos)) continue;
             // Wo man schon stand, ist die Frage beantwortet
-            if (cfg.corpseHideVisited && com.shokiteufel.shokimod.scanner.CorpseFinder.wasVisited(pos)) continue;
+            if (com.shokiteufel.shokimod.scanner.CorpseFinder.wasVisited(pos)) continue;
 
-            if (cfg.corpseBox) {
-                GizmoProperties box = Gizmos.cuboid(pos, GizmoStyle.stroke(argb, MARKER_LINE_WIDTH));
-                box.setAlwaysOnTop();
-            }
+            GizmoProperties box = Gizmos.cuboid(pos, GizmoStyle.stroke(argb, MARKER_LINE_WIDTH));
+            box.setAlwaysOnTop();
             renderGizmoLabel("Corpse", pos, argb);
         }
     }

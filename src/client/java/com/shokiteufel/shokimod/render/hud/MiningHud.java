@@ -100,7 +100,7 @@ public final class MiningHud {
             }
 
             String keys = com.shokiteufel.shokimod.scanner.CorpseKeys.summary();
-            if (ModConfig.INSTANCE.mining.mineshaft.corpseKeys && !keys.isEmpty()) {
+            if (!keys.isEmpty()) {
                 panel.pair("Keys:", keys, LABEL_COLOUR, VALUE_COLOUR);
             }
         }
