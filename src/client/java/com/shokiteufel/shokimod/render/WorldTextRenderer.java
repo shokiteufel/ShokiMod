@@ -50,24 +50,11 @@ public class WorldTextRenderer {
         var ziel = com.shokiteufel.shokimod.scanner.OreVeins.target();
 
         for (var vein : veins) {
-            if (vein.size() < Math.max(1, cfg.veinMinSize)) continue;
             int argb = vein.kind().argb();
             boolean first = ziel != null && ziel.anchor().equals(vein.anchor());
 
-            if (cfg.veinBox) {
-                GizmoProperties box = Gizmos.cuboid(vein.box(), GizmoStyle.stroke(argb, MARKER_LINE_WIDTH));
-                box.setAlwaysOnTop();
-            }
-
-            if (cfg.veinLabel) {
-                StringBuilder text = new StringBuilder();
-                if (first) text.append("-> ");
-                text.append(vein.kind().label());
-                if (vein.size() > 1) text.append(" x").append(vein.size());
-                if (vein.hidden()) text.append(" (in wall)");
-                if (first) text.append(" - ").append(Math.round(vein.distance())).append('m');
-                renderGizmoLabel(text.toString(), vein.anchor(), argb);
-            }
+            GizmoProperties box = Gizmos.cuboid(vein.box(), GizmoStyle.stroke(argb, MARKER_LINE_WIDTH));
+            box.setAlwaysOnTop();
 
             // Die Fuehrungslinie beginnt am Fadenkreuz. Von den Fuessen aus lief sie quer
             // durchs Bild und wanderte bei jedem Schritt mit; vom Blickpunkt aus zeigt sie

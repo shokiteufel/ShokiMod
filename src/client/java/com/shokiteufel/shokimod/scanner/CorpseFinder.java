@@ -64,6 +64,18 @@ public final class CorpseFinder {
      * zu bauen waere Arbeit fuer nichts. Eine Sekunde alt darf die Liste sein: Neue
      * Stellen kommen aus einem Fund, und der braucht laenger.
      */
+    /**
+     * So nah muss man an einer Stelle vorbei, damit sie als gesehen gilt.
+     *
+     * Fest, nicht einstellbar: Drei Bloecke sind die Entfernung, auf die man im Schacht
+     * hinsieht - naeher heisst "man muss draufsteigen", weiter loescht Stellen, an denen
+     * man nur vorbeigelaufen ist, ohne sie gesehen zu haben.
+     */
+    private static final double VISIT_REACH = 3.0;
+    /** Zehnmal je Sekunde gepruegt - haeufiger merkt niemand, seltener verpasst den Vorbeilauf */
+    private static final int VISIT_INTERVAL_TICKS = 2;
+    private static int visitTicks = 0;
+
     private static List<BlockPos> spotCache = null;
     private static long spotCacheAt = 0L;
     private static final long SPOT_CACHE_MILLIS = 1000L;
@@ -281,7 +293,10 @@ public final class CorpseFinder {
         }
         // Vor der Drossel: Wer an einer Stelle vorbeilaeuft, ist in einer halben Sekunde
         // wieder weg. Die paar Abstaende kosten nichts, das Entitaeten-Durchsuchen schon
-        noteVisited(client);
+        if (++visitTicks >= VISIT_INTERVAL_TICKS) {
+            visitTicks = 0;
+            noteVisited(client);
+        }
 
         if (++ticks < SCAN_INTERVAL_TICKS) return;
         ticks = 0;
@@ -420,8 +435,7 @@ public final class CorpseFinder {
         if (!ModConfig.INSTANCE.mining.mineshaft.corpseHideVisited) return;
 
         net.minecraft.world.phys.Vec3 at = client.player.position();
-        double weite = Math.max(1, ModConfig.INSTANCE.mining.mineshaft.corpseVisitReach);
-        double reach = weite * weite;
+        double reach = VISIT_REACH * VISIT_REACH;
         for (BlockPos pos : spots()) {
             if (visited.contains(pos)) continue;
             if (at.distanceToSqr(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5) <= reach) {

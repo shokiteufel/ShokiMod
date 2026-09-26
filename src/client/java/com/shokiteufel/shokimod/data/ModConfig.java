@@ -951,11 +951,6 @@ public class ModConfig extends Config {
         @ConfigAccordionId(id = 40)
         public boolean corpseHideWhenDone = true;
 
-        @Expose
-        @ConfigOption(name = "Visited within", desc = "How close you have to pass a spot for it to count as seen, in blocks. Larger clears the marks while walking by; smaller keeps them until you stand on them.")
-        @ConfigEditorSlider(minValue = 2f, maxValue = 10f, minStep = 1f)
-        @ConfigAccordionId(id = 40)
-        public int corpseVisitReach = 4;
 
         @Expose
         @ConfigOption(name = "Hide spots you visited", desc = "A spot you have stood at is taken off the list until you leave the shaft. Walking the five spots you then see only what is left, instead of the same markers again.")
@@ -1024,11 +1019,6 @@ public class ModConfig extends Config {
         @ConfigAccordionId(id = 41)
         public boolean veinAfterLapis = false;
 
-        @Expose
-        @ConfigOption(name = "Vein label", desc = "The name over a vein - kind, size and, for the nearest, its distance. Off leaves the marks alone: colour and box already say which gemstone it is.")
-        @ConfigEditorBoolean
-        @ConfigAccordionId(id = 41)
-        public boolean veinLabel = false;
 
         @Expose
         @ConfigOption(name = "Line thickness", desc = "How thick the line to the nearest vein is drawn.")
@@ -1036,23 +1026,8 @@ public class ModConfig extends Config {
         @ConfigAccordionId(id = 41)
         public int veinLineWidth = 5;
 
-        @Expose
-        @ConfigOption(name = "Vein box", desc = "A frame around the whole vein. Off leaves just the label above it.")
-        @ConfigEditorBoolean
-        @ConfigAccordionId(id = 41)
-        public boolean veinBox = true;
 
-        @Expose
-        @ConfigOption(name = "Vein distance", desc = "How far away a vein is still looked for, in blocks. Farther costs a little more work per second.")
-        @ConfigEditorSlider(minValue = 16f, maxValue = 128f, minStep = 8f)
-        @ConfigAccordionId(id = 41)
-        public int veinRange = 48;
 
-        @Expose
-        @ConfigOption(name = "Smallest vein", desc = "Veins with fewer blocks than this are not shown. A single block is often a leftover, a real vein has several.")
-        @ConfigEditorSlider(minValue = 1f, maxValue = 10f, minStep = 1f)
-        @ConfigAccordionId(id = 41)
-        public int veinMinSize = 1;
 
         @ConfigOption(name = "Only mine shafts worth it", desc = "Set per layout from how many corpses on the gemstone veins are marked. Lapis always counts; Umber and Tungsten add to the same number when switched on, so 2 Lapis and 1 Umber meet a threshold of 3. Off means the layout always marks them. The corpse spots are not affected - those always show.")
         @ConfigEditorButton(buttonText = "Open")

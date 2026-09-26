@@ -45,6 +45,22 @@ public final class OreVeins {
     private static final int SCAN_INTERVAL_TICKS = 20;
     /** Mehr als das zeigt kein Mensch mehr an - und ein Schacht hat nie so viele */
     private static final int MAX_VEINS = 40;
+    /**
+     * Wie weit gesucht wird, in Bloecken.
+     *
+     * Fest, nicht einstellbar: Vierzig deckt einen Schacht ab, ohne dass die Suche je
+     * Sekunde ueber Abschnitte laeuft, in denen man nie sein wird.
+     */
+    private static final int RANGE = 40;
+    /**
+     * Ab so vielen Bloecken gilt ein Klumpen als Ader.
+     *
+     * Fest, nicht einstellbar: Kleinere Reste stehen in jedem Schacht herum und machen
+     * aus der Fuehrung eine Schnitzeljagd ueber lauter Einzelbloecke. Gefiltert wird
+     * hier und nicht beim Zeichnen, damit der Kasten dieselben Adern zaehlt, die auch
+     * markiert werden.
+     */
+    private static final int MIN_BLOCKS = 10;
 
     private static List<Vein> veins = List.of();
     private static int ticks = 0;
@@ -161,7 +177,7 @@ public final class OreVeins {
 
         Level level = client.level;
         Vec3 eye = client.player.getEyePosition();
-        int range = Math.max(16, cfg.veinRange);
+        int range = RANGE;
         BlockPos middle = client.player.blockPosition();
 
         // Je Sorte ein eigener Haufen: Zwei Farben, die sich beruehren, sind zwei Adern
@@ -193,7 +209,10 @@ public final class OreVeins {
 
         List<Vein> out = new ArrayList<>();
         for (var entry : found.entrySet()) {
-            out.addAll(cluster(entry.getKey(), entry.getValue(), pos -> level.getBlockState(pos).isAir(), eye));
+            for (Vein vein : cluster(entry.getKey(), entry.getValue(),
+                    pos -> level.getBlockState(pos).isAir(), eye)) {
+                if (vein.size() >= MIN_BLOCKS) out.add(vein);
+            }
         }
         out.sort(Comparator.comparingDouble(Vein::distance));
         return out.size() > MAX_VEINS ? List.copyOf(out.subList(0, MAX_VEINS)) : List.copyOf(out);
