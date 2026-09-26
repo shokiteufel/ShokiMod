@@ -57,6 +57,18 @@ public final class CorpseFinder {
     private static int ticks = 0;
 
     /**
+     * Die Stellen des Schachts, einmal je Sekunde zusammengestellt.
+     *
+     * Sie werden jetzt in jedem Tick gebraucht - beim Vorbeilaufen soll eine Stelle
+     * sofort als gesehen gelten - und jedes Mal neu aus den gespeicherten Textzeilen
+     * zu bauen waere Arbeit fuer nichts. Eine Sekunde alt darf die Liste sein: Neue
+     * Stellen kommen aus einem Fund, und der braucht laenger.
+     */
+    private static List<BlockPos> spotCache = null;
+    private static long spotCacheAt = 0L;
+    private static final long SPOT_CACHE_MILLIS = 1000L;
+
+    /**
      * Die Stellen dieses Schachts, an denen man schon stand.
      *
      * Gemerkt nur fuer diesen Besuch: Beim naechsten Schacht ist die Frage wieder offen.
@@ -64,8 +76,7 @@ public final class CorpseFinder {
      * Sinn der Marker, und stehenbleibende erledigte Marker sind ihr Gegenteil.
      */
     private static final java.util.Set<BlockPos> visited = new java.util.HashSet<>();
-    /** So nah muss man gewesen sein, damit die Stelle als gesehen gilt */
-    private static final double VISIT_REACH = 3.0;
+
 
     /**
      * Die Stellen, die schon in den Party-Chat gegangen sind.
@@ -173,6 +184,16 @@ public final class CorpseFinder {
         }
     }
 
+    /** Die Stellen dieses Schachts - Repo und eigene Funde, hoechstens eine Sekunde alt */
+    public static List<BlockPos> spots() {
+        long now = System.currentTimeMillis();
+        if (spotCache == null || now - spotCacheAt > SPOT_CACHE_MILLIS) {
+            spotCache = allSpots(MineshaftState.type(), MineshaftState.variant());
+            spotCacheAt = now;
+        }
+        return spotCache;
+    }
+
     /** War man an dieser Stelle schon? */
     public static boolean wasVisited(BlockPos pos) {
         return visited.contains(pos);
@@ -184,6 +205,7 @@ public final class CorpseFinder {
         shared.clear();
         reported.clear();
         seen.clear();
+        spotCache = null;
     }
 
     /**
@@ -257,6 +279,10 @@ public final class CorpseFinder {
             visible = List.of();
             return;
         }
+        // Vor der Drossel: Wer an einer Stelle vorbeilaeuft, ist in einer halben Sekunde
+        // wieder weg. Die paar Abstaende kosten nichts, das Entitaeten-Durchsuchen schon
+        noteVisited(client);
+
         if (++ticks < SCAN_INTERVAL_TICKS) return;
         ticks = 0;
 
@@ -283,7 +309,6 @@ public final class CorpseFinder {
         visible = nah;
         for (int i = 0; i < nah.size(); i++) seen.add(nah.get(i).pos());
 
-        noteVisited(client);
         share(nah);
 
         if (ModConfig.INSTANCE.mining.mineshaft.corpseLearn) remember(nah);
@@ -395,8 +420,9 @@ public final class CorpseFinder {
         if (!ModConfig.INSTANCE.mining.mineshaft.corpseHideVisited) return;
 
         net.minecraft.world.phys.Vec3 at = client.player.position();
-        double reach = VISIT_REACH * VISIT_REACH;
-        for (BlockPos pos : allSpots(MineshaftState.type(), MineshaftState.variant())) {
+        double weite = Math.max(1, ModConfig.INSTANCE.mining.mineshaft.corpseVisitReach);
+        double reach = weite * weite;
+        for (BlockPos pos : spots()) {
             if (visited.contains(pos)) continue;
             if (at.distanceToSqr(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5) <= reach) {
                 visited.add(pos);
@@ -437,6 +463,7 @@ public final class CorpseFinder {
             added++;
         }
         if (added > 0) {
+            spotCache = null;
             ShokiMod.LOGGER.info("[Mineshaft] {}: {} new corpse spot(s) remembered, {} in total",
                     key, added, saved.size());
             ModConfig.INSTANCE.saveNow();

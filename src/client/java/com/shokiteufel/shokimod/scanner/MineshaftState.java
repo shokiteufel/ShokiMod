@@ -64,7 +64,7 @@ public final class MineshaftState {
 
     /** Die bekannten Stellen fuer den Schacht, in dem man steht */
     public static List<net.minecraft.core.BlockPos> corpses() {
-        return inMineshaft() ? CorpseFinder.allSpots(type, variant) : List.of();
+        return inMineshaft() ? CorpseFinder.spots() : List.of();
     }
 
     /** "TUNG" wird zu "Tungsten" - die Seitenleiste kuerzt, Menue und Chat nicht */
