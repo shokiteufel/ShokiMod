@@ -511,34 +511,30 @@ public class ModConfig extends Config {
 
     // ==========================================
     // カテゴリの定義
+    //
+    // Die Reihenfolge ist die des Menues, und sie folgt der Frage "wo bin ich
+    // gerade": zuerst die Inseln und Taetigkeiten - Mining, Fishing, Hunting,
+    // Safari -, dann was ueber allen liegt: Sammlungen, Profit, Alarme, Mobs,
+    // Gilde. Zuletzt das HUD, denn das ist keine Funktion, sondern die Frage, wo
+    // die Kaesten der anderen sitzen. Dieselbe Trennung machen SkyHanni und
+    // SkyOcean, und aus demselben Grund: Wer etwas sucht, sucht es beim Ort.
     // ==========================================
-    @Expose
-    @Category(name = "HUD", desc = "The panels on screen: where they sit, how big they are and how they look.")
-    public HudCategory hud = new HudCategory();
 
     @Expose
-    @Category(name = "Mob Visuals", desc = "Your own mobs and how every marker looks.")
-    public MobVisualsCategory mobVisuals = new MobVisualsCategory();
+    @Category(name = "Mining", desc = "Helpers for the mining islands: commissions, your pickaxe ability and the Sky Mall buff of the day.")
+    public MiningCategory mining = new MiningCategory();
 
     @Expose
-    @Category(name = "Alerts", desc = "React to what happens: words in chat, and what lands in your inventory.")
-    public ChatRulesCategory chat = new ChatRulesCategory();
-
-    @Expose
-    @Category(name = "Safari", desc = "Markers for the Critter Safari.")
-    public SafariCategory safari = new SafariCategory();
+    @Category(name = "Fishing", desc = "Fishing helpers.")
+    public FishingCategory fishing = new FishingCategory();
 
     @Expose
     @Category(name = "Hunting", desc = "Shard hunting.")
     public HuntingCategory hunting = new HuntingCategory();
 
     @Expose
-    @Category(name = "Guild", desc = "Guild events from the ShokiTeufelBot: a banner when one starts, the live ranking in a panel.")
-    public GuildCategory guild = new GuildCategory();
-
-    @Expose
-    @Category(name = "Fishing", desc = "Fishing helpers.")
-    public FishingCategory fishing = new FishingCategory();
+    @Category(name = "Safari", desc = "Markers for the Critter Safari.")
+    public SafariCategory safari = new SafariCategory();
 
     @Expose
     @Category(name = "Collections", desc = "What your collections gain while you play.")
@@ -549,9 +545,20 @@ public class ModConfig extends Config {
     public ProfitCategory profit = new ProfitCategory();
 
     @Expose
-    @Category(name = "Mining", desc = "Helpers for the mining islands: commissions, your pickaxe ability and the Sky Mall buff of the day.")
-    public MiningCategory mining = new MiningCategory();
+    @Category(name = "Alerts", desc = "React to what happens: words in chat, and what lands in your inventory.")
+    public ChatRulesCategory chat = new ChatRulesCategory();
 
+    @Expose
+    @Category(name = "Mob Visuals", desc = "Your own mobs and how every marker looks.")
+    public MobVisualsCategory mobVisuals = new MobVisualsCategory();
+
+    @Expose
+    @Category(name = "Guild", desc = "Guild events from the ShokiTeufelBot: a banner when one starts, the live ranking in a panel.")
+    public GuildCategory guild = new GuildCategory();
+
+    @Expose
+    @Category(name = "HUD", desc = "The panels on screen: where they sit, how big they are and how they look.")
+    public HudCategory hud = new HudCategory();
     /**
      * Der Tageszaehler, wie ihn GanKura hatte.
      *
@@ -759,7 +766,7 @@ public class ModConfig extends Config {
         public MiningHudCategory hud = new MiningHudCategory();
 
         @Expose
-        @Category(name = "Mineshaft", desc = "Glacite Mineshafts: where a corpse can stand in the shaft you are in.")
+        @Category(name = "Mineshaft", desc = "Glacite Mineshafts: the corpses of the shaft you are in, their keys, and the gemstone veins lying in it.")
         public MineshaftCategory mineshaft = new MineshaftCategory();
     }
 
@@ -871,43 +878,75 @@ public class ModConfig extends Config {
         @Expose
         public String corpseColor = "55FFFF";
 
+        /**
+         * Nur zum Auf- und Zuklappen; MoulConfig haelt den Zustand selbst.
+         *
+         * Die Kategorie hatte zwoelf Schalter in der Reihenfolge, in der sie entstanden
+         * sind - Marker, Schluessel, Adern und Kasten durcheinander. Drei Klappen trennen
+         * jetzt, was zusammengehoert: alles zu den Leichen, alles zu den Adern, und was
+         * in Kasten und Party-Chat geht.
+         */
+        @ConfigOption(name = "Corpse details", desc = "Everything about the corpses: what gets marked, how it looks, and what the mod remembers.")
+        @ConfigEditorAccordion(id = 40)
+        public transient boolean corpseFolder = false;
+
+        @Expose
+        @ConfigOption(name = "Mark the ones you can see", desc = "A corpse standing within render distance is marked with its kind - Lapis, Umber, Tungsten or Vanguard. That is not a guess: it reads the helmet the corpse wears.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 40)
+        public boolean corpseLive = true;
+
+        @Expose
+        @ConfigOption(name = "Colour by kind", desc = "A corpse you can see is drawn in its own colour - Lapis blue, Umber gold, Tungsten grey, Vanguard white. Off uses the colour above for all of them.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 40)
+        public boolean corpseKindColour = true;
+
         @Expose
         @ConfigOption(name = "Corpse keys", desc = "Which corpse keys you are carrying, in the mining panel - and a red mark next to a corpse you have no key for. A Lapis corpse needs none, Tungsten and Umber need theirs, Vanguard needs a Skeleton Key.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 40)
         public boolean corpseKeys = true;
 
         @Expose
         @ConfigOption(name = "Hide spots you visited", desc = "A spot you have stood at is taken off the list until you leave the shaft. Walking the five spots you then see only what is left, instead of the same markers again.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 40)
         public boolean corpseHideVisited = true;
 
         @Expose
-        @ConfigOption(name = "Colour by kind", desc = "A corpse you can see is drawn in its own colour - Lapis blue, Umber gold, Tungsten grey, Vanguard white. Off uses the colour above for all of them.")
+        @ConfigOption(name = "Box", desc = "A frame around the spot as well as the label. Off leaves just the text.")
         @ConfigEditorBoolean
-        public boolean corpseKindColour = true;
-
-        @ConfigOption(name = "Export found spots", desc = "Writes the spots you found yourself into logs/shokimod-mineshaft-spots.json, in the same shape the shared list uses, and opens the folder. Made to be handed on: the shared list knows no Little shaft at all.")
-        @ConfigEditorButton(buttonText = "Write")
-        public transient Runnable exportLearned = () -> {
-        };
+        @ConfigAccordionId(id = 40)
+        public boolean corpseBox = true;
 
         @Expose
-        @ConfigOption(name = "Mark the ones you can see", desc = "A corpse standing within render distance is marked with its kind - Lapis, Umber, Tungsten or Vanguard. That is not a guess: it reads the helmet the corpse wears.")
-        @ConfigEditorBoolean
-        public boolean corpseLive = true;
-
-        @Expose
-        @ConfigOption(name = "Remember what you find", desc = "Keeps the spot of every corpse you see, per layout. The shared list knows five layouts only in their first version - Amethyst 2 is empty there. What you find yourself is a known spot on your next visit.")
-        @ConfigEditorBoolean
-        public boolean corpseLearn = true;
+        @ConfigOption(name = "Distance", desc = "How far away a spot is still shown, in blocks. The shafts are small; far away the labels only clutter the view.")
+        @ConfigEditorSlider(minValue = 10f, maxValue = 150f, minStep = 5f)
+        @ConfigAccordionId(id = 40)
+        public int corpseRange = 80;
 
         @Expose
         @ConfigOption(name = "Say why nothing shows", desc = "One line when you enter a shaft that shows no spots: because none are known for this layout yet, or because your rule is not met. Beats wondering whether the mod is broken.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 40)
         public boolean corpseExplain = true;
+
+        @Expose
+        @ConfigOption(name = "Remember what you find", desc = "Keeps the spot of every corpse you see, per layout. The shared list knows five layouts only in their first version - Amethyst 2 is empty there. What you find yourself is a known spot on your next visit.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 40)
+        public boolean corpseLearn = true;
+
+        @ConfigOption(name = "Export found spots", desc = "Writes the spots you found yourself into logs/shokimod-mineshaft-spots.json, in the same shape the shared list uses, and opens the folder. Made to be handed on: the shared list knows no Little shaft at all.")
+        @ConfigEditorButton(buttonText = "Write")
+        @ConfigAccordionId(id = 40)
+        public transient Runnable exportLearned = () -> {
+        };
 
         @ConfigOption(name = "Forget found spots", desc = "Throws away the spots remembered from your own finds. The shared list stays untouched.")
         @ConfigEditorButton(buttonText = "Clear")
+        @ConfigAccordionId(id = 40)
         public transient Runnable forgetLearned = () -> {
         };
 
@@ -916,49 +955,37 @@ public class ModConfig extends Config {
         public Map<String, java.util.List<String>> learnedCorpses = new HashMap<>();
 
         @Expose
-        @ConfigOption(name = "Box", desc = "A frame around the spot as well as the label. Off leaves just the text.")
-        @ConfigEditorBoolean
-        public boolean corpseBox = true;
-
-        @Expose
-        @ConfigOption(name = "Distance", desc = "How far away a spot is still shown, in blocks. The shafts are small; far away the labels only clutter the view.")
-        @ConfigEditorSlider(minValue = 10f, maxValue = 150f, minStep = 5f)
-        public int corpseRange = 80;
-
-        @Expose
         @ConfigOption(name = "Gemstone veins", desc = "Marks the gemstone veins lying in this shaft - read from the blocks themselves, so it works in every layout. The shaft names its gemstone: an Amethyst shaft carries amethyst.")
         @ConfigEditorDropdown
         public VeinFilter veins = VeinFilter.OFF;
 
+        @ConfigOption(name = "Vein details", desc = "How the gemstone veins are marked.")
+        @ConfigEditorAccordion(id = 41)
+        public transient boolean veinFolder = false;
+
         @Expose
         @ConfigOption(name = "Arrow to the nearest", desc = "Draws a line from you to the nearest vein, so you know which way to walk. The label says how far it is.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 41)
         public boolean veinArrow = true;
 
         @Expose
         @ConfigOption(name = "Vein box", desc = "A frame around the whole vein. Off leaves just the label above it.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 41)
         public boolean veinBox = true;
 
         @Expose
         @ConfigOption(name = "Vein distance", desc = "How far away a vein is still looked for, in blocks. Farther costs a little more work per second.")
         @ConfigEditorSlider(minValue = 16f, maxValue = 128f, minStep = 8f)
+        @ConfigAccordionId(id = 41)
         public int veinRange = 48;
 
         @Expose
         @ConfigOption(name = "Smallest vein", desc = "Veins with fewer blocks than this are not shown. A single block is often a leftover, a real vein has several.")
         @ConfigEditorSlider(minValue = 1f, maxValue = 10f, minStep = 1f)
+        @ConfigAccordionId(id = 41)
         public int veinMinSize = 1;
-
-        @Expose
-        @ConfigOption(name = "Frozen corpses", desc = "The frozen corpses of the mineshaft you are in, and how many of each are still unlooted. Shown in the mining panel. Vanguard is never listed.")
-        @ConfigEditorDropdown
-        public CorpseFilter corpses = CorpseFilter.OFF;
-
-        @Expose
-        @ConfigOption(name = "Tell the party", desc = "Writes the corpses of a mineshaft into the party chat, once per shaft, as soon as they show up. Only fires when there are at least this many Lapis corpses.")
-        @ConfigEditorDropdown
-        public CorpseCall corpseCall = CorpseCall.OFF;
 
         @ConfigOption(name = "Only mine shafts worth it", desc = "Set per layout from how many corpses on the gemstone veins are marked, and whether Umber and Tungsten count towards that. Off means the layout always marks them. The corpse spots are not affected - those always show.")
         @ConfigEditorButton(buttonText = "Open")
@@ -968,6 +995,22 @@ public class ModConfig extends Config {
         /** Je Bauplan eine Regel. Was nicht drinsteht, laesst alles durch */
         @Expose
         public Map<String, MineshaftRule> shaftRules = new HashMap<>();
+
+        @ConfigOption(name = "Panel and party", desc = "What goes into the mining panel and into the party chat.")
+        @ConfigEditorAccordion(id = 42)
+        public transient boolean panelFolder = false;
+
+        @Expose
+        @ConfigOption(name = "Frozen corpses", desc = "The frozen corpses of the mineshaft you are in, and how many of each are still unlooted. Shown in the mining panel. Vanguard is never listed.")
+        @ConfigEditorDropdown
+        @ConfigAccordionId(id = 42)
+        public CorpseFilter corpses = CorpseFilter.OFF;
+
+        @Expose
+        @ConfigOption(name = "Tell the party", desc = "Writes the corpses of a mineshaft into the party chat, once per shaft, as soon as they show up. Only fires when there are at least this many Lapis corpses.")
+        @ConfigEditorDropdown
+        @ConfigAccordionId(id = 42)
+        public CorpseCall corpseCall = CorpseCall.OFF;
 
         /**
          * Erfuellt der Schacht, in dem man steht, seine Regel?
@@ -1074,7 +1117,7 @@ public class ModConfig extends Config {
         public transient String about = "";
 
         @Expose
-        @Category(name = "Tracker", desc = "Counts what your sacks collect, in collection units: total, gained, per hour and worth.")
+        @Category(name = "Collection Tracker", desc = "Counts what your sacks collect, in collection units: total, gained, per hour and worth.")
         public CollectionTrackerCategory tracker = new CollectionTrackerCategory();
     }
 
@@ -1161,6 +1204,7 @@ public class ModConfig extends Config {
         @Expose
         @ConfigOption(name = "Pause after", desc = "Seconds without anything collected before the timer pauses. The idle time is taken off again.")
         @ConfigEditorSlider(minValue = 10f, maxValue = 600f, minStep = 5f)
+        @ConfigAccordionId(id = 43)
         public int pauseAfterSeconds = 120;
 
         @Expose
@@ -1439,7 +1483,13 @@ public class ModConfig extends Config {
         @ConfigEditorBoolean
         public boolean timerEnabled = true;
 
+        /** Nur zum Auf- und Zuklappen; MoulConfig haelt den Zustand selbst */
+        @ConfigOption(name = "Timer details", desc = "Which of the two lines the panel shows, and when the clock pauses.")
+        @ConfigEditorAccordion(id = 43)
+        public transient boolean timerFolder = false;
+
         @Expose
+        @ConfigAccordionId(id = 43)
         @ConfigOption(name = "Show Profit/h", desc = "The Profit/h line in the panel. Off leaves the time standing - useful when you only want to know how long you have been at it.")
         @ConfigEditorBoolean
         public boolean showPerHour = true;
@@ -1447,6 +1497,7 @@ public class ModConfig extends Config {
         @Expose
         @ConfigOption(name = "Show Time", desc = "The Time line in the panel.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 43)
         public boolean showTime = true;
 
         @Expose
@@ -1905,7 +1956,7 @@ public class ModConfig extends Config {
 
         /** Die Safari-Helfer als eigener Unterreiter links - verborgen wie der Reiter selbst */
         @Expose
-        @Category(name = "Safari", desc = "Safari helpers that live here on purpose: the shiny alert and the Hideyho finder.")
+        @Category(name = "Safari extras", desc = "Safari helpers that live here on purpose: the shiny alert and the Hideyho finder.")
         public SafariSecretCategory safari = new SafariSecretCategory();
 
         /** Bis 1.1.17 lagen die drei Werte direkt hier; sie werden einmal in den Unterreiter uebernommen */
