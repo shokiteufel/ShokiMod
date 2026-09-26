@@ -269,17 +269,24 @@ public final class CorpseFinder {
             if (id == null) continue;
 
             String type = HELMETS.get(id.toUpperCase(Locale.ROOT));
-            if (type != null) {
-                Corpse corpse = new Corpse(type, stand.blockPosition());
-                found.add(corpse);
-                seen.add(corpse.pos());
-            }
+            if (type != null) found.add(new Corpse(type, stand.blockPosition()));
         }
-        visible = List.copyOf(found);
-        noteVisited(client);
-        share(found);
 
-        if (ModConfig.INSTANCE.mining.mineshaft.corpseLearn) remember(found);
+        // Erkannt wird, was man auch selbst erkennen koennte. Ohne diese Grenze steht die
+        // Sorte einer Leiche am anderen Ende des Schachts fest, bevor man hingesehen hat.
+        // Alles Weitere haengt an dieser Auswahl, nicht am Rohfund: Was man nicht
+        // erkennen kann, darf auch nicht gemerkt, geteilt oder mitgezaehlt werden
+        List<Corpse> nah = withinReach(found, client.player.getEyePosition(),
+                ModConfig.INSTANCE.mobVisuals.mineshaft.corpseAnyDistance
+                        ? Double.MAX_VALUE
+                        : Math.max(4, ModConfig.INSTANCE.mining.mineshaft.corpseLiveRange));
+        visible = nah;
+        for (int i = 0; i < nah.size(); i++) seen.add(nah.get(i).pos());
+
+        noteVisited(client);
+        share(nah);
+
+        if (ModConfig.INSTANCE.mining.mineshaft.corpseLearn) remember(nah);
     }
 
     /**
@@ -332,6 +339,28 @@ public final class CorpseFinder {
             return corpse;
         }
         return null;
+    }
+
+    /**
+     * Nur die Leichen in Reichweite.
+     *
+     * Getrennt vom Suchen, damit die Grenze ohne laufendes Spiel nachrechenbar ist.
+     * Gemessen wird vom Auge zur Blockmitte - so zaehlt eine Leiche, die zwei Bloecke
+     * vor einem steht, auch dann, wenn ihr Fuss einen Block tiefer liegt.
+     */
+    static List<Corpse> withinReach(List<Corpse> found, net.minecraft.world.phys.Vec3 eye, double reach) {
+        if (found.isEmpty()) return List.of();
+        if (reach >= Double.MAX_VALUE) return List.copyOf(found);
+
+        double squared = reach * reach;
+        List<Corpse> out = new ArrayList<>(found.size());
+        for (Corpse corpse : found) {
+            BlockPos pos = corpse.pos();
+            if (eye.distanceToSqr(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5) <= squared) {
+                out.add(corpse);
+            }
+        }
+        return List.copyOf(out);
     }
 
     /** Stellen, an denen man gerade steht, als gesehen merken */
