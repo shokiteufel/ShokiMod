@@ -117,6 +117,7 @@ public class ModConfig extends Config {
         // Der Unterreiter fehlt in Dateien bis 1.1.17; die drei Werte lagen bis dahin eine Ebene hoeher
         MobVisualsCategory visuals = INSTANCE.mobVisuals;
         if (visuals.safari == null) visuals.safari = new MobVisualsCategory.SafariSecretCategory();
+        if (visuals.mineshaft == null) visuals.mineshaft = new MobVisualsCategory.MineshaftSecretCategory();
         if (visuals.legacyShinyAlert != null) { visuals.safari.shinyAlert = visuals.legacyShinyAlert; visuals.legacyShinyAlert = null; }
         if (visuals.legacyShinyColour != null) { visuals.safari.shinyColour = visuals.legacyShinyColour; visuals.legacyShinyColour = null; }
         if (visuals.legacyHideyhoFinder != null) { visuals.safari.hideyhoFinder = visuals.legacyHideyhoFinder; visuals.legacyHideyhoFinder = null; }
@@ -919,6 +920,12 @@ public class ModConfig extends Config {
         @ConfigEditorBoolean
         @ConfigAccordionId(id = 40)
         public boolean corpseLive = true;
+
+        @Expose
+        @ConfigOption(name = "Recognise within", desc = "How close a corpse has to be before its kind is marked, in blocks. Close enough to make it out yourself - a corpse at the far end of the shaft is one you could not tell apart either.")
+        @ConfigEditorSlider(minValue = 4f, maxValue = 48f, minStep = 2f)
+        @ConfigAccordionId(id = 40)
+        public int corpseLiveRange = 16;
 
         @Expose
         @ConfigOption(name = "Colour by kind", desc = "A corpse you can see is drawn in its own colour - Lapis blue, Umber gold, Tungsten grey, Vanguard white. Off uses the colour above for all of them.")
@@ -2007,6 +2014,11 @@ public class ModConfig extends Config {
         @Category(name = "Safari extras", desc = "Safari helpers that live here on purpose: the shiny alert and the Hideyho finder.")
         public SafariSecretCategory safari = new SafariSecretCategory();
 
+        /** Dasselbe fuer den Schacht: was hier steht, steht hier mit Absicht */
+        @Expose
+        @Category(name = "Mineshaft extras", desc = "The mineshaft helper that lives here on purpose: corpses recognised across the whole render distance instead of only close up.")
+        public MineshaftSecretCategory mineshaft = new MineshaftSecretCategory();
+
         /** Bis 1.1.17 lagen die drei Werte direkt hier; sie werden einmal in den Unterreiter uebernommen */
         @Expose @SerializedName("shinyAlert") public Boolean legacyShinyAlert = null;
         @Expose @SerializedName("shinyColour") public String legacyShinyColour = null;
@@ -2020,6 +2032,26 @@ public class ModConfig extends Config {
         @ConfigOption(name = "Debug Logging", desc = "Writes into the log why a custom mob does or does not glow. Only for troubleshooting.")
         @ConfigEditorBoolean
         public boolean debugLogging = false;
+
+        public static class MineshaftSecretCategory {
+
+            @ConfigOption(name = "Mineshaft extras", desc = "Normally a corpse is only marked once you are close enough to recognise it yourself. This lifts that limit.")
+            @ConfigEditorInfoText
+            public transient String about = "";
+
+            /**
+             * Die Leichen ueber die ganze Sichtweite erkennen.
+             *
+             * Der Scanner liest den Helm eines Armorstands, und ein Armorstand ist geladen,
+             * lange bevor man ihn erkennen kann. Am anderen Ende des Schachts steht damit die
+             * Sorte fest, bevor man hingesehen hat - das ist mehr, als das Spiel hergibt.
+             * Deshalb gilt sonst eine Reichweite, und dieser Schalter hebt sie auf.
+             */
+            @Expose
+            @ConfigOption(name = "Corpses at any distance", desc = "Marks every corpse the client knows about, as far as the render distance reaches - not only the ones close enough to make out.")
+            @ConfigEditorBoolean
+            public boolean corpseAnyDistance = false;
+        }
 
         public static class SafariSecretCategory {
 
