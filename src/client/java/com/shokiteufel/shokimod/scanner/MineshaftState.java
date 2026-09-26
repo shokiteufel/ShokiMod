@@ -167,6 +167,7 @@ public final class MineshaftState {
             explained = false;
             CorpseFinder.forgetVisited();
             OreVeins.forgetReached();
+            com.shokiteufel.shokimod.handler.MineshaftProfit.enter(type, variant);
             // Die Liste liegt auf der Platte; der Abruf laeuft nur, wenn sie alt ist
             MineshaftCorpses.prefetch();
             ShokiMod.LOGGER.info("[Mineshaft] {}_{} - {} known corpse spots ({} of them your own finds)",
@@ -181,5 +182,7 @@ public final class MineshaftState {
         explained = false;
         CorpseFinder.forgetVisited();
         OreVeins.forgetReached();
+        // Beim Hinausgehen die eine Zeile - der Aufruf tut nichts, wenn nichts lief
+        com.shokiteufel.shokimod.handler.MineshaftProfit.leave();
     }
 }
