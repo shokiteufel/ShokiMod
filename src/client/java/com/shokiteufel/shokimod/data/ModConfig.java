@@ -1048,7 +1048,7 @@ public class ModConfig extends Config {
         @ConfigAccordionId(id = 41)
         public int veinMinSize = 1;
 
-        @ConfigOption(name = "Only mine shafts worth it", desc = "Set per layout from how many corpses on the gemstone veins are marked, and whether Umber and Tungsten count towards that. Off means the layout always marks them. The corpse spots are not affected - those always show.")
+        @ConfigOption(name = "Only mine shafts worth it", desc = "Set per layout from how many corpses on the gemstone veins are marked. Lapis always counts; Umber and Tungsten add to the same number when switched on, so 2 Lapis and 1 Umber meet a threshold of 3. Off means the layout always marks them. The corpse spots are not affected - those always show.")
         @ConfigEditorButton(buttonText = "Open")
         public transient Runnable openShaftRules = () -> {
         };

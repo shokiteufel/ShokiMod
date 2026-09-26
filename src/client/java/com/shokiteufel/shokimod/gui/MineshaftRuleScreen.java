@@ -39,6 +39,8 @@ public class MineshaftRuleScreen extends Screen {
     private static final int LIST_TOP = 62;
     /** Mehr als vier Lapis hat kein Schacht; danach faengt die Zahl wieder bei "off" an */
     private static final int MAX_MIN = 4;
+    /** Mit angehakten Sorten koennen mehr Leichen zusammenkommen als Lapis allein */
+    private static final int MAX_MIN_WITH_KINDS = 8;
 
     private final Screen parent;
     private int page;
@@ -112,7 +114,9 @@ public class MineshaftRuleScreen extends Screen {
             // Die Zahl: ein Knopf, der weiterzaehlt. Nach der letzten Stufe wieder "off"
             addRenderableWidget(Button.builder(countLabel(shaft), button -> {
                 MineshaftRule rule = rule(shaft);
-                rule.min = rule.min >= MAX_MIN ? 0 : rule.min + 1;
+                // Zaehlen Umber und Tungsten mit, sind mehr als vier Leichen moeglich
+                int hoechstens = rule.withUmber || rule.withTungsten ? MAX_MIN_WITH_KINDS : MAX_MIN;
+                rule.min = rule.min >= hoechstens ? 0 : rule.min + 1;
                 ModConfig.INSTANCE.saveNow();
                 button.setMessage(countLabel(shaft));
             }).bounds(x, y, COUNT_WIDTH, 20).build());
@@ -156,10 +160,16 @@ public class MineshaftRuleScreen extends Screen {
                 .bounds(left + gridWidth() - 60, y, 60, 20).build());
     }
 
-    /** "Lapis: off" oder "Lapis: 2" - gruen, sobald eine Schwelle steht */
+    /**
+     * "Corpses: off" oder "Corpses: 2" - gruen, sobald eine Schwelle steht.
+     *
+     * Nicht "Lapis": Mit den Haken daneben zaehlt die Zahl alle angehakten Sorten
+     * zusammen, ist also eine Leichenzahl. "Lapis: 3" hat genau diese Verwechslung
+     * ausgeloest - zwei Lapis und eine Umber erfuellen sie naemlich auch.
+     */
     private static Component countLabel(String shaft) {
         int min = rule(shaft).min;
-        return Component.literal(min <= 0 ? "Lapis: off" : "Lapis: " + min)
+        return Component.literal(min <= 0 ? "Corpses: off" : "Corpses: " + min)
                 .withStyle(min <= 0 ? ChatFormatting.GRAY : ChatFormatting.GREEN);
     }
 
@@ -182,7 +192,7 @@ public class MineshaftRuleScreen extends Screen {
         graphics.centeredText(font, Component.literal("Mineshaft - when to mark the gemstone veins"),
                 centerX, 16, 0xFFFFFFFF);
         graphics.centeredText(font, Component.literal(
-                        "Per layout: from how many corpses in the shaft on. Umber and Tungsten count towards it when switched on.")
+                        "Per layout: from how many corpses in the shaft on. Lapis always counts; Umber and Tungsten add to the same number when switched on.")
                 .withStyle(ChatFormatting.GRAY), centerX, 32, 0xFFAAAAAA);
 
         List<String> shafts = shafts();
