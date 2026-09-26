@@ -336,26 +336,34 @@ public final class MiningState {
      * nebenher mit, sind aber kein Grund, die Party anzuschreiben.
      */
     private static void callParty(List<Corpse> found) {
-        int threshold = ModConfig.INSTANCE.mining.mineshaft.corpseCall.threshold();
-        if (threshold <= 0) return;
+        ModConfig.MineshaftCategory cfg = ModConfig.INSTANCE.mining.mineshaft;
+        int threshold = cfg.corpseCall.threshold();
+
+        int lapis = 0;
+        boolean vanguard = false;
+        for (Corpse c : found) {
+            if (c.type().equalsIgnoreCase("Lapis")) lapis += c.total();
+            if (c.type().equalsIgnoreCase("Vanguard")) vanguard = true;
+        }
+
+        // Zwei Gruende, die Party zu rufen, und sie gelten einzeln: genug Lapis, oder ein
+        // Vanguard im Schacht. Der zweite hat keine Schwelle - es gibt nur einen
+        boolean wegenLapis = threshold > 0 && lapis >= threshold;
+        boolean wegenVanguard = cfg.vanguardCall && vanguard;
+        if (!wegenLapis && !wegenVanguard) return;
 
         String shaft = GameState.Server.id;
         if (shaft == null || shaft.isBlank() || shaft.equals(calledFor)) return;
-
-        int lapis = 0;
-        for (Corpse c : found) {
-            if (c.type().equalsIgnoreCase("Lapis")) lapis += c.total();
-        }
-        if (lapis < threshold) return;
 
         // Erst merken, dann senden: schlaegt das Senden fehl, soll es trotzdem bei
         // einem Versuch je Schacht bleiben
         calledFor = shaft;
 
-        StringBuilder text = new StringBuilder("Corpses here: ");
+        StringBuilder text = new StringBuilder(wegenVanguard ? "Vanguard in this shaft! " : "Corpses here: ");
         boolean first = true;
         for (Corpse c : found) {
-            if (c.type().equalsIgnoreCase("Vanguard")) continue;
+            // Vanguard steht nur dann in der Zeile, wenn er der Grund fuer den Ruf ist
+            if (c.type().equalsIgnoreCase("Vanguard") && !wegenVanguard) continue;
             if (!first) text.append(", ");
             text.append(c.total()).append("x ").append(c.type());
             first = false;
