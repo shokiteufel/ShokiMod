@@ -183,8 +183,11 @@ drinsteckt.
   Farben, an denen eine Edelstein-Ader zu erkennen ist (gefärbtes Glas bzw. Glasscheibe:
   rot = Ruby, lila = Amethyst, hellblau = Sapphire, blau = Aquamarine, braun = Citrine,
   grün = Peridot, lime = Jade, magenta = Jasper, weiß = Opal, schwarz = Onyx, gelb =
-  Topaz, orange = Amber — nachgesehen in `OreBlock`). Das sind Tatsachen über Hypixel;
-  Scanner und Marker hier sind eigener Code.
+  Topaz, orange = Amber — nachgesehen in `OreBlock`). Aus `CorpseType` stammt zusätzlich,
+  welcher Schlüssel zu welcher Leiche gehört: Tungsten und Umber je ihren, Vanguard den
+  `SKELETON_KEY`, Lapis keinen — und die Farbe je Sorte (Lapis blau, Tungsten grau, Umber
+  gold, Vanguard weiß). Das sind Tatsachen über Hypixel; Scanner und Marker hier sind
+  eigener Code.
   Die AGPL wäre mit der LGPL **nicht** vereinbar, deshalb ist hier bewusst nie Code
   übernommen worden, nur Tatsachen abgelesen.
 - **Odin** — die Ping-Anzeige wurde gegen seine gehalten, um den eigenen Messfehler zu

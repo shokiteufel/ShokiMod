@@ -99,11 +99,17 @@ public class WorldTextRenderer {
             if (eye.distanceToSqr(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5) > rangeSquared) {
                 continue;
             }
+            // Jede Sorte in ihrer Farbe: Lapis blau, Umber gold, Tungsten grau, Vanguard
+            // weiss - so sieht man schon von weitem, ob der Weg sich lohnt
+            int colour = cfg.corpseKindColour ? corpseColour(corpse.type(), argb) : argb;
             if (cfg.corpseBox) {
-                GizmoProperties box = Gizmos.cuboid(pos, GizmoStyle.stroke(argb, MARKER_LINE_WIDTH));
+                GizmoProperties box = Gizmos.cuboid(pos, GizmoStyle.stroke(colour, MARKER_LINE_WIDTH));
                 box.setAlwaysOnTop();
             }
-            renderGizmoLabel(corpse.type(), pos, argb);
+            // Fehlt der Schluessel, steht es dran, statt vor der Leiche aufzufallen
+            String text = corpse.type()
+                    + (com.shokiteufel.shokimod.scanner.CorpseKeys.missing(corpse.type()) ? " (no key)" : "");
+            renderGizmoLabel(text, pos, colour);
         }
 
         for (BlockPos pos : com.shokiteufel.shokimod.scanner.MineshaftState.corpses()) {
@@ -112,6 +118,8 @@ public class WorldTextRenderer {
             }
             // Steht dort schon eine erkannte Leiche, ist das Wort "Corpse" daneben nur Laerm
             if (standsThere(real, pos)) continue;
+            // Wo man schon stand, ist die Frage beantwortet
+            if (cfg.corpseHideVisited && com.shokiteufel.shokimod.scanner.CorpseFinder.wasVisited(pos)) continue;
 
             if (cfg.corpseBox) {
                 GizmoProperties box = Gizmos.cuboid(pos, GizmoStyle.stroke(argb, MARKER_LINE_WIDTH));
@@ -119,6 +127,24 @@ public class WorldTextRenderer {
             }
             renderGizmoLabel("Corpse", pos, argb);
         }
+    }
+
+    /**
+     * Die Farbe einer Leichensorte.
+     *
+     * Dieselbe Zuordnung, die auch Hypixel im Chat benutzt und die SkyHanni abliest:
+     * Lapis blau, Tungsten grau, Umber gold, Vanguard weiss. Eine unbekannte Sorte
+     * behaelt die eingestellte Farbe, statt geraten zu werden.
+     */
+    private static int corpseColour(String type, int fallback) {
+        if (type == null) return fallback;
+        return switch (type.toLowerCase(java.util.Locale.ROOT)) {
+            case "lapis" -> 0xFF5555FF;
+            case "tungsten" -> 0xFFAAAAAA;
+            case "umber" -> 0xFFFFAA00;
+            case "vanguard" -> 0xFFFFFFFF;
+            default -> fallback;
+        };
     }
 
     /** Liegt auf dieser Stelle eine Leiche, die gerade zu sehen ist? */
