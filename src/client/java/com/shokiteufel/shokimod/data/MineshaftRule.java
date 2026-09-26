@@ -106,12 +106,19 @@ public class MineshaftRule {
         return sum;
     }
 
-    /** Eine Zeile fuer Menue und Chat: "2 Lapis", "3 Lapis/Umber" oder "any" */
+    /**
+     * Eine Zeile fuer Menue und Chat: "3 corpses (Lapis + Umber)" oder "any".
+     *
+     * Die Zahl ist eine Leichenzahl, keine Lapis-Zahl: Sind die Haken gesetzt, zaehlen
+     * Umber und Tungsten mit hinein. In Klammern steht deshalb, was mitgezaehlt wird -
+     * sonst liest man "3 Lapis" und wundert sich, warum zwei Lapis und eine Umber
+     * genuegen.
+     */
     public String describe() {
         if (empty()) return "any";
-        StringBuilder out = new StringBuilder().append(min).append(" Lapis");
-        if (withUmber) out.append("/Umber");
-        if (withTungsten) out.append("/Tungsten");
-        return out.toString();
+        StringBuilder sorten = new StringBuilder("Lapis");
+        if (withUmber) sorten.append(" + Umber");
+        if (withTungsten) sorten.append(" + Tungsten");
+        return min + " corpses (" + sorten + ")";
     }
 }
