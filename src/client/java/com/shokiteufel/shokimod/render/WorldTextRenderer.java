@@ -44,36 +44,27 @@ public class WorldTextRenderer {
         ModConfig.MineshaftCategory cfg = ModConfig.INSTANCE.mining.mineshaft;
         if (cfg.veins == ModConfig.VeinFilter.OFF) return;
 
-        java.util.List<com.shokiteufel.shokimod.scanner.OreVeins.Vein> veins =
-                com.shokiteufel.shokimod.scanner.OreVeins.veins();
-        // Gefuehrt wird zu einer Ader, und zwar zu derselben, bis man dort war
+        // Gezeigt wird eine Ader, nicht alle: die, zu der gefuehrt wird, bis man dort war.
+        // Kaesten um jede gefundene Ader standen im Schacht uebereinander und liessen den
+        // Blick nirgends mehr durch - und gebraucht wird ohnehin nur die naechste
         var ziel = com.shokiteufel.shokimod.scanner.OreVeins.target();
+        if (ziel == null) return;
 
-        for (var vein : veins) {
-            int argb = vein.kind().argb();
-            boolean first = ziel != null && ziel.anchor().equals(vein.anchor());
+        int argb = ziel.kind().argb();
+        BlockPos andock = ziel.anchor();
+        float staerke = Math.max(1, cfg.veinLineWidth);
 
-            GizmoProperties box = Gizmos.cuboid(vein.box(), GizmoStyle.stroke(argb, MARKER_LINE_WIDTH));
-            box.setAlwaysOnTop();
+        // Der Block, auf den es zugeht - als Umriss, damit die Ader dahinter sichtbar bleibt
+        GizmoProperties ende = Gizmos.cuboid(andock, GizmoStyle.stroke(argb, staerke));
+        ende.setAlwaysOnTop();
 
-            // Die Fuehrungslinie beginnt am Fadenkreuz. Von den Fuessen aus lief sie quer
-            // durchs Bild und wanderte bei jedem Schritt mit; vom Blickpunkt aus zeigt sie
-            // dorthin, wo man sowieso hinsieht. So macht es SkyHanni, und darum sieht es
-            // dort ruhig aus
-            if (first && cfg.veinArrow) {
-                BlockPos andock = vein.anchor();
-                Vec3 mitte = new Vec3(andock.getX() + 0.5, andock.getY() + 0.5, andock.getZ() + 0.5);
-                GizmoProperties line = Gizmos.line(crosshair(), mitte, argb,
-                        Math.max(1, cfg.veinLineWidth));
-                line.setAlwaysOnTop();
-
-                // Und am Ende der Block, auf den sie zeigt - als Umriss. Gefuellt stand dort
-                // ein Klotz, der die Ader dahinter verdeckte; die Kanten in der Staerke der
-                // Linie sind ebenso deutlich und lassen den Blick durch
-                GizmoProperties ende = Gizmos.cuboid(andock,
-                        GizmoStyle.stroke(argb, Math.max(1, cfg.veinLineWidth)));
-                ende.setAlwaysOnTop();
-            }
+        // Die Fuehrungslinie beginnt am Fadenkreuz. Von den Fuessen aus lief sie quer durchs
+        // Bild und wanderte bei jedem Schritt mit; vom Blickpunkt aus zeigt sie dorthin, wo
+        // man sowieso hinsieht. So macht es SkyHanni, und darum sieht es dort ruhig aus
+        if (cfg.veinArrow) {
+            Vec3 mitte = new Vec3(andock.getX() + 0.5, andock.getY() + 0.5, andock.getZ() + 0.5);
+            GizmoProperties line = Gizmos.line(crosshair(), mitte, argb, staerke);
+            line.setAlwaysOnTop();
         }
     }
 
