@@ -354,6 +354,10 @@ public final class RareLootHandler {
                     "Dye", DYE_COLOUR, headline(drop),
                     value == null ? -1 : value.coins(),
                     value == null ? firstId(candidates) : value.itemId());
+
+            // Eine Farbe wird geteilt, wenn ihr eigener Schalter das sagt - auch wenn das
+            // Teilen sonst aus ist. Die Kanaele bleiben die eingestellten
+            if (cfg.dyeShare && !fromInventory) share(client, drop, value, lootshare, true);
         } else if (cfg.enabled) {
             if (value == null) {
                 note("  no alert: no price known for any id");
@@ -369,8 +373,12 @@ public final class RareLootHandler {
             }
         }
 
-        // Nur, was im Chat stand, wird weitergegeben - siehe onInventoryGains
-        if (cfg.shareEnabled && !fromInventory) share(client, drop, value, lootshare);
+        // Nur, was im Chat stand, wird weitergegeben - siehe onInventoryGains. Farben sind
+        // oben schon durch, wenn ihr Schalter an ist: zweimal dieselbe Zeile ist Spam
+        boolean farbeSchonGeteilt = dye && cfg.dyeAlert && cfg.dyeShare;
+        if (cfg.shareEnabled && !fromInventory && !farbeSchonGeteilt) {
+            share(client, drop, value, lootshare);
+        }
     }
 
     /**
@@ -512,27 +520,22 @@ public final class RareLootHandler {
      * wird deshalb nicht geteilt.
      */
     private static void share(Minecraft client, Drop drop, Value value, boolean lootshare) {
+        share(client, drop, value, lootshare, false);
+    }
+
+    /**
+     * @param dye eine Farbe geht an der Schwelle vorbei
+     */
+    private static void share(Minecraft client, Drop drop, Value value, boolean lootshare, boolean dye) {
         RareLootCategory cfg = cfg();
-        double threshold = ItemValue.parseAmount(cfg.shareThreshold);
         // Die Vorlage der erreichten Stufe, damit ein 50M-Fund anders klingt als ein 1M-Fund
         Tier reached = value == null ? null : tierFor(value.coins());
         String template = reached == null ? cfg.shareTemplate : cfg.shareTemplateFor(reached.number());
         String message = shareText(drop, value, lootshare, template, cfg.shareMagicFind, cfg.shareValue);
 
-        if (threshold > 0 && value == null) {
-            note("  not shared: no price known");
-            return;
-        }
-        if (threshold > 0 && value.coins() < threshold) {
-            note("  not shared: below " + cfg.shareThreshold);
-            return;
-        }
-        if (!cfg.shareParty && !cfg.shareGuild) {
-            note("  not shared: no channel chosen");
-            return;
-        }
-        if (message.isBlank()) {
-            note("  not shared: template produced an empty line");
+        String blocked = shareBlocked(cfg, value, dye, message);
+        if (blocked != null) {
+            note("  not shared: " + blocked);
             return;
         }
 
@@ -550,6 +553,24 @@ public final class RareLootHandler {
             note("  sharing to guild: " + message);
             connection.sendCommand("gc " + message);
         }
+    }
+
+    /**
+     * Warum diese Meldung nicht in die Chats geht - oder null, wenn sie darf.
+     *
+     * Getrennt vom Senden, damit die Entscheidung ohne laufendes Spiel nachrechenbar ist.
+     * Eine Farbe geht an der Schwelle vorbei: Sie hat oft gar keinen Preis, kaeme also
+     * ueber keine Schwelle - und gerade sie ist der Fund, den man erzaehlt. Die Kanaele
+     * gelten weiter, ohne Ziel wird nichts geschickt.
+     */
+    static String shareBlocked(RareLootCategory cfg, Value value, boolean dye, String message) {
+        double threshold = dye ? 0 : ItemValue.parseAmount(cfg.shareThreshold);
+
+        if (threshold > 0 && value == null) return "no price known";
+        if (threshold > 0 && value.coins() < threshold) return "below " + cfg.shareThreshold;
+        if (!cfg.shareParty && !cfg.shareGuild) return "no channel chosen";
+        if (message == null || message.isBlank()) return "template produced an empty line";
+        return null;
     }
 
     /**
