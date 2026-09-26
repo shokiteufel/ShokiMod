@@ -93,8 +93,34 @@ public final class MiningHud {
                 // Offen ist rot, gepluendert gruen - dieselbe Lesart wie bei den Auftraegen
                 boolean done = corpse.open() == 0;
                 int looted = corpse.total() - corpse.open();
-                panel.pair(corpse.type(), looted + "/" + corpse.total(),
+                // Ohne Schluessel steht die Leiche da wie eine Wand: das gehoert in die Zeile
+                boolean noKey = !done && com.shokiteufel.shokimod.scanner.CorpseKeys.missing(corpse.type());
+                panel.pair(corpse.type() + (noKey ? " (no key)" : ""), looted + "/" + corpse.total(),
                         LABEL_COLOUR, done ? HudColours.GREEN : HudColours.RED);
+            }
+
+            String keys = com.shokiteufel.shokimod.scanner.CorpseKeys.summary();
+            if (ModConfig.INSTANCE.mining.mineshaft.corpseKeys && !keys.isEmpty()) {
+                panel.pair("Keys:", keys, LABEL_COLOUR, VALUE_COLOUR);
+            }
+        }
+
+        // Die Adern des Schachts, je Sorte zusammengezaehlt. Die Frage beim Ausminen ist,
+        // wie viel drin liegt - nicht, was ein einzelner Block bringt
+        java.util.List<com.shokiteufel.shokimod.scanner.OreVeins.Vein> veins =
+                com.shokiteufel.shokimod.scanner.OreVeins.veins();
+        if (!veins.isEmpty()) {
+            java.util.Map<String, int[]> perKind = new java.util.LinkedHashMap<>();
+            for (var vein : veins) {
+                int[] sum = perKind.computeIfAbsent(vein.kind().label(), k -> new int[2]);
+                sum[0] += vein.size();
+                sum[1]++;
+            }
+            panel.blank();
+            for (var entry : perKind.entrySet()) {
+                int[] sum = entry.getValue();
+                panel.pair(entry.getKey(), sum[0] + " blocks in " + sum[1]
+                        + (sum[1] == 1 ? " vein" : " veins"), LABEL_COLOUR, VALUE_COLOUR);
             }
         }
 

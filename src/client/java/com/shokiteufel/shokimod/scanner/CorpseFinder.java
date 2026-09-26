@@ -56,6 +56,17 @@ public final class CorpseFinder {
     private static List<Corpse> visible = List.of();
     private static int ticks = 0;
 
+    /**
+     * Die Stellen dieses Schachts, an denen man schon stand.
+     *
+     * Gemerkt nur fuer diesen Besuch: Beim naechsten Schacht ist die Frage wieder offen.
+     * Wer die fuenf Stellen abgeht, sieht dann nur noch, was uebrig ist - das ist der
+     * Sinn der Marker, und stehenbleibende erledigte Marker sind ihr Gegenteil.
+     */
+    private static final java.util.Set<BlockPos> visited = new java.util.HashSet<>();
+    /** So nah muss man gewesen sein, damit die Stelle als gesehen gilt */
+    private static final double VISIT_REACH = 3.0;
+
     private CorpseFinder() {
     }
 
@@ -66,6 +77,49 @@ public final class CorpseFinder {
     /** Die Leichen in Sichtweite, mit Sorte und Ort */
     public static List<Corpse> visible() {
         return visible;
+    }
+
+    /** War man an dieser Stelle schon? */
+    public static boolean wasVisited(BlockPos pos) {
+        return visited.contains(pos);
+    }
+
+    /** Beim Schachtwechsel ist die Frage wieder offen */
+    public static void forgetVisited() {
+        visited.clear();
+    }
+
+    /**
+     * Die selbst gefundenen Stellen als Datei, im Aufbau der geteilten Liste.
+     *
+     * Absicht ist das Weitergeben: Die geteilte Liste kennt fuenf Baupläne nur in ihrer
+     * ersten Ausfuehrung und den Little-Schacht ueberhaupt nicht. Was hier steht, kann
+     * man dort einreichen - dann haben alle etwas davon, nicht nur diese Mod.
+     */
+    public static void export() {
+        java.nio.file.Path logs = net.fabricmc.loader.api.FabricLoader.getInstance().getGameDir().resolve("logs");
+        java.nio.file.Path file = logs.resolve("shokimod-mineshaft-spots.json");
+
+        java.util.Map<String, java.util.Map<String, java.util.List<String>>> tree = exportTree();
+        String json = new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(tree);
+        Minecraft client = Minecraft.getInstance();
+        try {
+            java.nio.file.Files.createDirectories(logs);
+            java.nio.file.Files.writeString(file, json, java.nio.charset.StandardCharsets.UTF_8);
+            ShokiMod.LOGGER.info("[Mineshaft] {} layout(s) written to {}", tree.size(), file);
+            if (client.player != null) {
+                client.player.sendSystemMessage(net.minecraft.network.chat.Component
+                        .literal("[ShokiMod] ").withStyle(net.minecraft.ChatFormatting.DARK_AQUA)
+                        .append(net.minecraft.network.chat.Component
+                                .literal(tree.isEmpty()
+                                        ? "No spots of your own yet - they come from corpses you see in a shaft."
+                                        : tree.size() + " layout(s) written to " + file.getFileName())
+                                .withStyle(net.minecraft.ChatFormatting.YELLOW)));
+            }
+        } catch (java.io.IOException e) {
+            ShokiMod.LOGGER.warn("[Mineshaft] could not write the spots: {}", e.toString());
+        }
+        net.minecraft.util.Util.getPlatform().openPath(logs);
     }
 
     /**
@@ -121,8 +175,50 @@ public final class CorpseFinder {
             if (type != null) found.add(new Corpse(type, stand.blockPosition()));
         }
         visible = List.copyOf(found);
+        noteVisited(client);
 
         if (ModConfig.INSTANCE.mining.mineshaft.corpseLearn) remember(found);
+    }
+
+    /** Stellen, an denen man gerade steht, als gesehen merken */
+    /**
+     * Die gelernten Stellen im Aufbau der geteilten Liste.
+     *
+     * Dort steht je Bauplan ein Objekt mit den ausgeschriebenen Ausfuehrungen:
+     * {@code {"AMET": {"TWO": ["x,y,z", ...]}}}. Genau so wird es geschrieben, damit man
+     * es ohne Umbau einreichen kann.
+     */
+    static java.util.Map<String, java.util.Map<String, java.util.List<String>>> exportTree() {
+        java.util.Map<String, java.util.Map<String, java.util.List<String>>> tree = new java.util.TreeMap<>();
+        for (var entry : ModConfig.INSTANCE.mining.mineshaft.learnedCorpses.entrySet()) {
+            String key = entry.getKey();
+            int cut = key == null ? -1 : key.lastIndexOf('_');
+            if (cut <= 0 || entry.getValue() == null || entry.getValue().isEmpty()) continue;
+
+            String type = key.substring(0, cut);
+            String variant = switch (key.substring(cut + 1)) {
+                case "1" -> "ONE";
+                case "2" -> "TWO";
+                case "C" -> "CRYSTAL";
+                default -> key.substring(cut + 1);
+            };
+            tree.computeIfAbsent(type, k -> new java.util.TreeMap<>())
+                    .put(variant, java.util.List.copyOf(entry.getValue()));
+        }
+        return tree;
+    }
+
+    private static void noteVisited(Minecraft client) {
+        if (!ModConfig.INSTANCE.mining.mineshaft.corpseHideVisited) return;
+
+        net.minecraft.world.phys.Vec3 at = client.player.position();
+        double reach = VISIT_REACH * VISIT_REACH;
+        for (BlockPos pos : allSpots(MineshaftState.type(), MineshaftState.variant())) {
+            if (visited.contains(pos)) continue;
+            if (at.distanceToSqr(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5) <= reach) {
+                visited.add(pos);
+            }
+        }
     }
 
     /**

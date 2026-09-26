@@ -273,6 +273,8 @@ public class ModConfig extends Config {
                         new com.shokiteufel.shokimod.gui.ProfitItemScreen(Minecraft.getInstance().gui.screen())));
         INSTANCE.chat.reminder.testCake = () -> Minecraft.getInstance().execute(CakeReminder::test);
         INSTANCE.chat.reminder.testPestTrap = () -> Minecraft.getInstance().execute(PestReminder::test);
+        INSTANCE.mining.mineshaft.exportLearned = () -> Minecraft.getInstance().execute(
+                com.shokiteufel.shokimod.scanner.CorpseFinder::export);
         INSTANCE.mining.mineshaft.forgetLearned = () -> Minecraft.getInstance().execute(() -> {
             int shafts = INSTANCE.mining.mineshaft.learnedCorpses.size();
             INSTANCE.mining.mineshaft.learnedCorpses.clear();
@@ -868,6 +870,26 @@ public class ModConfig extends Config {
         /** Wie bei den anderen Markern: sechs Stellen, wie sie der Farbwaehler schreibt */
         @Expose
         public String corpseColor = "55FFFF";
+
+        @Expose
+        @ConfigOption(name = "Corpse keys", desc = "Which corpse keys you are carrying, in the mining panel - and a red mark next to a corpse you have no key for. A Lapis corpse needs none, Tungsten and Umber need theirs, Vanguard needs a Skeleton Key.")
+        @ConfigEditorBoolean
+        public boolean corpseKeys = true;
+
+        @Expose
+        @ConfigOption(name = "Hide spots you visited", desc = "A spot you have stood at is taken off the list until you leave the shaft. Walking the five spots you then see only what is left, instead of the same markers again.")
+        @ConfigEditorBoolean
+        public boolean corpseHideVisited = true;
+
+        @Expose
+        @ConfigOption(name = "Colour by kind", desc = "A corpse you can see is drawn in its own colour - Lapis blue, Umber gold, Tungsten grey, Vanguard white. Off uses the colour above for all of them.")
+        @ConfigEditorBoolean
+        public boolean corpseKindColour = true;
+
+        @ConfigOption(name = "Export found spots", desc = "Writes the spots you found yourself into logs/shokimod-mineshaft-spots.json, in the same shape the shared list uses, and opens the folder. Made to be handed on: the shared list knows no Little shaft at all.")
+        @ConfigEditorButton(buttonText = "Write")
+        public transient Runnable exportLearned = () -> {
+        };
 
         @Expose
         @ConfigOption(name = "Mark the ones you can see", desc = "A corpse standing within render distance is marked with its kind - Lapis, Umber, Tungsten or Vanguard. That is not a guess: it reads the helmet the corpse wears.")
