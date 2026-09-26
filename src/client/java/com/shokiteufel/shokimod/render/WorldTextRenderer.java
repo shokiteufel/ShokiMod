@@ -46,11 +46,13 @@ public class WorldTextRenderer {
 
         java.util.List<com.shokiteufel.shokimod.scanner.OreVeins.Vein> veins =
                 com.shokiteufel.shokimod.scanner.OreVeins.veins();
-        boolean first = true;
+        // Gefuehrt wird zu einer Ader, und zwar zu derselben, bis man dort war
+        var ziel = com.shokiteufel.shokimod.scanner.OreVeins.target();
 
         for (var vein : veins) {
             if (vein.size() < Math.max(1, cfg.veinMinSize)) continue;
             int argb = vein.kind().argb();
+            boolean first = ziel != null && ziel.anchor().equals(vein.anchor());
 
             if (cfg.veinBox) {
                 GizmoProperties box = Gizmos.cuboid(vein.box(), GizmoStyle.stroke(argb, MARKER_LINE_WIDTH));
@@ -72,19 +74,18 @@ public class WorldTextRenderer {
             // dorthin, wo man sowieso hinsieht. So macht es SkyHanni, und darum sieht es
             // dort ruhig aus
             if (first && cfg.veinArrow) {
-                BlockPos ziel = vein.anchor();
-                Vec3 mitte = new Vec3(ziel.getX() + 0.5, ziel.getY() + 0.5, ziel.getZ() + 0.5);
+                BlockPos andock = vein.anchor();
+                Vec3 mitte = new Vec3(andock.getX() + 0.5, andock.getY() + 0.5, andock.getZ() + 0.5);
                 GizmoProperties line = Gizmos.line(crosshair(), mitte, argb,
                         Math.max(1, cfg.veinLineWidth));
                 line.setAlwaysOnTop();
 
                 // Und am Ende ein voller, leuchtender Block. Ein Umriss allein geht im
                 // Schacht unter - der Block sagt auf den Zentimeter, wohin die Linie zeigt
-                GizmoProperties ende = Gizmos.cuboid(ziel,
+                GizmoProperties ende = Gizmos.cuboid(andock,
                         GizmoStyle.strokeAndFill(argb, MARKER_LINE_WIDTH, glow(argb)));
                 ende.setAlwaysOnTop();
             }
-            first = false;
         }
     }
 
