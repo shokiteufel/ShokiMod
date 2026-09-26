@@ -28,7 +28,7 @@ Voraussetzungen: Fabric Loader 0.19.3+ und Fabric API.
 ## Was die Mod kann
 
 <details>
-<summary><b>Seltene Funde</b></summary>
+<summary><b>Rare Loot</b></summary>
 
 - Liest Hypixels `RARE DROP!`-Zeilen, die Beutebuendel aus dem Crystal Nucleus und aus
   den Leichen der Gletscherschaechte, gefangene Shards, die Angel-Faenge
@@ -45,7 +45,7 @@ Voraussetzungen: Fabric Loader 0.19.3+ und Fabric API.
 </details>
 
 <details>
-<summary><b>Banner-Sandbox</b></summary>
+<summary><b>Banner Sandbox</b></summary>
 
 - Ein Design statt fester Stile: Umriss (Rechteck, gerundet, Pille, Oval, Raute,
   geschnitten), Hintergrund, Rahmen, Akzent, Ausrichtung, Innenabstand.
@@ -57,7 +57,7 @@ Voraussetzungen: Fabric Loader 0.19.3+ und Fabric API.
 </details>
 
 <details>
-<summary><b>Gewinn-Fenster</b></summary>
+<summary><b>Profit Windows</b></summary>
 
 - `/shoki shardprofit` — welche Shard-Fusion sich gerade lohnt, mit dem Bestand aus der
   zuletzt geoeffneten Hunting Box.
@@ -68,11 +68,11 @@ Voraussetzungen: Fabric Loader 0.19.3+ und Fabric API.
 </details>
 
 <details>
-<summary><b>Anzeigen</b></summary>
+<summary><b>HUD Panels</b></summary>
 
 - Mining: laufende Auftraege, Spitzhacken-Faehigkeit mit Abklingzeit, Sky-Mall-Buff.
 - Mineshaft: Leichen, Schluessel und Edelstein-Adern des Schachts — siehe den Abschnitt
-  **Gletscherschaechte**.
+  **Glacite Mineshafts**.
 - Pet: Name, Stufe, Fortschritt — samt Overflow-Stufen und Meldung beim Aufstieg.
 - Leistung: Bilder je Sekunde, Server-Takt, selbst gemessener Ping und auf Wunsch der
   Tages-Zaehler - untereinander oder nebeneinander in einer Zeile.
@@ -89,7 +89,7 @@ Voraussetzungen: Fabric Loader 0.19.3+ und Fabric API.
 </details>
 
 <details>
-<summary><b>Gletscherschaechte</b></summary>
+<summary><b>Glacite Mineshafts</b></summary>
 
 - Zeigt die moeglichen Leichen-Stellen des Bauplans, in dem man steht. Den Bauplan nennt
   die Seitenleiste, die Stellen kommen aus dem Repo von Meowdding.
@@ -115,7 +115,7 @@ Voraussetzungen: Fabric Loader 0.19.3+ und Fabric API.
 </details>
 
 <details>
-<summary><b>Angeln</b></summary>
+<summary><b>Fishing</b></summary>
 
 - Hotspots: Kreis in der Farbe seines Bonus, Warnung bevor er verschwindet, samt Ton.
 - Angel-Faenge laufen in Alarm und Profit-Tracker mit — auch die, zu denen Hypixel keine
@@ -123,7 +123,7 @@ Voraussetzungen: Fabric Loader 0.19.3+ und Fabric API.
 </details>
 
 <details>
-<summary><b>Mob-Marker</b></summary>
+<summary><b>Mob Visuals</b></summary>
 
 - Eigene Mobs markieren: Hervorhebung, Tracer-Linie, Namensschild, Welttext.
 - Farbe und Stil je Marker frei waehlbar.
@@ -137,7 +137,7 @@ Voraussetzungen: Fabric Loader 0.19.3+ und Fabric API.
 </details>
 
 <details>
-<summary><b>Chat und Erinnerungen</b></summary>
+<summary><b>Chat &amp; Reminders</b></summary>
 
 - Chat-Regeln: ausblenden, ersetzen, Action Bar, Einblendung, Toast — mit eigenen
   Audiodateien.
