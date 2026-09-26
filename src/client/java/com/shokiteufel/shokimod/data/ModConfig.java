@@ -952,6 +952,12 @@ public class ModConfig extends Config {
         public boolean corpseHideWhenDone = true;
 
         @Expose
+        @ConfigOption(name = "Visited within", desc = "How close you have to pass a spot for it to count as seen, in blocks. Larger clears the marks while walking by; smaller keeps them until you stand on them.")
+        @ConfigEditorSlider(minValue = 2f, maxValue = 10f, minStep = 1f)
+        @ConfigAccordionId(id = 40)
+        public int corpseVisitReach = 4;
+
+        @Expose
         @ConfigOption(name = "Hide spots you visited", desc = "A spot you have stood at is taken off the list until you leave the shaft. Walking the five spots you then see only what is left, instead of the same markers again.")
         @ConfigEditorBoolean
         @ConfigAccordionId(id = 40)

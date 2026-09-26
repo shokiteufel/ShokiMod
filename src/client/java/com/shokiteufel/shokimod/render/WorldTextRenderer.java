@@ -80,10 +80,11 @@ public class WorldTextRenderer {
                         Math.max(1, cfg.veinLineWidth));
                 line.setAlwaysOnTop();
 
-                // Und am Ende ein voller, leuchtender Block. Ein Umriss allein geht im
-                // Schacht unter - der Block sagt auf den Zentimeter, wohin die Linie zeigt
+                // Und am Ende der Block, auf den sie zeigt - als Umriss. Gefuellt stand dort
+                // ein Klotz, der die Ader dahinter verdeckte; die Kanten in der Staerke der
+                // Linie sind ebenso deutlich und lassen den Blick durch
                 GizmoProperties ende = Gizmos.cuboid(andock,
-                        GizmoStyle.strokeAndFill(argb, MARKER_LINE_WIDTH, glow(argb)));
+                        GizmoStyle.stroke(argb, Math.max(1, cfg.veinLineWidth)));
                 ende.setAlwaysOnTop();
             }
         }
@@ -174,17 +175,6 @@ public class WorldTextRenderer {
         var camera = Minecraft.getInstance().gameRenderer.getMainCamera();
         org.joml.Vector3f look = new org.joml.Vector3f(0.0F, 0.0F, -1.0F).rotate(camera.rotation());
         return camera.position().add(look.x() * 2.0, look.y() * 2.0, look.z() * 2.0);
-    }
-
-    /**
-     * Die Fuellung des Ziel-Blocks: fast deckend.
-     *
-     * Ein Umriss verschwindet im Schacht zwischen den Kanten der Bloecke. Der Zielblock
-     * soll dagegen leuchten - er ist einer, nicht die ganze Ader, also verdeckt er auch
-     * nichts, was man sehen will.
-     */
-    private static int glow(int argb) {
-        return 0xDD000000 | (argb & 0xFFFFFF);
     }
 
     /**
