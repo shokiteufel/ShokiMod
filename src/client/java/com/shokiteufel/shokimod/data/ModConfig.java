@@ -1013,6 +1013,12 @@ public class ModConfig extends Config {
         public boolean veinArrow = true;
 
         @Expose
+        @ConfigOption(name = "Only after the Lapis", desc = "Holds the vein marks back until every Lapis corpse in the shaft is looted. First the corpses, then the stone - and nothing in the way while you look for them. Without corpse lines in the tab list the marks show anyway.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 41)
+        public boolean veinAfterLapis = false;
+
+        @Expose
         @ConfigOption(name = "Vein label", desc = "The name over a vein - kind, size and, for the nearest, its distance. Off leaves the marks alone: colour and box already say which gemstone it is.")
         @ConfigEditorBoolean
         @ConfigAccordionId(id = 41)

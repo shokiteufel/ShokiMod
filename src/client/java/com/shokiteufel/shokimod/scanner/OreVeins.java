@@ -49,6 +49,18 @@ public final class OreVeins {
     private static List<Vein> veins = List.of();
     private static int ticks = 0;
 
+    /**
+     * Die Adern, an denen man schon war.
+     *
+     * Jede Ader hat einen festen Andockpunkt - ihren obersten Block. Steht man davor,
+     * gilt sie als erreicht, und die Fuehrung nimmt die naechste. Ohne dieses Gedaechtnis
+     * zeigte die Linie immer auf die naechstgelegene, also waehrend des Abbauens
+     * unverrueckbar auf die, in der man gerade steht.
+     */
+    private static final java.util.Set<BlockPos> reached = new java.util.HashSet<>();
+    /** So nah muss man dem Andockpunkt kommen, damit die Ader als erreicht gilt */
+    private static final double REACHED_WITHIN = 4.0;
+
     private OreVeins() {
     }
 
@@ -59,6 +71,42 @@ public final class OreVeins {
     /** Die gefundenen Adern, die naechste zuerst */
     public static List<Vein> veins() {
         return veins;
+    }
+
+    /**
+     * Die Ader, zu der gefuehrt wird: die naechste, an der man noch nicht war.
+     *
+     * Null heisst: keine offen. Dann fuehrt nichts mehr, die Kaesten der Adern stehen
+     * aber weiter da - abgebaut wird ja noch.
+     */
+    public static Vein target() {
+        return pickTarget(veins, reached);
+    }
+
+    static Vein pickTarget(List<Vein> alle, java.util.Set<BlockPos> erledigt) {
+        for (int i = 0; i < alle.size(); i++) {
+            if (!erledigt.contains(alle.get(i).anchor())) return alle.get(i);
+        }
+        return null;
+    }
+
+    /** Beim Schachtwechsel faengt die Runde von vorn an */
+    public static void forgetReached() {
+        reached.clear();
+    }
+
+    /**
+     * Steht noch eine Lapis-Leiche offen?
+     *
+     * Ohne Leichen-Zeilen in der Tab-Liste ist die Antwort nein - lieber zeigen als
+     * wegen einer fehlenden Zahl verschweigen, wie ueberall sonst auch.
+     */
+    static boolean lapisOpen(java.util.List<MiningState.Corpse> corpses) {
+        for (int i = 0; i < corpses.size(); i++) {
+            MiningState.Corpse corpse = corpses.get(i);
+            if ("Lapis".equalsIgnoreCase(corpse.type()) && corpse.open() > 0) return true;
+        }
+        return false;
     }
 
     private static void tick(Minecraft client) {
@@ -73,10 +121,35 @@ public final class OreVeins {
             veins = List.of();
             return;
         }
+        // Erst die Leichen, dann der Stein: solange eine Lapis offen ist, nichts anzeigen
+        if (cfg.veinAfterLapis && lapisOpen(MiningState.allCorpses())) {
+            veins = List.of();
+            return;
+        }
         if (++ticks < SCAN_INTERVAL_TICKS) return;
         ticks = 0;
 
         veins = scan(client, cfg);
+        noteReached(client);
+    }
+
+    /**
+     * Was in Reichweite des Andockpunkts liegt, ist abgehakt.
+     *
+     * Gemessen wird zum Andockpunkt, nicht zur Ader: Sonst gaelte eine lange Ader schon
+     * als erreicht, wenn man ihr anderes Ende streift.
+     */
+    private static void noteReached(Minecraft client) {
+        if (client.player == null) return;
+
+        Vec3 auge = client.player.getEyePosition();
+        double grenze = REACHED_WITHIN * REACHED_WITHIN;
+        for (int i = 0; i < veins.size(); i++) {
+            BlockPos anchor = veins.get(i).anchor();
+            if (auge.distanceToSqr(anchor.getX() + 0.5, anchor.getY() + 0.5, anchor.getZ() + 0.5) <= grenze) {
+                reached.add(anchor);
+            }
+        }
     }
 
     private static List<Vein> scan(Minecraft client, ModConfig.MineshaftCategory cfg) {

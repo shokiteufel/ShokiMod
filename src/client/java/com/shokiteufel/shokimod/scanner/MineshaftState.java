@@ -166,6 +166,7 @@ public final class MineshaftState {
             variant = foundVariant;
             explained = false;
             CorpseFinder.forgetVisited();
+            OreVeins.forgetReached();
             // Die Liste liegt auf der Platte; der Abruf laeuft nur, wenn sie alt ist
             MineshaftCorpses.prefetch();
             ShokiMod.LOGGER.info("[Mineshaft] {}_{} - {} known corpse spots ({} of them your own finds)",
@@ -179,5 +180,6 @@ public final class MineshaftState {
         variant = null;
         explained = false;
         CorpseFinder.forgetVisited();
+        OreVeins.forgetReached();
     }
 }
