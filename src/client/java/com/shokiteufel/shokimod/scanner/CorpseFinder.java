@@ -74,6 +74,30 @@ public final class CorpseFinder {
      * kein Dienst an der Party, sondern Spam - und Hypixel sieht das genauso.
      */
     private static final java.util.Set<BlockPos> shared = new java.util.HashSet<>();
+
+    /**
+     * Was die Party gemeldet hat: Stelle und Sorte.
+     *
+     * Eine Meldung aus dem Party-Chat ist so gut wie ein eigener Blick - der andere hat
+     * die Leiche vor sich, sonst koennte er die Stelle nicht nennen. Deshalb bekommt sie
+     * denselben Marker in der Farbe ihrer Sorte, nur mit "(party)" dahinter, damit man
+     * weiss, woher sie kommt.
+     */
+    private static final java.util.Map<BlockPos, String> reported = new java.util.LinkedHashMap<>();
+
+    /**
+     * Jede Leiche, von der dieser Schacht schon weiss - selbst gesehen oder gemeldet.
+     *
+     * Daran haengt die Frage, ob noch etwas zu suchen ist: Sind so viele bekannt, wie die
+     * Tab-Liste offen nennt, koennen die restlichen Stellen keine mehr tragen.
+     */
+    private static final java.util.Set<BlockPos> seen = new java.util.HashSet<>();
+
+    /** "Party > [MVP+] Name: Lapis corpse at -184 9 -178" - dieselbe Form, die die Mod schickt */
+    private static final java.util.regex.Pattern PARTY_CORPSE = java.util.regex.Pattern.compile(
+            "^Party > .*?: (?<type>Lapis|Umber|Tungsten|Vanguard) corpse at "
+                    + "(?<x>-?\\d{1,7}) (?<y>-?\\d{1,4}) (?<z>-?\\d{1,7})$",
+            java.util.regex.Pattern.CASE_INSENSITIVE);
     /** Zwischen zwei Meldungen liegt mindestens diese Pause */
     private static final long SHARE_GAP_MILLIS = 2500L;
     /** Mehr als das schickt niemand aus einem Schacht */
@@ -92,6 +116,63 @@ public final class CorpseFinder {
         return visible;
     }
 
+    /** Die Stellen, die die Party gemeldet hat, mit ihrer Sorte */
+    public static java.util.Map<BlockPos, String> reported() {
+        return reported;
+    }
+
+    /**
+     * Sind alle Leichen des Schachts bekannt?
+     *
+     * Gefragt wird gegen die Tab-Liste: Sie sagt, wie viele noch offen sind. Weiss man von
+     * so vielen - selbst gesehen oder aus der Party -, tragen die restlichen Stellen keine
+     * mehr, und sie zu zeigen heisst, jemanden umsonst laufen zu lassen.
+     *
+     * Ohne Angaben in der Tab-Liste bleibt die Antwort nein: Lieber die Stellen zeigen, als
+     * sie wegen einer fehlenden Zahl zu verschweigen.
+     */
+    public static boolean allFound() {
+        java.util.List<MiningState.Corpse> corpses = MiningState.allCorpses();
+        if (corpses.isEmpty()) return false;
+
+        int total = 0;
+        int open = 0;
+        for (int i = 0; i < corpses.size(); i++) {
+            total += corpses.get(i).total();
+            open += corpses.get(i).open();
+        }
+        if (total <= 0) return false;
+        return seen.size() >= open;
+    }
+
+    /**
+     * Eine Leichen-Meldung aus dem Party-Chat.
+     *
+     * Gelesen wird genau die Form, die diese Mod selbst schickt. Die eigene Meldung kommt
+     * vom Server zurueck und landet hier ebenfalls - das stoert nicht: Die Stelle kennt man
+     * dann schon, und dieselbe Stelle zweimal einzutragen aendert nichts.
+     */
+    public static void onChatMessage(String plain) {
+        if (plain == null || !ModConfig.INSTANCE.mining.mineshaft.corpseFromParty) return;
+
+        java.util.regex.Matcher m = PARTY_CORPSE.matcher(plain.trim());
+        if (!m.matches()) return;
+
+        try {
+            BlockPos pos = new BlockPos(Integer.parseInt(m.group("x")),
+                    Integer.parseInt(m.group("y")), Integer.parseInt(m.group("z")));
+            String type = m.group("type");
+            String kind = Character.toUpperCase(type.charAt(0))
+                    + type.substring(1).toLowerCase(java.util.Locale.ROOT);
+            if (reported.put(pos, kind) == null) {
+                seen.add(pos);
+                ShokiMod.LOGGER.info("[Mineshaft] the party reported a {} corpse at {}", kind, pos);
+            }
+        } catch (NumberFormatException e) {
+            // Eine krumme Zahl ist keine Stelle - dann eben kein Marker
+        }
+    }
+
     /** War man an dieser Stelle schon? */
     public static boolean wasVisited(BlockPos pos) {
         return visited.contains(pos);
@@ -101,6 +182,8 @@ public final class CorpseFinder {
     public static void forgetVisited() {
         visited.clear();
         shared.clear();
+        reported.clear();
+        seen.clear();
     }
 
     /**
@@ -186,7 +269,11 @@ public final class CorpseFinder {
             if (id == null) continue;
 
             String type = HELMETS.get(id.toUpperCase(Locale.ROOT));
-            if (type != null) found.add(new Corpse(type, stand.blockPosition()));
+            if (type != null) {
+                Corpse corpse = new Corpse(type, stand.blockPosition());
+                found.add(corpse);
+                seen.add(corpse.pos());
+            }
         }
         visible = List.copyOf(found);
         noteVisited(client);

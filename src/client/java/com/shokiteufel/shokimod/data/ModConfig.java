@@ -933,6 +933,18 @@ public class ModConfig extends Config {
         public boolean corpseKeys = true;
 
         @Expose
+        @ConfigOption(name = "Spots from the party", desc = "Takes corpse spots that party members post with this mod and marks them in the colour of their kind, with (party) on the label. Their message is as good as your own look - they are standing in front of the corpse.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 40)
+        public boolean corpseFromParty = true;
+
+        @Expose
+        @ConfigOption(name = "Hide the rest when all are known", desc = "Once as many corpses are known as the tab list says are still open - seen yourself or posted by the party - the remaining possible spots disappear. They cannot hold one any more.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 40)
+        public boolean corpseHideWhenDone = true;
+
+        @Expose
         @ConfigOption(name = "Hide spots you visited", desc = "A spot you have stood at is taken off the list until you leave the shaft. Walking the five spots you then see only what is left, instead of the same markers again.")
         @ConfigEditorBoolean
         @ConfigAccordionId(id = 40)
