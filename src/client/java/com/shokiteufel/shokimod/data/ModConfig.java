@@ -1013,6 +1013,18 @@ public class ModConfig extends Config {
         public boolean veinArrow = true;
 
         @Expose
+        @ConfigOption(name = "Vein label", desc = "The name over a vein - kind, size and, for the nearest, its distance. Off leaves the marks alone: colour and box already say which gemstone it is.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 41)
+        public boolean veinLabel = false;
+
+        @Expose
+        @ConfigOption(name = "Line thickness", desc = "How thick the line to the nearest vein is drawn.")
+        @ConfigEditorSlider(minValue = 1f, maxValue = 12f, minStep = 1f)
+        @ConfigAccordionId(id = 41)
+        public int veinLineWidth = 5;
+
+        @Expose
         @ConfigOption(name = "Vein box", desc = "A frame around the whole vein. Off leaves just the label above it.")
         @ConfigEditorBoolean
         @ConfigAccordionId(id = 41)

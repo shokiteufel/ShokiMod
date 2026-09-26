@@ -53,31 +53,36 @@ public class WorldTextRenderer {
             int argb = vein.kind().argb();
 
             if (cfg.veinBox) {
-                // Die naechste Ader wird gefuellt, die anderen bleiben Umriss: Das Ziel
-                // soll man auf einen Blick von den uebrigen unterscheiden
-                GizmoStyle style = first
-                        ? GizmoStyle.strokeAndFill(argb, MARKER_LINE_WIDTH, fillOf(argb, vein.distance()))
-                        : GizmoStyle.stroke(argb, MARKER_LINE_WIDTH);
-                GizmoProperties box = Gizmos.cuboid(vein.box(), style);
+                GizmoProperties box = Gizmos.cuboid(vein.box(), GizmoStyle.stroke(argb, MARKER_LINE_WIDTH));
                 box.setAlwaysOnTop();
             }
 
-            StringBuilder text = new StringBuilder();
-            if (first) text.append("-> ");
-            text.append(vein.kind().label());
-            if (vein.size() > 1) text.append(" x").append(vein.size());
-            if (vein.hidden()) text.append(" (in wall)");
-            if (first) text.append(" - ").append(Math.round(vein.distance())).append('m');
-            renderGizmoLabel(text.toString(), vein.anchor(), argb);
+            if (cfg.veinLabel) {
+                StringBuilder text = new StringBuilder();
+                if (first) text.append("-> ");
+                text.append(vein.kind().label());
+                if (vein.size() > 1) text.append(" x").append(vein.size());
+                if (vein.hidden()) text.append(" (in wall)");
+                if (first) text.append(" - ").append(Math.round(vein.distance())).append('m');
+                renderGizmoLabel(text.toString(), vein.anchor(), argb);
+            }
 
             // Die Fuehrungslinie beginnt am Fadenkreuz. Von den Fuessen aus lief sie quer
             // durchs Bild und wanderte bei jedem Schritt mit; vom Blickpunkt aus zeigt sie
             // dorthin, wo man sowieso hinsieht. So macht es SkyHanni, und darum sieht es
             // dort ruhig aus
             if (first && cfg.veinArrow) {
-                GizmoProperties line = Gizmos.line(crosshair(), vein.box().getCenter(),
-                        argb, MARKER_LINE_WIDTH);
+                BlockPos ziel = vein.anchor();
+                Vec3 mitte = new Vec3(ziel.getX() + 0.5, ziel.getY() + 0.5, ziel.getZ() + 0.5);
+                GizmoProperties line = Gizmos.line(crosshair(), mitte, argb,
+                        Math.max(1, cfg.veinLineWidth));
                 line.setAlwaysOnTop();
+
+                // Und am Ende ein voller, leuchtender Block. Ein Umriss allein geht im
+                // Schacht unter - der Block sagt auf den Zentimeter, wohin die Linie zeigt
+                GizmoProperties ende = Gizmos.cuboid(ziel,
+                        GizmoStyle.strokeAndFill(argb, MARKER_LINE_WIDTH, glow(argb)));
+                ende.setAlwaysOnTop();
             }
             first = false;
         }
@@ -171,16 +176,14 @@ public class WorldTextRenderer {
     }
 
     /**
-     * Wie deckend die Fuellung der naechsten Ader ist.
+     * Die Fuellung des Ziel-Blocks: fast deckend.
      *
-     * Ferner heisst deutlicher - sonst verschwindet das Ziel in der Entfernung. Die
-     * Steigung ist flacher als bei SkyHanni, dessen Wegweiser einen einzelnen Block
-     * fuellen: Eine Ader ist ein Klumpen aus mehreren, und die will man noch durch die
-     * Fuellung hindurch sehen.
+     * Ein Umriss verschwindet im Schacht zwischen den Kanten der Bloecke. Der Zielblock
+     * soll dagegen leuchten - er ist einer, nicht die ganze Ader, also verdeckt er auch
+     * nichts, was man sehen will.
      */
-    private static int fillOf(int argb, double distance) {
-        double alpha = Math.min(0.45, 0.10 + 0.0015 * distance * distance);
-        return ((int) (Math.max(0.12, alpha) * 255.0) << 24) | (argb & 0xFFFFFF);
+    private static int glow(int argb) {
+        return 0xDD000000 | (argb & 0xFFFFFF);
     }
 
     /**
