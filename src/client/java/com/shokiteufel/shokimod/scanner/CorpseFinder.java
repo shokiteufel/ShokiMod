@@ -67,6 +67,19 @@ public final class CorpseFinder {
     /** So nah muss man gewesen sein, damit die Stelle als gesehen gilt */
     private static final double VISIT_REACH = 3.0;
 
+    /**
+     * Die Stellen, die schon in den Party-Chat gegangen sind.
+     *
+     * Geteilt wird eine Leiche genau einmal. Dieselbe Stelle zweimal zu schicken ist
+     * kein Dienst an der Party, sondern Spam - und Hypixel sieht das genauso.
+     */
+    private static final java.util.Set<BlockPos> shared = new java.util.HashSet<>();
+    /** Zwischen zwei Meldungen liegt mindestens diese Pause */
+    private static final long SHARE_GAP_MILLIS = 2500L;
+    /** Mehr als das schickt niemand aus einem Schacht */
+    private static final int MAX_SHARED = 8;
+    private static long lastSharedAt = 0L;
+
     private CorpseFinder() {
     }
 
@@ -87,6 +100,7 @@ public final class CorpseFinder {
     /** Beim Schachtwechsel ist die Frage wieder offen */
     public static void forgetVisited() {
         visited.clear();
+        shared.clear();
     }
 
     /**
@@ -176,8 +190,61 @@ public final class CorpseFinder {
         }
         visible = List.copyOf(found);
         noteVisited(client);
+        share(found);
 
         if (ModConfig.INSTANCE.mining.mineshaft.corpseLearn) remember(found);
+    }
+
+    /**
+     * Eine gesehene Leiche in den Party-Chat schreiben.
+     *
+     * Geteilt wird nur, was wirklich dasteht - der Armorstand mit seinem Helm, nicht eine
+     * Stelle aus der Liste, an der vielleicht eine sein koennte. Das ist der Unterschied
+     * zwischen einer Nachricht, auf die sich jemand verlassen kann, und einer Vermutung,
+     * fuer die jemand umsonst laeuft.
+     *
+     * Vanguard geht nie raus, auch nicht bei "All": Dafuer braucht man einen Skeleton Key,
+     * und wer keinen hat, verschenkt damit nur seine eigene Chance.
+     */
+    private static void share(List<Corpse> found) {
+        long now = System.currentTimeMillis();
+        // Eine je Durchlauf: der Rest kommt in den naechsten Sekunden
+        Corpse corpse = pickToShare(found, ModConfig.INSTANCE.mining.mineshaft.corpseShare, now);
+        if (corpse == null) return;
+
+        Minecraft client = Minecraft.getInstance();
+        var connection = client == null ? null : client.getConnection();
+        if (connection == null) return;
+
+        shared.add(corpse.pos());
+        lastSharedAt = now;
+
+        String text = corpse.type() + " corpse at " + corpse.pos().getX() + " "
+                + corpse.pos().getY() + " " + corpse.pos().getZ();
+        ShokiMod.LOGGER.info("[Mineshaft] telling the party: {}", text);
+        connection.sendCommand("pc " + text);
+    }
+
+    /**
+     * Welche der gesehenen Leichen jetzt in die Party ginge - oder keine.
+     *
+     * Getrennt vom Senden, damit die Auswahl ohne laufendes Spiel nachrechenbar ist:
+     * Was geteilt wird, ist eine Entscheidung, und Entscheidungen gehoeren geprueft.
+     */
+    static Corpse pickToShare(List<Corpse> found, ModConfig.CorpseShare mode, long now) {
+        if (mode == null || mode == ModConfig.CorpseShare.OFF || found == null || found.isEmpty()) return null;
+        if (shared.size() >= MAX_SHARED) return null;
+        if (now - lastSharedAt < SHARE_GAP_MILLIS) return null;
+
+        for (Corpse corpse : found) {
+            if (shared.contains(corpse.pos())) continue;
+
+            String type = corpse.type();
+            if ("Vanguard".equalsIgnoreCase(type)) continue;
+            if (mode == ModConfig.CorpseShare.LAPIS && !"Lapis".equalsIgnoreCase(type)) continue;
+            return corpse;
+        }
+        return null;
     }
 
     /** Stellen, an denen man gerade steht, als gesehen merken */

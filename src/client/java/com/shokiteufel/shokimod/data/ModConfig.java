@@ -806,6 +806,30 @@ public class ModConfig extends Config {
         }
     }
 
+    /**
+     * Welche gefundenen Leichen in den Party-Chat gehen.
+     *
+     * Vanguard steht in keiner Stufe: Eine Vanguard-Leiche braucht einen Skeleton Key,
+     * und den hat man selten dabei. Ihre Stelle zu verschenken, waehrend man selbst nicht
+     * heran kann, ist nichts, was man aus Versehen tun sollte.
+     */
+    public enum CorpseShare {
+        OFF("Off"),
+        LAPIS("Lapis only"),
+        ALL("All but Vanguard");
+
+        private final String label;
+
+        CorpseShare(String label) {
+            this.label = label;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
+    }
+
     /** Ab wie vielen Lapis-Leichen die Party benachrichtigt wird */
     public enum CorpseCall {
         OFF("Off"),
@@ -1011,6 +1035,18 @@ public class ModConfig extends Config {
         @ConfigEditorDropdown
         @ConfigAccordionId(id = 42)
         public CorpseCall corpseCall = CorpseCall.OFF;
+
+        @Expose
+        @ConfigOption(name = "Tell about Vanguard", desc = "Tells the party once when this shaft holds a Vanguard corpse, whatever the Lapis count is. Vanguard shafts are the rare ones, and that is the line worth sending.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 42)
+        public boolean vanguardCall = false;
+
+        @Expose
+        @ConfigOption(name = "Share found corpses", desc = "Writes the spot of a corpse you can really see into the party chat, once per corpse - not a possible spot, but one the mod has seen standing there. Vanguard is never shared.")
+        @ConfigEditorDropdown
+        @ConfigAccordionId(id = 42)
+        public CorpseShare corpseShare = CorpseShare.OFF;
 
         /**
          * Erfuellt der Schacht, in dem man steht, seine Regel?
