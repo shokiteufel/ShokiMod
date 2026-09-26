@@ -112,6 +112,26 @@ public class WorldTextRenderer {
             renderGizmoLabel(text, pos, colour);
         }
 
+        // Was die Party gemeldet hat, in der Farbe seiner Sorte
+        for (var entry : com.shokiteufel.shokimod.scanner.CorpseFinder.reported().entrySet()) {
+            BlockPos pos = entry.getKey();
+            if (eye.distanceToSqr(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5) > rangeSquared) {
+                continue;
+            }
+            // Sieht man sie selbst, gilt der eigene Marker
+            if (standsThere(real, pos)) continue;
+
+            int colour = cfg.corpseKindColour ? corpseColour(entry.getValue(), argb) : argb;
+            if (cfg.corpseBox) {
+                GizmoProperties box = Gizmos.cuboid(pos, GizmoStyle.stroke(colour, MARKER_LINE_WIDTH));
+                box.setAlwaysOnTop();
+            }
+            renderGizmoLabel(entry.getValue() + " (party)", pos, colour);
+        }
+
+        // Sind alle bekannt, tragen die restlichen Stellen keine mehr
+        if (cfg.corpseHideWhenDone && com.shokiteufel.shokimod.scanner.CorpseFinder.allFound()) return;
+
         for (BlockPos pos : com.shokiteufel.shokimod.scanner.MineshaftState.corpses()) {
             if (eye.distanceToSqr(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5) > rangeSquared) {
                 continue;
