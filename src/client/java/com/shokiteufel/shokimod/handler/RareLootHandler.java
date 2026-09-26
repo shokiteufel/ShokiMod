@@ -173,6 +173,18 @@ public final class RareLootHandler {
         }
     }
 
+    /** Der eigene Preis einer Ware, wenn einer eingetragen ist */
+    private static Value ownPrice(List<String> candidates, int amount) {
+        for (int i = 0; i < candidates.size(); i++) {
+            String itemId = candidates.get(i);
+            if (itemId == null) continue;
+
+            double own = com.shokiteufel.shokimod.handler.ProfitTracker.customPrice(itemId);
+            if (own > 0) return new Value(own * Math.max(1, amount), itemId, ItemValue.Source.CUSTOM);
+        }
+        return null;
+    }
+
     /** Der Name, wie ihn Hypixels Liste schreibt - sonst aus der Kennung gebildet */
     private static String readableName(String itemId) {
         String name = ItemNames.displayName(itemId);
@@ -313,7 +325,13 @@ public final class RareLootHandler {
     private static void evaluate(Drop drop, String clean, long now, boolean dye, boolean fromInventory) {
         RareLootCategory cfg = cfg();
         List<String> candidates = candidatesFor(drop);
-        Value value = ItemValue.resolve(candidates, drop.amount(), cfg.shardPriceMode, cfg.bazaarPriceMode);
+        // Ein selbst eingetragener Preis geht vor. Er steht in der Liste unter
+        // /shoki profit, und wer ihn dort setzt, sagt damit, was die Ware ihm wert ist -
+        // dann soll der Alarm nicht den Markt fragen und zu einer anderen Zahl kommen
+        Value value = ownPrice(candidates, drop.amount());
+        if (value == null) {
+            value = ItemValue.resolve(candidates, drop.amount(), cfg.shardPriceMode, cfg.bazaarPriceMode);
+        }
         boolean lootshare = lastLootShareAt > 0L && now - lastLootShareAt <= LOOTSHARE_WINDOW_MILLIS;
 
         note("drop \"" + clean + "\" -> name=" + drop.displayName() + " x" + drop.amount()

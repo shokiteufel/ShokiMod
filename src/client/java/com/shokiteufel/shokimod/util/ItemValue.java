@@ -170,7 +170,9 @@ public final class ItemValue {
         BAZAAR_INSTANT_SELL,
         BAZAAR_SELL_ORDER,
         LOWEST_BIN,
-        NPC_SELL
+        NPC_SELL,
+        /** Der Preis, den der Spieler selbst eingetragen hat - er geht allen anderen vor */
+        CUSTOM
     }
 
     /** Einmal aufgeloeste Shard-Kennungen, damit der Abgleich nicht bei jedem Fang laeuft */
