@@ -38,13 +38,19 @@ public final class SpawnRoutes {
     private static final String FOLDER = "routes";
 
     /**
-     * Eine Runde: Name, Gebiet, Farbe und ihre Punkte in Reihenfolge.
+     * Eine Runde: Name, Gebiete, Farbe und ihre Punkte in Reihenfolge.
      *
-     * Das Gebiet steht so da, wie es in der Seitenleiste steht - "Glacite Tunnels".
-     * Leer heisst "ueberall, wo ich in der Naehe bin"; das ist die Notloesung fuer
-     * Dateien, die ohne Gebiet geschrieben wurden.
+     * Die Gebiete stehen so da, wie die Seitenleiste sie nennt - "Glacite Tunnels",
+     * "Dwarven Base Camp". Mehrere, weil eine Runde ueber eine Zonengrenze laufen
+     * kann: Die Spawn-Runde faengt im Basislager an und geht in die Tunnels.
+     *
+     * Absichtlich die Zone und nicht die Insel: "Dwarven Mines" steht in beiden Zeilen
+     * und wuerde die Runde ueber die ganze Insel zeigen.
+     *
+     * Leer heisst "ueberall, wo ich in der Naehe bin" - die Notloesung fuer Dateien,
+     * die ohne Gebiet geschrieben wurden.
      */
-    public record Route(String name, String area, int argb, List<BlockPos> points) {
+    public record Route(String name, List<String> areas, int argb, List<BlockPos> points) {
     }
 
     private static List<Route> routes = null;
@@ -103,7 +109,7 @@ public final class SpawnRoutes {
     static Route parse(String fallbackName, JsonElement json) {
         JsonArray list;
         String name = fallbackName;
-        String area = "";
+        List<String> areas = new ArrayList<>();
         int argb = 0xFF55FF55;
 
         if (json.isJsonArray()) {
@@ -114,7 +120,13 @@ public final class SpawnRoutes {
             if (points == null || !points.isJsonArray()) return null;
             list = points.getAsJsonArray();
             if (object.has("name")) name = object.get("name").getAsString();
-            if (object.has("area")) area = object.get("area").getAsString();
+            // Beide Schreibweisen: ein Gebiet als Text, oder mehrere als Liste
+            if (object.has("area")) areas.add(object.get("area").getAsString());
+            if (object.has("areas") && object.get("areas").isJsonArray()) {
+                for (JsonElement gebiet : object.getAsJsonArray("areas")) {
+                    areas.add(gebiet.getAsString());
+                }
+            }
         } else {
             return null;
         }
@@ -137,6 +149,6 @@ public final class SpawnRoutes {
                 farbeGelesen = true;
             }
         }
-        return points.isEmpty() ? null : new Route(name, area, argb, List.copyOf(points));
+        return points.isEmpty() ? null : new Route(name, List.copyOf(areas), argb, List.copyOf(points));
     }
 }
