@@ -511,7 +511,7 @@ public class HudEditorScreen extends Screen {
         }
 
         void sync() {
-            this.value = (selectedPanel.alpha() - 0.1) / 0.9;
+            this.value = selectedPanel.alpha();
             updateMessage();
         }
 
@@ -523,7 +523,8 @@ public class HudEditorScreen extends Screen {
 
         @Override
         protected void applyValue() {
-            selectedPanel.setAlpha((float) (0.1 + value * 0.9));
+            // Bis ganz nach unten: Null heisst kein Untergrund, die Schrift steht weiter
+            selectedPanel.setAlpha((float) value);
             updateMessage();
         }
     }

@@ -97,7 +97,9 @@ Voraussetzungen: Fabric Loader 0.19.3+ und Fabric API.
 - Zeigt die moeglichen Leichen-Stellen des Bauplans, in dem man steht. Den Bauplan nennt
   die Seitenleiste, die Stellen kommen aus dem Repo von Meowdding.
 - Erkennt die Leichen, die wirklich dastehen, an ihrem Helm — mit Sorte und in ihrer
-  Farbe: Lapis blau, Umber gold, Tungsten grau, Vanguard weiss.
+  Farbe: Lapis blau, Umber gold, Tungsten grau, Vanguard weiss. Erkannt wird nur, was man
+  auch selbst sehen koennte: in Reichweite und mit freier Sicht, nicht durch eine Wand.
+  Glas und Edelstein-Adern nehmen die Sicht nicht.
 - Merkt sich selbst gefundene Stellen je Bauplan und Ausfuehrung. Die geteilte Liste kennt
   fuenf Bauplaene nur in ihrer ersten Ausfuehrung und den Little-Schacht gar nicht — was
   man selbst findet, steht beim naechsten Besuch da. Export als JSON zum Einreichen.
