@@ -319,34 +319,39 @@ public final class ModUpdater {
      *
      * Gewartet wird, weil das Spiel beim Start des Skripts noch laeuft; sechzig Versuche
      * im Sekundentakt sind mehr als genug und enden trotzdem, statt ewig zu kreisen.
-     * Die letzte Zeile loescht das Skript selbst - sonst liegt beim naechsten Start Muell
-     * im mods-Ordner.
+     *
+     * Am Ende steht "exit" und kein Selbstloeschen: Der uebliche Trick dafuer verlaesst
+     * zwar die Datei, laesst aber die Eingabeaufforderung offen stehen - ein schwarzes
+     * Fenster, das jemand wegklicken muss. So schliesst sich das Fenster von selbst, und
+     * das Skript raeumt die Mod beim naechsten Start weg.
      */
     private static String windowsScript(Path running, Path pending, Path ziel, Path nameFile) {
-        return "@echo off\r\n"
-                + "for /L %%i in (1,1,60) do (\r\n"
-                + "  if exist \"" + running + "\" (\r\n"
-                + "    del /f /q \"" + running + "\" >nul 2>&1\r\n"
-                + "    ping -n 2 127.0.0.1 >nul\r\n"
-                + "  ) else ( goto weiter )\r\n"
-                + ")\r\n"
-                + ":weiter\r\n"
-                + "if exist \"" + running + "\" exit /b 1\r\n"
-                + "move /y \"" + pending + "\" \"" + ziel + "\" >nul\r\n"
-                + "del /f /q \"" + nameFile + "\" >nul 2>&1\r\n"
-                + "(goto) 2>nul & del \"%~f0\"\r\n";
+        String zeilenende = "\r\n";
+        return "@echo off" + zeilenende
+                + "for /L %%i in (1,1,60) do (" + zeilenende
+                + "  if exist \"" + running + "\" (" + zeilenende
+                + "    del /f /q \"" + running + "\" >nul 2>&1" + zeilenende
+                + "    ping -n 2 127.0.0.1 >nul" + zeilenende
+                + "  ) else ( goto weiter )" + zeilenende
+                + ")" + zeilenende
+                + ":weiter" + zeilenende
+                + "if exist \"" + running + "\" exit /b 1" + zeilenende
+                + "move /y \"" + pending + "\" \"" + ziel + "\" >nul" + zeilenende
+                + "del /f /q \"" + nameFile + "\" >nul 2>&1" + zeilenende
+                + "exit" + zeilenende;
     }
 
     private static String shellScript(Path running, Path pending, Path ziel, Path nameFile) {
-        return "#!/bin/sh\n"
-                + "for i in $(seq 1 60); do\n"
-                + "  rm -f '" + running + "' 2>/dev/null\n"
-                + "  [ -f '" + running + "' ] || break\n"
-                + "  sleep 1\n"
-                + "done\n"
-                + "[ -f '" + running + "' ] && exit 1\n"
-                + "mv -f '" + pending + "' '" + ziel + "'\n"
-                + "rm -f '" + nameFile + "' \"$0\"\n";
+        String n = "\n";
+        return "#!/bin/sh" + n
+                + "for i in $(seq 1 60); do" + n
+                + "  rm -f '" + running + "' 2>/dev/null" + n
+                + "  [ -f '" + running + "' ] || break" + n
+                + "  sleep 1" + n
+                + "done" + n
+                + "[ -f '" + running + "' ] && exit 1" + n
+                + "mv -f '" + pending + "' '" + ziel + "'" + n
+                + "rm -f '" + nameFile + "'" + n;
     }
 
     /** Die Jar, aus der diese Mod laeuft - oder null, wenn sie nicht im mods-Ordner liegt */
@@ -359,6 +364,28 @@ public final class ModUpdater {
             return jars.size() == 1 ? jars.get(0) : null;
         } catch (IOException e) {
             return null;
+        }
+    }
+
+    /**
+     * Ein liegengebliebenes Helfer-Skript wegraeumen.
+     *
+     * Es loescht sich nicht selbst - der uebliche Trick dafuer laesst die
+     * Eingabeaufforderung offen stehen. Also endet es sauber, und die Mod raeumt beim
+     * naechsten Start auf; bis dahin stoert eine .cmd im mods-Ordner niemanden.
+     */
+    public static void cleanupHelper() {
+        Path mods = FabricLoader.getInstance().getGameDir().resolve("mods");
+        for (String endung : new String[]{".cmd", ".sh"}) {
+            Path script = mods.resolve(HELPER + endung);
+            try {
+                if (Files.deleteIfExists(script)) {
+                    ShokiMod.LOGGER.info("[Update] helper script {} cleaned up", script.getFileName());
+                }
+            } catch (IOException e) {
+                ShokiMod.LOGGER.warn("[Update] helper script {} could not be removed: {}",
+                        script.getFileName(), e.toString());
+            }
         }
     }
 
