@@ -31,6 +31,31 @@ public class WorldTextRenderer {
         renderNests();
         renderMineshaftCorpses(client);
         renderGemstoneVeins(client);
+        renderSpawnRoute(client);
+    }
+
+    /**
+     * Der naechste Punkt der Spawn-Runde.
+     *
+     * Dieselbe Sprache wie bei den Adern - Linie vom Fadenkreuz, Block als Umriss -,
+     * damit man nicht zwei Zeichensysteme im Kopf behalten muss. Die Nummer daneben
+     * sagt, wo in der Runde man steht.
+     */
+    private static void renderSpawnRoute(Minecraft client) {
+        BlockPos ziel = com.shokiteufel.shokimod.scanner.RouteGuide.target();
+        if (ziel == null) return;
+
+        int argb = com.shokiteufel.shokimod.scanner.RouteGuide.colour();
+        float staerke = Math.max(1, ModConfig.INSTANCE.mining.mineshaft.veinLineWidth);
+
+        GizmoProperties box = Gizmos.cuboid(ziel, GizmoStyle.stroke(argb, staerke));
+        box.setAlwaysOnTop();
+
+        Vec3 mitte = new Vec3(ziel.getX() + 0.5, ziel.getY() + 0.5, ziel.getZ() + 0.5);
+        GizmoProperties line = Gizmos.line(crosshair(), mitte, argb, staerke);
+        line.setAlwaysOnTop();
+
+        renderGizmoLabel(com.shokiteufel.shokimod.scanner.RouteGuide.progress(), ziel, argb);
     }
 
     /**
