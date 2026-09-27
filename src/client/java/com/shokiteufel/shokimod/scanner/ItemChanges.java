@@ -777,6 +777,19 @@ public final class ItemChanges {
         return ModConfig.INSTANCE.profit.debugLogging;
     }
 
+    /**
+     * Ein Fund, den der Inventar-Vergleich nie sehen kann.
+     *
+     * Essence liegt im Profil, nicht im Inventar; sie kommt aus der Tab-Liste. Damit
+     * Kasten, Schacht-Bilanz und Alarm trotzdem davon erfahren, geht sie denselben Weg
+     * wie alles andere - ein zweiter Melde-Weg waere ein zweiter Ort, an dem man
+     * suchen muss, wenn etwas fehlt.
+     */
+    public static void report(Map<String, Integer> gains, String source) {
+        if (gains == null || gains.isEmpty()) return;
+        dispatch(gains, source);
+    }
+
     private static void dispatch(Map<String, Integer> gains, String source) {
         lastSource = source;
         if (debug()) ShokiMod.LOGGER.info("[Profit] +{} via {}", gains, source);

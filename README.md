@@ -83,7 +83,8 @@ Voraussetzungen: Fabric Loader 0.19.3+ und Fabric API.
   verkauft, in eine Order gelegt, dem NPC gegeben oder mit einem eigenen Preis gerechnet
   wird (`/shoki profit`). Zahlen bei offenem Inventar per `[-]` und `[+]` von Hand
   richtigstellen. Zeit und Profit/h einzeln abschaltbar, die Uhr laeuft auf Wunsch durch.
-  Wegwerfen und wieder aufheben zaehlt nicht mit.
+  Wegwerfen und wieder aufheben zaehlt nicht mit. Essence zaehlt ebenfalls mit — sie
+  liegt nicht im Inventar, sondern wird aus dem Essence-Widget der Tab-Liste gelesen.
 - Contest, Mobs in der Naehe.
 - Alle Kaesten frei verschiebbar im HUD-Editor (`/shoki hud`).
 </details>

@@ -24,6 +24,8 @@ public class NetworkHandler {
             SessionManager.onWorldChange();
             RareLootHandler.reset();
             com.shokiteufel.shokimod.scanner.ItemChanges.reset();
+            // Der erste Essence-Stand im neuen Profil ist der Anfang, kein Fund
+            com.shokiteufel.shokimod.scanner.EssenceState.reset();
             PestReminder.reset();
             HotspotTracker.reset();
             com.shokiteufel.shokimod.scanner.PetState.reset();
