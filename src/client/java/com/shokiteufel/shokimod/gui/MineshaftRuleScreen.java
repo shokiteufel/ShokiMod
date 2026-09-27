@@ -115,8 +115,7 @@ public class MineshaftRuleScreen extends Screen {
             addRenderableWidget(Button.builder(countLabel(shaft), button -> {
                 MineshaftRule rule = rule(shaft);
                 // Zaehlen Umber und Tungsten mit, sind mehr als vier Leichen moeglich
-                int hoechstens = rule.withUmber || rule.withTungsten ? MAX_MIN_WITH_KINDS : MAX_MIN;
-                rule.min = rule.min >= hoechstens ? 0 : rule.min + 1;
+                rule.min = nextStep(rule.min, rule.withUmber || rule.withTungsten);
                 ModConfig.INSTANCE.saveNow();
                 button.setMessage(countLabel(shaft));
             }).bounds(x, y, COUNT_WIDTH, 20).build());
@@ -169,8 +168,22 @@ public class MineshaftRuleScreen extends Screen {
      */
     private static Component countLabel(String shaft) {
         int min = rule(shaft).min;
+        if (min == MineshaftRule.NEVER) {
+            return Component.literal("Don't show").withStyle(ChatFormatting.RED);
+        }
         return Component.literal(min <= 0 ? "Corpses: off" : "Corpses: " + min)
                 .withStyle(min <= 0 ? ChatFormatting.GRAY : ChatFormatting.GREEN);
+    }
+
+    /**
+     * Die naechste Stufe des Knopfes: aus, eins, zwei ... und hinter der hoechsten Zahl
+     * "gar nicht". Danach faengt es wieder bei aus an.
+     */
+    static int nextStep(int min, boolean mitSorten) {
+        int hoechstens = mitSorten ? MAX_MIN_WITH_KINDS : MAX_MIN;
+        if (min == MineshaftRule.NEVER) return 0;
+        if (min >= hoechstens) return MineshaftRule.NEVER;
+        return min + 1;
     }
 
     /** "+ Umber" gruen, wenn es mitzaehlt, sonst dunkel */

@@ -317,7 +317,7 @@ public final class MiningState {
     }
 
     public static List<Corpse> corpses() {
-        ModConfig.CorpseFilter filter = ModConfig.INSTANCE.mining.mineshaft.corpses;
+        ModConfig.CorpseFilter filter = ModConfig.INSTANCE.mining.hud.corpses;
         if (filter == ModConfig.CorpseFilter.OFF) return List.of();
         List<Corpse> out = new ArrayList<>(corpses.size());
         for (Corpse c : corpses) {

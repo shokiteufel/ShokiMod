@@ -22,9 +22,18 @@ import java.util.List;
  */
 public class MineshaftRule {
 
-    /** Ab wie vielen Leichen die Stellen erscheinen. 0 heisst: immer */
+    /**
+     * Ab wie vielen Leichen die Marker erscheinen.
+     *
+     * Null heisst immer, minus eins heisst nie: Es gibt Bauplaene, in denen man gar
+     * nicht ausminen will, und "nie" ist etwas anderes als "ab einer sehr hohen Zahl" -
+     * das waere geraten und ginge bei einem vollen Schacht doch wieder an.
+     */
     @Expose
     public int min = 0;
+
+    /** Dieser Wert in {@link #min} heisst: in diesem Bauplan nie */
+    public static final int NEVER = -1;
 
     /** Zaehlen Umber-Leichen mit? */
     @Expose
@@ -61,7 +70,12 @@ public class MineshaftRule {
 
     /** Steht ueberhaupt eine Bedingung drin? Eine leere Regel laesst alles durch */
     public boolean empty() {
-        return min <= 0;
+        return min == 0;
+    }
+
+    /** Soll dieser Bauplan gar nichts zeigen? */
+    public boolean never() {
+        return min == NEVER;
     }
 
     /**
@@ -90,6 +104,7 @@ public class MineshaftRule {
      * Frage ist, ob er sich lohnt, nicht wie weit man schon ist.
      */
     public boolean matches(List<MiningState.Corpse> corpses) {
+        if (never()) return false;
         if (empty()) return true;
 
         int sum = count(corpses, "Lapis");
@@ -115,6 +130,7 @@ public class MineshaftRule {
      * genuegen.
      */
     public String describe() {
+        if (never()) return "nothing here";
         if (empty()) return "any";
         StringBuilder sorten = new StringBuilder("Lapis");
         if (withUmber) sorten.append(" + Umber");

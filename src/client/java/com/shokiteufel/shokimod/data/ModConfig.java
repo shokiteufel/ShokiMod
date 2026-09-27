@@ -169,10 +169,11 @@ public class ModConfig extends Config {
 
         // Die beiden Leichen-Einstellungen standen bis 1.7.5 im Mining-HUD. Sie gehoeren
         // zum Mineshaft und stehen jetzt dort; wer sie gesetzt hatte, behaelt sie
-        if (INSTANCE.mining.hud.corpses != CorpseFilter.OFF
-                && INSTANCE.mining.mineshaft.corpses == CorpseFilter.OFF) {
-            INSTANCE.mining.mineshaft.corpses = INSTANCE.mining.hud.corpses;
-            INSTANCE.mining.hud.corpses = CorpseFilter.OFF;
+        // Seit 1.8.20 steht die Wahl wieder im Kasten, wo sie auch zu sehen ist
+        if (INSTANCE.mining.mineshaft.corpses != CorpseFilter.OFF
+                && INSTANCE.mining.hud.corpses == CorpseFilter.OFF) {
+            INSTANCE.mining.hud.corpses = INSTANCE.mining.mineshaft.corpses;
+            INSTANCE.mining.mineshaft.corpses = CorpseFilter.OFF;
         }
         if (INSTANCE.mining.hud.corpseCall != CorpseCall.OFF
                 && INSTANCE.mining.mineshaft.corpseCall == CorpseCall.OFF) {
@@ -987,10 +988,14 @@ public class ModConfig extends Config {
         @ConfigEditorAccordion(id = 42)
         public transient boolean panelFolder = false;
 
+        /**
+         * Bis 1.8.19 stand die Wahl hier.
+         *
+         * Sie gehoert zum Kasten, nicht zum Schacht: Angezeigt wird sie im Mining-Kasten,
+         * und dort sucht man sie auch. Das Feld bleibt nur, um die Einstellung einmal
+         * zurueckzugeben.
+         */
         @Expose
-        @ConfigOption(name = "Frozen corpses", desc = "The frozen corpses of the mineshaft you are in, and how many of each are still unlooted. Shown in the mining panel. Vanguard is never listed.")
-        @ConfigEditorDropdown
-        @ConfigAccordionId(id = 42)
         public CorpseFilter corpses = CorpseFilter.OFF;
 
         @Expose
@@ -1025,6 +1030,10 @@ public class ModConfig extends Config {
             if (type == null) return true;
             MineshaftRule rule = shaftRules.get(type);
             if (rule == null || rule.empty()) return true;
+            // "Gar nicht" gilt ohne Wenn und Aber - auch ohne Leichen-Zeilen in der
+            // Tab-Liste. Die Sicherung "lieber zeigen als verschweigen" gilt der Frage
+            // "reicht die Zahl", nicht einer Wahl, die schon getroffen ist
+            if (rule.never()) return false;
 
             java.util.List<com.shokiteufel.shokimod.scanner.MiningState.Corpse> corpses =
                     com.shokiteufel.shokimod.scanner.MiningState.allCorpses();
@@ -1073,13 +1082,9 @@ public class ModConfig extends Config {
         @ConfigEditorBoolean
         public boolean showSkyMall = true;
 
-        /**
-         * Bis 1.7.5 stand die Wahl hier.
-         *
-         * Sie gehoert zum Mineshaft, nicht zum Kasten - dort steht sie jetzt. Das Feld
-         * bleibt nur, um die alte Einstellung einmal zu uebernehmen.
-         */
         @Expose
+        @ConfigOption(name = "Frozen corpses", desc = "The frozen corpses of the mineshaft you are in, and how many of each are still unlooted. Vanguard is never listed.")
+        @ConfigEditorDropdown
         public CorpseFilter corpses = CorpseFilter.OFF;
 
         @Expose

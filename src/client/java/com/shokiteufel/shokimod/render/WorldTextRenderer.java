@@ -22,6 +22,8 @@ public class WorldTextRenderer {
     private static final float MARKER_LINE_WIDTH = 2.0F;
     /** Wie weit eine Leichen-Stelle noch angeschrieben wird, in Bloecken. Fest */
     private static final double CORPSE_RANGE = 80.0;
+    /** Die Farbe des uebernaechsten Punktes einer Runde */
+    private static final int ROUTE_NEXT = 0xFFFF5555;
 
     public static void render(Minecraft client) {
         if (client.player == null) return;
@@ -56,6 +58,14 @@ public class WorldTextRenderer {
         line.setAlwaysOnTop();
 
         renderGizmoLabel(com.shokiteufel.shokimod.scanner.RouteGuide.progress(), ziel, argb);
+
+        // Der uebernaechste Punkt in Rot: Er sagt die Richtung, bevor man am naechsten
+        // ankommt - ohne Linie, sonst zeigen zwei Striche gleichzeitig irgendwohin
+        BlockPos danach = com.shokiteufel.shokimod.scanner.RouteGuide.following();
+        if (danach != null && !danach.equals(ziel)) {
+            GizmoProperties naechste = Gizmos.cuboid(danach, GizmoStyle.stroke(ROUTE_NEXT, staerke));
+            naechste.setAlwaysOnTop();
+        }
     }
 
     /**
