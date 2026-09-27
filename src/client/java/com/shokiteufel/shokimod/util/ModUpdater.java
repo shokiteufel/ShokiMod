@@ -44,6 +44,8 @@ public final class ModUpdater {
     /** Die heruntergeladene Datei, bis sie beim Beenden eingesetzt wird */
     private static final String PENDING = "shokimod-update.jar.part";
     private static final Duration TIMEOUT = Duration.ofSeconds(20);
+    /** Kleiner als das ist keine Mod, sondern eine Fehlerseite */
+    private static final long MIN_SIZE = 100_000;
 
     private static volatile boolean running = false;
 
@@ -143,7 +145,13 @@ public final class ModUpdater {
         try {
             String current = current();
             String branch = branch(current);
-            HttpClient client = HttpClient.newBuilder().connectTimeout(TIMEOUT).build();
+            // Weiterleitungen muessen mit: Die Adresse aus der Release-Liste antwortet mit
+            // 302 und schickt auf einen Speicher-Server weiter. Ohne dieses Wort holt der
+            // Client die Weiterleitung selbst und meldet 302 als Fehlschlag
+            HttpClient client = HttpClient.newBuilder()
+                    .connectTimeout(TIMEOUT)
+                    .followRedirects(HttpClient.Redirect.NORMAL)
+                    .build();
 
             HttpRequest request = HttpRequest.newBuilder(URI.create(RELEASES))
                     .header("Accept", "application/vnd.github+json")
@@ -188,8 +196,13 @@ public final class ModUpdater {
                     HttpResponse.BodyHandlers.ofFile(pending, java.nio.file.StandardOpenOption.CREATE,
                             java.nio.file.StandardOpenOption.TRUNCATE_EXISTING,
                             java.nio.file.StandardOpenOption.WRITE));
-            if (download.statusCode() != 200 || !Files.isRegularFile(pending) || Files.size(pending) < 10_000) {
-                say("Download failed - nothing was changed.", ChatFormatting.RED);
+            long groesse = Files.isRegularFile(pending) ? Files.size(pending) : 0;
+            if (download.statusCode() != 200 || groesse < MIN_SIZE) {
+                // Die Zahlen gehoeren in die Meldung: "ging nicht" sagt niemandem, warum
+                ShokiMod.LOGGER.warn("[Update] download failed: status {}, {} bytes from {}",
+                        download.statusCode(), groesse, newest.url());
+                say("Download failed (status " + download.statusCode() + ", " + groesse
+                        + " bytes) - nothing was changed.", ChatFormatting.RED);
                 Files.deleteIfExists(pending);
                 return;
             }
