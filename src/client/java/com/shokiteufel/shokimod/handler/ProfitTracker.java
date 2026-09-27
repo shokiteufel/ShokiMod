@@ -287,7 +287,7 @@ public final class ProfitTracker {
             double own = customPrice(itemId);
             if (own > 0) return own;
         }
-        return ItemValue.unitPrice(SkyBlockItems.priceCandidates(itemId), modeOf(itemId));
+        return ItemValue.trackedUnitPrice(itemId, modeOf(itemId));
     }
 
     /** Alle sichtbaren Zeilen, wertvollste zuerst */

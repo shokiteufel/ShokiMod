@@ -114,6 +114,10 @@ die Spielversion beim Start — die falsche Datei laedt der Loader gar nicht ers
   aus der Meldung einen Marker in der Farbe der Sorte.
 - Sagt im Chat, warum nichts angezeigt wird — unbekannter Bauplan oder Regel nicht
   erfuellt — statt stumm zu bleiben.
+- Beim Verlassen eine Chatzeile, was der Schacht an Coins gebracht hat, zur Verkaufsorder
+  gerechnet. Rough und Flawed werden dabei aus dem Fine-Preis hergeleitet (/6400 bzw.
+  /80), weil ihr eigener Basar-Kurs zu duenn gehandelt ist — dasselbe gilt im
+  Profit-Tracker.
 </details>
 
 <details>

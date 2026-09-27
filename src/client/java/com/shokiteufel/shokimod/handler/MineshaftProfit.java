@@ -83,7 +83,7 @@ public final class MineshaftProfit {
     static double worth() {
         double sum = 0.0;
         for (Map.Entry<String, Integer> entry : gains.entrySet()) {
-            double unit = ItemValue.unitPrice(SkyBlockItems.priceCandidates(entry.getKey()), SellMode.SELL_ORDER);
+            double unit = ItemValue.trackedUnitPrice(entry.getKey(), SellMode.SELL_ORDER);
             if (unit > 0) sum += unit * entry.getValue();
         }
         return sum;

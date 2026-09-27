@@ -26,6 +26,14 @@ import java.util.Map;
  */
 public final class ItemValue {
 
+    /** "ROUGH_RUBY_GEM", "FLAWED_JADE_GEM" - die beiden Stufen, deren Kurs nichts hergibt */
+    private static final java.util.regex.Pattern LOW_GEM =
+            java.util.regex.Pattern.compile("^(ROUGH|FLAWED)_([A-Z]+)_GEM$");
+    /** So viele Flawed sind ein Fine */
+    private static final double FLAWED_PER_FINE = 80.0;
+    /** Und so viele Rough - achtzig mal achtzig */
+    private static final double ROUGH_PER_FINE = 80.0 * 80.0;
+
     /** Welcher Basarpreis zaehlt */
     public enum PriceMode {
         INSTANT_SELL("Instant Sell"),
@@ -131,6 +139,36 @@ public final class ItemValue {
      * und wo der Basar gar nichts fuehrt, das Auktionshaus oder den Haendler. Ein
      * Fund ohne jeden Preis bleibt ohne Wert - das ist etwas anderes als null Coins.
      */
+    /**
+     * Der Preis je Stueck fuer die Zaehler - bei den beiden untersten Edelstein-Stufen
+     * aus dem Fine-Preis gerechnet.
+     *
+     * Rough und Flawed sind auf dem Basar zu duenn gehandelt, um einen ehrlichen Kurs zu
+     * haben: Ein einzelnes Angebot verschiebt sie, und das passiert dort staendig. Beim
+     * Rough Sapphire standen 19,7 Coins im Sofortkauf, obwohl aus dem Fine-Preis 4,4
+     * folgen; beim Rough Ruby ging es in die andere Richtung, 0,5 statt 3,4. Fine wird
+     * dagegen in Mengen gehandelt, also kommt die Zahl von dort: 80 Flawed sind ein
+     * Fine, 6.400 Rough sind eines.
+     *
+     * Gilt fuer den Geld-Zaehler und die Schacht-Bilanz. Wer selbst einen Preis
+     * eingetragen hat, behaelt ihn - der geht allem vor.
+     */
+    public static double trackedUnitPrice(String itemId, SellMode mode) {
+        double ausFine = gemFromFine(itemId, mode);
+        return ausFine > 0 ? ausFine : unitPrice(SkyBlockItems.priceCandidates(itemId), mode);
+    }
+
+    /** Rough und Flawed aus dem Fine-Preis, oder -1 wenn das keine solche Kennung ist */
+    static double gemFromFine(String itemId, SellMode mode) {
+        if (itemId == null) return -1;
+        java.util.regex.Matcher m = LOW_GEM.matcher(itemId);
+        if (!m.matches()) return -1;
+
+        double teiler = "ROUGH".equals(m.group(1)) ? ROUGH_PER_FINE : FLAWED_PER_FINE;
+        double fine = unitPrice(SkyBlockItems.priceCandidates("FINE_" + m.group(2) + "_GEM"), mode);
+        return fine > 0 ? fine / teiler : -1;
+    }
+
     public static double unitPrice(List<String> candidates, SellMode mode) {
         if (candidates == null || candidates.isEmpty()) return -1;
         SellMode chosen = mode == null ? SellMode.INSTANT_SELL : mode;
