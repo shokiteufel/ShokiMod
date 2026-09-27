@@ -35,8 +35,13 @@ public final class RouteGuide {
     private static final int REACHED_BLOCKS = 2;
     /** So weit darf die naechste Runde entfernt sein, damit sie ueberhaupt gilt */
     private static final double ROUTE_NEAR = 300.0;
-    /** Viermal je Sekunde reicht - Punkte laufen nicht weg */
-    private static final int INTERVAL_TICKS = 5;
+    /**
+     * Zehnmal je Sekunde.
+     *
+     * Der Punkt selbst laeuft nicht weg, aber man laeuft an ihm vorbei: Je seltener
+     * gesehen wird, desto spaeter springt die Linie weiter, obwohl man schon dort ist.
+     */
+    private static final int INTERVAL_TICKS = 2;
 
     private static SpawnRoutes.Route route = null;
     private static int index = 0;

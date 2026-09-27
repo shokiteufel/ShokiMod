@@ -72,8 +72,13 @@ public final class CorpseFinder {
      * man nur vorbeigelaufen ist, ohne sie gesehen zu haben.
      */
     private static final double VISIT_REACH = 3.0;
-    /** Zehnmal je Sekunde gepruegt - haeufiger merkt niemand, seltener verpasst den Vorbeilauf */
-    private static final int VISIT_INTERVAL_TICKS = 2;
+    /**
+     * Jeden Tick.
+     *
+     * Wer an einer Stelle vorbeirennt, ist in einem Zehntel wieder weg - und dann bleibt
+     * der Marker stehen, obwohl man dort war. Ein paar Abstaende je Tick kosten nichts.
+     */
+    private static final int VISIT_INTERVAL_TICKS = 1;
     private static int visitTicks = 0;
 
     private static List<BlockPos> spotCache = null;
