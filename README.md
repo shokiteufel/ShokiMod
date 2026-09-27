@@ -158,6 +158,7 @@ die Spielversion beim Start — die falsche Datei laedt der Loader gar nicht ers
 | `/shoki profit` | Liste des Profit-Trackers: welche Funde zaehlen und wie sie verkauft werden |
 | `/shoki pet` | Pet-HUD bauen |
 | `/shoki hub` | Zurueck in den Hub |
+| `/shoki update` | Neueste Fassung von GitHub holen; eingesetzt wird sie beim Beenden des Spiels |
 
 ## Ist das sicher?
 
