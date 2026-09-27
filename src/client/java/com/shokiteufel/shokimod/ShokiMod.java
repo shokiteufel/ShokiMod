@@ -132,6 +132,9 @@ public class ShokiMod implements ClientModInitializer {
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
             ModConfig.INSTANCE.saveNow();
             LOGGER.info("ShokiMod config saved successfully on exit.");
+            // Liegt eine geholte Fassung bereit, kommt sie jetzt an ihren Platz - nach
+            // dem Speichern, damit ein Fehler dabei die Config nicht mitnimmt
+            com.shokiteufel.shokimod.util.ModUpdater.swapOnExit();
         });
 
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, buildContext) ->
@@ -185,6 +188,13 @@ public class ShokiMod implements ClientModInitializer {
                         // was davon im Kasten steht und wie es zu Geld gemacht wird
                         .then(ClientCommands.literal("profit").executes(context -> {
                             openProfitItemsNextTick = true;
+                            return 1;
+                        }))
+                        // /shoki update -> die neueste Fassung holen. Eingesetzt wird sie
+                        // beim Beenden des Spiels: Solange die laufende Jar im Ordner
+                        // liegt, faende Fabric beim Start zwei Fassungen derselben Mod
+                        .then(ClientCommands.literal("update").executes(context -> {
+                            com.shokiteufel.shokimod.util.ModUpdater.run();
                             return 1;
                         }))
                         // /shoki tab -> die Tab-Liste ins Log schreiben.
