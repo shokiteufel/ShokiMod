@@ -79,6 +79,8 @@ public class ShokiMod implements ClientModInitializer {
         com.shokiteufel.shokimod.scanner.OreVeins.register();
         com.shokiteufel.shokimod.handler.MineshaftProfit.register();
         com.shokiteufel.shokimod.scanner.RouteGuide.register();
+        // Ein Helfer-Skript von einem Update liegt jetzt nicht mehr im Weg
+        com.shokiteufel.shokimod.util.ModUpdater.cleanupHelper();
         HotspotTracker.register();
         CollectionTracker.register();
         NestTracker.register();
