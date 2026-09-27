@@ -44,13 +44,15 @@ public final class OreVeins {
     /** Einmal je Sekunde reicht: Adern wandern nicht */
     private static final int SCAN_INTERVAL_TICKS = 20;
     /**
-     * Das Abhaken laeuft zehnmal je Sekunde, nicht einmal.
+     * Das Abhaken laeuft zweimal je Sekunde, nicht einmal.
      *
      * Gesucht wird weiter nur einmal je Sekunde - das Durchsehen der Bloecke ist die
      * Arbeit. Ob man an einer schon gefundenen Ader steht, sind dagegen ein paar
-     * Abstaende, und die entscheiden, wie schnell der Marker weitergeht.
+     * Abstaende, und die entscheiden, wie schnell der Marker weitergeht. Eine Ader ist
+     * gross und steht still: Zweimal je Sekunde trifft sie, ein Vorbeilaufen wie bei
+     * einer Leichen-Stelle gibt es hier nicht.
      */
-    private static final int REACHED_INTERVAL_TICKS = 2;
+    private static final int REACHED_INTERVAL_TICKS = 10;
     /** Mehr als das zeigt kein Mensch mehr an - und ein Schacht hat nie so viele */
     private static final int MAX_VEINS = 40;
     /**
