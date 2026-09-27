@@ -43,6 +43,8 @@ public final class ModUpdater {
     private static final String RELEASES = "https://api.github.com/repos/shokiteufel/ShokiMod/releases?per_page=30";
     /** Die heruntergeladene Datei, bis sie beim Beenden eingesetzt wird */
     private static final String PENDING = "shokimod-update.jar.part";
+    /** Der Name des Helfer-Skripts, ohne Endung */
+    private static final String HELPER = "shokimod-update-helper";
     private static final Duration TIMEOUT = Duration.ofSeconds(20);
     /** Kleiner als das ist keine Mod, sondern eine Fehlerseite */
     private static final long MIN_SIZE = 100_000;
@@ -235,23 +237,116 @@ public final class ModUpdater {
         Path nameFile = mods.resolve(PENDING + ".name");
         if (!Files.isRegularFile(pending) || !Files.isRegularFile(nameFile)) return;
 
+        String name;
         try {
-            String name = Files.readString(nameFile, StandardCharsets.UTF_8).trim();
-            if (name.isEmpty() || !name.endsWith(".jar")) return;
+            name = Files.readString(nameFile, StandardCharsets.UTF_8).trim();
+        } catch (IOException e) {
+            ShokiMod.LOGGER.warn("[Update] name file not readable: {}", e.toString());
+            return;
+        }
+        if (name.isEmpty() || !name.endsWith(".jar")) return;
 
-            Path running = ownJar(mods);
+        // Eine liegengebliebene Datei darf nichts Neueres ueberschreiben: Wer die neue
+        // Fassung zwischendurch von Hand eingesetzt hat, bekaeme sonst beim Beenden die
+        // alte zurueck
+        String wartet = name.replace("shokimod-", "").replace(".jar", "");
+        if (!newer(wartet, current())) {
+            ShokiMod.LOGGER.info("[Update] {} is not newer than {} - the waiting file is dropped",
+                    wartet, current());
+            try {
+                Files.deleteIfExists(pending);
+                Files.deleteIfExists(nameFile);
+            } catch (IOException e) {
+                ShokiMod.LOGGER.warn("[Update] could not clean up: {}", e.toString());
+            }
+            return;
+        }
+
+        Path running = ownJar(mods);
+        Path ziel = mods.resolve(name);
+
+        // Erster Versuch im Spiel selbst. Auf Linux und macOS reicht das
+        try {
             if (running != null) {
                 Path beiseite = mods.resolve(running.getFileName() + ".old");
                 Files.deleteIfExists(beiseite);
                 Files.move(running, beiseite, StandardCopyOption.ATOMIC_MOVE);
                 ShokiMod.LOGGER.info("[Update] old file moved to {}", beiseite.getFileName());
             }
-            Files.move(pending, mods.resolve(name), StandardCopyOption.REPLACE_EXISTING);
+            Files.move(pending, ziel, StandardCopyOption.REPLACE_EXISTING);
             Files.deleteIfExists(nameFile);
             ShokiMod.LOGGER.info("[Update] {} is in place", name);
+            return;
         } catch (IOException | RuntimeException e) {
-            ShokiMod.LOGGER.warn("[Update] could not put the new file in place: {}", e.toString());
+            ShokiMod.LOGGER.info("[Update] cannot swap while running ({}), handing it to a helper",
+                    e.getClass().getSimpleName());
         }
+
+        // Windows haelt die laufende Jar fest, solange die Java-Maschine lebt: Loeschen
+        // und Umbenennen scheitern beide. Also uebernimmt es ein kleines Skript, das
+        // wartet, bis das Spiel wirklich zu ist, und sich danach selbst wegraeumt
+        if (running == null) {
+            ShokiMod.LOGGER.warn("[Update] own jar not found in {} - nothing was changed", mods);
+            return;
+        }
+        try {
+            handOver(mods, running, pending, ziel, nameFile);
+        } catch (IOException | RuntimeException e) {
+            ShokiMod.LOGGER.warn("[Update] helper could not be started: {}", e.toString());
+        }
+    }
+
+    /** Das Skript schreiben und loslassen - es laeuft weiter, wenn das Spiel schon zu ist */
+    private static void handOver(Path mods, Path running, Path pending, Path ziel, Path nameFile)
+            throws IOException {
+        boolean windows = System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
+        Path script = mods.resolve(windows ? HELPER + ".cmd" : HELPER + ".sh");
+        Files.writeString(script, windows
+                        ? windowsScript(running, pending, ziel, nameFile)
+                        : shellScript(running, pending, ziel, nameFile),
+                StandardCharsets.UTF_8);
+
+        ProcessBuilder builder = windows
+                ? new ProcessBuilder("cmd", "/c", "start", "/min", "", script.toString())
+                : new ProcessBuilder("sh", script.toString());
+        builder.directory(mods.toFile());
+        builder.start();
+        ShokiMod.LOGGER.info("[Update] helper started: {}", script.getFileName());
+    }
+
+    /**
+     * Warten, bis die alte Datei weggeht, dann die neue an ihren Platz.
+     *
+     * Gewartet wird, weil das Spiel beim Start des Skripts noch laeuft; sechzig Versuche
+     * im Sekundentakt sind mehr als genug und enden trotzdem, statt ewig zu kreisen.
+     * Die letzte Zeile loescht das Skript selbst - sonst liegt beim naechsten Start Muell
+     * im mods-Ordner.
+     */
+    private static String windowsScript(Path running, Path pending, Path ziel, Path nameFile) {
+        return "@echo off\r\n"
+                + "for /L %%i in (1,1,60) do (\r\n"
+                + "  if exist \"" + running + "\" (\r\n"
+                + "    del /f /q \"" + running + "\" >nul 2>&1\r\n"
+                + "    ping -n 2 127.0.0.1 >nul\r\n"
+                + "  ) else ( goto weiter )\r\n"
+                + ")\r\n"
+                + ":weiter\r\n"
+                + "if exist \"" + running + "\" exit /b 1\r\n"
+                + "move /y \"" + pending + "\" \"" + ziel + "\" >nul\r\n"
+                + "del /f /q \"" + nameFile + "\" >nul 2>&1\r\n"
+                + "(goto) 2>nul & del \"%~f0\"\r\n";
+    }
+
+    private static String shellScript(Path running, Path pending, Path ziel, Path nameFile) {
+        return "#!/bin/sh\n"
+                + "for i in $(seq 1 60); do\n"
+                + "  rm -f '" + running + "' 2>/dev/null\n"
+                + "  [ -f '" + running + "' ] || break\n"
+                + "  sleep 1\n"
+                + "done\n"
+                + "[ -f '" + running + "' ] && exit 1\n"
+                + "mv -f '" + pending + "' '" + ziel + "'\n"
+                + "rm -f '" + nameFile + "' \"$0\"\n";
     }
 
     /** Die Jar, aus der diese Mod laeuft - oder null, wenn sie nicht im mods-Ordner liegt */
