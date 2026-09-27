@@ -34,6 +34,14 @@ public class MineshaftRule {
 
     /** Dieser Wert in {@link #min} heisst: in diesem Bauplan nie */
     public static final int NEVER = -1;
+    /**
+     * Mehr Leichen als das hat kein Schacht.
+     *
+     * Vier ist die Obergrenze des Spiels, nicht der Mod - und sie gilt fuer alle
+     * Leichen zusammen. Ob Umber und Tungsten mitzaehlen, aendert also nur, was in
+     * die vier hineinzaehlt, nicht wie viele es sein koennen.
+     */
+    public static final int MAX = 4;
 
     /** Zaehlen Umber-Leichen mit? */
     @Expose
@@ -87,6 +95,21 @@ public class MineshaftRule {
      *
      * @return true, wenn etwas uebernommen wurde
      */
+    /**
+     * Eine zu hohe Zahl auf das Moegliche zurueckholen.
+     *
+     * Bis 1.9.5 liess sich mit angehakten Sorten bis acht stellen - eine Zahl, die kein
+     * Schacht je erreicht, also zeigte die Regel nie etwas an. Wer sie stehen hat,
+     * bekommt die hoechste sinnvolle.
+     *
+     * @return true, wenn etwas geaendert wurde
+     */
+    public boolean clamp() {
+        if (min <= MAX) return false;
+        min = MAX;
+        return true;
+    }
+
     public boolean adopt() {
         if (min > 0 || (lapis <= 0 && umber <= 0 && tungsten <= 0 && vanguard <= 0)) return false;
 
