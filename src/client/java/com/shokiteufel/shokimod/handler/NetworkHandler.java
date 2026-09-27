@@ -1,7 +1,10 @@
 package com.shokiteufel.shokimod.handler;
 
+import com.shokiteufel.shokimod.data.FeatureGate;
 import com.shokiteufel.shokimod.data.GameState;
 import com.shokiteufel.shokimod.render.ShinyAlert;
+import com.shokiteufel.shokimod.scanner.EssenceState;
+import com.shokiteufel.shokimod.scanner.ItemChanges;
 import com.shokiteufel.shokimod.scanner.MiningState;
 import com.shokiteufel.shokimod.scanner.NestTracker;
 import com.shokiteufel.shokimod.session.SessionManager;
@@ -33,10 +36,25 @@ public class NetworkHandler {
         });
 
         ClientReceiveMessageEvents.ALLOW_GAME.register((message, overlay) -> {
-            // Die Action Bar ist keine Chatzeile, dort greifen keine Regeln
-            if (overlay) return true;
-
             String msg = message.getString();
+
+            // Die Action Bar ist keine Chatzeile, dort greifen keine Regeln - bis auf
+            // eine: Beim Abbauen steht der Essence-Zugang dort ("+3 Fossil Essence")
+            // und sonst nirgends. Wer das Widget der Tab-Liste nicht anhat, wird nur
+            // hier gezaehlt. Die Zeile kommt in jedem Tick, deshalb erst der billige
+            // Blick auf das Wort und nur dann die Arbeit
+            if (overlay) {
+                if (FeatureGate.itemChanges() && GameState.Server.isSkyblock()) {
+                    // Auch die Zeile ohne Essence wird gemeldet: An ihr merkt der
+                    // Zaehler, dass das Segment weg ist, und laesst denselben Betrag
+                    // spaeter wieder zaehlen
+                    ItemChanges.report(EssenceState.processActionBar(msg.contains("Essence")
+                            ? COLOUR_CODE.matcher(msg).replaceAll("")
+                            : ""), "essence bar");
+                }
+                return true;
+            }
+
             String unformattedMsg = COLOUR_CODE.matcher(msg).replaceAll("");
 
             // Die Lauf-Mitschrift liest nur mit und aendert an der Zeile nichts

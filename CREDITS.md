@@ -195,6 +195,13 @@ drinsteckt.
   und die Steigung der Deckkraft ist flacher, weil eine Ader mehr als einen Block füllt.
   Die AGPL wäre mit der LGPL **nicht** vereinbar, deshalb ist hier bewusst nie Code
   übernommen worden, nur Tatsachen abgelesen.
+- **Feesh** (Apache-2.0, `Sleepy-Panda/Feesh`) — dort wurde nachgesehen, woher ein
+  Essence-Zugang überhaupt zu erfahren ist. Feesh liest ihn für Ice Essence aus der
+  Action Bar (`+100 Ice Essence`) und behilft sich gegen das Segment, das mehrere
+  Sekunden stehen bleibt, mit der zuletzt gesehenen Zahl. Dass Hypixel den Zugang dort
+  ankündigt, ist eine Tatsache über Hypixel; der Umgang mit dem Dauer-Segment ist
+  derselbe Gedanke, hier je Sorte statt für eine. Der Stand aus dem Essence-Widget der
+  Tab-Liste hat hier Vorrang, weil er nichts verlieren kann — Feesh liest ihn nicht.
 - **Odin** — die Ping-Anzeige wurde gegen seine gehalten, um den eigenen Messfehler zu
   finden.
 
