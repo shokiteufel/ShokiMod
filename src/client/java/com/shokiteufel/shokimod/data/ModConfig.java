@@ -167,6 +167,14 @@ public class ModConfig extends Config {
         }
         if (adopted) INSTANCE.saveNow();
 
+        // Bis 1.9.5 ging die Zahl mit angehakten Sorten bis acht. Ein Schacht hat aber
+        // nie mehr als vier Leichen, also zeigte so eine Regel nie etwas an
+        boolean clamped = false;
+        for (MineshaftRule rule : INSTANCE.mining.mineshaft.shaftRules.values()) {
+            if (rule.clamp()) clamped = true;
+        }
+        if (clamped) INSTANCE.saveNow();
+
         // Die beiden Leichen-Einstellungen standen bis 1.7.5 im Mining-HUD. Sie gehoeren
         // zum Mineshaft und stehen jetzt dort; wer sie gesetzt hatte, behaelt sie
         // Seit 1.8.20 steht die Wahl wieder im Kasten, wo sie auch zu sehen ist

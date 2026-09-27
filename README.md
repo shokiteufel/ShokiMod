@@ -107,8 +107,9 @@ die Spielversion beim Start — die falsche Datei laedt der Loader gar nicht ers
 - Edelstein-Adern, aus den Bloecken selbst gelesen: Rahmen, Sorte und Groesse, bei der
   naechsten dazu die Entfernung und ein Strich dorthin. Adern ohne Luft daneben stehen als
   `(in wall)`. Je Bauplan einstellbar oder alle Sorten.
-- Je Bauplan einstellbar, ab wie vielen Leichen sich das Ausminen lohnt — Lapis, auf
-  Wunsch mit Umber und Tungsten zusammengezaehlt.
+- Je Bauplan einstellbar, ab wie vielen Leichen sich das Ausminen lohnt — eins bis vier,
+  mehr hat kein Schacht. Die Haken fuer Umber und Tungsten sagen nur, ob diese Sorten in
+  die Zahl hineinzaehlen oder ob nur Lapis zaehlt.
 - Party: eine gesehene Leiche mit Koordinaten teilen (nur Lapis oder alle ausser Vanguard),
   und ein Ruf, wenn eine Vanguard-Leiche im Schacht ist. Wer die Mod ebenfalls hat, bekommt
   aus der Meldung einen Marker in der Farbe der Sorte.

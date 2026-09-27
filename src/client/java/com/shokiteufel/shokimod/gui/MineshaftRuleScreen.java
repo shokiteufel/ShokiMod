@@ -37,10 +37,8 @@ public class MineshaftRuleScreen extends Screen {
     private static final int TOGGLE_WIDTH = 92;
     private static final int GAP = 4;
     private static final int LIST_TOP = 62;
-    /** Mehr als vier Lapis hat kein Schacht; danach faengt die Zahl wieder bei "off" an */
-    private static final int MAX_MIN = 4;
-    /** Mit angehakten Sorten koennen mehr Leichen zusammenkommen als Lapis allein */
-    private static final int MAX_MIN_WITH_KINDS = 8;
+    /** Mehr als vier Leichen hat kein Schacht; danach faengt die Zahl wieder bei "off" an */
+    private static final int MAX_MIN = MineshaftRule.MAX;
 
     private final Screen parent;
     private int page;
@@ -114,8 +112,7 @@ public class MineshaftRuleScreen extends Screen {
             // Die Zahl: ein Knopf, der weiterzaehlt. Nach der letzten Stufe wieder "off"
             addRenderableWidget(Button.builder(countLabel(shaft), button -> {
                 MineshaftRule rule = rule(shaft);
-                // Zaehlen Umber und Tungsten mit, sind mehr als vier Leichen moeglich
-                rule.min = nextStep(rule.min, rule.withUmber || rule.withTungsten);
+                rule.min = nextStep(rule.min);
                 ModConfig.INSTANCE.saveNow();
                 button.setMessage(countLabel(shaft));
             }).bounds(x, y, COUNT_WIDTH, 20).build());
@@ -176,13 +173,15 @@ public class MineshaftRuleScreen extends Screen {
     }
 
     /**
-     * Die naechste Stufe des Knopfes: aus, eins, zwei ... und hinter der hoechsten Zahl
-     * "gar nicht". Danach faengt es wieder bei aus an.
+     * Die naechste Stufe des Knopfes: aus, eins, zwei, drei, vier, "gar nicht", wieder aus.
+     *
+     * Die Vier ist fest, auch mit angehakten Sorten: Ein Schacht hat nie mehr Leichen.
+     * Die Haken sagen nur, welche davon mitzaehlen - Lapis allein, oder Lapis mit den
+     * angehakten Sorten zusammen.
      */
-    static int nextStep(int min, boolean mitSorten) {
-        int hoechstens = mitSorten ? MAX_MIN_WITH_KINDS : MAX_MIN;
+    static int nextStep(int min) {
         if (min == MineshaftRule.NEVER) return 0;
-        if (min >= hoechstens) return MineshaftRule.NEVER;
+        if (min >= MAX_MIN) return MineshaftRule.NEVER;
         return min + 1;
     }
 
