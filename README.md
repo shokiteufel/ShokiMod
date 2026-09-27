@@ -84,7 +84,8 @@ Voraussetzungen: Fabric Loader 0.19.3+ und Fabric API.
   wird (`/shoki profit`). Zahlen bei offenem Inventar per `[-]` und `[+]` von Hand
   richtigstellen. Zeit und Profit/h einzeln abschaltbar, die Uhr laeuft auf Wunsch durch.
   Wegwerfen und wieder aufheben zaehlt nicht mit. Essence zaehlt ebenfalls mit — sie
-  liegt nicht im Inventar, sondern wird aus dem Essence-Widget der Tab-Liste gelesen.
+  liegt nicht im Inventar: Ist das Essence-Widget der Tab-Liste an, wird ihr Stand von
+  dort gelesen, sonst der Zugang aus der Action Bar (`+3 Fossil Essence`).
 - Contest, Mobs in der Naehe.
 - Alle Kaesten frei verschiebbar im HUD-Editor (`/shoki hud`).
 </details>
