@@ -72,6 +72,11 @@ public final class CorpseFinder {
      * man nur vorbeigelaufen ist, ohne sie gesehen zu haben.
      */
     private static final double VISIT_REACH = 3.0;
+    /** Fuesse, Rumpf und Kopf einer Leiche - einer davon reicht, um sie zu erkennen */
+    private static final double[] BODY_POINTS = {0.5, 1.2, 1.7};
+    /** So fein wird die Sichtlinie abgeschritten. Feiner als ein halber Block trifft jede Wand */
+    private static final double STEP = 0.25;
+
     /**
      * Jeden Tick.
      *
@@ -289,10 +294,15 @@ public final class CorpseFinder {
         // Sorte einer Leiche am anderen Ende des Schachts fest, bevor man hingesehen hat.
         // Alles Weitere haengt an dieser Auswahl, nicht am Rohfund: Was man nicht
         // erkennen kann, darf auch nicht gemerkt, geteilt oder mitgezaehlt werden
-        List<Corpse> nah = withinReach(found, client.player.getEyePosition(),
-                ModConfig.INSTANCE.mobVisuals.mineshaft.corpseAnyDistance
-                        ? Double.MAX_VALUE
-                        : Math.max(4, ModConfig.INSTANCE.mining.mineshaft.corpseLiveRange));
+        boolean durchWaende = ModConfig.INSTANCE.mobVisuals.mineshaft.corpseAnyDistance;
+        net.minecraft.world.phys.Vec3 auge = client.player.getEyePosition();
+        List<Corpse> nah = withinReach(found, auge, durchWaende
+                ? Double.MAX_VALUE
+                : Math.max(4, ModConfig.INSTANCE.mining.mineshaft.corpseLiveRange));
+        // Nah genug ist nicht dasselbe wie gesehen: Hinter einer Wand steht die Leiche
+        // zwar in Reichweite, erkennen kann man sie aber nicht. Nur im versteckten
+        // Betrieb zaehlt sie trotzdem - dort ist ja ausdruecklich alles gemeint
+        if (!durchWaende) nah = inSight(client, nah, auge);
         visible = nah;
         for (int i = 0; i < nah.size(); i++) seen.add(nah.get(i).pos());
 
@@ -375,6 +385,71 @@ public final class CorpseFinder {
             }
         }
         return List.copyOf(out);
+    }
+
+    /**
+     * Nur die Leichen, zu denen die Sicht frei ist.
+     *
+     * Gepruft werden drei Punkte - Fuesse, Rumpf und Kopf -, weil eine Leiche in einer
+     * Nische schon dann erkennbar ist, wenn man einen Teil von ihr sieht. Reicht einer
+     * davon, gilt sie als gesehen.
+     */
+    private static List<Corpse> inSight(Minecraft client, List<Corpse> nah,
+                                        net.minecraft.world.phys.Vec3 auge) {
+        if (nah.isEmpty() || client.level == null) return nah;
+
+        java.util.function.Predicate<BlockPos> wand =
+                pos -> client.level.getBlockState(pos).canOcclude();
+        List<Corpse> out = new ArrayList<>(nah.size());
+        for (Corpse corpse : nah) {
+            BlockPos pos = corpse.pos();
+            boolean frei = false;
+            for (double hoehe : BODY_POINTS) {
+                net.minecraft.world.phys.Vec3 ziel = new net.minecraft.world.phys.Vec3(
+                        pos.getX() + 0.5, pos.getY() + hoehe, pos.getZ() + 0.5);
+                if (clearLine(auge, ziel, wand)) {
+                    frei = true;
+                    break;
+                }
+            }
+            if (frei) out.add(corpse);
+        }
+        return List.copyOf(out);
+    }
+
+    /**
+     * Steht zwischen zwei Punkten eine Wand?
+     *
+     * Abgeschritten wird die Strecke in kleinen Schritten; jeder Block darauf wird
+     * einmal gefragt, ob er die Sicht nimmt. Gefragt wird nach {@code canOcclude} und
+     * nicht danach, ob dort ueberhaupt etwas steht: Glas und Edelstein-Adern sind Wand
+     * fuer den Fuss, aber nicht fuer das Auge, und durch sie sieht man die Leiche.
+     *
+     * Der erste und der letzte Block zaehlen nicht mit - im eigenen Kopf und in der
+     * Leiche selbst steht keine Wand, die etwas verdeckt.
+     *
+     * Getrennt vom Spiel, damit die Strecke ohne laufende Welt nachrechenbar ist.
+     */
+    static boolean clearLine(net.minecraft.world.phys.Vec3 von, net.minecraft.world.phys.Vec3 nach,
+                             java.util.function.Predicate<BlockPos> wand) {
+        double dx = nach.x - von.x;
+        double dy = nach.y - von.y;
+        double dz = nach.z - von.z;
+        double laenge = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        if (laenge < 0.001) return true;
+
+        BlockPos start = BlockPos.containing(von);
+        BlockPos ziel = BlockPos.containing(nach);
+        int schritte = (int) Math.ceil(laenge / STEP);
+        BlockPos letzter = null;
+        for (int i = 1; i < schritte; i++) {
+            double t = i * STEP / laenge;
+            BlockPos pos = BlockPos.containing(von.x + dx * t, von.y + dy * t, von.z + dz * t);
+            if (pos.equals(letzter) || pos.equals(start) || pos.equals(ziel)) continue;
+            letzter = pos;
+            if (wand.test(pos)) return false;
+        }
+        return true;
     }
 
     /** Stellen, an denen man gerade steht, als gesehen merken */

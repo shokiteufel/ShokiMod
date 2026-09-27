@@ -195,7 +195,7 @@ public final class SafariHud {
             }
         }
 
-        /** Deckkraft, 0.1 bis 1.0 */
+        /** Deckkraft des Untergrunds, 0.0 bis 1.0. Die Schrift bleibt davon unberuehrt */
         public float alpha() {
             ModConfig.SafariCategory c = ModConfig.INSTANCE.safari;
             return switch (this) {
@@ -215,8 +215,9 @@ public final class SafariHud {
 
         public void setAlpha(float alpha) {
             ModConfig.SafariCategory c = ModConfig.INSTANCE.safari;
-            // Ganz durchsichtig waere dasselbe wie aus, nur ohne dass man es merkt
-            float clamped = Math.clamp(alpha, 0.1f, 1.0f);
+            // Null ist erlaubt: Das nimmt den Kasten weg, nicht den Text. Geschrieben
+            // wird ohnehin in voller Deckkraft, die Zahl gilt nur fuer den Untergrund
+            float clamped = Math.clamp(alpha, 0.0f, 1.0f);
             switch (this) {
                 case PROGRESS -> c.progressHudAlpha = clamped;
                 case MISSING -> c.missingHudAlpha = clamped;
