@@ -114,11 +114,9 @@ public final class CollectionHud {
         panel.pair("  Reached in:", clock((long) (next.missing() * 3_600_000.0 / perHour)), MUTED, TIME_COLOUR);
     }
 
-    /** Grosse Zahlen mit Trennzeichen, sehr grosse gekuerzt. Immer mit Punkt, wie im Spiel */
+    /** Grosse Zahlen gekuerzt - dieselbe Schreibweise wie in den anderen Kaesten */
     private static String amount(long value) {
-        if (value >= 1_000_000) return String.format(java.util.Locale.ROOT, "%.2fM", value / 1_000_000.0);
-        if (value >= 10_000) return String.format(java.util.Locale.ROOT, "%.1fk", value / 1_000.0);
-        return String.format(java.util.Locale.ROOT, "%,d", value);
+        return HudNumbers.amount(value);
     }
 
     private static String clock(long millis) {
