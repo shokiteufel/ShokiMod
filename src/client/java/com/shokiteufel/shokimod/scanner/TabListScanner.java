@@ -102,6 +102,11 @@ public class TabListScanner {
         if (ModConfig.INSTANCE.mining.hud.showHud) MiningState.processTabList(unformattedLines);
         // Der Stand der Pest-Fallen steht ebenfalls dort, sobald das Widget an ist
         if (FeatureGate.pestTraps()) PestTraps.processTabList(unformattedLines);
+        // Essence ist kein Gegenstand: Ihr Zuwachs steht nur hier, und von hier geht er
+        // denselben Weg wie ein Fund aus dem Inventar
+        if (FeatureGate.itemChanges()) {
+            ItemChanges.report(EssenceState.processTabList(unformattedLines), "essence");
+        }
         // Die Contest-Zeilen nur auswerten, solange sie jemand anzeigt
         if (FeatureGate.contest()) {
             TabContest.processTabList(unformattedLines);

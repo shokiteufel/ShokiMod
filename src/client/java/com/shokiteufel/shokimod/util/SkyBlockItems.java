@@ -214,6 +214,12 @@ public final class SkyBlockItems {
         if (rest.startsWith("SHARD_")) {
             return words(rest.substring("SHARD_".length())) + " Shard";
         }
+        // Die Liste der Items kennt keine Essence - Hypixel fuehrt sie als Waehrung.
+        // Der Basar handelt sie trotzdem, also braucht sie hier ihren Namen: "Fossil
+        // Essence", wie es auch im Spiel steht, nicht "Essence Fossil"
+        if (rest.startsWith("ESSENCE_")) {
+            return words(rest.substring("ESSENCE_".length())) + " Essence";
+        }
         if (rest.startsWith("POTION_")) {
             String name = words(rest.substring("POTION_".length())) + " Potion";
             return tier.isEmpty() || "0".equals(tier) ? name : name + " " + tier;

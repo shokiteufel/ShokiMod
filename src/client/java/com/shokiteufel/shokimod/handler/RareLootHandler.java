@@ -165,6 +165,10 @@ public final class RareLootHandler {
             String itemId = entry.getKey();
             int amount = entry.getValue() == null ? 0 : entry.getValue();
             if (itemId == null || amount <= 0) continue;
+            // Essence ist eine Waehrung, kein Fund: Sie waechst beim Minen stetig weiter,
+            // und ein Ruf "seltener Fund" waere beim naechsten Knochenblock schon wieder
+            // faellig. Kasten und Schacht-Bilanz zaehlen sie trotzdem
+            if (itemId.startsWith("ESSENCE_")) continue;
             if (recentlyAnnounced(itemId, now)) continue;
 
             List<String> candidates = SkyBlockItems.priceCandidates(itemId);
