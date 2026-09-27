@@ -77,8 +77,13 @@ public final class RouteGuide {
         ticks = 0;
 
         Vec3 at = client.player.position();
-        SpawnRoutes.Route passend = nearest(at, client);
+        List<String> sidebar = com.shokiteufel.shokimod.util.ScoreboardUtils.getSidebarLines(client);
+        SpawnRoutes.Route passend = nearest(at, sidebar);
         if (passend == null) {
+            // Steht man mitten in einer Runde und sie gilt trotzdem nicht, liegt es am
+            // Gebiet. Einmal je Zone ins Log, damit man den Namen nachsehen kann statt
+            // zu raten, wie Hypixel die Zeile gerade schreibt
+            if (route != null || nearest(at, List.of()) != null) meldeZone(sidebar);
             route = null;
             return;
         }
@@ -96,6 +101,23 @@ public final class RouteGuide {
         }
     }
 
+    /** Die zuletzt gemeldete Zone - damit dieselbe nicht in jeder Sekunde im Log steht */
+    private static String gemeldet = "";
+
+    private static void meldeZone(List<String> sidebar) {
+        StringBuilder zonen = new StringBuilder();
+        for (int i = 0; i < sidebar.size(); i++) {
+            String zeile = com.shokiteufel.shokimod.util.ScoreboardUtils.stripColor(sidebar.get(i)).trim();
+            if (zeile.isEmpty()) continue;
+            if (!zonen.isEmpty()) zonen.append(" | ");
+            zonen.append(zeile);
+        }
+        String text = zonen.toString();
+        if (text.equals(gemeldet)) return;
+        gemeldet = text;
+        ShokiMod.LOGGER.info("[Route] a round is near but its area does not match. Sidebar: {}", text);
+    }
+
     /** Steht man im 3x3x3 um den Punkt? */
     static boolean reached(BlockPos where, BlockPos point) {
         return Math.abs(where.getX() - point.getX()) <= REACHED_BLOCKS
@@ -110,11 +132,19 @@ public final class RouteGuide {
      * Runde ohne Gebietsangabe faellt auf die Entfernung zurueck; eine mit Angabe gilt
      * nur dort, auch wenn man von ausserhalb in ihre Naehe kommt.
      */
-    static boolean inArea(String area, List<String> sidebar) {
-        if (area == null || area.isBlank()) return true;
-        String gesucht = area.toLowerCase(java.util.Locale.ROOT);
-        for (int i = 0; i < sidebar.size(); i++) {
-            if (sidebar.get(i).toLowerCase(java.util.Locale.ROOT).contains(gesucht)) return true;
+    static boolean inArea(List<String> areas, List<String> sidebar) {
+        if (areas == null || areas.isEmpty()) return true;
+
+        for (int i = 0; i < areas.size(); i++) {
+            String gesucht = areas.get(i).toLowerCase(java.util.Locale.ROOT).trim();
+            if (gesucht.isEmpty()) continue;
+            for (int j = 0; j < sidebar.size(); j++) {
+                // Die Seitenleiste kommt mit Farbcodes: "§7⏣ §bGlacite §bTunnels". Ohne
+                // sie zu entfernen, findet kein Vergleich je ein zusammenhaengendes Wort
+                String zeile = com.shokiteufel.shokimod.util.ScoreboardUtils
+                        .stripColor(sidebar.get(j)).toLowerCase(java.util.Locale.ROOT);
+                if (zeile.contains(gesucht)) return true;
+            }
         }
         return false;
     }
@@ -133,7 +163,7 @@ public final class RouteGuide {
         for (int i = 0; i < alle.size(); i++) {
             SpawnRoutes.Route kandidat = alle.get(i);
             // Eine Runde mit Gebiet gilt nur dort - egal wie nah ihre Punkte liegen
-            if (!inArea(kandidat.area(), sidebar)) continue;
+            if (!inArea(kandidat.areas(), sidebar)) continue;
             for (BlockPos point : kandidat.points()) {
                 double abstand = at.distanceToSqr(point.getX() + 0.5, point.getY() + 0.5, point.getZ() + 0.5);
                 if (abstand < bester) {

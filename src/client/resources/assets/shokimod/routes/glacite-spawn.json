@@ -1,6 +1,9 @@
 {
   "name": "Glacite spawn",
-  "area": "Glacite Tunnels",
+  "areas": [
+    "Glacite Tunnels",
+    "Dwarven Base Camp"
+  ],
   "note": "Runde in den Glacite Tunnels zum Spawnen von Mineshafts. Aufgenommen im Spiel, beigesteuert fuer ShokiMod.",
   "points": [
     {
