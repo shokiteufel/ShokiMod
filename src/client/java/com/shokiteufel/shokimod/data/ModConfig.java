@@ -748,6 +748,11 @@ public class ModConfig extends Config {
     public static class MiningCategory {
 
         @Expose
+        @ConfigOption(name = "Spawn route", desc = "Leads you along the round in the Glacite Tunnels that spawns mineshafts - point by point, the next one always marked. Own rounds go into config/shokimod/routes as .json; the mod takes the one you are standing in.")
+        @ConfigEditorBoolean
+        public boolean spawnRoute = false;
+
+        @Expose
         @Category(name = "Mining HUD", desc = "One panel with what matters underground: commissions, the pickaxe ability with its cooldown, the Sky Mall buff. The numbers come from the tab list.")
         public MiningHudCategory hud = new MiningHudCategory();
 

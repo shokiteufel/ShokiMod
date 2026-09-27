@@ -200,6 +200,12 @@ drinsteckt.
 
 ## Daten von außen
 
+- **Spawn-Runde in den Glacite Tunnels** — die 25 Punkte in
+  `assets/shokimod/routes/glacite-spawn.json` stammen nicht aus dieser Mod: Sie wurden im
+  Spiel abgelaufen und aufgeschrieben und für ShokiMod beigesteuert. Eigene Runden legt man
+  als `.json` in `config/shokimod/routes`; die Mod nimmt die, in deren Nähe man steht.
+
+
 Keine Mod-Funktionen, sondern Zahlen, die die Mod holt:
 
 - **[NotEnoughUpdates-REPO](https://github.com/NotEnoughUpdates/NotEnoughUpdates-REPO)**
