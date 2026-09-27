@@ -53,7 +53,7 @@ public final class HuntingHud {
             for (int i = 0; i < rows.size() && i < limit; i++) {
                 HuntingTracker.Row row = rows.get(i);
                 String worth = row.priced() ? ItemValue.format(row.value()) : "?";
-                panel.pair(row.name() + " x" + row.count(), worth, LABEL_COLOUR, VALUE_COLOUR);
+                panel.pair(row.name() + " x" + HudNumbers.amount(row.count()), worth, LABEL_COLOUR, VALUE_COLOUR);
             }
             if (rows.size() > limit) {
                 panel.pair("+" + (rows.size() - limit) + " more", "", LABEL_COLOUR, LABEL_COLOUR);

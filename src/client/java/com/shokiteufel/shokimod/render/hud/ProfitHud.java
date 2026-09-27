@@ -81,7 +81,7 @@ public final class ProfitHud {
             for (int i = 0; i < rows.size() && i < limit; i++) {
                 ProfitTracker.Row row = rows.get(i);
                 String worth = row.priced() ? ItemValue.format(row.value()) : "?";
-                panel.pair(prefix(clickable) + row.name() + " x" + row.count()
+                panel.pair(prefix(clickable) + row.name() + " x" + HudNumbers.amount(row.count())
                                 + mark(row.itemId(), row.mode()),
                         worth, ProfitTracker.colourOf(row.itemId()), VALUE_COLOUR);
                 ids.add(row.itemId());
