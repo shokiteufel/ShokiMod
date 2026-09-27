@@ -1177,6 +1177,11 @@ public class ModConfig extends Config {
         public boolean showPerHour = true;
 
         @Expose
+        @ConfigOption(name = "Show next tier", desc = "The next tier of the collection and, from the pace, when it is reached. Needs the total, so open the collections menu once.")
+        @ConfigEditorBoolean
+        public boolean showNextTier = true;
+
+        @Expose
         @ConfigOption(name = "Line order", desc = "In which order Total, Gained and Per hour stand under each collection.")
         @ConfigEditorDropdown
         public LineOrder lineOrder = LineOrder.TOTAL_GAINED_HOUR;

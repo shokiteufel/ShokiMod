@@ -4,6 +4,7 @@ import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.data.ModConfig.CollectionTrackerCategory;
 import com.shokiteufel.shokimod.handler.CollectionTracker;
 import com.shokiteufel.shokimod.handler.CollectionTracker.Row;
+import com.shokiteufel.shokimod.util.CollectionData;
 import com.shokiteufel.shokimod.util.ItemValue;
 
 import net.minecraft.client.Minecraft;
@@ -77,6 +78,7 @@ public final class CollectionHud {
                     }
                 }
             }
+            if (cfg.showNextTier) nextTier(panel, cfg, row);
         }
         if (rows.size() > limit) {
             panel.line("+" + (rows.size() - limit) + " more", MUTED);
@@ -88,6 +90,28 @@ public final class CollectionHud {
             panel.line("[ Reset ]", TIME_COLOUR);
         }
         return panel;
+    }
+
+    /**
+     * Die naechste Stufe und, wenn ein Tempo da ist, wann sie erreicht ist.
+     *
+     * Beides braucht den Gesamtstand aus dem Collections-Menue; ohne ihn steht hier
+     * nichts, statt eine Stufe zu raten. Ist die Collection durch, sagt die Zeile das.
+     */
+    private static void nextTier(HudPanel panel, CollectionTrackerCategory cfg, Row row) {
+        if (row.total() <= 0) return;
+
+        CollectionData.Tier next = CollectionData.nextTier(row.collectionId(), row.total());
+        if (next == null) {
+            panel.pair("  Next tier:", "maxed", MUTED, LABEL_COLOUR);
+            return;
+        }
+        panel.pair("  Next tier:", next.tier() + " in " + amount(next.missing()), MUTED, LABEL_COLOUR);
+
+        // Die Zeit kommt aus demselben Tempo, das schon in der Zeile darueber steht
+        double perHour = CollectionTracker.perHour(row.gained());
+        if (!cfg.timerEnabled || perHour <= 0) return;
+        panel.pair("  Reached in:", clock((long) (next.missing() * 3_600_000.0 / perHour)), MUTED, TIME_COLOUR);
     }
 
     /** Grosse Zahlen mit Trennzeichen, sehr grosse gekuerzt. Immer mit Punkt, wie im Spiel */

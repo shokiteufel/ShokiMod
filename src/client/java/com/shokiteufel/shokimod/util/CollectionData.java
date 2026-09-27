@@ -43,8 +43,24 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class CollectionData {
 
-    /** Eine Collection: Anzeigename und Kategorie (FARMING, MINING, ...) */
-    public record Collection(String id, String name, String category) {
+    /**
+     * Eine Collection: Anzeigename, Kategorie (FARMING, MINING, ...) und ihre Stufen.
+     *
+     * Die Stufen sind die Mengen, ab denen Hypixel die naechste Belohnung gibt - fuer
+     * Cobblestone 50, 100, 250, 1000 und so weiter. Sie stehen in derselben Liste wie
+     * Name und Kategorie, also kosten sie keine zusaetzliche Anfrage.
+     */
+    public record Collection(String id, String name, String category, List<Long> tiers) {
+    }
+
+    /**
+     * Die naechste Stufe einer Collection.
+     *
+     * @param tier    die Nummer, wie sie im Spiel steht
+     * @param needed  wie viel dafuer insgesamt gebraucht wird
+     * @param missing wie viel davon noch fehlt
+     */
+    public record Tier(int tier, long needed, long missing) {
     }
 
     /** Was ein Item einbringt: so viele Einheiten dieser Collection */
@@ -103,6 +119,41 @@ public final class CollectionData {
         return id == null ? null : collections.get(id);
     }
 
+    /**
+     * Die naechste Stufe zu einem Stand, oder null.
+     *
+     * Null heisst: Die Liste kennt die Collection nicht, der Stand ist unbekannt, oder es
+     * gibt keine hoehere Stufe mehr. Alle drei Faelle sind "nichts anzuzeigen" - eine
+     * geratene Stufe waere schlechter als keine.
+     */
+    public static Tier nextTier(String id, long total) {
+        Collection collection = byId(id);
+        if (collection == null || total < 0) return null;
+
+        List<Long> tiers = collection.tiers();
+        for (int i = 0; i < tiers.size(); i++) {
+            long needed = tiers.get(i);
+            if (needed > total) return new Tier(i + 1, needed, needed - total);
+        }
+        return null;
+    }
+
+    /** Die Stufen einer Collection, aufsteigend. Fehlen sie, bleibt die Liste leer */
+    private static List<Long> readTiers(JsonObject body) {
+        com.google.gson.JsonArray tiers = body.getAsJsonArray("tiers");
+        if (tiers == null || tiers.isEmpty()) return List.of();
+
+        List<Long> out = new ArrayList<>(tiers.size());
+        for (JsonElement entry : tiers) {
+            if (!entry.isJsonObject()) continue;
+            JsonObject tier = entry.getAsJsonObject();
+            if (tier.get("amountRequired") == null) continue;
+            out.add(tier.get("amountRequired").getAsLong());
+        }
+        out.sort(Long::compare);
+        return List.copyOf(out);
+    }
+
     /** Der Anzeigename, oder die Kennung wenn die Liste sie nicht kennt */
     public static String nameOf(String id) {
         Collection collection = byId(id);
@@ -130,7 +181,8 @@ public final class CollectionData {
                 if (!item.getValue().isJsonObject()) continue;
                 JsonObject body = item.getValue().getAsJsonObject();
                 String name = body.has("name") ? body.get("name").getAsString() : item.getKey();
-                out.put(item.getKey(), new Collection(item.getKey(), name, category.getKey()));
+                out.put(item.getKey(), new Collection(item.getKey(), name, category.getKey(),
+                        readTiers(body)));
                 byName.put(name.toLowerCase(Locale.ROOT), item.getKey());
             }
         }

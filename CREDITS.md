@@ -125,6 +125,13 @@ Routen nur in Schaechten mit genug Lapis-Leichen. Übernommen ist die Idee, nich
 Code — und hier steht die Bedingung nicht fest, sondern je Bauplan mit eigener Zahl
 je Leichen-Sorte (`MineshaftRule`, `MineshaftRuleScreen`).
 
+Dazu der Gedanke, neben Zuwachs und Tempo auch die naechste Stufe der Collection zu
+zeigen und aus dem Tempo zu sagen, wann sie erreicht ist. Wie die Stufe gefunden wird,
+ist hier anders: SCT holt den Stand ueber seinen eigenen Server
+(`api.skyblockcollections.com`, Anmeldung per Mojang-Sitzung) und stellt das Zaehlen ein,
+wenn der nicht erreichbar ist; hier stehen die Stufen in Hypixels eigener, schluessellos
+abrufbarer Liste, die die Mod fuer die Namen ohnehin schon holt (`CollectionData`).
+
 ### Meowdding-Repo (MIT, meowdding)
 
 Die Koordinaten der Leichen-Stellen selbst: `repo/mining/mineshaft_corpses` — sechzehn

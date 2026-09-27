@@ -75,7 +75,8 @@ die Spielversion beim Start — die falsche Datei laedt der Loader gar nicht ers
 - Pet: Name, Stufe, Fortschritt — samt Overflow-Stufen und Meldung beim Aufstieg.
 - Leistung: Bilder je Sekunde, Server-Takt, selbst gemessener Ping und auf Wunsch der
   Tages-Zaehler - untereinander oder nebeneinander in einer Zeile.
-- Sammlungen: was die Saecke einsammeln, in Sammlungs-Einheiten und in Coins.
+- Sammlungen: was die Saecke einsammeln, in Sammlungs-Einheiten und in Coins. Dazu die
+  naechste Stufe der Collection und, aus dem Tempo gerechnet, wann sie erreicht ist.
 - Hunting-Tracker: jeder gefangene Shard, bewertet und auf die Stunde gerechnet.
 - Profit-Tracker: alles, was waehrend eines Laufs ins Inventar oder in einen Sack faellt
   — auch ohne Chatzeile. Je Item einstellbar, ob es im Kasten steht und ob es sofort
