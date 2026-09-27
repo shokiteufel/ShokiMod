@@ -27,13 +27,12 @@ import java.util.List;
 public final class RouteGuide {
 
     /**
-     * So nah muss man an einen Punkt, damit er als abgehakt gilt: ein Block ringsum.
+     * So nah muss man an einen Punkt, damit er als abgehakt gilt: zwei Bloecke ringsum.
      *
-     * Also die neun Bloecke um ihn herum, eine Ebene tiefer und eine hoeher - das
-     * 3x3x3 um den Punkt. Eine Kugel mit Radius vier hakte Punkte ab, an denen man nur
-     * vorbeigelaufen ist, und schickte einen dann zum uebernaechsten.
+     * Also das 5x5x5 um den Punkt. Beim Hineinlaufen soll er frueh genug umspringen,
+     * damit die Linie schon weiterzeigt, waehrend man noch ankommt.
      */
-    private static final int REACHED_BLOCKS = 1;
+    private static final int REACHED_BLOCKS = 2;
     /** So weit darf die naechste Runde entfernt sein, damit sie ueberhaupt gilt */
     private static final double ROUTE_NEAR = 300.0;
     /** Viermal je Sekunde reicht - Punkte laufen nicht weg */
@@ -54,6 +53,19 @@ public final class RouteGuide {
     public static BlockPos target() {
         if (route == null || !ModConfig.INSTANCE.mining.spawnRoute) return null;
         return route.points().get(index % route.points().size());
+    }
+
+    /**
+     * Der Punkt danach - oder null.
+     *
+     * Er steht in einer anderen Farbe daneben, damit man schon sieht, wohin es weitergeht,
+     * bevor man am naechsten ankommt. Bei einer Runde aus einem einzigen Punkt gibt es
+     * keinen zweiten.
+     */
+    public static BlockPos following() {
+        if (route == null || !ModConfig.INSTANCE.mining.spawnRoute) return null;
+        if (route.points().size() < 2) return null;
+        return route.points().get((index + 1) % route.points().size());
     }
 
     /** Die Farbe der laufenden Runde */
