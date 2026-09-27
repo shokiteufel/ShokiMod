@@ -37,8 +37,14 @@ public final class SpawnRoutes {
     /** Wo eigene Runden liegen duerfen - eine Datei je Runde */
     private static final String FOLDER = "routes";
 
-    /** Eine Runde: wie sie heisst, welche Farbe sie hat, und ihre Punkte in Reihenfolge */
-    public record Route(String name, int argb, List<BlockPos> points) {
+    /**
+     * Eine Runde: Name, Gebiet, Farbe und ihre Punkte in Reihenfolge.
+     *
+     * Das Gebiet steht so da, wie es in der Seitenleiste steht - "Glacite Tunnels".
+     * Leer heisst "ueberall, wo ich in der Naehe bin"; das ist die Notloesung fuer
+     * Dateien, die ohne Gebiet geschrieben wurden.
+     */
+    public record Route(String name, String area, int argb, List<BlockPos> points) {
     }
 
     private static List<Route> routes = null;
@@ -97,6 +103,7 @@ public final class SpawnRoutes {
     static Route parse(String fallbackName, JsonElement json) {
         JsonArray list;
         String name = fallbackName;
+        String area = "";
         int argb = 0xFF55FF55;
 
         if (json.isJsonArray()) {
@@ -107,6 +114,7 @@ public final class SpawnRoutes {
             if (points == null || !points.isJsonArray()) return null;
             list = points.getAsJsonArray();
             if (object.has("name")) name = object.get("name").getAsString();
+            if (object.has("area")) area = object.get("area").getAsString();
         } else {
             return null;
         }
@@ -129,6 +137,6 @@ public final class SpawnRoutes {
                 farbeGelesen = true;
             }
         }
-        return points.isEmpty() ? null : new Route(name, argb, List.copyOf(points));
+        return points.isEmpty() ? null : new Route(name, area, argb, List.copyOf(points));
     }
 }
