@@ -155,7 +155,11 @@ public final class ItemValue {
      */
     public static double trackedUnitPrice(String itemId, SellMode mode) {
         double ausFine = gemFromFine(itemId, mode);
-        return ausFine > 0 ? ausFine : unitPrice(SkyBlockItems.priceCandidates(itemId), mode);
+        if (ausFine > 0) return ausFine;
+
+        double markt = unitPrice(SkyBlockItems.priceCandidates(itemId), mode);
+        // Was George zahlt, bekommt man immer - ein Pet ist nie weniger wert
+        return Math.max(markt, GeorgePrices.of(itemId));
     }
 
     /** Rough und Flawed aus dem Fine-Preis, oder -1 wenn das keine solche Kennung ist */
@@ -300,31 +304,45 @@ public final class ItemValue {
             String itemId = candidate.trim();
             if (itemId.isEmpty()) continue;
 
-            BazaarPrice bazaar = freshOrStored(itemId);
-            if (bazaar != null) {
-                PriceMode mode = itemId.startsWith(SHARD_PREFIX) ? shardMode : otherMode;
-                if (mode == null) mode = PriceMode.INSTANT_SELL;
-                double price = bazaar.pick(mode);
-                // Eine Ware ohne Order auf der gewaehlten Seite faellt auf die andere zurueck,
-                // bevor sie als unbekannt gilt
-                if (price <= 0) price = bazaar.pick(mode == PriceMode.SELL_ORDER ? PriceMode.INSTANT_SELL : PriceMode.SELL_ORDER);
-                if (price > 0) {
-                    Source source = mode == PriceMode.SELL_ORDER ? Source.BAZAAR_SELL_ORDER : Source.BAZAAR_INSTANT_SELL;
-                    return new Value(price * multiplier, itemId, source);
-                }
+            Value markt = marketValue(itemId, multiplier, shardMode, otherMode);
+            // Was George fuer ein Pet zahlt, ist der Boden: Steht im Auktionshaus gerade
+            // weniger, ist das Pet trotzdem so viel wert - man gibt es eben bei ihm ab
+            double george = GeorgePrices.of(itemId) * multiplier;
+            if (george > 0 && (markt == null || george > markt.coins())) {
+                return new Value(george, itemId, Source.NPC_SELL);
             }
-
-            Double bin = LOWEST_BIN.get(itemId);
-            if (bin != null && bin > 0) return new Value(bin * multiplier, itemId, Source.LOWEST_BIN);
-
-            // Zuletzt der Haendler - genau wie in unitPrice, wo der Kasten seine Zahlen
-            // holt. Ohne diese Zeile sah der Alarm Waren, die es weder im Basar noch in
-            // einer Auktion gibt, als wertlos an und schwieg: Ein Old Leather Boot steht
-            // in keiner Auktion, bringt beim Haendler aber 100k - und war damit fuer den
-            // Kasten sechsstellig und fuer den Alarm nichts
-            double npc = ItemNames.npcSellPrice(itemId);
-            if (npc > 0) return new Value(npc * multiplier, itemId, Source.NPC_SELL);
+            if (markt != null) return markt;
         }
+        return null;
+    }
+
+    /** Der Wert aus Basar, Auktionshaus oder beim Haendler - ohne den Pet-Boden */
+    private static Value marketValue(String itemId, int multiplier, PriceMode shardMode, PriceMode otherMode) {
+        BazaarPrice bazaar = freshOrStored(itemId);
+        if (bazaar != null) {
+            PriceMode mode = itemId.startsWith(SHARD_PREFIX) ? shardMode : otherMode;
+            if (mode == null) mode = PriceMode.INSTANT_SELL;
+            double price = bazaar.pick(mode);
+            // Eine Ware ohne Order auf der gewaehlten Seite faellt auf die andere zurueck,
+            // bevor sie als unbekannt gilt
+            if (price <= 0) price = bazaar.pick(mode == PriceMode.SELL_ORDER ? PriceMode.INSTANT_SELL : PriceMode.SELL_ORDER);
+            if (price > 0) {
+                Source source = mode == PriceMode.SELL_ORDER ? Source.BAZAAR_SELL_ORDER : Source.BAZAAR_INSTANT_SELL;
+                return new Value(price * multiplier, itemId, source);
+            }
+        }
+
+        Double bin = LOWEST_BIN.get(itemId);
+        if (bin != null && bin > 0) return new Value(bin * multiplier, itemId, Source.LOWEST_BIN);
+
+        // Zuletzt der Haendler - genau wie in unitPrice, wo der Kasten seine Zahlen
+        // holt. Ohne diese Zeile sah der Alarm Waren, die es weder im Basar noch in
+        // einer Auktion gibt, als wertlos an und schwieg: Ein Old Leather Boot steht
+        // in keiner Auktion, bringt beim Haendler aber 100k - und war damit fuer den
+        // Kasten sechsstellig und fuer den Alarm nichts
+        double npc = ItemNames.npcSellPrice(itemId);
+        if (npc > 0) return new Value(npc * multiplier, itemId, Source.NPC_SELL);
+
         return null;
     }
 

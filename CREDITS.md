@@ -202,6 +202,11 @@ drinsteckt.
   und die Steigung der Deckkraft ist flacher, weil eine Ader mehr als einen Block füllt.
   Die AGPL wäre mit der LGPL **nicht** vereinbar, deshalb ist hier bewusst nie Code
   übernommen worden, nur Tatsachen abgelesen.
+- **Feesh** (Apache-2.0, `Sleepy-Panda/Feesh`) — dort steht auch, dass George für einen
+  Baby Yeti eine Million zahlt (`npcPrice = 1_000_000.0`). Nachgebaut ist das anders:
+  Feesh trägt die Zahl je Fund von Hand ein und nimmt sie nur, wenn Basar und Auktionshaus
+  nichts hergeben; hier kommt die ganze Liste aus dem NEU-Repo und gilt als Untergrenze,
+  nicht als Rückfall — steht im Auktionshaus weniger, zählt trotzdem George.
 - **Feesh** (Apache-2.0, `Sleepy-Panda/Feesh`) — dort wurde nachgesehen, woher ein
   Essence-Zugang überhaupt zu erfahren ist. Feesh liest ihn für Ice Essence aus der
   Action Bar (`+100 Ice Essence`) und behilft sich gegen das Segment, das mehrere
@@ -223,7 +228,11 @@ drinsteckt.
 Keine Mod-Funktionen, sondern Zahlen, die die Mod holt:
 
 - **[NotEnoughUpdates-REPO](https://github.com/NotEnoughUpdates/NotEnoughUpdates-REPO)**
-  (MIT) — Pet-Stufen, Item-Namen und -Bilder, Handwerks- und Forge-Rezepte.
+  (MIT) — Pet-Stufen, Item-Namen und -Bilder, Handwerks- und Forge-Rezepte. Dazu
+  `constants/george.json` — was George für ein Pet zahlt, je Pet und Seltenheit. Diese
+  Datei stammt laut ihrem eigenen Kopf aus dem [Hypixel-SkyBlock-Wiki](https://hypixelskyblock.minecraft.wiki/w/George/Prices)
+  und steht unter CC BY-NC-SA 3.0; sie wird zur Laufzeit geholt und liegt im
+  Config-Ordner, statt mitgeliefert zu werden.
 - **[SkyShards](https://github.com/Campionnn/SkyShards)** (MIT, Campionnn) — die
   Fusionsdaten für `/shoki shardprofit`.
 - **Hypixel API** — Bazaar, Auktionen, Item-Liste.
