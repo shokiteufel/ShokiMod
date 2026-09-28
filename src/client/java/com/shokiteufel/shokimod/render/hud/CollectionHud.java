@@ -85,7 +85,7 @@ public final class CollectionHud {
         }
 
         // Nur bei offenem Fenster: dort kann man klicken. Immer die letzte Zeile
-        if (Minecraft.getInstance().gui.screen() != null) {
+        if (NearbyOverlay.interactive()) {
             panel.blank();
             panel.line("[ Reset ]", TIME_COLOUR);
         }

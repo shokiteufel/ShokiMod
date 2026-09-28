@@ -78,8 +78,23 @@ public final class NearbyOverlay {
                 || com.mojang.blaze3d.platform.InputConstants.isKeyDown(window, org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT_SHIFT);
     }
 
+    /**
+     * Nimmt ein Kasten gerade Klicks an?
+     *
+     * Nur im eigenen Inventar. Die Kaesten werden ueber jedem Behaelter gezeichnet, und
+     * das soll auch so bleiben - aber ein Klick in einem fremden Fenster gehoert dem
+     * Fenster. Ein Profilbuch, eine Kiste oder das SkyBlock-Menue haben an derselben
+     * Stelle einen Knopf, und dann stand der Zaehler auf null, ohne dass jemand ihn
+     * angefasst hatte.
+     */
+    public static boolean interactive() {
+        return Minecraft.getInstance().gui.screen()
+                instanceof net.minecraft.client.gui.screens.inventory.InventoryScreen;
+    }
+
     /** Gibt es bei offenem Fenster ueberhaupt etwas Anklickbares? */
     public static boolean anyClickable() {
+        if (!interactive()) return HuntingBoxOverlay.shown();
         return HuntingBoxOverlay.shown() || shown()
                 || SafariHud.Panel.HUNTING.visible() || SafariHud.Panel.COLLECTION.visible()
                 || SafariHud.Panel.PROFIT.visible();
@@ -91,6 +106,9 @@ public final class NearbyOverlay {
         // Zuerst der Knopf ueber der Box: Er liegt ueber allem anderen, also bekommt
         // er den Klick auch zuerst
         if (HuntingBoxOverlay.handleClick(mouseX, mouseY)) return true;
+
+        // Alles Weitere gehoert dem eigenen Inventar
+        if (!interactive()) return false;
 
         if (shown()) {
             SafariHud.Panel panel = SafariHud.Panel.NEARBY;
