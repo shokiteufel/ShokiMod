@@ -492,8 +492,9 @@ public final class CollectionTracker {
         return cfg().uptimeMillis;
     }
 
+    /** Ohne Uhr pausiert auch nichts - dann steht "(paused)" ueber einem Kasten ohne Zeit */
     public static boolean isPaused() {
-        return paused;
+        return cfg().timerEnabled && paused;
     }
 
     /** Der Reset-Knopf: Zuwachs, Wert und Zeit auf null. Der Gesamtstand bleibt */

@@ -186,8 +186,9 @@ public final class HuntingTracker {
         ShokiMod.LOGGER.info("[Hunting] tracker reset");
     }
 
+    /** Ohne Uhr pausiert auch nichts - dann steht "(paused)" ueber einem Kasten ohne Zeit */
     public static boolean isPaused() {
-        return paused;
+        return cfg().timerEnabled && paused;
     }
 
     public static long uptimeMillis() {

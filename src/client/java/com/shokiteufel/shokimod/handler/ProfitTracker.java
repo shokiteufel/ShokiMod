@@ -137,7 +137,7 @@ public final class ProfitTracker {
         // Fenster im Hintergrund liegt. Wer das einstellt, will eine durchlaufende Uhr
         boolean neverPause = cfg().pauseAfterSeconds <= 0;
         long pauseAfter = Math.max(5, cfg().pauseAfterSeconds) * 1000L;
-        boolean active = cfg().timerEnabled && lastActivityMillis > 0L
+        boolean active = clockRuns() && lastActivityMillis > 0L
                 && (neverPause || (now - lastActivityMillis <= pauseAfter && client.isWindowActive()));
 
         // Ohne Anhalten gibt es auch nichts zurueckzurechnen - sonst zieht ein spaeteres
@@ -362,8 +362,26 @@ public final class ProfitTracker {
         return total() / (uptime / 3_600_000d);
     }
 
+    /**
+     * Laeuft ueberhaupt eine Uhr?
+     *
+     * Wer weder die Zeit noch Profit/h anzeigt, zaehlt nur die Gegenstaende - dann gibt
+     * es keine Uhr, die stehen bleiben koennte. Sie laeuft dann auch nicht mit: Eine
+     * Zeit, die im Hintergrund weiterzaehlt, waere beim naechsten Einschalten um alle
+     * Pausen zu lang.
+     */
+    public static boolean clockRuns() {
+        return cfg().timerEnabled && (cfg().showTime || cfg().showPerHour);
+    }
+
+    /**
+     * Steht die Uhr wegen einer Pause?
+     *
+     * Ohne Uhr ist die Antwort nein und nicht ja: Es pausiert nichts, es gibt nur nichts
+     * zu zaehlen. Sonst stuende "(paused)" ueber einem Kasten, in dem keine Zeit steht.
+     */
     public static boolean isPaused() {
-        return paused;
+        return clockRuns() && paused;
     }
 
     public static long uptimeMillis() {

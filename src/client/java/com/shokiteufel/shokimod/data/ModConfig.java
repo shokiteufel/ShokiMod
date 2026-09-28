@@ -1556,7 +1556,7 @@ public class ModConfig extends Config {
         public boolean showTime = true;
 
         @Expose
-        @ConfigOption(name = "Pause after", desc = "Seconds without a find before the timer pauses. The idle time since the last find is taken off again, so Profit/h does not drop while you are away. At 0 it never pauses - the clock runs from the first find until you reset it, whether something drops or not.")
+        @ConfigOption(name = "Pause after", desc = "Seconds without a find before the timer pauses. The idle time since the last find is taken off again, so Profit/h does not drop while you are away. At 0 it never pauses - the clock runs from the first find until you reset it, whether something drops or not. With both Time and Profit/h hidden there is no clock at all, and this does nothing.")
         @ConfigEditorSlider(minValue = 0f, maxValue = 600f, minStep = 5f)
         public int pauseAfterSeconds = 120;
 
