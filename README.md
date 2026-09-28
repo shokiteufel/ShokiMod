@@ -83,6 +83,8 @@ die Spielversion beim Start — die falsche Datei laedt der Loader gar nicht ers
   verkauft, in eine Order gelegt, dem NPC gegeben oder mit einem eigenen Preis gerechnet
   wird (`/shoki profit`). Zahlen bei offenem Inventar per `[-]` und `[+]` von Hand
   richtigstellen. Zeit und Profit/h einzeln abschaltbar, die Uhr laeuft auf Wunsch durch.
+  Drei Zeitraeume — Lauf, Tag und Gesamtstand; ein Klick auf die Ueberschrift wechselt.
+  Der Tag faengt zur eingestellten Stunde an, voreingestellt sechs Uhr morgens.
   Wegwerfen und wieder aufheben zaehlt nicht mit, Umziehen ebenso wenig: Ruestung und
   Zweithand zaehlen mit, also ist ein Helm, der vom Kopf ins Inventar wandert, kein Fund. Ein Pet ist nie weniger wert, als George
   dafuer zahlt — ein Baby Yeti also mindestens eine Million. Essence zaehlt ebenfalls mit — sie
