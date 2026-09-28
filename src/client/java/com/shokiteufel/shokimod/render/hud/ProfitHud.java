@@ -65,7 +65,7 @@ public final class ProfitHud {
         ModConfig.ProfitCategory cfg = ModConfig.INSTANCE.profit;
         List<ProfitTracker.Row> rows = ProfitTracker.rows();
         List<String> ids = new ArrayList<>();
-        boolean clickable = Minecraft.getInstance().screen != null;
+        boolean clickable = NearbyOverlay.interactive();
 
         panel.title("Profit Tracker" + (ProfitTracker.isPaused() ? " (paused)" : ""), TITLE_COLOUR);
         ids.add(null);
