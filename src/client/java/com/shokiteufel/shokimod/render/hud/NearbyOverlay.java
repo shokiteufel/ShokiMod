@@ -135,6 +135,13 @@ public final class NearbyOverlay {
             HudPanel content = panel.build();
             int row = content.rowAt(Minecraft.getInstance().font,
                     SafariHud.originX(panel), SafariHud.originY(panel), panel.scale(), mouseX, mouseY);
+            // Die Ueberschrift wechselt den Zeitraum: Lauf, Tag, alles
+            if (row == 0) {
+                com.shokiteufel.shokimod.handler.ProfitTracker.cycleView();
+                SafariHud.invalidate(panel);
+                return true;
+            }
+
             // Die Reset-Zeile ist immer die letzte
             if (row >= 0 && row == content.rowCount() - 1) {
                 com.shokiteufel.shokimod.handler.ProfitTracker.reset();

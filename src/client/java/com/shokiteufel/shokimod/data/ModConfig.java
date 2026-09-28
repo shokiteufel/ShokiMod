@@ -175,6 +175,16 @@ public class ModConfig extends Config {
         }
         if (clamped) INSTANCE.saveNow();
 
+        // Seit 1.9.12 zaehlt der Profit-Tracker Lauf, Tag und Gesamtstand getrennt. Wer
+        // vorher schon gezaehlt hat, faengt beim Gesamtstand nicht bei null an: Sein
+        // laufender Stand ist das Einzige, was es davon gibt
+        if (INSTANCE.profit.totalCounts.isEmpty() && !INSTANCE.profit.counts.isEmpty()) {
+            INSTANCE.profit.totalCounts.putAll(INSTANCE.profit.counts);
+            INSTANCE.profit.totalUptimeMillis = INSTANCE.profit.uptimeMillis;
+            INSTANCE.profit.totalStartedAt = INSTANCE.profit.startedAt;
+            INSTANCE.saveNow();
+        }
+
         // Die beiden Leichen-Einstellungen standen bis 1.7.5 im Mining-HUD. Sie gehoeren
         // zum Mineshaft und stehen jetzt dort; wer sie gesetzt hatte, behaelt sie
         // Seit 1.8.20 steht die Wahl wieder im Kasten, wo sie auch zu sehen ist
@@ -1457,6 +1467,24 @@ public class ModConfig extends Config {
         }
     }
 
+    /** Welcher Zeitraum im Profit-Kasten steht */
+    public enum ProfitView {
+        SESSION("Session"),
+        DAY("Day"),
+        TOTAL("Total");
+
+        private final String label;
+
+        ProfitView(String label) {
+            this.label = label;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
+    }
+
     /**
      * Der Profit-Tracker.
      *
@@ -1489,6 +1517,16 @@ public class ModConfig extends Config {
         @ConfigOption(name = "Panel shows", desc = "Everything but hidden lists every item and lets you take single ones out. Only picked starts empty - an item appears once you click it in the list.")
         @ConfigEditorDropdown
         public ProfitSelection selection = ProfitSelection.ALL;
+
+        @Expose
+        @ConfigOption(name = "Panel shows the", desc = "Which stretch of time the panel counts: the current run, today, or everything since you started. Click the title in your inventory to switch.")
+        @ConfigEditorDropdown
+        public ProfitView view = ProfitView.SESSION;
+
+        @Expose
+        @ConfigOption(name = "New day at", desc = "The hour at which Day starts over, in your own time. 6 means the day runs from 6 in the morning to 6 the next morning.")
+        @ConfigEditorSlider(minValue = 0f, maxValue = 23f, minStep = 1f)
+        public int dayResetHour = 6;
 
         @Expose
         @ConfigOption(name = "Price", desc = "How an item turns into coins unless you set it yourself in the item list. Instant Sell pays right now, Sell Order once it fills, NPC Sell is what the merchant gives.")
@@ -1573,6 +1611,28 @@ public class ModConfig extends Config {
         public long uptimeMillis = 0L;
         @Expose
         public long startedAt = 0L;
+
+        /** Derselbe Zaehlstand fuer den laufenden Tag - geleert zur eingestellten Stunde */
+        @Expose
+        public Map<String, Integer> dayCounts = new HashMap<>();
+        @Expose
+        public long dayUptimeMillis = 0L;
+        /**
+         * Wann der laufende Tag angefangen hat.
+         *
+         * Nicht Mitternacht, sondern die eingestellte Stunde: Wer bis drei Uhr nachts
+         * spielt, will das noch auf dem gestrigen Tag sehen.
+         */
+        @Expose
+        public long dayStartedAt = 0L;
+
+        /** Und alles zusammen, seit es den Tracker gibt. Wird nur von Hand geleert */
+        @Expose
+        public Map<String, Integer> totalCounts = new HashMap<>();
+        @Expose
+        public long totalUptimeMillis = 0L;
+        @Expose
+        public long totalStartedAt = 0L;
 
         // Lage des Kastens, gesetzt ueber /shoki hud
         @Expose

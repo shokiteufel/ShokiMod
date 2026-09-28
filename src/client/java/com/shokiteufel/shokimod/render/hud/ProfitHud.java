@@ -67,7 +67,10 @@ public final class ProfitHud {
         List<String> ids = new ArrayList<>();
         boolean clickable = NearbyOverlay.interactive();
 
-        panel.title("Profit Tracker" + (ProfitTracker.isPaused() ? " (paused)" : ""), TITLE_COLOUR);
+        // Der Zeitraum steht in der Ueberschrift, weil er alles darunter bestimmt -
+        // und ein Klick darauf wechselt ihn
+        panel.title("Profit Tracker - " + ProfitTracker.view()
+                + (ProfitTracker.isPaused() ? " (paused)" : ""), TITLE_COLOUR);
         ids.add(null);
         panel.blank();
         ids.add(null);

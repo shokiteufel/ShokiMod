@@ -86,6 +86,8 @@ public final class ProfitTracker {
             // unlesbar, und mehr als "das hier wurde erkannt" sagt es nicht aus
             boolean first = !cfg().counts.containsKey(itemId);
             cfg().counts.merge(itemId, amount, Integer::sum);
+            cfg().dayCounts.merge(itemId, amount, Integer::sum);
+            cfg().totalCounts.merge(itemId, amount, Integer::sum);
             counted = true;
             // Die Namensfarbe wird nur im Augenblick des Fundes gesehen - festhalten,
             // solange sie da ist
@@ -107,6 +109,7 @@ public final class ProfitTracker {
     private static void markActivity() {
         long now = System.currentTimeMillis();
         if (cfg().startedAt <= 0L) cfg().startedAt = now;
+        if (cfg().totalStartedAt <= 0L) cfg().totalStartedAt = now;
         lastActivityMillis = now;
         unconfirmedMillis = 0L;
         paused = false;
@@ -128,6 +131,8 @@ public final class ProfitTracker {
             ItemNames.prefetch();
         }
 
+        rollDay(now);
+
         // Bei 0 laeuft die Uhr durch: kein Anhalten bei Stille, und auch nicht, wenn das
         // Fenster im Hintergrund liegt. Wer das einstellt, will eine durchlaufende Uhr
         boolean neverPause = cfg().pauseAfterSeconds <= 0;
@@ -142,11 +147,16 @@ public final class ProfitTracker {
         if (active) {
             if (delta > 0 && delta < 5_000L) {
                 cfg().uptimeMillis += delta;
+                cfg().dayUptimeMillis += delta;
+                cfg().totalUptimeMillis += delta;
                 unconfirmedMillis += delta;
             }
             paused = false;
         } else if (!paused) {
+            // Die Wartezeit seit dem letzten Fund zaehlt in keinem der drei Zeitraeume
             cfg().uptimeMillis = Math.max(0L, cfg().uptimeMillis - unconfirmedMillis);
+            cfg().dayUptimeMillis = Math.max(0L, cfg().dayUptimeMillis - unconfirmedMillis);
+            cfg().totalUptimeMillis = Math.max(0L, cfg().totalUptimeMillis - unconfirmedMillis);
             unconfirmedMillis = 0L;
             paused = true;
             dirty = true;
@@ -204,9 +214,17 @@ public final class ProfitTracker {
     public static void adjust(String itemId, int delta) {
         if (itemId == null || delta == 0) return;
 
-        int updated = countOf(itemId) + delta;
-        if (updated > 0) cfg().counts.put(itemId, updated);
-        else cfg().counts.remove(itemId);
+        // In allen drei Zeitraeumen: Was hier falsch gezaehlt wurde, war auch im Tag und
+        // im Gesamtstand falsch. Nur der angezeigte zu korrigieren hiesse, den Fehler in
+        // den anderen beiden stehen zu lassen
+        int updated = 0;
+        for (Map<String, Integer> zaehler : List.of(cfg().counts, cfg().dayCounts, cfg().totalCounts)) {
+            Integer vorher = zaehler.get(itemId);
+            int neu = (vorher == null ? 0 : vorher) + delta;
+            if (zaehler == activeCounts()) updated = neu;
+            if (neu > 0) zaehler.put(itemId, neu);
+            else zaehler.remove(itemId);
+        }
         ModConfig.INSTANCE.saveNow();
         ShokiMod.LOGGER.info("[Profit] {} {} by hand -> {}", delta > 0 ? "+" + delta : delta,
                 itemId, Math.max(0, updated));
@@ -225,11 +243,11 @@ public final class ProfitTracker {
 
     /** Alle Kennungen, die seit dem Reset dazugekommen sind - auch die ausgeblendeten */
     public static List<String> seen() {
-        return new ArrayList<>(cfg().counts.keySet());
+        return new ArrayList<>(activeCounts().keySet());
     }
 
     public static int countOf(String itemId) {
-        Integer count = cfg().counts.get(itemId);
+        Integer count = activeCounts().get(itemId);
         return count == null ? 0 : count;
     }
 
@@ -290,10 +308,35 @@ public final class ProfitTracker {
         return ItemValue.trackedUnitPrice(itemId, modeOf(itemId));
     }
 
+    /**
+     * Der Zaehlstand des Zeitraums, der gerade im Kasten steht.
+     *
+     * Gezaehlt wird immer in allen dreien; die Ansicht sucht nur aus, welcher davon
+     * angezeigt, nachgebessert und zurueckgesetzt wird.
+     */
+    public static Map<String, Integer> activeCounts() {
+        return switch (view()) {
+            case DAY -> cfg().dayCounts;
+            case TOTAL -> cfg().totalCounts;
+            case SESSION -> cfg().counts;
+        };
+    }
+
+    public static ModConfig.ProfitView view() {
+        return cfg().view == null ? ModConfig.ProfitView.SESSION : cfg().view;
+    }
+
+    /** Der Klick auf die Ueberschrift: Lauf, Tag, alles, wieder Lauf */
+    public static void cycleView() {
+        ModConfig.ProfitView[] alle = ModConfig.ProfitView.values();
+        cfg().view = alle[(view().ordinal() + 1) % alle.length];
+        ModConfig.INSTANCE.saveNow();
+    }
+
     /** Alle sichtbaren Zeilen, wertvollste zuerst */
     public static List<Row> rows() {
         List<Row> out = new ArrayList<>();
-        for (Map.Entry<String, Integer> entry : cfg().counts.entrySet()) {
+        for (Map.Entry<String, Integer> entry : activeCounts().entrySet()) {
             String itemId = entry.getKey();
             int count = entry.getValue() == null ? 0 : entry.getValue();
             if (itemId == null || count <= 0 || !shown(itemId)) continue;
@@ -314,7 +357,7 @@ public final class ProfitTracker {
     }
 
     public static double perHour() {
-        long uptime = cfg().uptimeMillis;
+        long uptime = uptimeMillis();
         if (uptime < 1_000L) return 0;
         return total() / (uptime / 3_600_000d);
     }
@@ -324,7 +367,45 @@ public final class ProfitTracker {
     }
 
     public static long uptimeMillis() {
-        return cfg().uptimeMillis;
+        return switch (view()) {
+            case DAY -> cfg().dayUptimeMillis;
+            case TOTAL -> cfg().totalUptimeMillis;
+            case SESSION -> cfg().uptimeMillis;
+        };
+    }
+
+    /**
+     * Ist ein neuer Tag angebrochen? Dann faengt der Tages-Zaehler wieder bei null an.
+     *
+     * Der Tag wechselt nicht um Mitternacht, sondern zur eingestellten Stunde - wer bis
+     * drei Uhr nachts spielt, will das noch auf dem gestrigen Tag sehen. Lauf und
+     * Gesamtstand bleiben davon unberuehrt.
+     */
+    private static void rollDay(long now) {
+        long start = dayStart(now, cfg().dayResetHour);
+        if (cfg().dayStartedAt >= start) return;
+
+        boolean stand = !cfg().dayCounts.isEmpty() || cfg().dayUptimeMillis > 0L;
+        cfg().dayCounts.clear();
+        cfg().dayUptimeMillis = 0L;
+        cfg().dayStartedAt = start;
+        dirty = true;
+        if (stand) ShokiMod.LOGGER.info("[Profit] a new day started, the day count is back to zero");
+    }
+
+    /**
+     * Der Anfang des laufenden Tages, in der Zeit dieses Rechners.
+     *
+     * Liegt die Stunde heute noch vor einem, gehoert man noch zum gestrigen Tag.
+     * Getrennt gehalten, damit die Rechnung ohne laufendes Spiel nachvollziehbar ist.
+     */
+    static long dayStart(long now, int hour) {
+        int stunde = Math.clamp(hour, 0, 23);
+        java.time.ZonedDateTime jetzt = java.time.Instant.ofEpochMilli(now)
+                .atZone(java.time.ZoneId.systemDefault());
+        java.time.ZonedDateTime grenze = jetzt.toLocalDate().atTime(stunde, 0).atZone(jetzt.getZone());
+        if (grenze.isAfter(jetzt)) grenze = grenze.minusDays(1);
+        return grenze.toInstant().toEpochMilli();
     }
 
     /**
@@ -334,14 +415,28 @@ public final class ProfitTracker {
      * nach dem naechsten Lauf wiederhaben und nicht neu anklicken.
      */
     public static void reset() {
-        cfg().counts.clear();
-        cfg().uptimeMillis = 0L;
-        cfg().startedAt = 0L;
+        // Geleert wird, was man gerade ansieht - alles andere waere eine Ueberraschung
+        switch (view()) {
+            case DAY -> {
+                cfg().dayCounts.clear();
+                cfg().dayUptimeMillis = 0L;
+            }
+            case TOTAL -> {
+                cfg().totalCounts.clear();
+                cfg().totalUptimeMillis = 0L;
+                cfg().totalStartedAt = 0L;
+            }
+            case SESSION -> {
+                cfg().counts.clear();
+                cfg().uptimeMillis = 0L;
+                cfg().startedAt = 0L;
+            }
+        }
         lastActivityMillis = 0L;
         unconfirmedMillis = 0L;
         paused = true;
         dirty = false;
         ModConfig.INSTANCE.saveNow();
-        ShokiMod.LOGGER.info("[Profit] tracker reset");
+        ShokiMod.LOGGER.info("[Profit] {} reset", view());
     }
 }
