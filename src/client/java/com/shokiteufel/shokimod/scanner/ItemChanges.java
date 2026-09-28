@@ -13,6 +13,7 @@ import com.shokiteufel.shokimod.util.SkyBlockItems;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.world.item.ItemStack;
@@ -386,9 +387,9 @@ public final class ItemChanges {
      * Er laeuft ohne eine einzige neue Liste - was hier jeden Tick angelegt wuerde,
      * muesste auch jeden Tick wieder weggeraeumt werden.
      *
-     * Ohne Ruestung, ohne das SkyBlock-Menue (dessen Platz sich staendig aendert),
-     * aber mit dem, was am Mauszeiger haengt: das liegt in keinem Platz und waere
-     * sonst ein Abgang.
+     * Mit Ruestung und Zweithand, ohne das SkyBlock-Menue (dessen Platz sich staendig
+     * aendert), aber mit dem, was am Mauszeiger haengt: das liegt in keinem Platz und
+     * waere sonst ein Abgang.
      */
     private static int signature(Minecraft client) {
         List<ItemStack> items = client.player.getInventory().getNonEquipmentItems();
@@ -398,12 +399,31 @@ public final class ItemChanges {
             if (stack == null || stack.isEmpty()) continue;
             hash = hash * 31 + ItemStack.hashItemAndComponents(stack) * 31 + stack.getCount();
         }
+        for (EquipmentSlot slot : WORN) {
+            ItemStack worn = client.player.getItemBySlot(slot);
+            if (worn == null || worn.isEmpty()) continue;
+            hash = hash * 31 + ItemStack.hashItemAndComponents(worn) * 31 + worn.getCount();
+        }
         ItemStack carried = client.player.containerMenu.getCarried();
         if (carried != null && !carried.isEmpty()) {
             hash = hash * 31 + ItemStack.hashItemAndComponents(carried) * 31 + carried.getCount();
         }
         return hash;
     }
+
+    /**
+     * Die getragenen Teile: Ruestung und Zweithand.
+     *
+     * Sie zaehlen mit, obwohl sie beim Spielen stillstehen - denn beim Umziehen stehen
+     * sie eben nicht still. Ein Helm, der vom Kopf ins Inventar wandert, waere sonst ein
+     * Fund: Er taucht im Inventar auf, und wo er herkommt, sah der Vergleich nicht.
+     *
+     * Die Haupthand fehlt mit Absicht - sie ist ein Platz der Hotbar und steckt schon im
+     * Inventar. Zweimal gezaehlt waere sie ein Fund bei jedem Wechsel der Waffe.
+     */
+    private static final EquipmentSlot[] WORN = {
+            EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS,
+            EquipmentSlot.FEET, EquipmentSlot.OFFHAND};
 
     /** Wie viel von welcher Ware der Spieler gerade bei sich hat */
     private static Map<String, Integer> counts(Minecraft client) {
@@ -413,6 +433,7 @@ public final class ItemChanges {
             if (slot == DISPLAY_SLOT) continue;
             add(out, items.get(slot));
         }
+        for (EquipmentSlot slot : WORN) add(out, client.player.getItemBySlot(slot));
         add(out, client.player.containerMenu.getCarried());
         return out;
     }
