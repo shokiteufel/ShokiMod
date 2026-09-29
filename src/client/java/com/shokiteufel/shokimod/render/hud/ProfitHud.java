@@ -47,6 +47,14 @@ public final class ProfitHud {
     /** Die beiden Knoepfe vor einer Zeile, in der Reihenfolge, in der sie stehen */
     private static final String MINUS = "[-]";
     private static final String PLUS = "[+]";
+    /**
+     * Der Knopf zum Loeschen einer Ware.
+     *
+     * Rot, weil er als Einziger etwas wegnimmt - und mit einer Rueckfrage im Chat, weil
+     * ein Klick daneben sonst einen Zaehlstand kostet. Das Ende setzt die Farbe der
+     * Zeile wieder ein, sonst stuende auch der Name in Rot.
+     */
+    private static final String CROSS = "§c[X]§r";
     private static final String GAP = " ";
 
     /**
@@ -110,9 +118,10 @@ public final class ProfitHud {
             ids.add(null);
         }
 
-        // Nur bei offenem Fenster: dort kann man klicken. Die Zeile ist immer die letzte,
-        // darauf verlaesst sich der Klick im NearbyOverlay
-        if (clickable) {
+        // Nur bei offenem Fenster, und nur im laufenden Lauf: Tag und Gesamtstand laufen
+        // von selbst weiter, ein Knopf, der sie leert, gehoert nicht in den Kasten. Die
+        // Zeile ist immer die letzte, darauf verlaesst sich der Klick im NearbyOverlay
+        if (clickable && ProfitTracker.view() == ModConfig.ProfitView.SESSION) {
             panel.blank();
             ids.add(null);
             panel.line("[ Reset ]", TIME_COLOUR);
@@ -123,9 +132,9 @@ public final class ProfitHud {
         return panel;
     }
 
-    /** Die beiden Knoepfe stehen nur da, wo man sie auch druecken kann */
+    /** Die drei Knoepfe stehen nur da, wo man sie auch druecken kann */
     private static String prefix(boolean clickable) {
-        return clickable ? MINUS + GAP + PLUS + GAP : "";
+        return clickable ? MINUS + GAP + PLUS + GAP + CROSS + GAP : "";
     }
 
     /** Die Ware in dieser Zeile, oder null wenn dort keine steht */
@@ -138,14 +147,31 @@ public final class ProfitHud {
      *
      * @param localX der Abstand vom linken Rand der Schrift, in den Massen des Kastens
      */
+    /**
+     * Welcher Knopf sitzt an dieser Stelle?
+     *
+     * @return -1 fuer [-], 1 fuer [+], 2 fuer [X], 0 fuer keinen
+     */
     public static int buttonAt(Font font, double localX) {
+        return buttonAt(font.width(MINUS), font.width(PLUS), font.width(CROSS), font.width(GAP), localX);
+    }
+
+    /**
+     * Dasselbe, nur mit Breiten statt einer Schrift.
+     *
+     * Getrennt, damit die Rechnung ohne laufendes Spiel nachvollziehbar ist: Wer hier
+     * danebengreift, loescht im schlimmsten Fall einen Zaehlstand.
+     */
+    static int buttonAt(int minusWidth, int plusWidth, int crossWidth, int gapWidth, double localX) {
         if (localX < 0) return 0;
+        if (localX < minusWidth) return -1;
 
-        int minus = font.width(MINUS);
-        if (localX < minus) return -1;
+        int plusAnfang = minusWidth + gapWidth;
+        int plusEnde = plusAnfang + plusWidth;
+        if (localX >= plusAnfang && localX < plusEnde) return 1;
 
-        int plusStart = minus + font.width(GAP);
-        return localX >= plusStart && localX < plusStart + font.width(PLUS) ? 1 : 0;
+        int kreuzAnfang = plusEnde + gapWidth;
+        return localX >= kreuzAnfang && localX < kreuzAnfang + crossWidth ? 2 : 0;
     }
 
     /** Ein Kuerzel hinter der Stueckzahl, wenn dieses Item eine eigene Verkaufsart hat */

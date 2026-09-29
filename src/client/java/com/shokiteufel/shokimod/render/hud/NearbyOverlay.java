@@ -142,10 +142,11 @@ public final class NearbyOverlay {
                 return true;
             }
 
-            // Die Reset-Zeile ist immer die letzte
-            if (row >= 0 && row == content.rowCount() - 1) {
-                com.shokiteufel.shokimod.handler.ProfitTracker.reset();
-                SafariHud.invalidate(panel);
+            // Die Reset-Zeile ist die letzte - und es gibt sie nur im laufenden Lauf
+            if (row >= 0 && row == content.rowCount() - 1
+                    && com.shokiteufel.shokimod.handler.ProfitTracker.view()
+                    == com.shokiteufel.shokimod.data.ModConfig.ProfitView.SESSION) {
+                com.shokiteufel.shokimod.handler.ProfitTracker.askReset();
                 return true;
             }
 
@@ -156,6 +157,12 @@ public final class NearbyOverlay {
             if (itemId != null && panel.scale() > 0) {
                 double localX = (mouseX - SafariHud.originX(panel)) / panel.scale() - HudPanel.padding();
                 int direction = ProfitHud.buttonAt(Minecraft.getInstance().font, localX);
+                if (direction == 2) {
+                    // Das rote Kreuz nimmt die Ware ganz heraus - aber erst nach der
+                    // Rueckfrage im Chat
+                    com.shokiteufel.shokimod.handler.ProfitTracker.askRemove(itemId);
+                    return true;
+                }
                 if (direction != 0) {
                     // Zehnerschritte mit Umschalt: dreissig Stueck einzeln wegzuklicken
                     // waere kein Nachbessern mehr
