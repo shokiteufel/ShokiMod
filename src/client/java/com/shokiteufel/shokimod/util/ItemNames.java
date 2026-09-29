@@ -57,6 +57,21 @@ public final class ItemNames {
     private ItemNames() {
     }
 
+    /**
+     * Der Name fuer einen Kasten: kurz genug fuer eine Zeile.
+     *
+     * Aus der Liste, sonst aus der Kennung - und ohne das "Gemstone" am Ende: In einer
+     * Zeile, in der ohnehin "Fine Peridot" steht, sagt es nichts mehr dazu und schiebt
+     * nur die Zahl daneben aus dem Bild.
+     */
+    public static String shortName(String itemId) {
+        String name = displayName(itemId);
+        if (name == null || name.isBlank()) return SkyBlockItems.readableName(itemId);
+        return name.endsWith(" Gemstone")
+                ? name.substring(0, name.length() - " Gemstone".length())
+                : name;
+    }
+
     /** Alle Kennungen, die die Liste kennt - fuer Vorschlaege. Nicht veraenderbar */
     public static java.util.Set<String> allIds() {
         FEED.prefetch();
