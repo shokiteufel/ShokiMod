@@ -579,6 +579,83 @@ public final class ProfitTracker {
     }
 
     /**
+     * Die naechsten zwei Stufen ueber einer Ware - was der Knopf im Fenster anbietet.
+     *
+     * Erste Stelle ist "x1" (Bone zu Enchanted Bone), zweite "x2" (weiter zum Block).
+     * Gesucht wird nicht im ganzen Katalog, sondern unter den wenigen Waren, die nach
+     * dieser benannt sind und auf dem Basar gehandelt werden - so bleiben es drei, vier
+     * Bauplaene statt vierzig, und Bone Necklace steht nicht darunter.
+     *
+     * Solange die Bauplaene geholt werden, ist die Liste kuerzer oder leer. Sie wird
+     * deshalb erst gemerkt, wenn etwas darin steht.
+     */
+    public static List<String> upgradeTiers(String itemId) {
+        if (itemId == null) return List.of();
+        List<String> gemerkt = tierCache.get(itemId);
+        if (gemerkt != null) return gemerkt;
+
+        java.util.LinkedHashSet<String> kandidaten = new java.util.LinkedHashSet<>();
+        kandidaten.add("ENCHANTED_" + itemId);
+        kandidaten.add("ENCHANTED_" + itemId + "_BLOCK");
+        kandidaten.add(itemId + "_BLOCK");
+        // Edelsteine heissen nicht nacheinander, sondern jede Stufe anders
+        int gem = itemId.indexOf("_GEM");
+        int strich = itemId.indexOf('_');
+        if (gem > 0 && strich > 0 && strich < gem) {
+            String sorte = itemId.substring(strich + 1, gem);
+            for (String stufe : List.of("FLAWED", "FINE")) kandidaten.add(stufe + "_" + sorte + "_GEM");
+        }
+        // Und was sonst nach der Ware benannt ist - Silver und Gold Magmafish zum
+        // Beispiel. Hoechstens acht, damit aus einem Namen wie BONE keine Handvoll
+        // Bauplan-Abfragen fuer Halsketten und Bumerangs wird
+        int weitere = 0;
+        for (String id : ItemNames.allIds()) {
+            if (weitere >= 8) break;
+            if (id.startsWith(itemId + "_") && kandidaten.add(id)) weitere++;
+        }
+
+        String x1 = null;
+        String x2 = null;
+        long kleinsteStufe = Long.MAX_VALUE;
+        long kleinsterWeg = Long.MAX_VALUE;
+        List<CollectionData.Step> wegNachOben = List.of();
+        for (String kandidat : kandidaten) {
+            if (kandidat.equals(itemId)) continue;
+
+            List<CollectionData.Step> weg = CollectionData.chain(itemId, kandidat);
+            if (weg.size() == 1 && weg.get(0).perStep() < kleinsteStufe) {
+                kleinsteStufe = weg.get(0).perStep();
+                x1 = kandidat;
+            } else if (weg.size() == 2) {
+                long gesamt = Math.max(1, weg.get(0).perStep()) * Math.max(1, weg.get(1).perStep());
+                if (gesamt < kleinsterWeg) {
+                    kleinsterWeg = gesamt;
+                    x2 = kandidat;
+                    wegNachOben = weg;
+                }
+            }
+        }
+
+        // Steht die zweite Stufe fest, sagt ihr eigener Weg, was die erste ist. Das ist
+        // verlaesslicher als "die Ware mit der kleinsten Zahl": In einen Magmafish Hat
+        // gehen weniger Magmafish als in einen silbernen, ein Hut ist aber keine Stufe
+        if (x2 != null && !wegNachOben.isEmpty()) x1 = wegNachOben.get(0).itemId();
+
+        List<String> stufen = new ArrayList<>();
+        if (x1 != null) stufen.add(x1);
+        if (x2 != null) stufen.add(x2);
+        List<String> fertig = List.copyOf(stufen);
+        // Gemerkt wird erst, wenn beide Stufen dastehen: Wer zu frueh merkt, merkt sich
+        // die halbe Antwort - und die blieb dann stehen, obwohl die zweite Stufe kurz
+        // darauf ankam
+        if (fertig.size() == 2) tierCache.put(itemId, fertig);
+        return fertig;
+    }
+
+    /** Einmal gefundene Stufen bleiben - die Bauplaene aendern sich nicht im Spiel */
+    private static final Map<String, List<String>> tierCache = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
      * Vorschlaege, als was sich eine Ware zaehlen laesst.
      *
      * Vorgeschlagen wird, was nach ihr benannt ist - Enchanted Bone und Enchanted Bone
