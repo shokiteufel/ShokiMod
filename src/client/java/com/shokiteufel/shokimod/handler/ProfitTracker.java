@@ -53,11 +53,11 @@ public final class ProfitTracker {
     /**
      * Eine Zeile des Kastens.
      *
-     * Die Menge ist eine Kommazahl, weil eine hochgerechnete Ware selten aufgeht: 87
-     * Bones sind ein halber Enchanted Bone, und das soll dastehen statt gerundet zu
-     * verschwinden.
+     * Die Menge ist eine ganze Zahl, auch bei hochgerechneten Waren: Gecraftet wird in
+     * ganzen Stuecken, und was nicht fuer eines reicht, bleibt liegen. 400 Bones sind
+     * zwei Enchanted Bones und achtzig Bones - keine zweieinhalb.
      */
-    public record Row(String itemId, String name, double count, double value, boolean priced, SellMode mode) {
+    public record Row(String itemId, String name, long count, double value, boolean priced, SellMode mode) {
     }
 
     private static long lastTickMillis = 0L;
@@ -347,24 +347,18 @@ public final class ProfitTracker {
 
     /** Alle sichtbaren Zeilen, wertvollste zuerst */
     public static List<Row> rows() {
-        // Erst zusammenlegen, dann bewerten: Wer seine Bones als Enchanted Bones zaehlt,
-        // soll eine Zeile sehen und nicht zwei, die dasselbe meinen
-        Map<String, Double> mengen = new LinkedHashMap<>();
+        Map<String, Long> mengen = new LinkedHashMap<>();
         for (Map.Entry<String, Integer> entry : activeCounts().entrySet()) {
             String itemId = entry.getKey();
             int count = entry.getValue() == null ? 0 : entry.getValue();
-            if (itemId == null || count <= 0) continue;
-
-            String ziel = countAsOf(itemId);
-            long teiler = ziel == null ? 0 : CollectionData.ratio(itemId, ziel);
-            if (ziel != null && teiler > 0) mengen.merge(ziel, count / (double) teiler, Double::sum);
-            else mengen.merge(itemId, (double) count, Double::sum);
+            if (itemId != null && count > 0) mengen.merge(itemId, (long) count, Long::sum);
         }
+        craftUp(mengen);
 
         List<Row> out = new ArrayList<>();
-        for (Map.Entry<String, Double> entry : mengen.entrySet()) {
+        for (Map.Entry<String, Long> entry : mengen.entrySet()) {
             String itemId = entry.getKey();
-            double count = entry.getValue();
+            long count = entry.getValue();
             if (count <= 0 || !shown(itemId)) continue;
 
             double unit = unitPrice(itemId);
@@ -373,6 +367,39 @@ public final class ProfitTracker {
         }
         out.sort(Comparator.comparingDouble(Row::value).reversed().thenComparing(Row::name));
         return out;
+    }
+
+    /**
+     * Zusammenlegen, was hochgerechnet werden soll - in ganzen Stuecken.
+     *
+     * Gecraftet wird nicht in Bruchteilen: Aus 400 Bones werden zwei Enchanted Bones,
+     * und die achtzig, die uebrig bleiben, stehen weiter als Bones da. Erst wenn wieder
+     * 160 zusammen sind, wandern sie eine Stufe hoeher.
+     *
+     * Mehrere Durchgaenge, weil Stufen aufeinander folgen koennen: Magmafish werden zu
+     * Silbernen, und die Silbernen - eigene und gerade entstandene - zu Goldenen. Fuenf
+     * Durchgaenge sind mehr als jede Kette im Spiel lang ist und enden trotzdem.
+     */
+    private static void craftUp(Map<String, Long> mengen) {
+        for (int runde = 0; runde < 5; runde++) {
+            boolean etwasGetan = false;
+            for (String itemId : new ArrayList<>(mengen.keySet())) {
+                String ziel = countAsOf(itemId);
+                if (ziel == null) continue;
+
+                long teiler = CollectionData.ratio(itemId, ziel);
+                if (teiler <= 0) continue;
+
+                long vorrat = mengen.getOrDefault(itemId, 0L);
+                long ganze = vorrat / teiler;
+                if (ganze <= 0) continue;
+
+                mengen.put(itemId, vorrat - ganze * teiler);
+                mengen.merge(ziel, ganze, Long::sum);
+                etwasGetan = true;
+            }
+            if (!etwasGetan) return;
+        }
     }
 
     /**
