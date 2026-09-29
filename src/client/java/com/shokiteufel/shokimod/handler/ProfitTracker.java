@@ -4,6 +4,7 @@ import com.shokiteufel.shokimod.ShokiMod;
 import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.data.ModConfig.ProfitCategory;
 import com.shokiteufel.shokimod.scanner.ItemChanges;
+import com.shokiteufel.shokimod.util.CollectionData;
 import com.shokiteufel.shokimod.util.ItemNames;
 import com.shokiteufel.shokimod.util.ItemValue;
 import com.shokiteufel.shokimod.util.ItemValue.SellMode;
@@ -16,6 +17,7 @@ import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -48,7 +50,14 @@ public final class ProfitTracker {
     private static final long SAVE_INTERVAL_MILLIS = 15_000L;
 
     /** Eine Zeile im Kasten: Item, Stueckzahl, Wert des ganzen Stapels */
-    public record Row(String itemId, String name, int count, double value, boolean priced, SellMode mode) {
+    /**
+     * Eine Zeile des Kastens.
+     *
+     * Die Menge ist eine Kommazahl, weil eine hochgerechnete Ware selten aufgeht: 87
+     * Bones sind ein halber Enchanted Bone, und das soll dastehen statt gerundet zu
+     * verschwinden.
+     */
+    public record Row(String itemId, String name, double count, double value, boolean priced, SellMode mode) {
     }
 
     private static long lastTickMillis = 0L;
@@ -338,11 +347,25 @@ public final class ProfitTracker {
 
     /** Alle sichtbaren Zeilen, wertvollste zuerst */
     public static List<Row> rows() {
-        List<Row> out = new ArrayList<>();
+        // Erst zusammenlegen, dann bewerten: Wer seine Bones als Enchanted Bones zaehlt,
+        // soll eine Zeile sehen und nicht zwei, die dasselbe meinen
+        Map<String, Double> mengen = new LinkedHashMap<>();
         for (Map.Entry<String, Integer> entry : activeCounts().entrySet()) {
             String itemId = entry.getKey();
             int count = entry.getValue() == null ? 0 : entry.getValue();
-            if (itemId == null || count <= 0 || !shown(itemId)) continue;
+            if (itemId == null || count <= 0) continue;
+
+            String ziel = countAsOf(itemId);
+            long teiler = ziel == null ? 0 : CollectionData.ratio(itemId, ziel);
+            if (ziel != null && teiler > 0) mengen.merge(ziel, count / (double) teiler, Double::sum);
+            else mengen.merge(itemId, (double) count, Double::sum);
+        }
+
+        List<Row> out = new ArrayList<>();
+        for (Map.Entry<String, Double> entry : mengen.entrySet()) {
+            String itemId = entry.getKey();
+            double count = entry.getValue();
+            if (count <= 0 || !shown(itemId)) continue;
 
             double unit = unitPrice(itemId);
             out.add(new Row(itemId, nameOf(itemId), count, unit > 0 ? unit * count : 0,
@@ -350,6 +373,39 @@ public final class ProfitTracker {
         }
         out.sort(Comparator.comparingDouble(Row::value).reversed().thenComparing(Row::name));
         return out;
+    }
+
+    /**
+     * Als welche Ware eine gefundene gezaehlt wird, oder null.
+     *
+     * Solange die Umrechnung noch nicht da ist - der Bauplan wird im Hintergrund geholt -
+     * bleibt die Ware, was sie ist. Lieber eine Zeile zu viel als eine falsche Zahl.
+     */
+    public static String countAsOf(String itemId) {
+        String ziel = cfg().countAs.get(itemId);
+        return ziel == null || ziel.isBlank() || ziel.equals(itemId) ? null : ziel;
+    }
+
+    /**
+     * Festlegen, als was eine Ware zaehlt. Null oder dieselbe Ware hebt es wieder auf.
+     *
+     * @return die Umrechnung, oder -1 wenn die beiden nichts miteinander zu tun haben
+     */
+    public static long setCountAs(String itemId, String targetId) {
+        if (itemId == null) return -1;
+        if (targetId == null || targetId.isBlank() || targetId.equals(itemId)) {
+            cfg().countAs.remove(itemId);
+            ModConfig.INSTANCE.saveNow();
+            return 1;
+        }
+
+        long teiler = CollectionData.ratio(itemId, targetId);
+        if (teiler <= 0) return -1;
+
+        cfg().countAs.put(itemId, targetId);
+        ModConfig.INSTANCE.saveNow();
+        ShokiMod.LOGGER.info("[Profit] {} counts as {} ({} to one)", itemId, targetId, teiler);
+        return teiler;
     }
 
     /** Was alles Sichtbare zusammen wert ist */
@@ -489,6 +545,92 @@ public final class ProfitTracker {
             }
         }
         return null;
+    }
+
+    /**
+     * Vorschlaege, als was sich eine Ware zaehlen laesst.
+     *
+     * Vorgeschlagen wird, was nach ihr benannt ist - Enchanted Bone und Enchanted Bone
+     * Block heissen nach dem Bone - und bei Edelsteinen die hoeheren Stufen derselben
+     * Sorte, die anders heissen. Ob es wirklich passt, entscheidet spaeter der Bauplan.
+     */
+    public static List<String> countAsCandidates(String itemName) {
+        String itemId = idForName(itemName);
+        if (itemId == null) return List.of();
+
+        java.util.LinkedHashSet<String> ids = new java.util.LinkedHashSet<>();
+        for (String id : ItemNames.allIds()) {
+            // Ganzes Wort, nicht irgendwo enthalten: Sonst stuende der Bonemerang unter
+            // den Vorschlaegen fuer Bone, und Flexbone gleich daneben
+            if (id.equals(itemId)) continue;
+            if (id.startsWith(itemId + "_") || id.endsWith("_" + itemId)
+                    || id.contains("_" + itemId + "_")) {
+                ids.add(id);
+            }
+        }
+        // Edelsteine: Rough, Flawed, Fine und Flawless heissen nicht nacheinander
+        int gem = itemId.indexOf("_GEM");
+        int strich = itemId.indexOf('_');
+        if (gem > 0 && strich > 0 && strich < gem) {
+            String sorte = itemId.substring(strich + 1, gem);
+            for (String stufe : List.of("FLAWED", "FINE", "FLAWLESS")) {
+                String id = stufe + "_" + sorte + "_GEM";
+                if (!id.equals(itemId) && ItemNames.displayName(id) != null) ids.add(id);
+            }
+        }
+
+        // Nach Namen, und jeden nur einmal: Zwei Kennungen koennen denselben tragen
+        java.util.TreeSet<String> namen = new java.util.TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        for (String id : ids) namen.add(nameOf(id));
+        return new ArrayList<>(namen);
+    }
+
+    /**
+     * Der Befehl /shoki profittracker <Ware> countas <Ziel>.
+     *
+     * "none" hebt es auf. Passt das Ziel nicht zur Ware - kein Bauplan fuehrt von der
+     * einen zur anderen -, bleibt alles, wie es war, und der Chat sagt warum.
+     */
+    public static void applyCountAs(String itemName, String targetName) {
+        String itemId = idForName(itemName);
+        if (itemId == null) {
+            say(Component.literal("No item called ").withStyle(ChatFormatting.RED)
+                    .append(Component.literal(itemName).withStyle(ChatFormatting.WHITE))
+                    .append(Component.literal(".").withStyle(ChatFormatting.RED)));
+            return;
+        }
+
+        String ziel = targetName == null ? "" : targetName.trim();
+        if (ziel.isEmpty() || ziel.equalsIgnoreCase("none") || ziel.equalsIgnoreCase("off")) {
+            setCountAs(itemId, null);
+            say(Component.literal(nameOf(itemId)).withStyle(ChatFormatting.WHITE)
+                    .append(Component.literal(" counts as itself again.").withStyle(ChatFormatting.YELLOW)));
+            return;
+        }
+
+        String targetId = idForName(ziel);
+        if (targetId == null) {
+            say(Component.literal("No item called ").withStyle(ChatFormatting.RED)
+                    .append(Component.literal(ziel).withStyle(ChatFormatting.WHITE))
+                    .append(Component.literal(".").withStyle(ChatFormatting.RED)));
+            return;
+        }
+
+        long teiler = setCountAs(itemId, targetId);
+        if (teiler <= 0) {
+            say(Component.literal("No recipe leads from ").withStyle(ChatFormatting.RED)
+                    .append(Component.literal(nameOf(itemId)).withStyle(ChatFormatting.WHITE))
+                    .append(Component.literal(" to ").withStyle(ChatFormatting.RED))
+                    .append(Component.literal(nameOf(targetId)).withStyle(ChatFormatting.WHITE))
+                    .append(Component.literal(" - or it is still being looked up. Try again in a moment.")
+                            .withStyle(ChatFormatting.RED)));
+            return;
+        }
+
+        say(Component.literal(nameOf(itemId)).withStyle(ChatFormatting.WHITE)
+                .append(Component.literal(" now counts as ").withStyle(ChatFormatting.YELLOW))
+                .append(Component.literal(nameOf(targetId)).withStyle(ChatFormatting.WHITE))
+                .append(Component.literal(" - " + teiler + " to one.").withStyle(ChatFormatting.YELLOW)));
     }
 
     /** Was der Befehl mit der Zahl machen soll */

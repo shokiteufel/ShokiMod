@@ -44,6 +44,19 @@ public final class HudNumbers {
         return (punkt < 0 ? zahl.length() : punkt) >= 4;
     }
 
+    /**
+     * Dieselbe Schreibweise fuer eine Zahl mit Bruchteil.
+     *
+     * Hochgerechnete Mengen sind selten ganz: 87 Bones sind ein halber Enchanted Bone.
+     * Ganze Zahlen sehen aus wie immer, gebrochene bekommen zwei Stellen - und ab
+     * zehntausend spielt der Bruchteil ohnehin keine Rolle mehr.
+     */
+    public static String amount(double value) {
+        if (value == Math.rint(value)) return amount((long) value);
+        if (Math.abs(value) >= 10_000) return amount(Math.round(value));
+        return trim(value, 2);
+    }
+
     /** Die Zahl mit hoechstens so vielen Stellen, ohne Nullen am Ende */
     private static String trim(double value, int stellen) {
         String text = String.format(Locale.ROOT, "%." + stellen + "f", value);

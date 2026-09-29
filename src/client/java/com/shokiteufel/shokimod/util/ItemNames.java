@@ -57,6 +57,12 @@ public final class ItemNames {
     private ItemNames() {
     }
 
+    /** Alle Kennungen, die die Liste kennt - fuer Vorschlaege. Nicht veraenderbar */
+    public static java.util.Set<String> allIds() {
+        FEED.prefetch();
+        return java.util.Collections.unmodifiableSet(byId.keySet());
+    }
+
     /** Alle Kennungen zu einem Anzeigenamen. Leer, wenn die Liste ihn nicht kennt */
     public static List<String> idsFor(String displayName) {
         List<String> ids = FEED.get(normalize(displayName));

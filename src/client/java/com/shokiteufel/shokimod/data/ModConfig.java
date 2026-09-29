@@ -1593,6 +1593,16 @@ public class ModConfig extends Config {
          * Steht hier, weil sie sonst mit jedem Neustart verloren waere: gesehen wird
          * sie nur im Augenblick des Fundes, am Gegenstand selbst oder an der Chatzeile.
          */
+        /**
+         * Je Ware: als welche sie gezaehlt und bewertet wird.
+         *
+         * Wer seine Bones ohnehin zu Enchanted Bones hochcraftet, will sie auch so
+         * gerechnet sehen - und in einer Zeile, nicht in zweien. Der Schluessel ist die
+         * gefundene Ware, der Wert die, in der sie steht.
+         */
+        @Expose
+        public Map<String, String> countAs = new HashMap<>();
+
         /** Selbst eingetragene Preise je Stueck, fuer die Verkaufsart Custom */
         @Expose
         public Map<String, Double> customPrices = new HashMap<>();
