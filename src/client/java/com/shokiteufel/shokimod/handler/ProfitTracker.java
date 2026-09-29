@@ -17,6 +17,7 @@ import net.minecraft.network.chat.Component;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -469,6 +470,19 @@ public final class ProfitTracker {
         List<String> ids = ItemNames.idsFor(gesucht);
         if (!ids.isEmpty()) return ids.get(0);
 
+        // "Enchanted_Bone" ist gemeint wie "Enchanted Bone": Wer die Kennung im Kopf hat,
+        // tippt Unterstriche, und daran soll der Befehl nicht scheitern
+        if (gesucht.indexOf('_') >= 0) {
+            ids = ItemNames.idsFor(gesucht.replace('_', ' '));
+            if (!ids.isEmpty()) return ids.get(0);
+        }
+
+        // Und umgekehrt: Die Kennung selbst, ob gross geschrieben oder nicht. Gueltig ist
+        // sie, wenn die Item-Liste einen Namen dazu kennt - dann gibt es die Ware auch,
+        // ganz gleich ob im Kasten schon etwas von ihr steht
+        String kennung = gesucht.replace(' ', '_').toUpperCase(Locale.ROOT);
+        if (ItemNames.displayName(kennung) != null) return kennung;
+
         for (Map<String, Integer> zaehler : List.of(cfg().counts, cfg().dayCounts, cfg().totalCounts)) {
             for (String id : zaehler.keySet()) {
                 if (nameOf(id).equalsIgnoreCase(gesucht) || id.equalsIgnoreCase(gesucht)) return id;
@@ -501,11 +515,18 @@ public final class ProfitTracker {
         }
 
         int vorher = countOf(itemId);
-        int delta = switch (change) {
-            case SET -> amount - vorher;
-            case ADD -> amount;
-            case REMOVE -> -amount;
-        };
+        if (change == Change.SET) {
+            // Alle drei auf dieselbe Zahl. Wer eine Zahl geradezieht, meint die Ware -
+            // und drei verschiedene Staende derselben Ware sind genau das, was er
+            // loswerden wollte
+            setAll(itemId, amount);
+            say(Component.literal(nameOf(itemId)).withStyle(ChatFormatting.WHITE)
+                    .append(Component.literal(": " + vorher + " -> " + amount
+                            + " in Session, Day and Total.").withStyle(ChatFormatting.YELLOW)));
+            return;
+        }
+
+        int delta = change == Change.ADD ? amount : -amount;
         if (delta == 0) {
             say(Component.literal(nameOf(itemId)).withStyle(ChatFormatting.WHITE)
                     .append(Component.literal(" already stands at " + vorher + ".")
@@ -516,7 +537,18 @@ public final class ProfitTracker {
         adjust(itemId, delta);
         say(Component.literal(nameOf(itemId)).withStyle(ChatFormatting.WHITE)
                 .append(Component.literal(": " + vorher + " -> " + Math.max(0, vorher + delta)
-                        + " (" + view() + ")").withStyle(ChatFormatting.YELLOW)));
+                        + " in " + view() + ", and the same step in the other two.")
+                        .withStyle(ChatFormatting.YELLOW)));
+    }
+
+    /** Dieselbe Zahl in allen drei Zeitraeumen. Null heisst: raus aus der Liste */
+    private static void setAll(String itemId, int amount) {
+        for (Map<String, Integer> zaehler : List.of(cfg().counts, cfg().dayCounts, cfg().totalCounts)) {
+            if (amount > 0) zaehler.put(itemId, amount);
+            else zaehler.remove(itemId);
+        }
+        ModConfig.INSTANCE.saveNow();
+        ShokiMod.LOGGER.info("[Profit] {} set to {} in all three", itemId, amount);
     }
 
     /** Eine Zeile der Mod im Chat */
