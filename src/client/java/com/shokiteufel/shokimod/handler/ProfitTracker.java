@@ -265,8 +265,7 @@ public final class ProfitTracker {
 
     /** Der Name, wie ihn das Spiel schreibt - sonst aus der Kennung gebildet */
     public static String nameOf(String itemId) {
-        String name = ItemNames.displayName(itemId);
-        return name == null || name.isBlank() ? SkyBlockItems.readableName(itemId) : name;
+        return ItemNames.shortName(itemId);
     }
 
     /**
@@ -620,7 +619,7 @@ public final class ProfitTracker {
         long kleinsterWeg = Long.MAX_VALUE;
         List<CollectionData.Step> wegNachOben = List.of();
         for (String kandidat : kandidaten) {
-            if (kandidat.equals(itemId)) continue;
+            if (kandidat.equals(itemId) || MINION.matcher(kandidat).matches()) continue;
 
             List<CollectionData.Step> weg = CollectionData.chain(itemId, kandidat);
             if (weg.size() == 1 && weg.get(0).perStep() < kleinsteStufe) {
@@ -651,6 +650,16 @@ public final class ProfitTracker {
         if (fertig.size() == 2) tierCache.put(itemId, fertig);
         return fertig;
     }
+
+    /**
+     * Ein Minion ist keine Stufe.
+     *
+     * In einen Hard Stone Minion III gehen Enchanted Hard Stones, also sieht er fuer den
+     * Bauplan aus wie die naechste Stufe ueber Hard Stone. Er ist aber ein Geraet und
+     * keine Ware, die man verkauft - und stand damit als "x2" im Knopf.
+     */
+    private static final java.util.regex.Pattern MINION =
+            java.util.regex.Pattern.compile(".*_GENERATOR_\\d+$");
 
     /** Einmal gefundene Stufen bleiben - die Bauplaene aendern sich nicht im Spiel */
     private static final Map<String, List<String>> tierCache = new java.util.concurrent.ConcurrentHashMap<>();

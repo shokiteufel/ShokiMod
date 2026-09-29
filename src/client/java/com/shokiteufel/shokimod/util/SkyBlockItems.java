@@ -197,16 +197,21 @@ public final class SkyBlockItems {
         }
 
         // Ein Buch traegt Verzauberung und Stufe in der Kennung
+        // Ein Buch traegt Verzauberung und Stufe - mehr braucht es nicht. "Sunset 1"
+        // sagt dasselbe wie "Ultimate Sunset 1 Book" und passt in eine Zeile: Das
+        // "Ultimate" steht schon in der Stufe, und ein Buch ist es sowieso
         if (rest.startsWith("ENCHANTMENT_")) {
             String body = rest.substring("ENCHANTMENT_".length());
+            if (body.startsWith("ULTIMATE_")) body = body.substring("ULTIMATE_".length());
+
             int underscore = body.lastIndexOf('_');
             if (underscore > 0) {
                 String level = body.substring(underscore + 1);
                 if (level.chars().allMatch(Character::isDigit)) {
-                    return words(body.substring(0, underscore)) + " " + level + " Book";
+                    return words(body.substring(0, underscore)) + " " + level;
                 }
             }
-            return words(body) + " Book";
+            return words(body);
         }
         if (rest.startsWith("ATTRIBUTE_SHARD_")) {
             return words(rest.substring("ATTRIBUTE_SHARD_".length())) + " Shard";
