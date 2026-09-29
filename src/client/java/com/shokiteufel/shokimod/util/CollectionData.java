@@ -263,61 +263,109 @@ public final class CollectionData {
 
     /** Holt den Bauplan und geht ihn hinunter, bis eine Collection erreicht ist */
     /**
-     * Wie viele Stueck von {@code from} in einem {@code to} stecken - oder -1.
-     *
-     * Aus demselben Bauplan wie die Collection-Umrechnung, nur mit einem anderen Ziel:
-     * Nicht "welche Collection", sondern "wie viele von genau dieser Ware". So kommt
-     * heraus, dass ein Enchanted Bone 160 Bones sind, ein Enchanted Bone Block 25.600,
-     * ein Fine Ruby Gem 6.400 Rough - und ein Gold Magmafish 6.400 Magmafish.
-     *
-     * Minus eins heisst "weiss ich (noch) nicht": Entweder hat die Ware nichts mit der
-     * anderen zu tun, oder der Bauplan wird gerade geholt. Geholt wird im Hintergrund,
-     * das Ergebnis liegt danach auf der Platte.
+     * Eine Stufe auf dem Weg nach oben: was dabei herauskommt, und wie viele der
+     * Vorstufe eines davon ergeben.
      */
-    public static long ratio(String from, String to) {
-        if (from == null || to == null || from.isBlank() || to.isBlank()) return -1;
+    public record Step(String itemId, long perStep) {
+    }
+
+    /**
+     * Der Weg von einer Ware zu einer hoeheren, Stufe fuer Stufe.
+     *
+     * Von Bone zu Enchanted Bone Block sind das zwei Stufen - 160 Bones ergeben ein
+     * Enchanted Bone, 160 davon einen Block. Wer nur bis zum Enchanted Bone will, bekommt
+     * eine Stufe. Die leere Liste heisst "kein Weg" oder "noch nicht nachgesehen": Der
+     * Bauplan wird im Hintergrund geholt und liegt danach auf der Platte.
+     *
+     * Die Stufen stehen in der Reihenfolge, in der man sie craftet.
+     */
+    public static List<Step> chain(String from, String to) {
+        if (from == null || to == null || from.isBlank() || to.isBlank()) return List.of();
         String a = normalise(from);
         String b = normalise(to);
-        if (a.equals(b)) return 1;
+        if (a.equals(b)) return List.of();
 
         readCache();
         String key = a + ">" + b;
         String cached = resolved.get(key);
         if (cached != null) {
-            if (cached.isEmpty()) return -1;
-            try {
-                return Long.parseLong(cached);
-            } catch (NumberFormatException e) {
-                resolved.remove(key);
-            }
+            List<Step> steps = parseChain(cached);
+            // Leer und leer sind zweierlei: "" heisst "es gibt keinen Weg", ein Text, der
+            // sich nicht lesen laesst, heisst "alte Schreibweise" - die wird neu geholt
+            if (!steps.isEmpty() || cached.isEmpty()) return steps;
+            resolved.remove(key);
         }
 
         if (pending.add(key)) {
             Thread worker = new Thread(() -> {
                 try {
-                    long found = fetchRatio(a, b, 0);
-                    resolved.put(key, found <= 0 ? "" : Long.toString(found));
+                    List<Step> found = fetchChain(a, b, 0);
+                    resolved.put(key, found == null ? "" : writeChain(found));
                     cacheDirty = true;
                     writeCache();
-                    if (found > 0) ShokiMod.LOGGER.info("[Collections] {} = {} x {}", b, found, a);
+                    if (found != null) ShokiMod.LOGGER.info("[Collections] {} -> {}: {}", a, b, found);
                 } catch (RuntimeException e) {
                     ShokiMod.LOGGER.warn("[Collections] Bauplan von {} nicht lesbar: {}", b, e.toString());
                 } finally {
                     pending.remove(key);
                 }
-            }, "ShokiMod craft ratio");
+            }, "ShokiMod craft chain");
             worker.setDaemon(true);
             worker.start();
         }
-        return -1;
+        return List.of();
     }
 
-    /** Den Bauplan hinunter, bis die gesuchte Ware darin steht */
-    private static long fetchRatio(String from, String to, int depth) {
-        if (depth >= MAX_DEPTH || from.equals(to)) return from.equals(to) ? 1 : -1;
+    /**
+     * Wie viele Stueck von {@code from} in einem {@code to} stecken - oder -1.
+     *
+     * Das Produkt aller Stufen dazwischen: 160 mal 160 sind die 25.600 Bones eines
+     * Enchanted Bone Block. Minus eins heisst "die beiden haben nichts miteinander zu
+     * tun" oder "der Bauplan wird gerade geholt".
+     */
+    public static long ratio(String from, String to) {
+        if (from != null && from.equals(to)) return 1;
+
+        List<Step> weg = chain(from, to);
+        if (weg.isEmpty()) return -1;
+
+        long gesamt = 1;
+        for (Step step : weg) gesamt *= Math.max(1, step.perStep());
+        return gesamt;
+    }
+
+    /** "ENCHANTED_BONE:160|ENCHANTED_BONE_BLOCK:160" */
+    private static String writeChain(List<Step> steps) {
+        StringBuilder text = new StringBuilder();
+        for (Step step : steps) {
+            if (!text.isEmpty()) text.append('|');
+            text.append(step.itemId()).append(':').append(step.perStep());
+        }
+        return text.toString();
+    }
+
+    private static List<Step> parseChain(String text) {
+        if (text == null || text.isEmpty()) return List.of();
+
+        List<Step> out = new ArrayList<>();
+        for (String teil : text.split("\\|")) {
+            int doppelpunkt = teil.lastIndexOf(':');
+            if (doppelpunkt <= 0) return List.of();
+            try {
+                out.add(new Step(teil.substring(0, doppelpunkt), Long.parseLong(teil.substring(doppelpunkt + 1))));
+            } catch (NumberFormatException e) {
+                return List.of();
+            }
+        }
+        return List.copyOf(out);
+    }
+
+    /** Den Bauplan hinunter, bis die gesuchte Ware darin steht - und den Weg mitschreiben */
+    private static List<Step> fetchChain(String from, String to, int depth) {
+        if (depth >= MAX_DEPTH || from.equals(to)) return null;
 
         JsonObject item = fetchItem(to);
-        if (item == null) return -1;
+        if (item == null) return null;
 
         Map<String, Long> ingredients = new HashMap<>();
         long output = 1;
@@ -335,22 +383,25 @@ public final class CollectionData {
                 }
             }
         }
-        if (ingredients.isEmpty()) return -1;
+        if (ingredients.isEmpty()) return null;
 
-        // Steht die gesuchte Ware direkt im Bauplan, ist die Rechnung hier zu Ende
+        // Steht die gesuchte Ware direkt im Bauplan, ist der Weg eine einzige Stufe
         Long direkt = ingredients.get(from);
-        if (direkt != null) return Math.max(1, direkt / Math.max(1, output));
+        if (direkt != null) return List.of(new Step(to, Math.max(1, direkt / Math.max(1, output))));
 
         // Sonst weiter ueber die Zutat, von der am meisten hineingeht
         Map.Entry<String, Long> main = null;
         for (Map.Entry<String, Long> entry : ingredients.entrySet()) {
             if (main == null || entry.getValue() > main.getValue()) main = entry;
         }
-        if (main == null || main.getKey().equals(to)) return -1;
+        if (main == null || main.getKey().equals(to)) return null;
 
-        long weiter = fetchRatio(from, main.getKey(), depth + 1);
-        if (weiter <= 0) return -1;
-        return Math.max(1, weiter * main.getValue() / Math.max(1, output));
+        List<Step> davor = fetchChain(from, main.getKey(), depth + 1);
+        if (davor == null) return null;
+
+        List<Step> out = new ArrayList<>(davor);
+        out.add(new Step(to, Math.max(1, main.getValue() / Math.max(1, output))));
+        return out;
     }
 
     private static Yield fetchYield(String itemId, int depth) {
