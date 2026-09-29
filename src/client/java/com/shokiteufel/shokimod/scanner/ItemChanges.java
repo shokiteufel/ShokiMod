@@ -150,6 +150,16 @@ public final class ItemChanges {
     private static final Pattern BAZAAR_CLAIM = Pattern.compile(
             "^" + Pattern.quote("[Bazaar]") + " Claimed (?<amount>[\\d,]+)x (?<item>.+?) worth .+$",
             Pattern.CASE_INSENSITIVE);
+    /**
+     * "[Bazaar] Cancelled! Refunded 897x Party Gift from cancelling Sell Offer!"
+     *
+     * Eine zurueckgezogene Verkaufsorder gibt die Ware zurueck. Sie war nie weg - sie lag
+     * nur eine Weile im Basar - und ist damit kein Fund, sondern eine Rueckgabe.
+     */
+    private static final Pattern BAZAAR_REFUND = Pattern.compile(
+            "^" + Pattern.quote("[Bazaar]") + " Cancelled! Refunded (?<amount>[\\d,]+)x (?<item>.+?)"
+                    + " from cancelling .+$",
+            Pattern.CASE_INSENSITIVE);
     private static final String SHARD_PREFIX = "SHARD_";
     /** Zeilen aus fremden Kanaelen erzaehlen von fremden Funden */
     private static final String[] FOREIGN_PREFIXES = {"Party >", "Guild >", "Co-op >", "From ", "To "};
@@ -618,8 +628,8 @@ public final class ItemChanges {
             return;
         }
 
-        // Gekaufte Ware ist keine gefundene
-        if (bazaarClaim(plain)) return;
+        // Gekaufte und zurueckgegebene Ware ist keine gefundene
+        if (bazaarGoods(plain)) return;
 
         // Teilt der Server gerade Beute aus, zaehlt sie auch bei offenem Fenster
         if (KILL_REWARD.matcher(plain.trim()).matches()) {
@@ -720,17 +730,24 @@ public final class ItemChanges {
     }
 
     /**
-     * Eine eingeloeste Basar-Order ist kein Fund.
+     * Ware vom Basar ist kein Fund.
      *
-     * Gekauft ist gekauft - die Ware liegt gleich darauf im Inventar oder im Sack, und
-     * dort sieht sie aus wie alles andere. Die Menge steht in der Zeile, also wird genau
-     * sie vorgemerkt und gegen den naechsten Zugang derselben Ware aufgerechnet.
+     * Zwei Wege fuehren von dort ins Inventar: eine eingeloeste Kauforder und eine
+     * zurueckgezogene Verkaufsorder. Gekauft ist gekauft, und zurueckgegeben war nie weg -
+     * beides sieht im Inventar aus wie alles andere. Die Menge steht in der Zeile, also
+     * wird genau sie vorgemerkt und gegen den naechsten Zugang derselben Ware
+     * aufgerechnet.
      *
      * @return ob die Zeile eine solche Meldung war
      */
-    private static boolean bazaarClaim(String plain) {
-        Matcher matcher = BAZAAR_CLAIM.matcher(plain.trim());
-        if (!matcher.matches()) return false;
+    private static boolean bazaarGoods(String plain) {
+        String zeile = plain.trim();
+        Matcher matcher = BAZAAR_CLAIM.matcher(zeile);
+        boolean gekauft = matcher.matches();
+        if (!gekauft) {
+            matcher = BAZAAR_REFUND.matcher(zeile);
+            if (!matcher.matches()) return false;
+        }
 
         String name = matcher.group("item").trim();
         int amount = number(matcher.group("amount"));
@@ -738,12 +755,13 @@ public final class ItemChanges {
 
         List<String> ids = ItemNames.idsFor(name);
         if (ids.isEmpty()) {
-            ShokiMod.LOGGER.info("[Profit] bought, but the name is unknown: {} x{}", name, amount);
+            ShokiMod.LOGGER.info("[Profit] from the bazaar, but the name is unknown: {} x{}", name, amount);
             return true;
         }
 
         losses.add(new Loss(ids.get(0), amount, System.currentTimeMillis(), false));
-        ShokiMod.LOGGER.info("[Profit] bought, not found: {} x{}", ids.get(0), amount);
+        ShokiMod.LOGGER.info("[Profit] {}, not found: {} x{}", gekauft ? "bought" : "refunded",
+                ids.get(0), amount);
         return true;
     }
 
