@@ -117,6 +117,17 @@ public final class ItemChanges {
     /** "You Supercrafted Blessed Bait x256!" - gebaut, nicht gefunden */
     private static final Pattern SUPERCRAFT = Pattern.compile(
             "^You Supercrafted (?<item>.+?)(?: x(?<amount>[\\d,]+))?!$", Pattern.CASE_INSENSITIVE);
+    /**
+     * "Moved 9 Enchanted Bone from your Sacks to your inventory." - geholt, nicht gefunden.
+     *
+     * Wer Ware aus einem Sack ins Inventar holt - von Hand oder ueber den Knopf, den
+     * SkyHanni unter die Craft-Meldung setzt -, hat nichts gefunden. Gezaehlt wurde sie
+     * schon, als sie in den Sack fiel; im Inventar sieht der Vergleich sie ein zweites
+     * Mal, und ohne diese Zeile stuende sie doppelt im Kasten.
+     */
+    private static final Pattern FROM_SACKS = Pattern.compile(
+            "^Moved (?<amount>[\\d,]+) (?<item>.+?) from your Sacks? to your inventory\\.?$",
+            Pattern.CASE_INSENSITIVE);
     private static final String SHARD_PREFIX = "SHARD_";
     /** Zeilen aus fremden Kanaelen erzaehlen von fremden Funden */
     private static final String[] FOREIGN_PREFIXES = {"Party >", "Guild >", "Co-op >", "From ", "To "};
@@ -572,6 +583,8 @@ public final class ItemChanges {
         // wird in einem, und die Meldung ist der einzige Hinweis darauf, dass die Ware
         // gebaut und nicht gefunden wurde
         if (supercraft(plain)) return;
+        // Und aus demselben Grund die Zeile, die einen Umzug aus dem Sack meldet
+        if (fromSacks(plain)) return;
 
         // Teilt der Server gerade Beute aus, zaehlt sie auch bei offenem Fenster
         if (KILL_REWARD.matcher(plain.trim()).matches()) {
@@ -633,6 +646,36 @@ public final class ItemChanges {
         // schon, und was danach dort ankommt, ist wieder ein Fund
         losses.add(new Loss(ids.get(0), amount, System.currentTimeMillis(), true));
         ShokiMod.LOGGER.info("[Profit] crafted, not found: {} x{}", ids.get(0), amount);
+        return true;
+    }
+
+    /**
+     * Ware aus einem Sack ist kein Fund.
+     *
+     * Sie war schon gezaehlt, als sie in den Sack fiel. Im Inventar taucht sie gleich
+     * darauf wieder auf - fuer den Vergleich sieht das aus wie ein Zugang. Also wird die
+     * Menge vorgemerkt und gegen den naechsten Zugang derselben Ware aufgerechnet.
+     *
+     * @return ob die Zeile ein solcher Umzug war
+     */
+    private static boolean fromSacks(String plain) {
+        Matcher matcher = FROM_SACKS.matcher(plain.trim());
+        if (!matcher.matches()) return false;
+
+        String name = matcher.group("item").trim();
+        int amount = number(matcher.group("amount"));
+        if (name.isEmpty() || amount <= 0) return true;
+
+        List<String> ids = ItemNames.idsFor(name);
+        if (ids.isEmpty()) {
+            ShokiMod.LOGGER.info("[Profit] out of the sack, but the name is unknown: {} x{}", name, amount);
+            return true;
+        }
+
+        // Nicht nur fuer die Sack-Meldung: Hier kommt die Ware ins Inventar, und genau
+        // dort muss sie wieder abgezogen werden
+        losses.add(new Loss(ids.get(0), amount, System.currentTimeMillis(), false));
+        ShokiMod.LOGGER.info("[Profit] out of the sack, not found: {} x{}", ids.get(0), amount);
         return true;
     }
 
