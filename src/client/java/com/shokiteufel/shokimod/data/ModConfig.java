@@ -1550,7 +1550,7 @@ public class ModConfig extends Config {
         public boolean showPerHour = true;
 
         @Expose
-        @ConfigOption(name = "Show Time", desc = "The Time line in the panel.")
+        @ConfigOption(name = "Show Active Time", desc = "The Active Time line in the panel - the time that actually counted, without the waiting before a pause.")
         @ConfigEditorBoolean
         @ConfigAccordionId(id = 43)
         public boolean showTime = true;

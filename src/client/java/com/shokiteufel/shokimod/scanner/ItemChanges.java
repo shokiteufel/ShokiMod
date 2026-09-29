@@ -128,6 +128,28 @@ public final class ItemChanges {
     private static final Pattern FROM_SACKS = Pattern.compile(
             "^Moved (?<amount>[\\d,]+) (?<item>.+?) from your Sacks? to your inventory\\.?$",
             Pattern.CASE_INSENSITIVE);
+    /**
+     * "You have successfully transferred your items from this stash to your sacks!"
+     *
+     * Was aus dem Stash kommt, ist alles Moegliche - aber nichts davon ist gerade
+     * gefunden worden. Die Sack-Meldung danach zaehlt den ganzen Schwung, im Bild vom
+     * 29.09. waren es 143.755 Stueck auf einmal.
+     */
+    private static final Pattern STASH_TO_SACKS = Pattern.compile(
+            "^You have successfully transferred your items from .+ stash to your sacks!?$",
+            Pattern.CASE_INSENSITIVE);
+    /**
+     * So lange nach der Stash-Zeile zaehlt keine Sack-Meldung.
+     *
+     * Die Meldung fasst bis zu zwanzig Sekunden zusammen und kommt entsprechend spaet;
+     * dreissig Sekunden decken das ab. Der Preis ist benannt: Was in diesen Sekunden
+     * wirklich gefunden und eingelagert wird, faellt mit weg.
+     */
+    private static final long STASH_MILLIS = 30_000L;
+    /** "[Bazaar] Claimed 1,344x Enchanted Raw Cod worth 1.1M coins bought for 841 each!" */
+    private static final Pattern BAZAAR_CLAIM = Pattern.compile(
+            "^" + Pattern.quote("[Bazaar]") + " Claimed (?<amount>[\\d,]+)x (?<item>.+?) worth .+$",
+            Pattern.CASE_INSENSITIVE);
     private static final String SHARD_PREFIX = "SHARD_";
     /** Zeilen aus fremden Kanaelen erzaehlen von fremden Funden */
     private static final String[] FOREIGN_PREFIXES = {"Party >", "Guild >", "Co-op >", "From ", "To "};
@@ -178,6 +200,8 @@ public final class ItemChanges {
      * beide Male "came in through a window".
      */
     private static long lootUntil = 0L;
+    /** Bis wann eine Sack-Meldung noch zum geleerten Stash gehoert */
+    private static long stashUntil = 0L;
     /**
      * Abgaenge der letzten Sekunden, gegen die spaetere Zugaenge verrechnet werden.
      *
@@ -586,6 +610,17 @@ public final class ItemChanges {
         // Und aus demselben Grund die Zeile, die einen Umzug aus dem Sack meldet
         if (fromSacks(plain)) return;
 
+        // Ein geleerter Stash schuettet seinen ganzen Inhalt in die Saecke
+        if (STASH_TO_SACKS.matcher(plain.trim()).matches()) {
+            stashUntil = System.currentTimeMillis() + STASH_MILLIS;
+            ShokiMod.LOGGER.info("[Profit] stash emptied into the sacks - sack messages do not count for {}s",
+                    STASH_MILLIS / 1000);
+            return;
+        }
+
+        // Gekaufte Ware ist keine gefundene
+        if (bazaarClaim(plain)) return;
+
         // Teilt der Server gerade Beute aus, zaehlt sie auch bei offenem Fenster
         if (KILL_REWARD.matcher(plain.trim()).matches()) {
             lootUntil = System.currentTimeMillis() + LOOT_MILLIS;
@@ -601,6 +636,11 @@ public final class ItemChanges {
         }
 
         if (plain.contains(SACK_MARKER)) {
+            // Der Schwung aus dem Stash laeuft ueber genau diese Meldung
+            if (System.currentTimeMillis() < stashUntil) {
+                ShokiMod.LOGGER.info("[Profit] sack message skipped, it belongs to the stash");
+                return;
+            }
             // Wer von Hand einlagert, hat den Sack offen - das ist kein Fund, sondern
             // ein Umzug. Waehrend Beute fliesst aber schon: wer seine Fallen leert,
             // steht dabei im Fallen-Menue, und die Ernte geht trotzdem in die Saecke
@@ -676,6 +716,34 @@ public final class ItemChanges {
         // dort muss sie wieder abgezogen werden
         losses.add(new Loss(ids.get(0), amount, System.currentTimeMillis(), false));
         ShokiMod.LOGGER.info("[Profit] out of the sack, not found: {} x{}", ids.get(0), amount);
+        return true;
+    }
+
+    /**
+     * Eine eingeloeste Basar-Order ist kein Fund.
+     *
+     * Gekauft ist gekauft - die Ware liegt gleich darauf im Inventar oder im Sack, und
+     * dort sieht sie aus wie alles andere. Die Menge steht in der Zeile, also wird genau
+     * sie vorgemerkt und gegen den naechsten Zugang derselben Ware aufgerechnet.
+     *
+     * @return ob die Zeile eine solche Meldung war
+     */
+    private static boolean bazaarClaim(String plain) {
+        Matcher matcher = BAZAAR_CLAIM.matcher(plain.trim());
+        if (!matcher.matches()) return false;
+
+        String name = matcher.group("item").trim();
+        int amount = number(matcher.group("amount"));
+        if (name.isEmpty() || amount <= 0) return true;
+
+        List<String> ids = ItemNames.idsFor(name);
+        if (ids.isEmpty()) {
+            ShokiMod.LOGGER.info("[Profit] bought, but the name is unknown: {} x{}", name, amount);
+            return true;
+        }
+
+        losses.add(new Loss(ids.get(0), amount, System.currentTimeMillis(), false));
+        ShokiMod.LOGGER.info("[Profit] bought, not found: {} x{}", ids.get(0), amount);
         return true;
     }
 

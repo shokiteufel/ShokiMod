@@ -75,9 +75,10 @@ public final class ProfitHud {
         List<String> ids = new ArrayList<>();
         boolean clickable = NearbyOverlay.interactive();
 
-        // Der Zeitraum steht in der Ueberschrift, weil er alles darunter bestimmt -
-        // und ein Klick darauf wechselt ihn
-        panel.title("Profit Tracker - " + ProfitTracker.view()
+        // Der Zeitraum steht in der Ueberschrift, weil er alles darunter bestimmt - und
+        // in Klammern, weil man ihn anklicken kann. Dieselbe Schreibweise wie beim
+        // Reset-Knopf darunter, damit man den Zusammenhang sieht, ohne ihn zu suchen
+        panel.title("Profit Tracker [ " + ProfitTracker.view() + " ]"
                 + (ProfitTracker.isPaused() ? " (paused)" : ""), TITLE_COLOUR);
         ids.add(null);
         panel.blank();
@@ -114,7 +115,9 @@ public final class ProfitHud {
             ids.add(null);
         }
         if (cfg.timerEnabled && cfg.showTime) {
-            panel.pair("Time:", clock(ProfitTracker.uptimeMillis()), LABEL_COLOUR, TIME_COLOUR);
+            // "Active Time", nicht "Time": Die Uhr zaehlt nur, solange etwas hereinkommt,
+            // und die Wartezeit vor einer Pause wird wieder abgezogen
+            panel.pair("Active Time:", clock(ProfitTracker.uptimeMillis()), LABEL_COLOUR, TIME_COLOUR);
             ids.add(null);
         }
 
