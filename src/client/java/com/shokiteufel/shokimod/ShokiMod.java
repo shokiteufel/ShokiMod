@@ -192,6 +192,28 @@ public class ShokiMod implements ClientModInitializer {
                             openProfitItemsNextTick = true;
                             return 1;
                         }))
+                        // /shoki profittracker <Ware> set|add|remove <Zahl> -> eine Zahl im
+                        // Kasten geradeziehen, ohne sie im Inventar wegzuklicken. Der
+                        // Name wird vorgeschlagen, sobald der erste Buchstabe steht
+                        .then(ClientCommands.literal("profittracker")
+                                .then(ClientCommands.argument("item", StringArgumentType.string())
+                                        .suggests((context, builder) -> {
+                                            String bisher = builder.getRemaining().toLowerCase(java.util.Locale.ROOT);
+                                            for (String name : com.shokiteufel.shokimod.handler.ProfitTracker.trackedNames()) {
+                                                // Namen mit Leerzeichen brauchen
+                                                // Anfuehrungszeichen, sonst hoert das
+                                                // Argument beim ersten Leerzeichen auf
+                                                String vorschlag = name.contains(" ") ? "\"" + name + "\"" : name;
+                                                if (vorschlag.toLowerCase(java.util.Locale.ROOT).startsWith(bisher)
+                                                        || name.toLowerCase(java.util.Locale.ROOT).startsWith(bisher)) {
+                                                    builder.suggest(vorschlag);
+                                                }
+                                            }
+                                            return builder.buildFuture();
+                                        })
+                                        .then(profitChange("set", com.shokiteufel.shokimod.handler.ProfitTracker.Change.SET))
+                                        .then(profitChange("add", com.shokiteufel.shokimod.handler.ProfitTracker.Change.ADD))
+                                        .then(profitChange("remove", com.shokiteufel.shokimod.handler.ProfitTracker.Change.REMOVE))))
                         // /shoki confirm -> die Rueckfrage aus dem Chat beantworten.
                         // Der Knopf in der Zeile fuehrt genau diesen Befehl aus
                         .then(ClientCommands.literal("confirm").executes(context -> {
@@ -280,5 +302,24 @@ public class ShokiMod implements ClientModInitializer {
         } catch (Exception e) {
             LOGGER.error("Failed to open MoulConfig screen!", e);
         }
+    }
+
+    /**
+     * Ein Zweig des Profit-Befehls: set, add oder remove, jeder mit seiner Zahl.
+     *
+     * Dreimal derselbe Aufbau - einmal geschrieben, dreimal benutzt, statt ihn zu
+     * wiederholen und beim naechsten Zusatz zwei der drei zu vergessen.
+     */
+    private static com.mojang.brigadier.builder.LiteralArgumentBuilder<net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource>
+            profitChange(String name, com.shokiteufel.shokimod.handler.ProfitTracker.Change change) {
+        return ClientCommands.literal(name)
+                .then(ClientCommands.argument("amount", com.mojang.brigadier.arguments.IntegerArgumentType.integer(0))
+                        .executes(context -> {
+                            com.shokiteufel.shokimod.handler.ProfitTracker.applyChange(
+                                    StringArgumentType.getString(context, "item"),
+                                    change,
+                                    com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "amount"));
+                            return 1;
+                        }));
     }
 }

@@ -441,6 +441,92 @@ public final class ProfitTracker {
     private static final long CONFIRM_MILLIS = 30_000L;
     private static final String RESET_TOKEN = "*reset*";
 
+    /**
+     * Alle Waren, die der Kasten kennt - fuer die Vorschlagsliste des Befehls.
+     *
+     * Aus allen drei Zeitraeumen, denn wer eine Zahl geradezieht, meint die Ware und
+     * nicht die Ansicht, in der sie gerade steht.
+     */
+    public static List<String> trackedNames() {
+        java.util.LinkedHashSet<String> namen = new java.util.LinkedHashSet<>();
+        for (Map<String, Integer> zaehler : List.of(cfg().counts, cfg().dayCounts, cfg().totalCounts)) {
+            for (String id : zaehler.keySet()) namen.add(nameOf(id));
+        }
+        return new ArrayList<>(namen);
+    }
+
+    /**
+     * Die Kennung zu einem eingetippten Namen, oder null.
+     *
+     * Drei Wege, in dieser Reihenfolge: die Item-Liste von Hypixel, ein Name aus dem
+     * Kasten selbst - dort stehen auch Waren, die die Liste nicht fuehrt -, und zuletzt
+     * die Kennung selbst, falls jemand ENCHANTED_RAW_FISH tippt.
+     */
+    static String idForName(String name) {
+        if (name == null || name.isBlank()) return null;
+        String gesucht = name.trim();
+
+        List<String> ids = ItemNames.idsFor(gesucht);
+        if (!ids.isEmpty()) return ids.get(0);
+
+        for (Map<String, Integer> zaehler : List.of(cfg().counts, cfg().dayCounts, cfg().totalCounts)) {
+            for (String id : zaehler.keySet()) {
+                if (nameOf(id).equalsIgnoreCase(gesucht) || id.equalsIgnoreCase(gesucht)) return id;
+            }
+        }
+        return null;
+    }
+
+    /** Was der Befehl mit der Zahl machen soll */
+    public enum Change {
+        SET, ADD, REMOVE
+    }
+
+    /**
+     * Der Befehl /shoki profittracker.
+     *
+     * Gerechnet wird als Unterschied, nicht als neuer Stand: "set" holt den Abstand zum
+     * gezeigten Zeitraum und legt ihn auf alle drei um. Sonst stuende nach einem
+     * "set 500" im Gesamtstand ebenfalls 500, obwohl dort Tausende gezaehlt waren.
+     */
+    public static void applyChange(String name, Change change, int amount) {
+        // Kein Blick auf den Spieler: Die Antwortzeile kuemmert sich selbst darum, und
+        // die Rechnung soll auch ohne laufendes Spiel nachvollziehbar bleiben
+        String itemId = idForName(name);
+        if (itemId == null) {
+            say(Component.literal("No item called ").withStyle(ChatFormatting.RED)
+                    .append(Component.literal(name).withStyle(ChatFormatting.WHITE))
+                    .append(Component.literal(".").withStyle(ChatFormatting.RED)));
+            return;
+        }
+
+        int vorher = countOf(itemId);
+        int delta = switch (change) {
+            case SET -> amount - vorher;
+            case ADD -> amount;
+            case REMOVE -> -amount;
+        };
+        if (delta == 0) {
+            say(Component.literal(nameOf(itemId)).withStyle(ChatFormatting.WHITE)
+                    .append(Component.literal(" already stands at " + vorher + ".")
+                            .withStyle(ChatFormatting.YELLOW)));
+            return;
+        }
+
+        adjust(itemId, delta);
+        say(Component.literal(nameOf(itemId)).withStyle(ChatFormatting.WHITE)
+                .append(Component.literal(": " + vorher + " -> " + Math.max(0, vorher + delta)
+                        + " (" + view() + ")").withStyle(ChatFormatting.YELLOW)));
+    }
+
+    /** Eine Zeile der Mod im Chat */
+    private static void say(Component text) {
+        Minecraft client = Minecraft.getInstance();
+        if (client == null || client.player == null) return;
+        client.player.sendSystemMessage(Component.literal("[ShokiMod] ")
+                .withStyle(ChatFormatting.DARK_AQUA).append(text));
+    }
+
     /** Das [X] an einer Ware: erst fragen */
     public static void askRemove(String itemId) {
         if (itemId == null || countOf(itemId) <= 0) return;
