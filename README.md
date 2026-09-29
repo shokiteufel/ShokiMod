@@ -99,7 +99,8 @@ Voraussetzungen: Fabric Loader 0.19.3+ und Fabric API.
   Zweithand zaehlen mit, also ist ein Helm, der vom Kopf ins Inventar wandert, kein Fund.
   Ware aus einem Sack zu holen zaehlt auch nicht — sie war schon gezaehlt, als sie
   hineinfiel. Ein geleerter Stash und eine eingeloeste Basar-Order ebenso wenig: beides
-  ist Ware, die ankommt, ohne gefunden worden zu sein. Ein Pet ist nie weniger wert, als George
+  ist Ware, die ankommt, ohne gefunden worden zu sein — eine zurueckgezogene Verkaufsorder
+  ebenso, die war nie weg. Ein Pet ist nie weniger wert, als George
   dafuer zahlt — ein Baby Yeti also mindestens eine Million. Essence zaehlt ebenfalls mit — sie
   liegt nicht im Inventar: Ist das Essence-Widget der Tab-Liste an, wird ihr Stand von
   dort gelesen, sonst der Zugang aus der Action Bar (`+3 Fossil Essence`).
