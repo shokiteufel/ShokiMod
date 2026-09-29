@@ -83,7 +83,9 @@ Voraussetzungen: Fabric Loader 0.19.3+ und Fabric API.
   — auch ohne Chatzeile. Je Item einstellbar, ob es im Kasten steht und ob es sofort
   verkauft, in eine Order gelegt, dem NPC gegeben oder mit einem eigenen Preis gerechnet
   wird (`/shoki profit`). Zahlen bei offenem Inventar per `[-]` und `[+]` von Hand
-  richtigstellen, mit dem roten [X] daneben eine Ware ganz herausnehmen. Loeschen und
+  richtigstellen, mit dem roten [X] daneben eine Ware ganz herausnehmen — oder per Befehl
+  (`/shoki profittracker <Ware> set|add|remove <Zahl>`), mit Namensvorschlag ab dem ersten
+  Buchstaben. Loeschen und
   Zuruecksetzen fragen vorher im Chat nach. Zeit und Profit/h einzeln abschaltbar, die Uhr laeuft auf Wunsch durch.
   Drei Zeitraeume — Lauf, Tag und Gesamtstand; ein Klick auf die Ueberschrift wechselt.
   Der Tag faengt zur eingestellten Stunde an, voreingestellt sechs Uhr morgens.
@@ -179,6 +181,7 @@ Voraussetzungen: Fabric Loader 0.19.3+ und Fabric API.
 | `/shoki hub` | Zurueck in den Hub |
 | `/shoki update` | Neueste Fassung von GitHub holen; eingesetzt wird sie beim Beenden des Spiels |
 | `/shoki confirm` | Die Rueckfrage im Chat bejahen — dahinter haengt der Knopf in der Zeile |
+| `/shoki profittracker <Ware> set\|add\|remove <Zahl>` | Eine Zahl im Profit-Kasten geradeziehen; der Name wird vorgeschlagen |
 
 ## Ist das sicher?
 
