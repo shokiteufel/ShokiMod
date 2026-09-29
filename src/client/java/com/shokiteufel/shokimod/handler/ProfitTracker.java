@@ -387,16 +387,20 @@ public final class ProfitTracker {
                 String ziel = countAsOf(itemId);
                 if (ziel == null) continue;
 
-                long teiler = CollectionData.ratio(itemId, ziel);
-                if (teiler <= 0) continue;
-
-                long vorrat = mengen.getOrDefault(itemId, 0L);
-                long ganze = vorrat / teiler;
-                if (ganze <= 0) continue;
-
-                mengen.put(itemId, vorrat - ganze * teiler);
-                mengen.merge(ziel, ganze, Long::sum);
-                etwasGetan = true;
+                // Stufe fuer Stufe bis zum eingestellten Ziel, nicht in einem Sprung:
+                // Wer bis zum Block rechnet, sieht die uebrigen Enchanted Bones auch als
+                // Enchanted Bones - und nicht wieder als 320 lose Bones
+                String unten = itemId;
+                for (CollectionData.Step stufe : CollectionData.chain(itemId, ziel)) {
+                    long vorrat = mengen.getOrDefault(unten, 0L);
+                    long ganze = vorrat / Math.max(1, stufe.perStep());
+                    if (ganze > 0) {
+                        mengen.put(unten, vorrat - ganze * stufe.perStep());
+                        mengen.merge(stufe.itemId(), ganze, Long::sum);
+                        etwasGetan = true;
+                    }
+                    unten = stufe.itemId();
+                }
             }
             if (!etwasGetan) return;
         }
