@@ -86,7 +86,8 @@ die Spielversion beim Start — die falsche Datei laedt der Loader gar nicht ers
   (`/shoki profittracker <Ware> set|add|remove <Zahl>`), mit Namensvorschlag ab dem ersten
   Buchstaben. Je Ware einstellbar, als was sie zaehlt: Bones als Enchanted Bones, Rough
   und Flawed als Fine, Magmafish und Silber als Gold — die Umrechnung kommt aus dem
-  Bauplan, und die Zeilen werden zusammengelegt. Loeschen und
+  Bauplan, und die Zeilen werden zusammengelegt. Hochgerechnet wird in ganzen Stuecken:
+  400 Bones sind zwei Enchanted Bones und achtzig Bones. Loeschen und
   Zuruecksetzen fragen vorher im Chat nach. Zeit und Profit/h einzeln abschaltbar, die Uhr laeuft auf Wunsch durch.
   Drei Zeitraeume — Lauf, Tag und Gesamtstand; ein Klick auf die Ueberschrift wechselt.
   Der Tag faengt zur eingestellten Stunde an, voreingestellt sechs Uhr morgens.
