@@ -41,6 +41,8 @@ public class ProfitItemScreen extends Screen {
     private static final int ROW_HEIGHT = 22;
     private static final int NAME_WIDTH = 210;
     private static final int MODE_WIDTH = 64;
+    /** Der Knopf fuer "als was gezaehlt wird" - schmal, es stehen nur zwei Zeichen drin */
+    private static final int CRAFT_WIDTH = 40;
     private static final int PRICE_WIDTH = 72;
     private static final int LIST_TOP = 74;
 
@@ -93,7 +95,7 @@ public class ProfitItemScreen extends Screen {
         page = Math.min(page, pageCount() - 1);
 
         List<String> items = visible();
-        int gridWidth = NAME_WIDTH + 4 + MODE_WIDTH + 4 + PRICE_WIDTH;
+        int gridWidth = NAME_WIDTH + 4 + MODE_WIDTH + 4 + CRAFT_WIDTH + 4 + PRICE_WIDTH;
         int left = width / 2 - gridWidth / 2;
 
         EditBox search = new EditBox(font, left, 34, NAME_WIDTH, 20, Component.literal("Search"));
@@ -131,9 +133,17 @@ public class ProfitItemScreen extends Screen {
                 rebuild();
             }).bounds(left + NAME_WIDTH + 4, y, MODE_WIDTH, 20).build());
 
+            // Als was die Ware zaehlt: so wie sie ist, eine Stufe hoeher, zwei Stufen
+            Button craft = Button.builder(craftLabel(itemId), button -> {
+                ProfitTracker.setCountAs(itemId, nextTier(itemId));
+                rebuild();
+            }).bounds(left + NAME_WIDTH + 8 + MODE_WIDTH, y, CRAFT_WIDTH, 20).build();
+            craft.setTooltip(craftTooltip(itemId));
+            addRenderableWidget(craft);
+
             // Das Feld gehoert nur zu Custom - sonst stuenden vierzig leere Kaesten da
             if (ProfitTracker.hasOwnMode(itemId) && ProfitTracker.modeOf(itemId) == SellMode.CUSTOM) {
-                EditBox price = new EditBox(font, left + NAME_WIDTH + 8 + MODE_WIDTH, y,
+                EditBox price = new EditBox(font, left + NAME_WIDTH + 12 + MODE_WIDTH + CRAFT_WIDTH, y,
                         PRICE_WIDTH, 20, Component.literal("Price"));
                 double own = ProfitTracker.customPrice(itemId);
                 price.setValue(own > 0 ? String.valueOf((long) own) : "");
@@ -179,6 +189,47 @@ public class ProfitItemScreen extends Screen {
 
         addRenderableWidget(Button.builder(Component.literal("Done"), button -> onClose())
                 .bounds(left + gridWidth - 60, y, 60, 20).build());
+    }
+
+    /** "as is", "x1" oder "x2" - und ein Strich, solange keine Stufe bekannt ist */
+    private static Component craftLabel(String itemId) {
+        String ziel = ProfitTracker.countAsOf(itemId);
+        List<String> stufen = ProfitTracker.upgradeTiers(itemId);
+        if (ziel == null) {
+            return Component.literal(stufen.isEmpty() ? "-" : "as is")
+                    .withStyle(ChatFormatting.DARK_GRAY);
+        }
+        int stelle = stufen.indexOf(ziel);
+        return Component.literal(stelle < 0 ? "set" : "x" + (stelle + 1))
+                .withStyle(ChatFormatting.AQUA);
+    }
+
+    /** Am Mauszeiger steht, was der Knopf bedeutet - im Knopf ist dafuer kein Platz */
+    private static net.minecraft.client.gui.components.Tooltip craftTooltip(String itemId) {
+        List<String> stufen = ProfitTracker.upgradeTiers(itemId);
+        if (stufen.isEmpty()) {
+            return net.minecraft.client.gui.components.Tooltip.create(
+                    Component.literal("No crafted-up form known for this item."));
+        }
+
+        StringBuilder text = new StringBuilder("Count this item as its crafted-up form:");
+        for (int i = 0; i < stufen.size(); i++) {
+            long teiler = com.shokiteufel.shokimod.util.CollectionData.ratio(itemId, stufen.get(i));
+            text.append("\nx").append(i + 1).append(" = ").append(ProfitTracker.nameOf(stufen.get(i)));
+            if (teiler > 0) text.append(" (").append(teiler).append(" to one)");
+        }
+        text.append("\nWhole pieces only - the rest stays as it is.");
+        return net.minecraft.client.gui.components.Tooltip.create(Component.literal(text.toString()));
+    }
+
+    /** Der naechste Schritt des Knopfes: aus, x1, x2, wieder aus */
+    private static String nextTier(String itemId) {
+        List<String> stufen = ProfitTracker.upgradeTiers(itemId);
+        if (stufen.isEmpty()) return null;
+
+        String ziel = ProfitTracker.countAsOf(itemId);
+        int stelle = ziel == null ? -1 : stufen.indexOf(ziel);
+        return stelle + 1 < stufen.size() ? stufen.get(stelle + 1) : null;
     }
 
     private static Component selectionLabel() {

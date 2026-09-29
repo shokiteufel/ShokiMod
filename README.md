@@ -89,7 +89,9 @@ Voraussetzungen: Fabric Loader 0.19.3+ und Fabric API.
   und Flawed als Fine, Magmafish und Silber als Gold — die Umrechnung kommt aus dem
   Bauplan, und die Zeilen werden zusammengelegt. Hochgerechnet wird in ganzen Stuecken und
   nur bis zur eingestellten Stufe: 400 Bones sind zwei Enchanted Bones und achtzig Bones,
-  und wer als Ziel den Block waehlt, sieht den Rest als Enchanted Bones statt als Bones. Loeschen und
+  und wer als Ziel den Block waehlt, sieht den Rest als Enchanted Bones statt als Bones.
+  Eingestellt wird es in der Item-Liste (`/shoki profit`) mit dem Knopf `as is` / `x1` /
+  `x2` oder per Befehl. Loeschen und
   Zuruecksetzen fragen vorher im Chat nach. Zeit und Profit/h einzeln abschaltbar, die Uhr laeuft auf Wunsch durch.
   Drei Zeitraeume — Lauf, Tag und Gesamtstand; ein Klick auf die Ueberschrift wechselt.
   Der Tag faengt zur eingestellten Stunde an, voreingestellt sechs Uhr morgens.
