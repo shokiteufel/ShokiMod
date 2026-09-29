@@ -262,6 +262,97 @@ public final class CollectionData {
     }
 
     /** Holt den Bauplan und geht ihn hinunter, bis eine Collection erreicht ist */
+    /**
+     * Wie viele Stueck von {@code from} in einem {@code to} stecken - oder -1.
+     *
+     * Aus demselben Bauplan wie die Collection-Umrechnung, nur mit einem anderen Ziel:
+     * Nicht "welche Collection", sondern "wie viele von genau dieser Ware". So kommt
+     * heraus, dass ein Enchanted Bone 160 Bones sind, ein Enchanted Bone Block 25.600,
+     * ein Fine Ruby Gem 6.400 Rough - und ein Gold Magmafish 6.400 Magmafish.
+     *
+     * Minus eins heisst "weiss ich (noch) nicht": Entweder hat die Ware nichts mit der
+     * anderen zu tun, oder der Bauplan wird gerade geholt. Geholt wird im Hintergrund,
+     * das Ergebnis liegt danach auf der Platte.
+     */
+    public static long ratio(String from, String to) {
+        if (from == null || to == null || from.isBlank() || to.isBlank()) return -1;
+        String a = normalise(from);
+        String b = normalise(to);
+        if (a.equals(b)) return 1;
+
+        readCache();
+        String key = a + ">" + b;
+        String cached = resolved.get(key);
+        if (cached != null) {
+            if (cached.isEmpty()) return -1;
+            try {
+                return Long.parseLong(cached);
+            } catch (NumberFormatException e) {
+                resolved.remove(key);
+            }
+        }
+
+        if (pending.add(key)) {
+            Thread worker = new Thread(() -> {
+                try {
+                    long found = fetchRatio(a, b, 0);
+                    resolved.put(key, found <= 0 ? "" : Long.toString(found));
+                    cacheDirty = true;
+                    writeCache();
+                    if (found > 0) ShokiMod.LOGGER.info("[Collections] {} = {} x {}", b, found, a);
+                } catch (RuntimeException e) {
+                    ShokiMod.LOGGER.warn("[Collections] Bauplan von {} nicht lesbar: {}", b, e.toString());
+                } finally {
+                    pending.remove(key);
+                }
+            }, "ShokiMod craft ratio");
+            worker.setDaemon(true);
+            worker.start();
+        }
+        return -1;
+    }
+
+    /** Den Bauplan hinunter, bis die gesuchte Ware darin steht */
+    private static long fetchRatio(String from, String to, int depth) {
+        if (depth >= MAX_DEPTH || from.equals(to)) return from.equals(to) ? 1 : -1;
+
+        JsonObject item = fetchItem(to);
+        if (item == null) return -1;
+
+        Map<String, Long> ingredients = new HashMap<>();
+        long output = 1;
+        collectIngredients(item.getAsJsonObject("recipe"), ingredients);
+        if (ingredients.isEmpty() && item.has("recipes") && item.get("recipes").isJsonArray()) {
+            for (JsonElement element : item.getAsJsonArray("recipes")) {
+                if (!element.isJsonObject()) continue;
+                JsonObject recipe = element.getAsJsonObject();
+                Map<String, Long> single = new HashMap<>();
+                collectIngredients(recipe, single);
+                if (!single.isEmpty()) {
+                    ingredients = single;
+                    output = outputCount(recipe);
+                    break;
+                }
+            }
+        }
+        if (ingredients.isEmpty()) return -1;
+
+        // Steht die gesuchte Ware direkt im Bauplan, ist die Rechnung hier zu Ende
+        Long direkt = ingredients.get(from);
+        if (direkt != null) return Math.max(1, direkt / Math.max(1, output));
+
+        // Sonst weiter ueber die Zutat, von der am meisten hineingeht
+        Map.Entry<String, Long> main = null;
+        for (Map.Entry<String, Long> entry : ingredients.entrySet()) {
+            if (main == null || entry.getValue() > main.getValue()) main = entry;
+        }
+        if (main == null || main.getKey().equals(to)) return -1;
+
+        long weiter = fetchRatio(from, main.getKey(), depth + 1);
+        if (weiter <= 0) return -1;
+        return Math.max(1, weiter * main.getValue() / Math.max(1, output));
+    }
+
     private static Yield fetchYield(String itemId, int depth) {
         if (depth >= MAX_DEPTH) return null;
         if (collections.containsKey(itemId)) return new Yield(itemId, 1);
@@ -352,6 +443,15 @@ public final class CollectionData {
         return out;
     }
 
+    /**
+     * Der Bauplan einer Ware aus dem NEU-Repo.
+     *
+     * Null heisst "die gibt es dort nicht" - das ist eine Antwort und wird gemerkt. Eine
+     * Ausnahme heisst "gerade nicht erreichbar", und die wird nicht gemerkt: Sonst haette
+     * eine Minute ohne Netz zur Folge, dass eine Ware fuer immer als unumrechenbar gilt.
+     * Genau das ist beim Pruefen passiert - zwoelf Anfragen auf einmal, ein paar liefen
+     * ins Leere, und danach stand fuer Rough-zu-Fine dauerhaft "weiss ich nicht".
+     */
     private static JsonObject fetchItem(String itemId) {
         String url = String.format(NEU_ITEM, itemId.replace(":", "-"));
         try {
@@ -362,13 +462,16 @@ public final class CollectionData {
                     .GET()
                     .build();
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() != 200) return null;
+            if (response.statusCode() == 404) return null;
+            if (response.statusCode() != 200) {
+                throw new IllegalStateException("NEU repo answered " + response.statusCode());
+            }
             return GSON.fromJson(response.body(), JsonObject.class);
-        } catch (IOException | RuntimeException e) {
-            return null;
+        } catch (IOException e) {
+            throw new IllegalStateException("NEU repo not reachable: " + e, e);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            return null;
+            throw new IllegalStateException("interrupted while reading the recipe of " + itemId, e);
         }
     }
 

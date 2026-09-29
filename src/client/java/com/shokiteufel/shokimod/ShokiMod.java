@@ -211,6 +211,30 @@ public class ShokiMod implements ClientModInitializer {
                                             }
                                             return builder.buildFuture();
                                         })
+                                        // ... countas <Ziel> -> als welche Ware sie zaehlt
+                                        .then(ClientCommands.literal("countas")
+                                                .then(ClientCommands.argument("target", StringArgumentType.string())
+                                                        .suggests((context, builder) -> {
+                                                            String bisher = builder.getRemaining().toLowerCase(java.util.Locale.ROOT);
+                                                            java.util.List<String> namen = new java.util.ArrayList<>(
+                                                                    com.shokiteufel.shokimod.handler.ProfitTracker.countAsCandidates(
+                                                                            StringArgumentType.getString(context, "item")));
+                                                            namen.add("none");
+                                                            for (String name : namen) {
+                                                                String vorschlag = name.contains(" ") ? "\"" + name + "\"" : name;
+                                                                if (vorschlag.toLowerCase(java.util.Locale.ROOT).startsWith(bisher)
+                                                                        || name.toLowerCase(java.util.Locale.ROOT).startsWith(bisher)) {
+                                                                    builder.suggest(vorschlag);
+                                                                }
+                                                            }
+                                                            return builder.buildFuture();
+                                                        })
+                                                        .executes(context -> {
+                                                            com.shokiteufel.shokimod.handler.ProfitTracker.applyCountAs(
+                                                                    StringArgumentType.getString(context, "item"),
+                                                                    StringArgumentType.getString(context, "target"));
+                                                            return 1;
+                                                        })))
                                         .then(profitChange("set", com.shokiteufel.shokimod.handler.ProfitTracker.Change.SET))
                                         .then(profitChange("add", com.shokiteufel.shokimod.handler.ProfitTracker.Change.ADD))
                                         .then(profitChange("remove", com.shokiteufel.shokimod.handler.ProfitTracker.Change.REMOVE))))
