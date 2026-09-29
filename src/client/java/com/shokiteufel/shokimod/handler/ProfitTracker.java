@@ -10,7 +10,9 @@ import com.shokiteufel.shokimod.util.ItemValue.SellMode;
 import com.shokiteufel.shokimod.util.SkyBlockItems;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -424,6 +426,105 @@ public final class ProfitTracker {
         java.time.ZonedDateTime grenze = jetzt.toLocalDate().atTime(stunde, 0).atZone(jetzt.getZone());
         if (grenze.isAfter(jetzt)) grenze = grenze.minusDays(1);
         return grenze.toInstant().toEpochMilli();
+    }
+
+    /**
+     * Worauf gerade eine Bestaetigung aussteht - eine Kennung oder {@link #RESET_TOKEN}.
+     *
+     * Beides nimmt etwas weg, und beides passiert mit einem einzigen Klick im Kasten.
+     * Eine Rueckfrage im Chat kostet einen zweiten Klick und rettet einen Lauf, der
+     * sonst mit einem Danebengreifen weg waere.
+     */
+    private static String pending = null;
+    private static long pendingAt = 0L;
+    /** So lange gilt eine Frage. Danach ist sie keine Frage mehr, sondern ein Klick von gestern */
+    private static final long CONFIRM_MILLIS = 30_000L;
+    private static final String RESET_TOKEN = "*reset*";
+
+    /** Das [X] an einer Ware: erst fragen */
+    public static void askRemove(String itemId) {
+        if (itemId == null || countOf(itemId) <= 0) return;
+
+        pending = itemId;
+        pendingAt = System.currentTimeMillis();
+        ask(Component.literal("Remove ").withStyle(ChatFormatting.YELLOW)
+                .append(Component.literal(nameOf(itemId) + " x" + countOf(itemId))
+                        .withStyle(ChatFormatting.WHITE))
+                .append(Component.literal(" from the tracker?").withStyle(ChatFormatting.YELLOW)));
+    }
+
+    /** Der Reset-Knopf: erst fragen */
+    public static void askReset() {
+        pending = RESET_TOKEN;
+        pendingAt = System.currentTimeMillis();
+        ask(Component.literal("Reset the ").withStyle(ChatFormatting.YELLOW)
+                .append(Component.literal(view().toString()).withStyle(ChatFormatting.WHITE))
+                .append(Component.literal(" count and its timer?").withStyle(ChatFormatting.YELLOW)));
+    }
+
+    /** Die Frage samt Knopf - der Knopf fuehrt den Befehl aus, der hier wieder ankommt */
+    private static void ask(Component frage) {
+        Minecraft client = Minecraft.getInstance();
+        if (client == null || client.player == null) return;
+
+        client.player.sendSystemMessage(Component.literal("[ShokiMod] ")
+                .withStyle(ChatFormatting.DARK_AQUA)
+                .append(frage)
+                .append(Component.literal(" [ Yes ]")
+                        .withStyle(style -> style.withColor(ChatFormatting.GREEN)
+                                .withBold(true)
+                                .withClickEvent(new net.minecraft.network.chat.ClickEvent.RunCommand("/shoki confirm"))
+                                .withHoverEvent(new net.minecraft.network.chat.HoverEvent.ShowText(
+                                        Component.literal("Click within 30 seconds")))))); 
+    }
+
+    /** Der Knopf aus der Frage, ueber /shoki confirm */
+    public static void confirm() {
+        Minecraft client = Minecraft.getInstance();
+        if (client == null || client.player == null) return;
+
+        String was = pending;
+        boolean abgelaufen = was != null && System.currentTimeMillis() - pendingAt > CONFIRM_MILLIS;
+        pending = null;
+        if (was == null || abgelaufen) {
+            client.player.sendSystemMessage(Component.literal("[ShokiMod] ")
+                    .withStyle(ChatFormatting.DARK_AQUA)
+                    .append(Component.literal(abgelaufen
+                                    ? "That question is too old - click the button again."
+                                    : "Nothing to confirm.")
+                            .withStyle(ChatFormatting.GRAY)));
+            return;
+        }
+
+        if (RESET_TOKEN.equals(was)) {
+            reset();
+            client.player.sendSystemMessage(Component.literal("[ShokiMod] ")
+                    .withStyle(ChatFormatting.DARK_AQUA)
+                    .append(Component.literal(view() + " is back to zero.").withStyle(ChatFormatting.YELLOW)));
+            return;
+        }
+
+        String name = nameOf(was);
+        remove(was);
+        client.player.sendSystemMessage(Component.literal("[ShokiMod] ")
+                .withStyle(ChatFormatting.DARK_AQUA)
+                .append(Component.literal(name).withStyle(ChatFormatting.WHITE))
+                .append(Component.literal(" is out of the tracker.").withStyle(ChatFormatting.YELLOW)));
+    }
+
+    /**
+     * Eine Ware ganz aus dem Kasten nehmen.
+     *
+     * Aus allen drei Zeitraeumen, genau wie das Nachbessern: Was hier nichts zu suchen
+     * hat, hat es im Tag und im Gesamtstand auch nicht.
+     */
+    public static void remove(String itemId) {
+        if (itemId == null) return;
+        cfg().counts.remove(itemId);
+        cfg().dayCounts.remove(itemId);
+        cfg().totalCounts.remove(itemId);
+        ModConfig.INSTANCE.saveNow();
+        ShokiMod.LOGGER.info("[Profit] {} removed by hand", itemId);
     }
 
     /**

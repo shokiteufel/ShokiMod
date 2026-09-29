@@ -82,7 +82,8 @@ die Spielversion beim Start — die falsche Datei laedt der Loader gar nicht ers
   — auch ohne Chatzeile. Je Item einstellbar, ob es im Kasten steht und ob es sofort
   verkauft, in eine Order gelegt, dem NPC gegeben oder mit einem eigenen Preis gerechnet
   wird (`/shoki profit`). Zahlen bei offenem Inventar per `[-]` und `[+]` von Hand
-  richtigstellen. Zeit und Profit/h einzeln abschaltbar, die Uhr laeuft auf Wunsch durch.
+  richtigstellen, mit dem roten [X] daneben eine Ware ganz herausnehmen. Loeschen und
+  Zuruecksetzen fragen vorher im Chat nach. Zeit und Profit/h einzeln abschaltbar, die Uhr laeuft auf Wunsch durch.
   Drei Zeitraeume — Lauf, Tag und Gesamtstand; ein Klick auf die Ueberschrift wechselt.
   Der Tag faengt zur eingestellten Stunde an, voreingestellt sechs Uhr morgens.
   Wegwerfen und wieder aufheben zaehlt nicht mit, Umziehen ebenso wenig: Ruestung und
@@ -175,6 +176,7 @@ die Spielversion beim Start — die falsche Datei laedt der Loader gar nicht ers
 | `/shoki pet` | Pet-HUD bauen |
 | `/shoki hub` | Zurueck in den Hub |
 | `/shoki update` | Neueste Fassung von GitHub holen; eingesetzt wird sie beim Beenden des Spiels |
+| `/shoki confirm` | Die Rueckfrage im Chat bejahen — dahinter haengt der Knopf in der Zeile |
 
 ## Ist das sicher?
 

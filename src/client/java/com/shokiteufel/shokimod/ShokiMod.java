@@ -192,6 +192,12 @@ public class ShokiMod implements ClientModInitializer {
                             openProfitItemsNextTick = true;
                             return 1;
                         }))
+                        // /shoki confirm -> die Rueckfrage aus dem Chat beantworten.
+                        // Der Knopf in der Zeile fuehrt genau diesen Befehl aus
+                        .then(ClientCommands.literal("confirm").executes(context -> {
+                            com.shokiteufel.shokimod.handler.ProfitTracker.confirm();
+                            return 1;
+                        }))
                         // /shoki update -> die neueste Fassung holen. Eingesetzt wird sie
                         // beim Beenden des Spiels: Solange die laufende Jar im Ordner
                         // liegt, faende Fabric beim Start zwei Fassungen derselben Mod
