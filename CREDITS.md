@@ -202,6 +202,12 @@ drinsteckt.
   und die Steigung der Deckkraft ist flacher, weil eine Ader mehr als einen Block füllt.
   Die AGPL wäre mit der LGPL **nicht** vereinbar, deshalb ist hier bewusst nie Code
   übernommen worden, nur Tatsachen abgelesen.
+- **Feesh** (Apache-2.0, `Sleepy-Panda/Feesh`) — dort wird ein Pet, das die Hoechststufe
+  erreicht, in den Tracker gelegt: Die Zeile "Your … leveled up to level 100!" wird
+  gelesen, und nur 100 und 200 zaehlen. Auch die Schreibweise der Kennung ist von dort
+  uebernommen (`FLYING_FISH;4+100`) — zwei Mods, die dieselbe Ware gleich benennen,
+  ersparen dem naechsten Leser eine Uebersetzung. Der Preis kommt hier aus der eigenen
+  Auktions-Auswertung, nicht aus einer fremden Schnittstelle.
 - **Feesh** (Apache-2.0, `Sleepy-Panda/Feesh`) — dort steht auch, dass George für einen
   Baby Yeti eine Million zahlt (`npcPrice = 1_000_000.0`). Nachgebaut ist das anders:
   Feesh trägt die Zahl je Fund von Hand ein und nimmt sie nur, wenn Basar und Auktionshaus

@@ -21,6 +21,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Der Profit-Tracker: was seit dem Reset dazugekommen ist, und was es bringt.
@@ -265,7 +267,104 @@ public final class ProfitTracker {
 
     /** Der Name, wie ihn das Spiel schreibt - sonst aus der Kennung gebildet */
     public static String nameOf(String itemId) {
+        Matcher maxed = MAXED_PET.matcher(itemId == null ? "" : itemId);
+        if (maxed.matches()) {
+            // Ohne die Seltenheit im Namen: Die steht in der Farbe der Zeile, so wie im
+            // Spiel auch - "[Lvl 100] Ender Dragon" in Gold sagt beides auf einmal
+            String pet = ItemNames.shortName(maxed.group("pet"));
+            int klammer = pet.lastIndexOf(" (");
+            if (klammer > 0 && pet.endsWith(")")) pet = pet.substring(0, klammer);
+            return "[Lvl " + maxed.group("level") + "] " + pet;
+        }
         return ItemNames.shortName(itemId);
+    }
+
+    /**
+     * Ein Pet auf Hoechststufe: "ENDER_DRAGON;4+100".
+     *
+     * Das Plus ist keine Erfindung fuer diesen Kasten - so schreibt es Feesh auch, und
+     * zwei Mods, die dieselbe Ware gleich benennen, ersparen dem naechsten Leser eine
+     * Uebersetzung. Vor dem Plus steht die gewoehnliche Pet-Kennung, dahinter die Stufe.
+     */
+    private static final Pattern MAXED_PET = Pattern.compile(
+            "^(?<pet>[A-Z_]+;(?<tier>[0-5]))\\+(?<level>100|200)$");
+
+    /**
+     * "Your Ender Dragon leveled up to level 100!"
+     *
+     * Ein Pet, das die Hoechststufe erreicht, ist der Ertrag vieler Stunden - und im
+     * Kasten stand davon bisher nichts, weil nie etwas ins Inventar fiel. Gezaehlt wird
+     * es mit dem Preis, den ein fertiges Exemplar gerade kostet; die Stufen darunter
+     * zaehlen nicht, sonst stuende dasselbe Pet hundertmal da.
+     *
+     * Die Seltenheit steht in der Farbe des Namens - anders ist sie aus der Zeile nicht
+     * zu holen, und ohne sie waere ein legendaerer Drache so viel wert wie ein epischer.
+     */
+    private static final Pattern LEVEL_UP = Pattern.compile(
+            "^Your (?<pet>.+?) leveled up to level (?<level>\\d+)!$");
+
+    public static void onChatMessage(String formatted, String plain) {
+        if (!enabled() || plain == null) return;
+
+        Matcher matcher = LEVEL_UP.matcher(plain.trim());
+        if (!matcher.matches()) return;
+
+        int level;
+        try {
+            level = Integer.parseInt(matcher.group("level"));
+        } catch (NumberFormatException e) {
+            return;
+        }
+        // Nur die Hoechststufen: 100 fuer alle, 200 fuer die drei Drachen
+        if (level != 100 && level != 200) return;
+
+        String name = matcher.group("pet").trim();
+        String petId = name.toUpperCase(Locale.ROOT).replace(' ', '_').replaceAll("[^A-Z_]", "");
+        int tier = tierFromColour(formatted, name);
+        String itemId = petId + ";" + tier + "+" + level;
+
+        adjust(itemId, 1);
+        say(Component.literal(nameOf(itemId)).withStyle(ChatFormatting.WHITE)
+                .append(Component.literal(" counts in the tracker.").withStyle(ChatFormatting.YELLOW)));
+    }
+
+    /** Die Seltenheit hinter der Ziffer einer Pet-Kennung */
+    private static String rarityOf(String tier) {
+        return switch (tier) {
+            case "1" -> "UNCOMMON";
+            case "2" -> "RARE";
+            case "3" -> "EPIC";
+            case "4" -> "LEGENDARY";
+            case "5" -> "MYTHIC";
+            default -> "COMMON";
+        };
+    }
+
+    /**
+     * Die Seltenheit aus der Farbe vor dem Pet-Namen.
+     *
+     * Hypixel faerbt den Namen nach Seltenheit - gruen, blau, lila, gold, hellviolett.
+     * Steht dort nichts (weil die Zeile schon entfaerbt ankam), gilt legendaer: Das ist
+     * die haeufigste Stufe eines Pets, das jemand bis hundert spielt.
+     */
+    private static int tierFromColour(String formatted, String name) {
+        if (formatted != null) {
+            int at = formatted.indexOf(name);
+            if (at > 1) {
+                char code = formatted.charAt(at - 1);
+                int tier = switch (code) {
+                    case 'f' -> 0;
+                    case 'a' -> 1;
+                    case '9' -> 2;
+                    case '5' -> 3;
+                    case '6' -> 4;
+                    case 'd' -> 5;
+                    default -> -1;
+                };
+                if (tier >= 0) return tier;
+            }
+        }
+        return 4;
     }
 
     /**
@@ -276,6 +375,14 @@ public final class ProfitTracker {
      * Hypixels Item-Liste. Wer in keiner steht, bleibt weiss.
      */
     public static int colourOf(String itemId) {
+        // Ein fertiges Pet traegt seine Seltenheit in der Kennung - die Item-Liste kennt
+        // die Kennung nicht, die Farbe der Zeile soll sie trotzdem zeigen
+        Matcher maxed = MAXED_PET.matcher(itemId == null ? "" : itemId);
+        if (maxed.matches()) {
+            int farbe = SkyBlockItems.rarityColour(rarityOf(maxed.group("tier")));
+            if (farbe != 0) return farbe;
+        }
+
         // Farben sind Divine, und das steht in keiner Liste: Hypixels Item-Liste kennt
         // keinen einzigen Divine-Eintrag, und im Inventar sieht die Mod eine Farbe nie -
         // sie kommt ueber die Chatzeile. Ohne diese Zeile stuende ein 200-Millionen-Fund
@@ -321,6 +428,17 @@ public final class ProfitTracker {
         if (modeOf(itemId) == SellMode.CUSTOM) {
             double own = customPrice(itemId);
             if (own > 0) return own;
+        }
+
+        // Ein fertiges Pet steht in keiner Preisliste unter dieser Kennung - sein Preis
+        // kommt aus derselben Auswertung, die auch /shoki petprofit fuellt
+        Matcher maxed = MAXED_PET.matcher(itemId == null ? "" : itemId);
+        if (maxed.matches()) {
+            String rarity = rarityOf(maxed.group("tier"));
+            String pet = maxed.group("pet");
+            long preis = com.shokiteufel.shokimod.util.PetProfitData.maxedPrice(
+                    pet.substring(0, pet.indexOf(';')), rarity, Integer.parseInt(maxed.group("level")));
+            return preis > 0 ? preis : -1;
         }
         return ItemValue.trackedUnitPrice(itemId, modeOf(itemId));
     }

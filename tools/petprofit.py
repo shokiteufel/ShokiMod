@@ -236,10 +236,14 @@ def rechne(pets: list[dict], xp: Erfahrung) -> list[dict]:
                 "proXp": round(gewinn / fehlend, 4),
             })
 
-    # Das beste Angebot je Pet und Seltenheit reicht - sonst steht zehnmal dasselbe da
-    beste: dict[tuple[str, str], dict] = {}
+    # Je Pet und Seltenheit zwei Angebote: das beste ueberhaupt und das beste auf
+    # Stufe 1. Sonst steht zehnmal dasselbe Pet da - aber mit nur einem Eintrag fiel die
+    # Stufe 1 weg, sobald ein Vierziger das bessere Verhaeltnis hatte, und wer im Fenster
+    # "Level 1 only" anhakte, sah das Pet gar nicht mehr. Frisch geschluepft kauft man
+    # aber genau dort, und der Preis dafuer ist eine eigene Frage.
+    beste: dict[tuple[str, str, bool], dict] = {}
     for e in ergebnis:
-        schluessel = (e["id"], e["seltenheit"])
+        schluessel = (e["id"], e["seltenheit"], e["stufe"] == 1)
         if schluessel not in beste or e["proXp"] > beste[schluessel]["proXp"]:
             beste[schluessel] = e
     return sorted(beste.values(), key=lambda e: -e["proXp"])
