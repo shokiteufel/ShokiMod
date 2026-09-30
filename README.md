@@ -102,9 +102,9 @@ die Spielversion beim Start — die falsche Datei laedt der Loader gar nicht ers
   ebenso, die war nie weg. Ein Pet ist nie weniger wert, als George
   dafuer zahlt — ein Baby Yeti also mindestens eine Million. Essence zaehlt ebenfalls mit — sie
   liegt nicht im Inventar: Ist das Essence-Widget der Tab-Liste an, wird ihr Stand von
-  dort gelesen, sonst der Zugang aus der Action Bar (`+3 Fossil Essence`). Ein Pet, das
-  Stufe 100 (oder 200) erreicht, zaehlt ebenfalls mit — zum Preis eines fertigen
-  Exemplars.
+  dort gelesen, sonst der Zugang aus der Action Bar (`+3 Fossil Essence`). Ein Pet, das seine
+  Hoechststufe erreicht, zaehlt ebenfalls mit — zum Preis eines fertigen Exemplars. Bei
+  Golden, Jade und Rose Dragon ist das die 200, bei allen anderen die 100.
 - Contest, Mobs in der Naehe.
 - Alle Kaesten frei verschiebbar im HUD-Editor (`/shoki hud`).
 </details>
