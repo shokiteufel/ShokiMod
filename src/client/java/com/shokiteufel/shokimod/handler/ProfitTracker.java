@@ -276,6 +276,12 @@ public final class ProfitTracker {
      * Hypixels Item-Liste. Wer in keiner steht, bleibt weiss.
      */
     public static int colourOf(String itemId) {
+        // Farben sind Divine, und das steht in keiner Liste: Hypixels Item-Liste kennt
+        // keinen einzigen Divine-Eintrag, und im Inventar sieht die Mod eine Farbe nie -
+        // sie kommt ueber die Chatzeile. Ohne diese Zeile stuende ein 200-Millionen-Fund
+        // in Weiss zwischen den Knochen
+        if (itemId != null && itemId.startsWith("DYE_")) return SkyBlockItems.rarityColour("DIVINE");
+
         Integer stored = cfg().colours.get(itemId);
         if (stored != null && stored != 0) return stored;
 

@@ -12,7 +12,9 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Locale;
 
 /**
@@ -31,7 +33,14 @@ public class PetProfitScreen extends Screen {
     private static final int LIST_WIDTH = 470;
     /** Die Sparte, die zuletzt gewaehlt war - ueberdauert das Schliessen des Fensters */
     private static String category = "";
-    /** Nur frisch geschluepfte Pets - die ohne Vorgeschichte */
+    /**
+     * Frisch geschluepfte Pets zuerst - und wo es sie nicht gibt, die naechstbeste Stufe.
+     *
+     * Rein auf Stufe 1 zu filtern liess Pets ganz verschwinden: Wer keines auf Stufe 1
+     * im Auktionshaus stehen hat, fiel aus der Liste, obwohl er auf Stufe 30 vielleicht
+     * das beste Geschaeft ist. Jetzt bleibt von jedem Pet mindestens eine Zeile stehen,
+     * solange es ueberhaupt eines gibt.
+     */
     private static boolean onlyLevelOne = false;
     /** Pets ohne Bonbons: die Stufe soll erarbeitet sein, nicht gekauft */
     private static boolean noCandy = false;
@@ -57,9 +66,41 @@ public class PetProfitScreen extends Screen {
         List<Row> out = new ArrayList<>();
         for (Row row : PetProfitData.rows()) {
             if (!category.isEmpty() && !category.equals(row.category())) continue;
-            if (onlyLevelOne && row.level() != 1) continue;
             if (noCandy && row.candy() > 0) continue;
             out.add(row);
+        }
+        return onlyLevelOne ? levelOneFirst(out) : out;
+    }
+
+    /**
+     * Je Pet und Seltenheit die Stufe-1-Zeile - und die hoehere Stufe, wenn sie mehr
+     * bringt.
+     *
+     * Zwei Faelle stecken darin. Gibt es das Pet gar nicht auf Stufe 1, bleibt trotzdem
+     * seine beste Zeile stehen; sonst waere das Pet weg, obwohl es auf dem Markt ist.
+     * Und bringt eine hoehere Stufe mehr als die Stufe 1 - was vorkommt, wenn jemand
+     * sein halb geleveltes Pet billig hergibt -, steht sie daneben. Die Spalte "Lvl"
+     * sagt, was man vor sich hat.
+     */
+    private static List<Row> levelOneFirst(List<Row> alle) {
+        Map<String, Row> eins = new LinkedHashMap<>();
+        Map<String, Row> hoeher = new LinkedHashMap<>();
+        for (Row row : alle) {
+            String key = row.id() + "|" + row.rarity();
+            Map<String, Row> ziel = row.level() == 1 ? eins : hoeher;
+            Row da = ziel.get(key);
+            if (da == null || row.profit() > da.profit()) ziel.put(key, row);
+        }
+
+        List<Row> out = new ArrayList<>();
+        for (Row row : alle) {
+            String key = row.id() + "|" + row.rarity();
+            if (row == eins.get(key)) {
+                out.add(row);
+            } else if (row == hoeher.get(key)) {
+                Row auf1 = eins.get(key);
+                if (auf1 == null || row.profit() > auf1.profit()) out.add(row);
+            }
         }
         return out;
     }
@@ -131,7 +172,7 @@ public class PetProfitScreen extends Screen {
             }).bounds(mitte + 40, height - 50, 20, 20).build());
         }
         addRenderableWidget(Button.builder(
-                Component.literal((onlyLevelOne ? "☑" : "☐") + " Level 1 only"), button -> {
+                Component.literal((onlyLevelOne ? "☑" : "☐") + " Level 1 first"), button -> {
                     onlyLevelOne = !onlyLevelOne;
                     page = 0;
                     rebuild();
