@@ -182,7 +182,7 @@ Voraussetzungen: Fabric Loader 0.19.3+ und Fabric API.
 | `/shoki hud` | HUD-Editor: Kaesten verschieben und skalieren |
 | `/shoki shardprofit` | Gewinn je Shard-Fusion |
 | `/shoki craftprofit` | Gewinn je Handwerks- und Forge-Rezept |
-| `/shoki petprofit` | Gewinn je Pet |
+| `/shoki petprofit` | Gewinn je Pet; "Level 1 first" laesst von jedem Pet mindestens eine Zeile stehen |
 | `/shoki profit` | Liste des Profit-Trackers: welche Funde zaehlen und wie sie verkauft werden |
 | `/shoki pet` | Pet-HUD bauen |
 | `/shoki hub` | Zurueck in den Hub |
