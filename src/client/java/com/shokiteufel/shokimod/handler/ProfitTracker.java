@@ -8,6 +8,7 @@ import com.shokiteufel.shokimod.util.CollectionData;
 import com.shokiteufel.shokimod.util.ItemNames;
 import com.shokiteufel.shokimod.util.ItemValue;
 import com.shokiteufel.shokimod.util.ItemValue.SellMode;
+import com.shokiteufel.shokimod.util.PetLevels;
 import com.shokiteufel.shokimod.util.SkyBlockItems;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -146,6 +147,7 @@ public final class ProfitTracker {
         }
 
         rollDay(now);
+        retryPendingPets(now);
 
         // Bei 0 laeuft die Uhr durch: kein Anhalten bei Stille, und auch nicht, wenn das
         // Fenster im Hintergrund liegt. Wer das einstellt, will eine durchlaufende Uhr
@@ -315,17 +317,83 @@ public final class ProfitTracker {
         } catch (NumberFormatException e) {
             return;
         }
-        // Nur die Hoechststufen: 100 fuer alle, 200 fuer die drei Drachen
+        // Unter hundert ist kein Pet fertig, und darueber gibt es nur die drei Drachen
         if (level != 100 && level != 200) return;
 
         String name = matcher.group("pet").trim();
         String petId = name.toUpperCase(Locale.ROOT).replace(' ', '_').replaceAll("[^A-Z_]", "");
-        int tier = tierFromColour(formatted, name);
-        String itemId = petId + ";" + tier + "+" + level;
+        notePetLevel(petId, rarityOf(String.valueOf(tierFromColour(formatted, name))), level);
+    }
 
+    /**
+     * Ein Pet hat eine Stufe erreicht - zaehlt es?
+     *
+     * Nur auf seiner eigenen Hoechststufe. Die liegt bei hundert, ausser bei Golden,
+     * Jade und Rose Dragon: Die gehen bis zweihundert, und ein Golden Dragon auf hundert
+     * ist nicht fertig, sondern halb fertig. Welche Stufe die letzte ist, steht in
+     * denselben Zahlen, aus denen auch der Pet-Gewinn rechnet - eine Liste der drei
+     * Drachen im Code waere beim vierten falsch.
+     *
+     * Sind die Zahlen noch nicht da, wird die Meldung vorgemerkt und beim naechsten Takt
+     * erneut geprueft: Ein Pet erreicht seine Hoechststufe einmal, das darf nicht an
+     * einer Datei haengenbleiben, die gerade geholt wird.
+     */
+    private static void notePetLevel(String petId, String rarity, int level) {
+        PetLevels.Table table = PetLevels.tableFor(petId, rarity);
+        if (table == null) {
+            pendingPets.add(new PendingPet(petId, rarity, level, System.currentTimeMillis()));
+            ShokiMod.LOGGER.info("[Profit] {} reached {} - waiting for the pet levels", petId, level);
+            return;
+        }
+        if (level != table.maxLevel()) return;
+
+        String itemId = petId + ";" + tierOf(rarity) + "+" + level;
         adjust(itemId, 1);
         say(Component.literal(nameOf(itemId)).withStyle(ChatFormatting.WHITE)
                 .append(Component.literal(" counts in the tracker.").withStyle(ChatFormatting.YELLOW)));
+    }
+
+    /** Eine Meldung, die auf die Stufen-Zahlen wartet */
+    private record PendingPet(String petId, String rarity, int level, long at) {
+    }
+
+    private static final List<PendingPet> pendingPets = new ArrayList<>();
+    /** So lange wird auf die Zahlen gewartet, danach ist die Meldung verfallen */
+    private static final long PENDING_MILLIS = 60_000L;
+
+    /** Vorgemerkte Meldungen erneut pruefen, sobald die Zahlen da sind */
+    private static void retryPendingPets(long now) {
+        if (pendingPets.isEmpty()) return;
+
+        for (PendingPet warte : new ArrayList<>(pendingPets)) {
+            PetLevels.Table table = PetLevels.tableFor(warte.petId(), warte.rarity());
+            if (table == null) {
+                if (now - warte.at() > PENDING_MILLIS) {
+                    pendingPets.remove(warte);
+                    ShokiMod.LOGGER.info("[Profit] gave up on {} - no pet levels", warte.petId());
+                }
+                continue;
+            }
+            pendingPets.remove(warte);
+            if (warte.level() != table.maxLevel()) continue;
+
+            String itemId = warte.petId() + ";" + tierOf(warte.rarity()) + "+" + warte.level();
+            adjust(itemId, 1);
+            say(Component.literal(nameOf(itemId)).withStyle(ChatFormatting.WHITE)
+                    .append(Component.literal(" counts in the tracker.").withStyle(ChatFormatting.YELLOW)));
+        }
+    }
+
+    /** Die Ziffer einer Seltenheit, wie sie in der Pet-Kennung steht */
+    private static int tierOf(String rarity) {
+        return switch (rarity == null ? "" : rarity.toUpperCase(Locale.ROOT)) {
+            case "UNCOMMON" -> 1;
+            case "RARE" -> 2;
+            case "EPIC" -> 3;
+            case "LEGENDARY" -> 4;
+            case "MYTHIC" -> 5;
+            default -> 0;
+        };
     }
 
     /** Die Seltenheit hinter der Ziffer einer Pet-Kennung */
