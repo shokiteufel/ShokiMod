@@ -61,6 +61,8 @@ public class NetworkHandler {
             SessionManager.onChatMessage(msg);
             // Seltene Funde ebenso: bewerten und melden, die Zeile bleibt
             RareLootHandler.onChatMessage(unformattedMsg);
+            // Ein Pet auf Hoechststufe gehoert in den Kasten - es faellt nie ins Inventar
+            com.shokiteufel.shokimod.handler.ProfitTracker.onChatMessage(msg, unformattedMsg);
             // Der Shiny-Ruf eines anderen: nur hoeren, nichts aendern
             ShinyAlert.onChatMessage(unformattedMsg);
             // Der Hunting Tracker zaehlt dieselben Shard-Zeilen mit

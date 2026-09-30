@@ -102,7 +102,9 @@ die Spielversion beim Start — die falsche Datei laedt der Loader gar nicht ers
   ebenso, die war nie weg. Ein Pet ist nie weniger wert, als George
   dafuer zahlt — ein Baby Yeti also mindestens eine Million. Essence zaehlt ebenfalls mit — sie
   liegt nicht im Inventar: Ist das Essence-Widget der Tab-Liste an, wird ihr Stand von
-  dort gelesen, sonst der Zugang aus der Action Bar (`+3 Fossil Essence`).
+  dort gelesen, sonst der Zugang aus der Action Bar (`+3 Fossil Essence`). Ein Pet, das
+  Stufe 100 (oder 200) erreicht, zaehlt ebenfalls mit — zum Preis eines fertigen
+  Exemplars.
 - Contest, Mobs in der Naehe.
 - Alle Kaesten frei verschiebbar im HUD-Editor (`/shoki hud`).
 </details>
@@ -181,7 +183,7 @@ die Spielversion beim Start — die falsche Datei laedt der Loader gar nicht ers
 | `/shoki hud` | HUD-Editor: Kaesten verschieben und skalieren |
 | `/shoki shardprofit` | Gewinn je Shard-Fusion |
 | `/shoki craftprofit` | Gewinn je Handwerks- und Forge-Rezept |
-| `/shoki petprofit` | Gewinn je Pet; "Level 1 first" laesst von jedem Pet mindestens eine Zeile stehen |
+| `/shoki petprofit` | Gewinn je Pet; die Liste fuehrt je Pet das beste Angebot und das beste auf Stufe 1 |
 | `/shoki profit` | Liste des Profit-Trackers: welche Funde zaehlen und wie sie verkauft werden |
 | `/shoki pet` | Pet-HUD bauen |
 | `/shoki hub` | Zurueck in den Hub |

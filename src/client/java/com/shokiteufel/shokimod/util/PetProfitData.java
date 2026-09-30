@@ -86,6 +86,26 @@ public final class PetProfitData {
         return rows;
     }
 
+    /**
+     * Was ein fertiges Pet dieser Art gerade kostet, oder 0.
+     *
+     * Dieselbe Liste, aus der das Fenster die fertigen Pets zeigt - billigstes Angebot
+     * zuerst, also ist der erste Treffer der Marktpreis. Ohne sie waere ein frisch
+     * gelevelter Drache im Kasten so viel wert wie ein frisch geschluepfter, und das ist
+     * er um ein paar hundert Millionen nicht.
+     */
+    public static long maxedPrice(String petId, String rarity, int level) {
+        if (petId == null) return 0;
+        for (Ready r : readyPets()) {
+            if (r.id().equalsIgnoreCase(petId)
+                    && (rarity == null || r.rarity().equalsIgnoreCase(rarity))
+                    && (level <= 0 || r.level() == level)) {
+                return r.price();
+            }
+        }
+        return 0;
+    }
+
     /** Die guenstigsten Angebote auf Hoechststufe, billigstes zuerst */
     public static List<Ready> readyPets() {
         prefetch();
