@@ -512,9 +512,45 @@ public final class ItemChanges {
             if (slot == DISPLAY_SLOT) continue;
             add(out, items.get(slot));
         }
-        for (EquipmentSlot slot : WORN) add(out, client.player.getItemBySlot(slot));
+        long jetzt = System.currentTimeMillis();
+        for (EquipmentSlot slot : WORN) {
+            ItemStack getragen = client.player.getItemBySlot(slot);
+            add(out, getragen);
+            // Mitschreiben, was am Koerper haengt: Was von dort ins Inventar wandert,
+            // ist ein Umzug - auch wenn der Server sich damit eine Sekunde Zeit laesst.
+            // Nur die vier Ruestungsplaetze: In der Zweithand steckt mal ein Koeder oder
+            // ein Block, und davon findet man welche. Ein Helm ist ein Helm
+            if (slot == EquipmentSlot.OFFHAND) continue;
+            String id = SkyBlockItems.idOf(getragen);
+            if (id != null) worn.put(id, jetzt);
+        }
         add(out, client.player.containerMenu.getCarried());
         return out;
+    }
+
+    /**
+     * Was zuletzt am Koerper hing, mit dem Zeitpunkt.
+     *
+     * Der Vergleich sieht nur Staende, keine Wege. Taucht ein Helm im Inventar auf, der
+     * im selben Augenblick noch im Ruestungsplatz steckt, hat der Server den Umzug in
+     * zwei Pakete zerlegt und das erste ist schon da - im Log vom 01.10. lagen zwischen
+     * beiden Haelften eine ganze Sekunde, weil nebenbei Pest-Fallen geleert und Mobs
+     * gekillt wurden. Drei Ticks Wartezeit reichen dafuer nicht; die Frage "hing das
+     * gerade noch an mir?" schon.
+     */
+    private static final Map<String, Long> worn = new HashMap<>();
+    /** So lange gilt ein abgelegtes Teil noch als Umzug und nicht als Fund */
+    private static final long WORN_MILLIS = 10_000L;
+
+    /** Hing diese Ware eben noch am Koerper? */
+    private static boolean wasWorn(String itemId, long now) {
+        Long zuletzt = worn.get(itemId);
+        if (zuletzt == null) return false;
+        if (now - zuletzt > WORN_MILLIS) {
+            worn.remove(itemId);
+            return false;
+        }
+        return true;
     }
 
     private static void add(Map<String, Integer> counts, ItemStack stack) {
@@ -556,6 +592,10 @@ public final class ItemChanges {
 
             Map<String, Integer> rest = new LinkedHashMap<>();
             for (Map.Entry<String, Integer> entry : warte.gains().entrySet()) {
+                if (wasWorn(entry.getKey(), now)) {
+                    ShokiMod.LOGGER.info("[Profit] {} came off the body, not a find", entry.getKey());
+                    continue;
+                }
                 int uebrig = offset(entry.getKey(), entry.getValue(), OFFSET_MILLIS, now, false);
                 if (uebrig > 0) rest.put(entry.getKey(), uebrig);
             }
@@ -1030,5 +1070,6 @@ public final class ItemChanges {
         windowBaseline = null;
         losses.clear();
         held.clear();
+        worn.clear();
     }
 }

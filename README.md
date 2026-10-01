@@ -97,7 +97,8 @@ Voraussetzungen: Fabric Loader 0.19.3+ und Fabric API.
   Der Tag faengt zur eingestellten Stunde an, voreingestellt sechs Uhr morgens.
   Wegwerfen und wieder aufheben zaehlt nicht mit, Umziehen ebenso wenig: Ruestung und
   Zweithand zaehlen mit, also ist ein Helm, der vom Kopf ins Inventar wandert, kein Fund —
-  auch dann nicht, wenn der Server ihn ueber zwei Ticks verteilt umlegt (Loadout-Wechsel).
+  auch dann nicht, wenn der Server ihn ueber zwei Ticks verteilt umlegt (Loadout-Wechsel)
+  oder sich damit eine Sekunde Zeit laesst: Was eben noch am Koerper hing, ist kein Fund.
   Ware aus einem Sack zu holen zaehlt auch nicht — sie war schon gezaehlt, als sie
   hineinfiel. Ein geleerter Stash und eine eingeloeste Basar-Order ebenso wenig: beides
   ist Ware, die ankommt, ohne gefunden worden zu sein — eine zurueckgezogene Verkaufsorder
