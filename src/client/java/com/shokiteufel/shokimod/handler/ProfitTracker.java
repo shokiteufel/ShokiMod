@@ -121,13 +121,20 @@ public final class ProfitTracker {
         }
     }
 
+    /** So lange ohne Fund gilt der Tag noch als laufend. Fest, nicht einstellbar */
+    private static final long DAY_PAUSE_MILLIS = 30_000L;
+    private static long unconfirmedDayMillis = 0L;
+    private static boolean dayPaused = true;
+
     private static void markActivity() {
         long now = System.currentTimeMillis();
         if (cfg().startedAt <= 0L) cfg().startedAt = now;
         if (cfg().totalStartedAt <= 0L) cfg().totalStartedAt = now;
         lastActivityMillis = now;
         unconfirmedMillis = 0L;
+        unconfirmedDayMillis = 0L;
         paused = false;
+        dayPaused = false;
     }
 
     private static void tick(Minecraft client) {
@@ -163,18 +170,35 @@ public final class ProfitTracker {
         if (active) {
             if (delta > 0 && delta < 5_000L) {
                 cfg().uptimeMillis += delta;
-                cfg().dayUptimeMillis += delta;
                 cfg().totalUptimeMillis += delta;
                 unconfirmedMillis += delta;
             }
             paused = false;
         } else if (!paused) {
-            // Die Wartezeit seit dem letzten Fund zaehlt in keinem der drei Zeitraeume
+            // Die Wartezeit seit dem letzten Fund zaehlt nicht mit
             cfg().uptimeMillis = Math.max(0L, cfg().uptimeMillis - unconfirmedMillis);
-            cfg().dayUptimeMillis = Math.max(0L, cfg().dayUptimeMillis - unconfirmedMillis);
             cfg().totalUptimeMillis = Math.max(0L, cfg().totalUptimeMillis - unconfirmedMillis);
             unconfirmedMillis = 0L;
             paused = true;
+            dirty = true;
+        }
+
+        // Die Uhr des Tages laeuft immer, auch wenn keine Zeit im Kasten steht: Sonst
+        // stuende in /shoki dayprofit bei jedem Tag "0m", und die Frage "wie lange war
+        // ich dran" ist genau die, fuer die das Fenster da ist. Dreissig Sekunden Pause,
+        // fest - das ist eine Aussage ueber den Tag und keine Einstellung
+        boolean dayActive = lastActivityMillis > 0L
+                && now - lastActivityMillis <= DAY_PAUSE_MILLIS && client.isWindowActive();
+        if (dayActive) {
+            if (delta > 0 && delta < 5_000L) {
+                cfg().dayUptimeMillis += delta;
+                unconfirmedDayMillis += delta;
+            }
+            dayPaused = false;
+        } else if (!dayPaused) {
+            cfg().dayUptimeMillis = Math.max(0L, cfg().dayUptimeMillis - unconfirmedDayMillis);
+            unconfirmedDayMillis = 0L;
+            dayPaused = true;
             dirty = true;
         }
 
@@ -718,6 +742,7 @@ public final class ProfitTracker {
         cfg().dayCounts.clear();
         cfg().dayUptimeMillis = 0L;
         cfg().dayStartedAt = start;
+        unconfirmedDayMillis = 0L;
         dirty = true;
         if (stand) ShokiMod.LOGGER.info("[Profit] a new day started, the day count is back to zero");
     }
@@ -1138,6 +1163,7 @@ public final class ProfitTracker {
             case DAY -> {
                 cfg().dayCounts.clear();
                 cfg().dayUptimeMillis = 0L;
+                unconfirmedDayMillis = 0L;
             }
             case TOTAL -> {
                 cfg().totalCounts.clear();
