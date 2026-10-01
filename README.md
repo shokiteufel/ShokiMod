@@ -95,7 +95,8 @@ die Spielversion beim Start — die falsche Datei laedt der Loader gar nicht ers
   Drei Zeitraeume — Lauf, Tag und Gesamtstand; ein Klick auf die Ueberschrift wechselt.
   Der Tag faengt zur eingestellten Stunde an, voreingestellt sechs Uhr morgens.
   Wegwerfen und wieder aufheben zaehlt nicht mit, Umziehen ebenso wenig: Ruestung und
-  Zweithand zaehlen mit, also ist ein Helm, der vom Kopf ins Inventar wandert, kein Fund.
+  Zweithand zaehlen mit, also ist ein Helm, der vom Kopf ins Inventar wandert, kein Fund —
+  auch dann nicht, wenn der Server ihn ueber zwei Ticks verteilt umlegt (Loadout-Wechsel).
   Ware aus einem Sack zu holen zaehlt auch nicht — sie war schon gezaehlt, als sie
   hineinfiel. Ein geleerter Stash und eine eingeloeste Basar-Order ebenso wenig: beides
   ist Ware, die ankommt, ohne gefunden worden zu sein — eine zurueckgezogene Verkaufsorder

@@ -160,6 +160,37 @@ public final class ItemChanges {
             "^" + Pattern.quote("[Bazaar]") + " Cancelled! Refunded (?<amount>[\\d,]+)x (?<item>.+?)"
                     + " from cancelling .+$",
             Pattern.CASE_INSENSITIVE);
+    /**
+     * "You equipped MF!" - ein Satz Ruestung auf einmal, vom Server gelegt.
+     *
+     * Beim Wechsel eines Loadouts raeumt Hypixel die Ruestung paketweise um: Erst liegt
+     * das alte Teil im Inventar, kurz darauf verschwindet es aus dem Ruestungsplatz.
+     * Zwischen beiden Paketen kann ein Tick liegen, und in genau diesem Tick sieht der
+     * Vergleich einen Zugang, der keiner ist - im Log vom 01.10. um 03:03:10 war das ein
+     * Sorrow-Satz, vier Teile, mit Alarm und allem.
+     *
+     * Dass Ruestung mitgezaehlt wird (seit 1.9.10), hilft hier nicht: Sie faengt den
+     * Umzug nur auf, wenn beide Haelften im selben Tick ankommen.
+     */
+    private static final Pattern EQUIPPED = Pattern.compile("^You equipped .+!$");
+    /**
+     * So viele Ticks wartet ein Zugang, bevor er zaehlt.
+     *
+     * Ein Umzug kommt nicht immer in einem Stueck an: Beim Loadout-Wechsel liegt das
+     * alte Ruestungsteil schon im Inventar, waehrend es im Ruestungsplatz noch steht -
+     * und erst im naechsten Tick verschwindet es dort. Wer sofort zaehlt, zaehlt diesen
+     * Zwischenstand. Drei Ticks sind eine Sechzehntelsekunde fuer den Spieler und reichen
+     * fuer beide Haelften eines Umzugs.
+     */
+    private static final int HOLD_TICKS = 3;
+
+    /** Ein Zugang, der noch wartet - und der Tick, in dem er gesehen wurde */
+    private record Held(Map<String, Integer> gains, int tick) {
+    }
+
+    private static final List<Held> held = new ArrayList<>();
+    private static int tickCount = 0;
+
     private static final String SHARD_PREFIX = "SHARD_";
     /** Zeilen aus fremden Kanaelen erzaehlen von fremden Funden */
     private static final String[] FOREIGN_PREFIXES = {"Party >", "Guild >", "Co-op >", "From ", "To "};
@@ -274,6 +305,9 @@ public final class ItemChanges {
             return;
         }
 
+        tickCount++;
+        flushHeld();
+
         // Ein offener Behaelter ist der Weg, auf dem Gekauftes, Ausgelagertes und
         // Gecraftetes hereinkommt. Nichts davon ist ein Fund
         boolean windowOpen = client.gui.screen() instanceof AbstractContainerScreen<?>;
@@ -365,7 +399,7 @@ public final class ItemChanges {
         // Sonst stuende dasselbe beim Schliessen noch einmal als "durchs Fenster" da -
         // und waere als schon verbucht vorgemerkt, obwohl es gerade gezaehlt wurde
         if (windowOpen) windowBaseline = current;
-        if (!gains.isEmpty()) dispatch(gains, "inventory");
+        if (!gains.isEmpty()) held.add(new Held(gains, tickCount));
     }
 
     /**
@@ -501,6 +535,34 @@ public final class ItemChanges {
         return colour == null ? 0 : colour;
     }
 
+    /**
+     * Was lange genug gewartet hat, zaehlt jetzt - was inzwischen wieder wegging, nicht.
+     *
+     * In der Wartezeit kann ein Abgang nachkommen, der den Zugang erklaert: das
+     * Ruestungsteil, das aus seinem Platz verschwindet, nachdem es im Inventar auftauchte.
+     * Genau dafuer wird hier ein zweites Mal gegengerechnet.
+     */
+    private static void flushHeld() {
+        if (held.isEmpty()) return;
+
+        long now = System.currentTimeMillis();
+        for (int i = 0; i < held.size(); ) {
+            Held warte = held.get(i);
+            if (tickCount - warte.tick() < HOLD_TICKS) {
+                i++;
+                continue;
+            }
+            held.remove(i);
+
+            Map<String, Integer> rest = new LinkedHashMap<>();
+            for (Map.Entry<String, Integer> entry : warte.gains().entrySet()) {
+                int uebrig = offset(entry.getKey(), entry.getValue(), OFFSET_MILLIS, now, false);
+                if (uebrig > 0) rest.put(entry.getKey(), uebrig);
+            }
+            if (!rest.isEmpty()) dispatch(rest, "inventory");
+        }
+    }
+
     /** Zugaenge zwischen zwei Staenden, verrechnet mit den Abgaengen der letzten Sekunden */
     private static Map<String, Integer> diff(Map<String, Integer> before, Map<String, Integer> after) {
         long now = System.currentTimeMillis();
@@ -619,6 +681,16 @@ public final class ItemChanges {
         if (supercraft(plain)) return;
         // Und aus demselben Grund die Zeile, die einen Umzug aus dem Sack meldet
         if (fromSacks(plain)) return;
+
+        // Ein Loadout-Wechsel legt eine ganze Ruestung um - das ist kein Fund
+        if (EQUIPPED.matcher(plain.trim()).matches()) {
+            settleTicks = SETTLE_TICKS;
+            settleAfterWindow = false;
+            previousCounts = null;
+            held.clear();
+            ShokiMod.LOGGER.info("[Profit] armour swapped - the next second does not count");
+            return;
+        }
 
         // Ein geleerter Stash schuettet seinen ganzen Inhalt in die Saecke
         if (STASH_TO_SACKS.matcher(plain.trim()).matches()) {
@@ -957,5 +1029,6 @@ public final class ItemChanges {
         settleAfterWindow = false;
         windowBaseline = null;
         losses.clear();
+        held.clear();
     }
 }
