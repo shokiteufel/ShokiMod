@@ -529,6 +529,28 @@ public final class ProfitTracker {
         return cfg().view == null ? ModConfig.ProfitView.SESSION : cfg().view;
     }
 
+    /**
+     * Die abgeschlossenen Tage, neuester zuerst.
+     *
+     * Der laufende Tag steht nicht darin - der steht im Kasten. Wer ihn hier auch sehen
+     * will, bekommt ihn vom Fenster vorangestellt.
+     */
+    public static List<ModConfig.DayRecord> history() {
+        return cfg().history;
+    }
+
+    /** Was ein abgeschlossener Tag heute wert waere */
+    public static double worthOf(ModConfig.DayRecord tag) {
+        if (tag == null) return 0;
+
+        double sum = 0;
+        for (Map.Entry<String, Integer> entry : tag.counts.entrySet()) {
+            double unit = unitPrice(entry.getKey());
+            if (unit > 0) sum += unit * entry.getValue();
+        }
+        return sum;
+    }
+
     /** Der Klick auf die Ueberschrift: Lauf, Tag, alles, wieder Lauf */
     public static void cycleView() {
         ModConfig.ProfitView[] alle = ModConfig.ProfitView.values();
@@ -685,6 +707,14 @@ public final class ProfitTracker {
         if (cfg().dayStartedAt >= start) return;
 
         boolean stand = !cfg().dayCounts.isEmpty() || cfg().dayUptimeMillis > 0L;
+        // Der abgelaufene Tag wandert ins Archiv, statt ersatzlos zu verschwinden
+        if (stand && cfg().dayStartedAt > 0L) {
+            cfg().history.add(0, new ModConfig.DayRecord(
+                    cfg().dayStartedAt, cfg().dayUptimeMillis, cfg().dayCounts));
+            while (cfg().history.size() > ModConfig.ProfitCategory.MAX_HISTORY) {
+                cfg().history.remove(cfg().history.size() - 1);
+            }
+        }
         cfg().dayCounts.clear();
         cfg().dayUptimeMillis = 0L;
         cfg().dayStartedAt = start;
