@@ -115,7 +115,7 @@ public class ShokiMod implements ClientModInitializer {
             }
             if (openDayProfitNextTick) {
                 openDayProfitNextTick = false;
-                client.setScreen(new com.shokiteufel.shokimod.gui.DayProfitScreen(null));
+                client.setScreenAndShow(new com.shokiteufel.shokimod.gui.DayProfitScreen(null));
             }
             if (openPetBuilderNextTick) {
                 openPetBuilderNextTick = false;

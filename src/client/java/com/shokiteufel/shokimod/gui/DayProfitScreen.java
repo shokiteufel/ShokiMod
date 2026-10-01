@@ -105,7 +105,7 @@ public class DayProfitScreen extends Screen {
             int index = (int) ((event.y() - LIST_TOP + 3) / ROW_HEIGHT);
             if (index >= 0 && index < perPage() && start + index < tage.size()) {
                 DayRecord tag = tage.get(start + index);
-                if (minecraft != null) minecraft.setScreen(new DayItemScreen(this, tag, label(tag)));
+                if (minecraft != null) minecraft.setScreenAndShow(new DayItemScreen(this, tag, label(tag)));
                 return true;
             }
         }
@@ -172,6 +172,6 @@ public class DayProfitScreen extends Screen {
 
     @Override
     public void onClose() {
-        if (minecraft != null) minecraft.setScreen(parent);
+        if (minecraft != null) minecraft.setScreenAndShow(parent);
     }
 }
