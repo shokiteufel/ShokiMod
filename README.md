@@ -93,7 +93,9 @@ die Spielversion beim Start — die falsche Datei laedt der Loader gar nicht ers
   `x2` oder per Befehl. Loeschen und
   Zuruecksetzen fragen vorher im Chat nach. Zeit und Profit/h einzeln abschaltbar, die Uhr laeuft auf Wunsch durch.
   Drei Zeitraeume — Lauf, Tag und Gesamtstand; ein Klick auf die Ueberschrift wechselt.
-  Der Tag faengt zur eingestellten Stunde an, voreingestellt sechs Uhr morgens.
+  Der Tag faengt zur eingestellten Stunde an, voreingestellt sechs Uhr morgens. Beim
+  Tageswechsel wandert der Stand ins Archiv — die letzten dreissig Tage stehen unter
+  `/shoki dayprofit`, mit den Waren jedes einzelnen Tages.
   Wegwerfen und wieder aufheben zaehlt nicht mit, Umziehen ebenso wenig: Ruestung und
   Zweithand zaehlen mit, also ist ein Helm, der vom Kopf ins Inventar wandert, kein Fund —
   auch dann nicht, wenn der Server ihn ueber zwei Ticks verteilt umlegt (Loadout-Wechsel)
@@ -187,6 +189,7 @@ die Spielversion beim Start — die falsche Datei laedt der Loader gar nicht ers
 | `/shoki craftprofit` | Gewinn je Handwerks- und Forge-Rezept |
 | `/shoki petprofit` | Gewinn je Pet; die Liste fuehrt je Pet das beste Angebot und das beste auf Stufe 1 |
 | `/shoki profit` | Liste des Profit-Trackers: welche Funde zaehlen und wie sie verkauft werden |
+| `/shoki dayprofit` | Was die vergangenen Tage gebracht haben; ein Klick auf einen Tag zeigt die Waren |
 | `/shoki pet` | Pet-HUD bauen |
 | `/shoki hub` | Zurueck in den Hub |
 | `/shoki update` | Neueste Fassung von GitHub holen; eingesetzt wird sie beim Beenden des Spiels |

@@ -1467,6 +1467,33 @@ public class ModConfig extends Config {
         }
     }
 
+    /**
+     * Ein abgeschlossener Tag des Profit-Trackers.
+     *
+     * Gespeichert werden die Stueckzahlen, nicht die Coins: Was ein Fund wert ist,
+     * entscheidet der Markt von heute, und eine eingefrorene Zahl von vorgestern waere
+     * beim Verkaufen die falsche. Die Zeit steht daneben, damit "Profit je Stunde" auch
+     * rueckwirkend stimmt.
+     */
+    public static class DayRecord {
+        /** Anfang des Tages, in Millisekunden - die eingestellte Stunde, nicht Mitternacht */
+        @Expose
+        public long start;
+        @Expose
+        public long uptimeMillis;
+        @Expose
+        public Map<String, Integer> counts = new HashMap<>();
+
+        public DayRecord() {
+        }
+
+        public DayRecord(long start, long uptimeMillis, Map<String, Integer> counts) {
+            this.start = start;
+            this.uptimeMillis = uptimeMillis;
+            this.counts = new HashMap<>(counts);
+        }
+    }
+
     /** Welcher Zeitraum im Profit-Kasten steht */
     public enum ProfitView {
         SESSION("Session"),
@@ -1635,6 +1662,19 @@ public class ModConfig extends Config {
          */
         @Expose
         public long dayStartedAt = 0L;
+
+        /**
+         * Die abgeschlossenen Tage, neuester zuerst.
+         *
+         * Beim Tageswechsel wandert der Stand hierher, statt ersatzlos zu verschwinden -
+         * die Frage "was habe ich gestern gemacht" ist die haeufigste, die ein Tageswert
+         * aufwirft, und sie war bisher nicht zu beantworten.
+         */
+        @Expose
+        public List<DayRecord> history = new ArrayList<>();
+
+        /** Mehr als einen Monat hebt niemand auf, und die Datei soll klein bleiben */
+        public static final int MAX_HISTORY = 30;
 
         /** Und alles zusammen, seit es den Tracker gibt. Wird nur von Hand geleert */
         @Expose

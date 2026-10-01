@@ -54,6 +54,7 @@ public class ShokiMod implements ClientModInitializer {
     private static boolean openShardProfitNextTick = false;
     private static boolean openCraftProfitNextTick = false;
     private static boolean openProfitItemsNextTick = false;
+    private static boolean openDayProfitNextTick = false;
     private static boolean openPetBuilderNextTick = false;
 
 
@@ -111,6 +112,10 @@ public class ShokiMod implements ClientModInitializer {
             if (openProfitItemsNextTick) {
                 openProfitItemsNextTick = false;
                 client.setScreenAndShow(new com.shokiteufel.shokimod.gui.ProfitItemScreen(null));
+            }
+            if (openDayProfitNextTick) {
+                openDayProfitNextTick = false;
+                client.setScreen(new com.shokiteufel.shokimod.gui.DayProfitScreen(null));
             }
             if (openPetBuilderNextTick) {
                 openPetBuilderNextTick = false;
@@ -238,6 +243,11 @@ public class ShokiMod implements ClientModInitializer {
                                         .then(profitChange("set", com.shokiteufel.shokimod.handler.ProfitTracker.Change.SET))
                                         .then(profitChange("add", com.shokiteufel.shokimod.handler.ProfitTracker.Change.ADD))
                                         .then(profitChange("remove", com.shokiteufel.shokimod.handler.ProfitTracker.Change.REMOVE))))
+                        // /shoki dayprofit -> was die vergangenen Tage gebracht haben
+                        .then(ClientCommands.literal("dayprofit").executes(context -> {
+                            openDayProfitNextTick = true;
+                            return 1;
+                        }))
                         // /shoki confirm -> die Rueckfrage aus dem Chat beantworten.
                         // Der Knopf in der Zeile fuehrt genau diesen Befehl aus
                         .then(ClientCommands.literal("confirm").executes(context -> {
