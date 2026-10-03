@@ -113,7 +113,7 @@ public class ShokiMod implements ClientModInitializer {
             }
             if (openFlipProfitNextTick) {
                 openFlipProfitNextTick = false;
-                client.setScreen(new com.shokiteufel.shokimod.gui.FlipProfitScreen(null));
+                client.setScreenAndShow(new com.shokiteufel.shokimod.gui.FlipProfitScreen(null));
             }
             if (openProfitItemsNextTick) {
                 openProfitItemsNextTick = false;

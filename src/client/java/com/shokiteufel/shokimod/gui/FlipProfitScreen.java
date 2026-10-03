@@ -202,7 +202,7 @@ public class FlipProfitScreen extends Screen {
 
     @Override
     public void onClose() {
-        if (minecraft != null) minecraft.setScreen(parent);
+        if (minecraft != null) minecraft.setScreenAndShow(parent);
     }
 
     /** Ein Klick auf eine Zeile oeffnet die Ware im Bazaar */
@@ -222,7 +222,7 @@ public class FlipProfitScreen extends Screen {
 
         Row row = zeilen.get(start + index);
         if (minecraft == null || minecraft.player == null) return false;
-        minecraft.setScreen(null);
+        minecraft.setScreenAndShow(null);
         minecraft.player.connection.sendCommand("bz " + row.name());
         return true;
     }
