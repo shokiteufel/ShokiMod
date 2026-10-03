@@ -1630,6 +1630,16 @@ public class ModConfig extends Config {
         @Expose
         public Map<String, String> countAs = new HashMap<>();
 
+        /**
+         * Ein eigener Klang je Ware, der beim naechsten Fund laeuft.
+         *
+         * Der Alarm fuer seltene Funde haengt an Preisstufen - wer auf eine bestimmte Ware
+         * wartet, will aber genau die hoeren, egal was sie kostet. Der Schluessel ist die
+         * Kennung, der Wert der Dateiname aus dem Sound-Ordner.
+         */
+        @Expose
+        public Map<String, String> sounds = new HashMap<>();
+
         /** Selbst eingetragene Preise je Stueck, fuer die Verkaufsart Custom */
         @Expose
         public Map<String, Double> customPrices = new HashMap<>();

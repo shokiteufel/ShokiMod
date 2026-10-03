@@ -113,6 +113,7 @@ public final class ProfitTracker {
             if (first) {
                 ShokiMod.LOGGER.info("[Profit] first {} x{} via {}", itemId, amount, ItemChanges.lastSource());
             }
+            playSound(itemId);
         }
 
         if (counted) {
@@ -490,6 +491,44 @@ public final class ProfitTracker {
         int rarity = SkyBlockItems.rarityColour(ItemNames.tier(itemId));
         return rarity != 0 ? rarity : 0xFFFFFFFF;
     }
+
+    /** Der Klang zu einer Ware, oder "" */
+    public static String soundOf(String itemId) {
+        String name = cfg().sounds.get(itemId);
+        return name == null ? "" : name;
+    }
+
+    /** Einen Klang festlegen. Leer nimmt ihn wieder weg */
+    public static void setSound(String itemId, String fileName) {
+        if (itemId == null) return;
+        if (fileName == null || fileName.isBlank()) cfg().sounds.remove(itemId);
+        else cfg().sounds.put(itemId, fileName);
+        ModConfig.INSTANCE.saveNow();
+    }
+
+    /**
+     * Den Klang einer Ware spielen, hoechstens einmal je Sekunde.
+     *
+     * Wer in einem Sack-Schwung dreihundert Stueck bekommt, hoert sonst dreihundertmal
+     * denselben Ton uebereinander. Die Sperre gilt je Ware: Zwei verschiedene Funde im
+     * selben Augenblick duerfen beide klingen.
+     */
+    private static void playSound(String itemId) {
+        String datei = soundOf(itemId);
+        if (datei.isEmpty()) return;
+
+        long now = System.currentTimeMillis();
+        Long zuletzt = lastSound.get(itemId);
+        if (zuletzt != null && now - zuletzt < SOUND_GAP_MILLIS) return;
+
+        lastSound.put(itemId, now);
+        com.shokiteufel.shokimod.util.CustomSoundPlayer.play(datei,
+                com.shokiteufel.shokimod.util.AlertVolume.factor(), itemId);
+    }
+
+    /** Wann eine Ware zuletzt geklungen hat */
+    private static final Map<String, Long> lastSound = new java.util.HashMap<>();
+    private static final long SOUND_GAP_MILLIS = 1_000L;
 
     /** Der selbst eingetragene Preis je Stueck, oder 0 */
     public static double customPrice(String itemId) {

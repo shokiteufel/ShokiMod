@@ -2,6 +2,7 @@ package com.shokiteufel.shokimod.gui;
 
 import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.handler.ProfitTracker;
+import com.shokiteufel.shokimod.util.AlertVolume;
 import com.shokiteufel.shokimod.util.ItemValue;
 import com.shokiteufel.shokimod.util.ItemValue.SellMode;
 
@@ -43,6 +44,8 @@ public class ProfitItemScreen extends Screen {
     private static final int MODE_WIDTH = 64;
     /** Der Knopf fuer "als was gezaehlt wird" - schmal, es stehen nur zwei Zeichen drin */
     private static final int CRAFT_WIDTH = 40;
+    /** Der Knopf fuer den eigenen Klang - ein Zeichen breit, links vor der Ware */
+    private static final int SOUND_WIDTH = 20;
     private static final int PRICE_WIDTH = 72;
     private static final int LIST_TOP = 74;
 
@@ -95,10 +98,11 @@ public class ProfitItemScreen extends Screen {
         page = Math.min(page, pageCount() - 1);
 
         List<String> items = visible();
-        int gridWidth = NAME_WIDTH + 4 + MODE_WIDTH + 4 + CRAFT_WIDTH + 4 + PRICE_WIDTH;
+        int gridWidth = SOUND_WIDTH + 4 + NAME_WIDTH + 4 + MODE_WIDTH + 4 + CRAFT_WIDTH + 4 + PRICE_WIDTH;
         int left = width / 2 - gridWidth / 2;
 
-        EditBox search = new EditBox(font, left, 34, NAME_WIDTH, 20, Component.literal("Search"));
+        EditBox search = new EditBox(font, left + SOUND_WIDTH + 4, 34, NAME_WIDTH, 20,
+                Component.literal("Search"));
         search.setValue(filter);
         search.setHint(Component.literal("Search").withStyle(ChatFormatting.DARK_GRAY));
         search.setResponder(value -> {
@@ -115,35 +119,49 @@ public class ProfitItemScreen extends Screen {
                     ? ModConfig.ProfitSelection.PICKED : ModConfig.ProfitSelection.ALL;
             ModConfig.INSTANCE.saveNow();
             rebuild();
-        }).bounds(left + NAME_WIDTH + 4, 34, MODE_WIDTH, 20).build());
+        }).bounds(left + SOUND_WIDTH + 8 + NAME_WIDTH, 34, MODE_WIDTH, 20).build());
 
         int start = page * rowsPerPage();
         for (int i = 0; i < rowsPerPage() && start + i < items.size(); i++) {
             String itemId = items.get(start + i);
             int y = LIST_TOP + i * ROW_HEIGHT;
 
+            // Ganz links der Klang: Ein Klick oeffnet dieselbe Liste wie bei den Alarmen,
+            // und was dort gewaehlt wird, laeuft beim naechsten Fund dieser Ware
+            Button sound = Button.builder(soundLabel(itemId), button -> {
+                if (minecraft != null) {
+                    minecraft.setScreen(new SoundPickerScreen(this,
+                            () -> ProfitTracker.soundOf(itemId),
+                            picked -> ProfitTracker.setSound(itemId, picked),
+                            AlertVolume.factor()));
+                }
+            }).bounds(left, y, SOUND_WIDTH, 20).build();
+            sound.setTooltip(soundTooltip(itemId));
+            addRenderableWidget(sound);
+
             addRenderableWidget(Button.builder(rowLabel(itemId), button -> {
                 ProfitTracker.toggle(itemId);
                 button.setMessage(rowLabel(itemId));
-            }).bounds(left, y, NAME_WIDTH, 20).build());
+            }).bounds(left + SOUND_WIDTH + 4, y, NAME_WIDTH, 20).build());
 
             addRenderableWidget(Button.builder(modeLabel(itemId), button -> {
                 ProfitTracker.setMode(itemId, nextMode(itemId));
                 button.setMessage(modeLabel(itemId));
                 rebuild();
-            }).bounds(left + NAME_WIDTH + 4, y, MODE_WIDTH, 20).build());
+            }).bounds(left + SOUND_WIDTH + 8 + NAME_WIDTH, y, MODE_WIDTH, 20).build());
 
             // Als was die Ware zaehlt: so wie sie ist, eine Stufe hoeher, zwei Stufen
             Button craft = Button.builder(craftLabel(itemId), button -> {
                 ProfitTracker.setCountAs(itemId, nextTier(itemId));
                 rebuild();
-            }).bounds(left + NAME_WIDTH + 8 + MODE_WIDTH, y, CRAFT_WIDTH, 20).build();
+            }).bounds(left + SOUND_WIDTH + 12 + NAME_WIDTH + MODE_WIDTH, y, CRAFT_WIDTH, 20).build();
             craft.setTooltip(craftTooltip(itemId));
             addRenderableWidget(craft);
 
             // Das Feld gehoert nur zu Custom - sonst stuenden vierzig leere Kaesten da
             if (ProfitTracker.hasOwnMode(itemId) && ProfitTracker.modeOf(itemId) == SellMode.CUSTOM) {
-                EditBox price = new EditBox(font, left + NAME_WIDTH + 12 + MODE_WIDTH + CRAFT_WIDTH, y,
+                EditBox price = new EditBox(font,
+                        left + SOUND_WIDTH + 16 + NAME_WIDTH + MODE_WIDTH + CRAFT_WIDTH, y,
                         PRICE_WIDTH, 20, Component.literal("Price"));
                 double own = ProfitTracker.customPrice(itemId);
                 price.setValue(own > 0 ? String.valueOf((long) own) : "");
@@ -189,6 +207,21 @@ public class ProfitItemScreen extends Screen {
 
         addRenderableWidget(Button.builder(Component.literal("Done"), button -> onClose())
                 .bounds(left + gridWidth - 60, y, 60, 20).build());
+    }
+
+    /** Die Note: hell, wenn ein Klang eingestellt ist, sonst grau */
+    private static Component soundLabel(String itemId) {
+        boolean gesetzt = !ProfitTracker.soundOf(itemId).isEmpty();
+        return Component.literal("♪")
+                .withStyle(gesetzt ? ChatFormatting.AQUA : ChatFormatting.DARK_GRAY);
+    }
+
+    private static net.minecraft.client.gui.components.Tooltip soundTooltip(String itemId) {
+        String datei = ProfitTracker.soundOf(itemId);
+        return net.minecraft.client.gui.components.Tooltip.create(Component.literal(
+                datei.isEmpty()
+                        ? "No sound - click to pick one. It plays when this item drops again."
+                        : "Plays " + datei + " when this item drops. Click to change."));
     }
 
     /** "as is", "x1" oder "x2" - und ein Strich, solange keine Stufe bekannt ist */
