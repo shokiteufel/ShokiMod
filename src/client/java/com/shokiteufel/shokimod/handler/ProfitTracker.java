@@ -858,7 +858,43 @@ public final class ProfitTracker {
                 if (nameOf(id).equalsIgnoreCase(gesucht) || id.equalsIgnoreCase(gesucht)) return id;
             }
         }
+
+        // Und zuletzt die Zeilen, wie sie im Kasten stehen. Eine hochgerechnete Zeile
+        // steht unter keiner dieser Kennungen: Wer alles in Fine zaehlen laesst, hat in
+        // den Zaehlern Rough und Flawed, sieht aber "Fine Peridot x25" - und tippt genau
+        // das. Vorher hiess es dann "No item called fine Peridot", obwohl es dastand
+        for (Row row : rows()) {
+            if (row.name().equalsIgnoreCase(gesucht)) return row.itemId();
+        }
         return null;
+    }
+
+    /**
+     * Was in die angezeigte Zeile dieser Ware hineingerechnet wird - ohne sie selbst.
+     *
+     * Wer alles in Fine zaehlen laesst, hat in den Zaehlern Rough und Flawed stehen;
+     * die Zeile "Fine Peridot x25" entsteht erst beim Anzeigen. Eine Aenderung an
+     * dieser Zeile muss deshalb auch die Waren treffen, aus denen sie kommt - sonst
+     * setzt man sie auf null und sie steht beim naechsten Bild unveraendert da.
+     */
+    static List<String> feeding(String itemId) {
+        if (itemId == null) return List.of();
+        List<String> out = new ArrayList<>();
+        for (Map<String, Integer> zaehler : List.of(cfg().counts, cfg().dayCounts, cfg().totalCounts)) {
+            for (String quelle : zaehler.keySet()) {
+                if (quelle.equals(itemId) || out.contains(quelle)) continue;
+                if (itemId.equals(countAsOf(quelle))) out.add(quelle);
+            }
+        }
+        return out;
+    }
+
+    /** Die Menge, wie sie im Kasten steht - mit allem, was hochgerechnet dazukommt */
+    static int shownCount(String itemId) {
+        for (Row row : rows()) {
+            if (row.itemId().equals(itemId)) return (int) Math.min(Integer.MAX_VALUE, row.count());
+        }
+        return countOf(itemId);
     }
 
     /**
@@ -1057,7 +1093,9 @@ public final class ProfitTracker {
             return;
         }
 
-        int vorher = countOf(itemId);
+        // Die Zahl, die im Kasten steht - sonst meldet die Antwort "25 -> 0" als "0 -> 0",
+        // wenn die Zeile hochgerechnet war
+        int vorher = shownCount(itemId);
         if (change == Change.SET) {
             // Alle drei auf dieselbe Zahl. Wer eine Zahl geradezieht, meint die Ware -
             // und drei verschiedene Staende derselben Ware sind genau das, was er
@@ -1066,6 +1104,15 @@ public final class ProfitTracker {
             say(Component.literal(nameOf(itemId)).withStyle(ChatFormatting.WHITE)
                     .append(Component.literal(": " + vorher + " -> " + amount
                             + " in Session, Day and Total.").withStyle(ChatFormatting.YELLOW)));
+            return;
+        }
+
+        if (change == Change.REMOVE) {
+            int weg = removeShown(itemId, amount);
+            say(Component.literal(nameOf(itemId)).withStyle(ChatFormatting.WHITE)
+                    .append(Component.literal(": " + vorher + " -> " + Math.max(0, vorher - weg)
+                            + " in " + view() + ", and the same step in the other two.")
+                            .withStyle(ChatFormatting.YELLOW)));
             return;
         }
 
@@ -1084,14 +1131,56 @@ public final class ProfitTracker {
                         .withStyle(ChatFormatting.YELLOW)));
     }
 
-    /** Dieselbe Zahl in allen drei Zeitraeumen. Null heisst: raus aus der Liste */
+    /**
+     * Dieselbe Zahl in allen drei Zeitraeumen. Null heisst: raus aus der Liste.
+     *
+     * Mitsamt dem, was hochgerechnet in diese Zeile fliesst: Stuenden die Rough weiter
+     * in den Zaehlern, waere die Zeile beim naechsten Bild wieder da - und wer eine
+     * Zahl geradezieht, meint die Zeile, die er sieht.
+     */
     private static void setAll(String itemId, int amount) {
+        for (String quelle : feeding(itemId)) {
+            for (Map<String, Integer> zaehler : List.of(cfg().counts, cfg().dayCounts, cfg().totalCounts)) {
+                zaehler.remove(quelle);
+            }
+        }
         for (Map<String, Integer> zaehler : List.of(cfg().counts, cfg().dayCounts, cfg().totalCounts)) {
             if (amount > 0) zaehler.put(itemId, amount);
             else zaehler.remove(itemId);
         }
         ModConfig.INSTANCE.saveNow();
         ShokiMod.LOGGER.info("[Profit] {} set to {} in all three", itemId, amount);
+    }
+
+    /**
+     * Abziehen, was im Kasten steht - notfalls aus den Waren, aus denen es gerechnet ist.
+     *
+     * Erst die Ware selbst, dann die Quellen. Eine Quelle wird in ihrer eigenen Einheit
+     * abgezogen: Ein Fine Peridot entsteht aus achtzig Flawed, also kostet ein Stueck
+     * weniger in der Zeile achtzig Stueck weniger im Zaehler. Gerechnet wird in ganzen
+     * Stuecken - was nicht aufgeht, bleibt als Rest stehen, so wie es auch beim
+     * Hochrechnen stehen bleibt.
+     *
+     * @return wie viel tatsaechlich wegging, in der Einheit der Zeile
+     */
+    private static int removeShown(String itemId, int amount) {
+        int offen = amount;
+        int direkt = Math.min(offen, countOf(itemId));
+        if (direkt > 0) {
+            adjust(itemId, -direkt);
+            offen -= direkt;
+        }
+        for (String quelle : feeding(itemId)) {
+            if (offen <= 0) break;
+            long jeStueck = CollectionData.ratio(quelle, itemId);
+            if (jeStueck <= 0) continue;
+            long gebraucht = Math.min(countOf(quelle), (long) offen * jeStueck);
+            long ganze = gebraucht / jeStueck;
+            if (ganze <= 0) continue;
+            adjust(quelle, (int) -(ganze * jeStueck));
+            offen -= (int) ganze;
+        }
+        return amount - offen;
     }
 
     /** Eine Zeile der Mod im Chat */
