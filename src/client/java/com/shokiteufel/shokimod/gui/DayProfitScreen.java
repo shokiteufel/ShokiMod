@@ -121,7 +121,7 @@ public class DayProfitScreen extends Screen {
         graphics.centeredText(font, Component.literal("Day profit").withStyle(ChatFormatting.GOLD),
                 centerX, 14, 0xFFFFAA00);
         graphics.centeredText(font, Component.literal(
-                        "Priced as of now - Active counts with a 30 s pause - click a day for its items")
+                        "Priced as of now - each find counts 30 s of Active - click a day for its items")
                 .withStyle(ChatFormatting.DARK_GRAY), centerX, 28, 0xFF888888);
 
         graphics.text(font, "Day", left + 4, LIST_TOP - 12, 0xFF888888, false);
