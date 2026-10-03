@@ -1,7 +1,5 @@
 package com.shokiteufel.shokimod.util;
 
-import com.shokiteufel.shokimod.util.SkyBlockItems;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -108,10 +106,14 @@ public final class BazaarFlips {
      * Normalfall. readableName baut ihn aus der Kennung und kennt die Sonderfaelle.
      */
     public static String nameOf(String id) {
-        String name = SkyBlockItems.readableName(id);
+        // shortName fragt erst die Liste und baut den Namen nur sonst aus der Kennung.
+        // Andersherum ging es schief: Der Bazaar handelt zehn Waren mit den alten
+        // Minecraft-Kennungen, in denen eine Zahl hinter einem Doppelpunkt die Sorte
+        // angibt - LOG:3 ist ein Jungle Log, INK_SACK:4 Lapis. Diese Zahl laesst sich
+        // ohne die Liste nicht aufloesen, und es stand "Log:3" da
+        String name = ItemNames.shortName(id);
         if (name != null && !name.isBlank()) return name;
-        name = ItemNames.displayName(id);
-        return name == null || name.isBlank() ? String.valueOf(id) : name;
+        return String.valueOf(id);
     }
 
     /**
