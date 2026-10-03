@@ -771,7 +771,8 @@ public final class ProfitTracker {
         // Der abgelaufene Tag wandert ins Archiv, statt ersatzlos zu verschwinden
         if (stand && cfg().dayStartedAt > 0L) {
             cfg().history.add(0, new ModConfig.DayRecord(
-                    cfg().dayStartedAt, cfg().dayUptimeMillis, cfg().dayCounts));
+                    cfg().dayStartedAt, cfg().dayUptimeMillis, cfg().dayCounts,
+                    com.shokiteufel.shokimod.util.SkyBlockYear.mayor()));
             while (cfg().history.size() > ModConfig.ProfitCategory.MAX_HISTORY) {
                 cfg().history.remove(cfg().history.size() - 1);
             }

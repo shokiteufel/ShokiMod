@@ -1483,14 +1483,29 @@ public class ModConfig extends Config {
         public long uptimeMillis;
         @Expose
         public Map<String, Integer> counts = new HashMap<>();
+        /**
+         * Wer an diesem Tag regiert hat.
+         *
+         * Die Wahl-Liste von Hypixel kennt nur den heutigen Buergermeister, keine
+         * Vergangenheit - also wird er beim Tageswechsel mitgeschrieben. Tage von vor
+         * dieser Neuerung haben hier nichts stehen, und das ist ehrlicher als ein Name,
+         * der geraten waere.
+         */
+        @Expose
+        public String mayor = "";
 
         public DayRecord() {
         }
 
         public DayRecord(long start, long uptimeMillis, Map<String, Integer> counts) {
+            this(start, uptimeMillis, counts, "");
+        }
+
+        public DayRecord(long start, long uptimeMillis, Map<String, Integer> counts, String mayor) {
             this.start = start;
             this.uptimeMillis = uptimeMillis;
             this.counts = new HashMap<>(counts);
+            this.mayor = mayor == null ? "" : mayor;
         }
     }
 
