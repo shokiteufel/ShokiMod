@@ -287,6 +287,36 @@ public class ShokiMod implements ClientModInitializer {
                                             context.getSource().sendFeedback(Component.literal("Banner: " + chosen.name));
                                             return 1;
                                         })))
+                        // /shoki menu -> das offene Fenster ins Log schreiben.
+                        //
+                        // Manche Auskunft steht nur in einem Menue: /dyes etwa oeffnet
+                        // eine Kiste, in der ein Schild sagt, welche Farbe gerade
+                        // begünstigt ist. Was dort wirklich steht, sieht man erst, wenn
+                        // man es liest - geraten wird daraus kein Leser
+                        .then(ClientCommands.literal("menu").executes(context -> {
+                            Minecraft client = Minecraft.getInstance();
+                            if (!(client.screen instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?> screen)) {
+                                context.getSource().sendFeedback(Component.literal(
+                                        "No menu open - open one and run this again."));
+                                return 1;
+                            }
+                            LOGGER.info("[ShokiMod] Menu \"{}\":", screen.getTitle().getString());
+                            int gezeigt = 0;
+                            java.util.List<net.minecraft.world.item.ItemStack> inhalt =
+                                    screen.getMenu().slots.stream().map(net.minecraft.world.inventory.Slot::getItem).toList();
+                            for (int i = 0; i < inhalt.size(); i++) {
+                                net.minecraft.world.item.ItemStack stack = inhalt.get(i);
+                                if (stack == null || stack.isEmpty()) continue;
+                                gezeigt++;
+                                LOGGER.info("[ShokiMod]   {}: {}", i, stack.getHoverName().getString());
+                                for (String zeile : com.shokiteufel.shokimod.util.SkyBlockItems.loreOf(stack)) {
+                                    LOGGER.info("[ShokiMod]        {}", zeile);
+                                }
+                            }
+                            context.getSource().sendFeedback(Component.literal(
+                                    "Wrote " + gezeigt + " menu items to the log."));
+                            return 1;
+                        }))
                         .then(ClientCommands.literal("tab").executes(context -> {
                             List<String> lines = TabListScanner.lastLines();
                             LOGGER.info("[ShokiMod] Tab list, {} lines:", lines.size());

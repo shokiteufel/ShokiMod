@@ -185,6 +185,26 @@ public final class SkyBlockItems {
      * Farben fehlen dort samt und sonders. Sie werden deshalb so geschrieben, wie
      * sie im Spiel heissen: "Queen Bee Shard", nicht "Shard Queen Bee".
      */
+    /**
+     * Die Beschreibung eines Gegenstands, Zeile fuer Zeile und ohne Farbcodes.
+     *
+     * Manche Auskunft steht nur dort: Welche Farbe gerade beguenstigt ist, sagt ein
+     * Schild im /dyes-Fenster und sonst niemand.
+     */
+    public static List<String> loreOf(net.minecraft.world.item.ItemStack stack) {
+        if (stack == null || stack.isEmpty()) return List.of();
+
+        net.minecraft.world.item.component.ItemLore lore =
+                stack.get(net.minecraft.core.component.DataComponents.LORE);
+        if (lore == null) return List.of();
+
+        List<String> out = new ArrayList<>();
+        for (net.minecraft.network.chat.Component zeile : lore.lines()) {
+            out.add(zeile.getString().replaceAll("§[0-9a-fk-or]", "").trim());
+        }
+        return out;
+    }
+
     public static String readableName(String itemId) {
         if (itemId == null || itemId.isEmpty()) return "";
 

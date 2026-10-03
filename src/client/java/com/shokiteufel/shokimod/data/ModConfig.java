@@ -1493,6 +1493,14 @@ public class ModConfig extends Config {
          */
         @Expose
         public String mayor = "";
+        /**
+         * Nur fuer zusammengefasste Zeilen: der letzte Tag, der darin steckt.
+         *
+         * Eine Amtszeit beginnt irgendwo im Kalender und endet irgendwo - erst der letzte
+         * gezaehlte Tag sagt, wie weit sie reichte. Fuer einen einzelnen Tag bleibt das
+         * Feld leer, der kennt ja nur sich selbst.
+         */
+        public transient long ende;
 
         public DayRecord() {
         }

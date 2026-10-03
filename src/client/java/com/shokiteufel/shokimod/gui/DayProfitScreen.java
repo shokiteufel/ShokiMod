@@ -37,6 +37,8 @@ public class DayProfitScreen extends Screen {
     private static final int LIST_WIDTH = 420;
     private static final int LIST_TOP = 74;
     private static final DateTimeFormatter TAG = DateTimeFormatter.ofPattern("EEE, dd.MM.yyyy");
+    /** Fuer Zeitraeume: ohne Wochentag, der sagt dort nichts */
+    private static final DateTimeFormatter KURZ = DateTimeFormatter.ofPattern("dd.MM.");
 
     /** Welche Zusammenfassung gerade dasteht */
     private enum Tab {
@@ -85,33 +87,68 @@ public class DayProfitScreen extends Screen {
     /**
      * Die Zeilen des gewaehlten Reiters.
      *
-     * Jahre und Buergermeister sind zusammengefasste Tage: Ein Buergermeister regiert
-     * genau ein SkyBlock-Jahr, beide Listen gehen also ueber dieselben Zeitraeume - die
-     * eine nennt die Zahl, die andere den Namen. Der Zeitpunkt einer zusammengefassten
-     * Zeile ist der Anfang ihres Jahres, damit die Reihenfolge stimmt.
+     * Jahre sind gerechnet: 124 Stunden, feste Grenzen. Amtszeiten sind es nicht - ein
+     * Buergermeister regiert zwar genau ein Jahr, faengt damit aber irgendwo mitten im
+     * Kalender an und hoert dort wieder auf. Nach dem Jahr zu gruppieren zerschnitte
+     * deshalb jede Amtszeit in zwei Haelften.
+     *
+     * Also wird nicht gerechnet, sondern gelesen: Die Tage tragen den Namen, der an ihnen
+     * galt, und ein Wechsel des Namens ist das Ende einer Amtszeit. Kommt derselbe
+     * Buergermeister Jahre spaeter wieder, sind das zwei Amtszeiten und zwei Zeilen - so
+     * wie es war.
      */
     private List<DayRecord> rows() {
-        if (tab == Tab.DAYS) return days();
+        return group(days(), tab);
+    }
 
-        Map<String, DayRecord> gruppen = new LinkedHashMap<>();
-        for (DayRecord tag : days()) {
+    /** Dieselbe Rechnung ohne Fenster - so laesst sie sich ohne laufendes Spiel pruefen */
+    static List<DayRecord> group(List<DayRecord> tage, Tab welcher) {
+        if (welcher == Tab.DAYS) return tage;
+        if (welcher == Tab.MAYORS) return terms(tage);
+
+        Map<Integer, DayRecord> jahre = new LinkedHashMap<>();
+        for (DayRecord tag : tage) {
             int jahr = com.shokiteufel.shokimod.util.SkyBlockYear.yearOf(tag.start);
-            String key = tab == Tab.YEARS ? String.valueOf(jahr)
-                    : (tag.mayor == null || tag.mayor.isBlank() ? "?" : tag.mayor) + "|" + jahr;
-
-            DayRecord ziel = gruppen.get(key);
-            if (ziel == null) {
-                ziel = new DayRecord(com.shokiteufel.shokimod.util.SkyBlockYear.startOf(jahr),
-                        0L, Map.of(), tag.mayor);
-                gruppen.put(key, ziel);
-            }
-            ziel.uptimeMillis += tag.uptimeMillis;
-            for (Map.Entry<String, Integer> entry : tag.counts.entrySet()) {
-                ziel.counts.merge(entry.getKey(), entry.getValue(), Integer::sum);
-            }
-            if ((ziel.mayor == null || ziel.mayor.isBlank()) && tag.mayor != null) ziel.mayor = tag.mayor;
+            DayRecord ziel = jahre.computeIfAbsent(jahr, j -> new DayRecord(
+                    com.shokiteufel.shokimod.util.SkyBlockYear.startOf(j), 0L, Map.of(), tag.mayor));
+            dazu(ziel, tag);
         }
-        return new ArrayList<>(gruppen.values());
+        return new ArrayList<>(jahre.values());
+    }
+
+    /**
+     * Die Amtszeiten, neueste zuerst.
+     *
+     * Gegangen wird die Tagesliste von neu nach alt; solange der Name derselbe bleibt,
+     * gehoeren die Tage zusammen. Der Anfang der Zeile ist der aelteste Tag darin, damit
+     * die Beschriftung sagt, ab wann gezaehlt wurde.
+     */
+    static List<DayRecord> terms(List<DayRecord> tage) {
+        List<DayRecord> out = new ArrayList<>();
+        String laufend = null;
+        DayRecord ziel = null;
+        for (DayRecord tag : tage) {
+            String name = tag.mayor == null || tag.mayor.isBlank() ? "?" : tag.mayor;
+            if (ziel == null || !name.equals(laufend)) {
+                ziel = new DayRecord(tag.start, 0L, Map.of(), tag.mayor);
+                out.add(ziel);
+                laufend = name;
+            }
+            dazu(ziel, tag);
+            // Der aelteste Tag der Gruppe bestimmt, ab wann sie laeuft
+            if (tag.start > 0 && tag.start < ziel.start) ziel.start = tag.start;
+            ziel.ende = Math.max(ziel.ende, tag.start);
+        }
+        return out;
+    }
+
+    /** Einen Tag auf eine Zeile draufrechnen */
+    private static void dazu(DayRecord ziel, DayRecord tag) {
+        ziel.uptimeMillis += tag.uptimeMillis;
+        for (Map.Entry<String, Integer> entry : tag.counts.entrySet()) {
+            ziel.counts.merge(entry.getKey(), entry.getValue(), Integer::sum);
+        }
+        if ((ziel.mayor == null || ziel.mayor.isBlank()) && tag.mayor != null) ziel.mayor = tag.mayor;
     }
 
     private int pageCount() {
@@ -229,6 +266,7 @@ public class DayProfitScreen extends Screen {
         ModConfig.ProfitCategory cfg = ProfitTracker.cfg();
         if (cfg.dayCounts.isEmpty()) return false;
         if (tab == Tab.DAYS) return tag.start == cfg.dayStartedAt;
+        if (tab == Tab.MAYORS) return tag.ende >= cfg.dayStartedAt;
         return com.shokiteufel.shokimod.util.SkyBlockYear.yearOf(tag.start)
                 == com.shokiteufel.shokimod.util.SkyBlockYear.yearOf(System.currentTimeMillis());
     }
@@ -246,8 +284,15 @@ public class DayProfitScreen extends Screen {
         return switch (tab) {
             case DAYS -> TAG.format(Instant.ofEpochMilli(tag.start).atZone(ZoneId.systemDefault()));
             case YEARS -> "Year " + jahr;
-            case MAYORS -> (tag.mayor == null || tag.mayor.isBlank() ? "?" : tag.mayor)
-                    + "  (Year " + jahr + ")";
+            case MAYORS -> {
+                String name = tag.mayor == null || tag.mayor.isBlank() ? "?" : tag.mayor;
+                // Die Amtszeit, wie sie wirklich lag - Anfang und letzter gezaehlter Tag
+                String von = KURZ.format(Instant.ofEpochMilli(tag.start).atZone(ZoneId.systemDefault()));
+                String bis = tag.ende > tag.start
+                        ? KURZ.format(Instant.ofEpochMilli(tag.ende).atZone(ZoneId.systemDefault()))
+                        : von;
+                yield name + "  (" + von + (von.equals(bis) ? "" : " - " + bis) + ")";
+            }
         };
     }
 
