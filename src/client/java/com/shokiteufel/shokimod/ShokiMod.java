@@ -84,6 +84,7 @@ public class ShokiMod implements ClientModInitializer {
         com.shokiteufel.shokimod.util.ModUpdater.cleanupHelper();
         HotspotTracker.register();
         CollectionTracker.register();
+        com.shokiteufel.shokimod.scanner.DyeRotation.init();
         NestTracker.register();
         ContestState.register();
         SessionManager.register();
@@ -287,34 +288,18 @@ public class ShokiMod implements ClientModInitializer {
                                             context.getSource().sendFeedback(Component.literal("Banner: " + chosen.name));
                                             return 1;
                                         })))
-                        // /shoki menu -> das offene Fenster ins Log schreiben.
+                        // /shoki menu -> das naechste Fenster ins Log schreiben.
                         //
                         // Manche Auskunft steht nur in einem Menue: /dyes etwa oeffnet
-                        // eine Kiste, in der ein Schild sagt, welche Farbe gerade
-                        // begünstigt ist. Was dort wirklich steht, sieht man erst, wenn
-                        // man es liest - geraten wird daraus kein Leser
+                        // eine Kiste, in der jeder Kopf sagt, welche Farbe gerade
+                        // beguenstigt ist. Gedumpt wird das NAECHSTE Menue, nicht das
+                        // offene - bei offener Kiste laesst sich kein Befehl tippen,
+                        // und wer sie schliesst, um ihn zu tippen, hat nichts mehr zu
+                        // lesen. Also vormerken und beim Oeffnen ausloesen
                         .then(ClientCommands.literal("menu").executes(context -> {
-                            Minecraft client = Minecraft.getInstance();
-                            if (!(client.screen instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?> screen)) {
-                                context.getSource().sendFeedback(Component.literal(
-                                        "No menu open - open one and run this again."));
-                                return 1;
-                            }
-                            LOGGER.info("[ShokiMod] Menu \"{}\":", screen.getTitle().getString());
-                            int gezeigt = 0;
-                            java.util.List<net.minecraft.world.item.ItemStack> inhalt =
-                                    screen.getMenu().slots.stream().map(net.minecraft.world.inventory.Slot::getItem).toList();
-                            for (int i = 0; i < inhalt.size(); i++) {
-                                net.minecraft.world.item.ItemStack stack = inhalt.get(i);
-                                if (stack == null || stack.isEmpty()) continue;
-                                gezeigt++;
-                                LOGGER.info("[ShokiMod]   {}: {}", i, stack.getHoverName().getString());
-                                for (String zeile : com.shokiteufel.shokimod.util.SkyBlockItems.loreOf(stack)) {
-                                    LOGGER.info("[ShokiMod]        {}", zeile);
-                                }
-                            }
+                            com.shokiteufel.shokimod.scanner.DyeRotation.dumpNextMenu();
                             context.getSource().sendFeedback(Component.literal(
-                                    "Wrote " + gezeigt + " menu items to the log."));
+                                    "Open a menu - its contents go to the log."));
                             return 1;
                         }))
                         .then(ClientCommands.literal("tab").executes(context -> {
