@@ -1,5 +1,7 @@
 package com.shokiteufel.shokimod.util;
 
+import com.shokiteufel.shokimod.util.SkyBlockItems;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -93,7 +95,35 @@ public final class BazaarFlips {
 
         long gekauft = Math.max(0L, BazaarLive.boughtPerDay(id));
         long verkauft = Math.max(0L, BazaarLive.soldPerDay(id));
-        return new Row(id, ItemNames.displayName(id), kauf, verkauf, profit, gekauft, verkauft);
+        return new Row(id, nameOf(id), kauf, verkauf, profit, gekauft, verkauft);
+    }
+
+    /**
+     * Der Name einer Bazaar-Ware - immer einer, nie null.
+     *
+     * Die Item-Liste von Hypixel fuehrt laengst nicht alles, was der Bazaar handelt:
+     * Verzauberungen heissen dort ENCHANTMENT_FEAST_1 und stehen in der Liste gar
+     * nicht, ebenso Essence. Ein fehlender Name hat das Fenster beim Zeichnen
+     * abgeschossen - bei 2.197 Waren ist das keine Randerscheinung, sondern der
+     * Normalfall. readableName baut ihn aus der Kennung und kennt die Sonderfaelle.
+     */
+    public static String nameOf(String id) {
+        String name = SkyBlockItems.readableName(id);
+        if (name != null && !name.isBlank()) return name;
+        name = ItemNames.displayName(id);
+        return name == null || name.isBlank() ? String.valueOf(id) : name;
+    }
+
+    /**
+     * Der Name, unter dem Hypixel die Ware im Bazaar findet.
+     *
+     * Nicht derselbe wie in der Anzeige: Dort steht "Sunset 1", weil das in eine Zeile
+     * passt - /bz sucht aber nach dem Namen aus der Item-Liste. Gibt es den nicht,
+     * bleibt der angezeigte, und die Suche fuehrt wenigstens in die Naehe.
+     */
+    public static String searchName(String id) {
+        String name = ItemNames.displayName(id);
+        return name == null || name.isBlank() ? nameOf(id) : name;
     }
 
     /** Was der eigene Kaufauftrag kosten muss, um vor dem hoechsten zu stehen */

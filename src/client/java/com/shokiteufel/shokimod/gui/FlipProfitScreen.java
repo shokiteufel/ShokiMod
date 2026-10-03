@@ -223,7 +223,7 @@ public class FlipProfitScreen extends Screen {
         Row row = zeilen.get(start + index);
         if (minecraft == null || minecraft.player == null) return false;
         minecraft.setScreen(null);
-        minecraft.player.connection.sendCommand("bz " + row.name());
+        minecraft.player.connection.sendCommand("bz " + BazaarFlips.searchName(row.id()));
         return true;
     }
 
@@ -310,7 +310,15 @@ public class FlipProfitScreen extends Screen {
         }
     }
 
+    /**
+     * Kuerzt, und vertraegt auch gar keinen Text.
+     *
+     * Ein fehlender Name hat das ganze Spiel abgeschossen, als eine Bazaar-Ware keinen
+     * in der Item-Liste hatte. Namen kommen jetzt aus BazaarFlips.nameOf und sind nie
+     * leer - aber ein Fenster darf an einer von zweitausend Waren nicht sterben.
+     */
     private static String cut(String text, int max) {
+        if (text == null) return "";
         return text.length() <= max ? text : text.substring(0, max - 1) + "…";
     }
 }
