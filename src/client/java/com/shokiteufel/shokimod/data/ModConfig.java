@@ -550,6 +550,10 @@ public class ModConfig extends Config {
     public ProfitCategory profit = new ProfitCategory();
 
     @Expose
+    @Category(name = "Bazaar", desc = "Buying and selling through your own orders: what the spread leaves after tax, and how briskly a good trades. Open the list with /shoki flipprofit.")
+    public BazaarCategory bazaar = new BazaarCategory();
+
+    @Expose
     @Category(name = "Alerts", desc = "React to what happens: words in chat, and what lands in your inventory.")
     public ChatRulesCategory chat = new ChatRulesCategory();
 
@@ -1542,6 +1546,49 @@ public class ModConfig extends Config {
      * Auswahl und Verkaufsarten ebenso: die haben mit einem einzelnen Lauf nichts zu
      * tun und sollen ihn ueberdauern.
      */
+    /**
+     * Der Bazaar-Handel mit eigenen Auftraegen.
+     *
+     * Was hier steht, gilt fuer jeden Verkauf und nicht nur fuer ein Fenster - deshalb
+     * eine eigene Kategorie und keine Schalterreihe im Fenster selbst.
+     */
+    public static class BazaarCategory {
+
+        @ConfigOption(name = "Bazaar flips", desc = "A buy order waits until someone sells to it, a sell offer waits until someone buys from it. Between the two lies the spread, and that is the whole earning. Open the list with /shoki flipprofit.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Sell tax", desc = "Hypixel takes this off every sale before the coins arrive. 1.25% is the plain rate; the community upgrade brings it to 1.125%, and a maxed Bazaar Flipper perk to 1%.")
+        @ConfigEditorDropdown
+        public SellTax tax = SellTax.PLAIN;
+
+        @Expose
+        @ConfigOption(name = "Trades per day", desc = "Hide goods that change hands less often than this, on either side. A fine spread is worthless if the order never gets served. The number is a seventh of what Hypixel reports for the last week.")
+        @ConfigEditorSlider(minValue = 0f, maxValue = 50000f, minStep = 100f)
+        public float minPerDay = 1000f;
+    }
+
+    /** Die drei Steuersaetze, die es im Spiel wirklich gibt */
+    public enum SellTax {
+        PLAIN("1.25% - no upgrade", 1.25),
+        COMMUNITY("1.125% - community upgrade", 1.125),
+        FLIPPER("1% - Bazaar Flipper maxed", 1.0);
+
+        private final String label;
+        public final double percent;
+
+        SellTax(String label, double percent) {
+            this.label = label;
+            this.percent = percent;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
+    }
+
     public static class ProfitCategory {
 
         @ConfigOption(name = "Profit Tracker", desc = "Counts what actually arrives - in your inventory and in your sacks - instead of reading the chat. Items Hypixel never announces are counted too.")
