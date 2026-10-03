@@ -295,7 +295,7 @@ public class ShokiMod implements ClientModInitializer {
                         // man es liest - geraten wird daraus kein Leser
                         .then(ClientCommands.literal("menu").executes(context -> {
                             Minecraft client = Minecraft.getInstance();
-                            if (!(client.screen instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?> screen)) {
+                            if (!(client.gui.screen() instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?> screen)) {
                                 context.getSource().sendFeedback(Component.literal(
                                         "No menu open - open one and run this again."));
                                 return 1;
