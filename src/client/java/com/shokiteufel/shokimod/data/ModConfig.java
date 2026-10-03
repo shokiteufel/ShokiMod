@@ -2516,12 +2516,6 @@ public class ModConfig extends Config {
         public boolean dyeDrops = true;
 
         @Expose
-        @ConfigOption(name = "Share dyes", desc = "Posts a dye into the chats chosen below, whatever it is worth - and even when sharing itself is off. A dye without a price would never clear the share threshold, and that is exactly the find worth telling.")
-        @ConfigEditorBoolean
-        @ConfigAccordionId(id = 26)
-        public boolean dyeShare = false;
-
-        @Expose
         @ConfigOption(name = "Dyes from other players", desc = "The dye announcement goes to the whole server. Off means only your own dyes fire.")
         @ConfigEditorBoolean
         @ConfigAccordionId(id = 26)
@@ -2852,6 +2846,12 @@ public class ModConfig extends Config {
         @ConfigEditorText
         @ConfigAccordionId(id = 24)
         public String shareThreshold = "1M";
+
+        @Expose
+        @ConfigOption(name = "Share dyes", desc = "Posts a dye into the chats chosen above, whatever it is worth - and even when sharing itself is off. A dye without a price would never clear the share threshold, and that is exactly the find worth telling.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 24)
+        public boolean dyeShare = false;
 
         @Expose
         @ConfigOption(name = "Message", desc = "The line that gets sent. Placeholders: {prefix} = RARE DROP! or LOOTSHARE DROP!, {item} = drop with count, {name}, {amount}, {mf} = Magic Find in brackets, {value} = value in brackets, {coins} = bare value. Empty restores the default.")
