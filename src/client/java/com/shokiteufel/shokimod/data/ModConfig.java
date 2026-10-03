@@ -1709,6 +1709,19 @@ public class ModConfig extends Config {
         /** Mehr als einen Monat hebt niemand auf, und die Datei soll klein bleiben */
         public static final int MAX_HISTORY = 30;
 
+        /**
+         * Welche Farben in welchem SkyBlock-Jahr haeufiger fielen: Jahr -> Farbe -> Faktor.
+         *
+         * Steht in keiner Schnittstelle, nur in der Kiste von /dyes. Wer sie einmal im
+         * Jahr oeffnet, hat die Angabe fuer dieses Jahr fuer immer - deshalb wird sie
+         * aufgehoben und nicht bei jedem Blick neu geholt.
+         */
+        @Expose
+        public Map<Integer, Map<String, Integer>> dyeYears = new HashMap<>();
+
+        /** Zwoelf Jahre sind rund zwei Monate echter Zeit - weiter zurueck fragt niemand */
+        public static final int MAX_DYE_YEARS = 12;
+
         /** Und alles zusammen, seit es den Tracker gibt. Wird nur von Hand geleert */
         @Expose
         public Map<String, Integer> totalCounts = new HashMap<>();

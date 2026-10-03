@@ -253,6 +253,18 @@ public class DayProfitScreen extends Screen {
             graphics.text(font, String.valueOf(tag.counts.size()), left + 170, y, 0xFFCCCCCC, false);
             graphics.text(font, clock(tag.uptimeMillis), left + 240, y, 0xFF55FFFF, false);
             graphics.text(font, ItemValue.format(ProfitTracker.worthOf(tag)), left + 320, y, 0xFF55FF55, false);
+
+            // Im Jahres-Reiter darunter die beguenstigten Farben. Sie stehen in keiner
+            // Schnittstelle, nur in der Kiste von /dyes - wer sie einmal im Jahr
+            // oeffnet, hat die Angabe fuer immer. Steht sie noch nicht da, sagt die
+            // Zeile genau das, statt einfach leer zu bleiben
+            if (tab == Tab.YEARS) {
+                String farben = com.shokiteufel.shokimod.scanner.DyeRotation.of(
+                        com.shokiteufel.shokimod.util.SkyBlockYear.yearOf(tag.start));
+                graphics.text(font,
+                        farben.isEmpty() ? "boosted dyes unknown - open /dyes during the year" : "boosted: " + farben,
+                        left + 4, y + 10, farben.isEmpty() ? 0xFF666666 : 0xFF55FFFF, false);
+            }
         }
 
         if (pageCount() > 1) {
