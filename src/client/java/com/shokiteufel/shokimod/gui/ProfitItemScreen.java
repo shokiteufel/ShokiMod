@@ -130,7 +130,7 @@ public class ProfitItemScreen extends Screen {
             // und was dort gewaehlt wird, laeuft beim naechsten Fund dieser Ware
             Button sound = Button.builder(soundLabel(itemId), button -> {
                 if (minecraft != null) {
-                    minecraft.setScreen(new SoundPickerScreen(this,
+                    minecraft.setScreenAndShow(new SoundPickerScreen(this,
                             () -> ProfitTracker.soundOf(itemId),
                             picked -> ProfitTracker.setSound(itemId, picked),
                             AlertVolume.factor()));
