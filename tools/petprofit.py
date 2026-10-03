@@ -73,11 +73,27 @@ class Erfahrung:
     def tabelle(self, pet_id: str, seltenheit: str) -> tuple[list[int], int, int]:
         """Stufentabelle, Startversatz und Hoechststufe fuer dieses Pet."""
         sonder = self.sonderfaelle.get(pet_id, {})
-        stufen = sonder.get("pet_levels", self.stufen)
         hoechste = sonder.get("max_level", HOECHSTSTUFE)
         versatz = self.versatz.get(seltenheit, 0)
         if "rarity_offset" in sonder:
             versatz = sonder["rarity_offset"].get(seltenheit, versatz)
+
+        stufen = self.stufen
+        eigene = sonder.get("pet_levels")
+        if eigene:
+            # Die eigene Tabelle SETZT DIE BASIS FORT, sie ersetzt sie nicht. Die drei
+            # Drachen steigen bis Stufe 100 wie jedes andere Legendaere, erst darueber
+            # gelten ihre eigenen Kosten von je 1.886.700. Ihre Liste hat genau hundert
+            # Eintraege - das sind die hundert Schritte von 100 auf 200, nicht die
+            # neunundneunzig davor.
+            #
+            # Wer sie ersetzt, rechnet die ersten hundert Stufen mit Drachenkosten und
+            # laesst die Liste am Ende auslaufen: Fuer einen Achtziger kamen so 1.886.700
+            # fehlende Erfahrung heraus statt 208.404.000 - ein einziger Schritt. Im
+            # Fenster stand dann ein Verhaeltnis von 223 Muenzen je Erfahrung neben
+            # 3,18 beim selben Ei auf Stufe 1, und die kaputte Zeile stand ganz oben.
+            stufen = self.stufen[versatz:] + eigene
+            versatz = 0   # der Versatz steckt schon im Ausschnitt
         return stufen, versatz, hoechste
 
     def gesamt(self, pet_id: str, seltenheit: str, stufe: int) -> float:
@@ -249,6 +265,27 @@ def rechne(pets: list[dict], xp: Erfahrung) -> list[dict]:
     return sorted(beste.values(), key=lambda e: -e["proXp"])
 
 
+def kappe(reihen: list[dict], je_topf: int = 40) -> list[dict]:
+    """Kuerzt die Liste - aber je Sparte und Einstiegsstufe, nicht ueber alles.
+
+    Gekappt werden musste bisher global: die hundert besten Verhaeltnisse, fertig. Das
+    Fenster filtert aber nach Sparte, und dann haengt die Sichtbarkeit eines Foraging-Pets
+    davon ab, wie gut die Combat-Pets gerade stehen. Ein Jade Dragon auf Stufe 1 bringt
+    0,3 Muenzen je Erfahrung - ehrlich gerechnet der letzte Platz, aber es ist das einzige
+    Foraging-Pet seiner Art, und wer unter Foraging nachsieht, sucht genau danach.
+
+    Darum je Sparte ein eigener Topf, und darin noch einmal getrennt nach "Stufe 1" und
+    "Rest": "Level 1 only" ist eine eigene Frage, die nicht daran scheitern soll, dass
+    vierzig hochgezogene Angebote davor liegen. Die Reihenfolge innerhalb der Toepfe
+    steht schon, die Eingabe ist nach Verhaeltnis sortiert.
+    """
+    toepfe: dict[tuple[str, bool], list[dict]] = defaultdict(list)
+    for e in reihen:
+        toepfe[(e["sparte"], e["stufe"] == 1)].append(e)
+    gekappt = [e for topf in toepfe.values() for e in topf[:je_topf]]
+    return sorted(gekappt, key=lambda e: -e["proXp"])
+
+
 def main() -> int:
     ziel = Path(sys.argv[1] if len(sys.argv) > 1 else "petprofit.json")
     print("Pet-Daten holen ...")
@@ -257,7 +294,7 @@ def main() -> int:
     pets, gesamt = sammle_pets()
     print(f"  {gesamt:,} Angebote gesehen, {len(pets):,} davon Pets zum Sofortkauf")
     reihen = rechne(pets, xp)
-    print(f"  {len(reihen):,} Pets mit Gewinnaussicht")
+    print(f"  {len(reihen):,} Pets mit Gewinnaussicht, {len(kappe(reihen)):,} davon in der Liste")
     fertig = fertige(pets, xp)
     print(f"  {len(fertig):,} Pet-Arten mit einem Angebot auf Hoechststufe")
 
@@ -265,7 +302,7 @@ def main() -> int:
     ziel.write_text(json.dumps({
         "aktualisiert": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "angebote": gesamt,
-        "pets": reihen[:100],
+        "pets": kappe(reihen),
         "fertige": fertig[:150],
     }, ensure_ascii=False, indent=1), encoding="utf-8")
     print(f"geschrieben: {ziel} ({ziel.stat().st_size:,} Bytes)")
