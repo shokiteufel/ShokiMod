@@ -62,6 +62,16 @@ public final class BazaarLive {
      * alle fuenfzehn Sekunden neu entstehen, spart das eine Menge kleiner Objekte.
      */
     private static volatile Map<String, long[]> prices = Map.of();
+    /**
+     * Dieselben beiden Spitzen des Auftragsbuchs, nur ungerundet: {Angebot, Auftrag}.
+     *
+     * Fuer alles Bisherige genuegen ganze Muenzen - bei einem Gold Lotus fuer 555.555
+     * aendert eine Nachkommastelle nichts. Beim Weiterverkaufen schon: Dort ist die
+     * Spanne zwischen beiden Seiten oft selbst nur Bruchteile einer Muenze gross, und
+     * gerundet wird aus einem Gewinn von 0,4 entweder nichts oder das Doppelte.
+     * Deshalb liegen die beiden Zahlen hier ein zweites Mal genau daneben.
+     */
+    private static volatile Map<String, double[]> tops = Map.of();
     private static volatile long fetchedAt = 0L;
     private static volatile long interestedAt = 0L;
     private static volatile long attemptedAt = 0L;
@@ -122,13 +132,32 @@ public final class BazaarLive {
      *
      * @return 0, wenn es die Seite nicht gibt oder sie leer ist
      */
-    private static long ersterPreis(JsonObject eintrag, String seite) {
+    private static double ersterPreis(JsonObject eintrag, String seite) {
         com.google.gson.JsonArray liste = eintrag.getAsJsonArray(seite);
-        if (liste == null || liste.isEmpty()) return 0L;
-        if (!liste.get(0).isJsonObject()) return 0L;
+        if (liste == null || liste.isEmpty()) return 0.0;
+        if (!liste.get(0).isJsonObject()) return 0.0;
         JsonObject erster = liste.get(0).getAsJsonObject();
-        if (erster.get("pricePerUnit") == null) return 0L;
-        return Math.round(erster.get("pricePerUnit").getAsDouble());
+        if (erster.get("pricePerUnit") == null) return 0.0;
+        return erster.get("pricePerUnit").getAsDouble();
+    }
+
+    /** Das guenstigste Angebot auf die Nachkommastelle genau - 0, wenn nichts da ist */
+    public static double cheapestOfferExact(String bazaarId) {
+        if (!fresh()) return 0.0;
+        double[] p = tops.get(bazaarId);
+        return p == null ? 0.0 : p[0];
+    }
+
+    /** Der hoechste Auftrag auf die Nachkommastelle genau - 0, wenn nichts da ist */
+    public static double highestBidExact(String bazaarId) {
+        if (!fresh()) return 0.0;
+        double[] p = tops.get(bazaarId);
+        return p == null ? 0.0 : p[1];
+    }
+
+    /** Alle Waren, zu denen gerade ein frischer Stand vorliegt */
+    public static java.util.Set<String> ids() {
+        return fresh() ? prices.keySet() : java.util.Set.of();
     }
 
     /**
@@ -224,6 +253,7 @@ public final class BazaarLive {
             // kosten ein paar hundert Kilobyte und sind damit billiger als ein
             // einziges erneutes Holen
             Map<String, long[]> frisch = new HashMap<>(4096);
+            Map<String, double[]> genau = new HashMap<>(4096);
             for (String id : produkte.keySet()) {
                 JsonObject eintrag = produkte.getAsJsonObject(id);
                 if (eintrag == null) continue;
@@ -245,8 +275,11 @@ public final class BazaarLive {
                 // Die Namen sind aus Sicht des Spielers gewaehlt: buy_summary sind die
                 // Angebote, aus denen man kauft (aufsteigend), sell_summary die
                 // Auftraege, in die man verkauft (absteigend).
-                long guenstigstesAngebot = ersterPreis(eintrag, "buy_summary");
-                long hoechsterAuftrag = ersterPreis(eintrag, "sell_summary");
+                double angebotGenau = ersterPreis(eintrag, "buy_summary");
+                double auftragGenau = ersterPreis(eintrag, "sell_summary");
+                long guenstigstesAngebot = Math.round(angebotGenau);
+                long hoechsterAuftrag = Math.round(auftragGenau);
+                genau.put(id, new double[]{angebotGenau, auftragGenau});
                 long kaufen = Math.round(stand.get("buyPrice") == null ? 0
                         : stand.get("buyPrice").getAsDouble());
                 long verkaufen = Math.round(stand.get("sellPrice") == null ? 0
@@ -266,6 +299,7 @@ public final class BazaarLive {
             }
 
             prices = Map.copyOf(frisch);
+            tops = Map.copyOf(genau);
             fetchedAt = System.currentTimeMillis();
             fetchCount++;
             lastError = null;

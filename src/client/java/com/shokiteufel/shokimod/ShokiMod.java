@@ -53,6 +53,7 @@ public class ShokiMod implements ClientModInitializer {
     private static boolean openPetProfitNextTick = false;
     private static boolean openShardProfitNextTick = false;
     private static boolean openCraftProfitNextTick = false;
+    private static boolean openFlipProfitNextTick = false;
     private static boolean openProfitItemsNextTick = false;
     private static boolean openDayProfitNextTick = false;
     private static boolean openPetBuilderNextTick = false;
@@ -109,6 +110,10 @@ public class ShokiMod implements ClientModInitializer {
             if (openCraftProfitNextTick) {
                 openCraftProfitNextTick = false;
                 client.setScreen(new com.shokiteufel.shokimod.gui.CraftProfitScreen(null));
+            }
+            if (openFlipProfitNextTick) {
+                openFlipProfitNextTick = false;
+                client.setScreen(new com.shokiteufel.shokimod.gui.FlipProfitScreen(null));
             }
             if (openProfitItemsNextTick) {
                 openProfitItemsNextTick = false;
@@ -190,6 +195,15 @@ public class ShokiMod implements ClientModInitializer {
                         .then(ClientCommands.literal("craftprofit").executes(context -> {
                             com.shokiteufel.shokimod.util.CraftProfitData.prefetch();
                             openCraftProfitNextTick = true;
+                            return 1;
+                        }))
+                        // /shoki flipprofit -> was der Bazaar zwischen Kaufauftrag und
+                        // Verkaufsangebot uebrig laesst. Die Preise kommen live, solange
+                        // das Fenster offen ist - bei einer Spanne von Zehnteln waere ein
+                        // zehn Minuten alter Stand wertlos
+                        .then(ClientCommands.literal("flipprofit").executes(context -> {
+                            com.shokiteufel.shokimod.util.BazaarLive.wanted();
+                            openFlipProfitNextTick = true;
                             return 1;
                         }))
                         // /shoki profit -> die Liste des Profit-Trackers: was gefunden wurde,
