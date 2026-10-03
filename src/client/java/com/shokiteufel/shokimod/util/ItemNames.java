@@ -131,8 +131,17 @@ public final class ItemNames {
     /** Ohne Farbcodes, ohne Gross/Klein, ohne Rand - so werden zwei Schreibweisen eine */
     static String normalize(String displayName) {
         if (displayName == null) return "";
-        return COLOUR_CODE.matcher(displayName).replaceAll("").trim().toLowerCase(Locale.ROOT);
+        String name = COLOUR_CODE.matcher(displayName).replaceAll("").trim();
+        // Was vor dem Namen steht, gehoert nicht dazu. Hypixel setzt Gemstones ein
+        // Zeichen voran - "⛚ Flawed Citrine Gemstone" - und in der Item-Liste steht
+        // der blosse Name. Ohne das hier fand die Craft-Meldung ihre Ware nicht und
+        // alles Gebaute landete als Fund im Kasten
+        name = SYMBOL_PREFIX.matcher(name).replaceAll("");
+        return name.trim().toLowerCase(Locale.ROOT);
     }
+
+    /** Alles vor dem ersten Buchstaben oder der ersten Ziffer */
+    private static final Pattern SYMBOL_PREFIX = Pattern.compile("^[^\\p{L}\\p{N}]+");
 
     private static String text(JsonObject item, String key) {
         JsonElement value = item.get(key);

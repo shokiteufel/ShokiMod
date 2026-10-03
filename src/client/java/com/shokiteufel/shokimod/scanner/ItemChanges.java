@@ -114,9 +114,21 @@ public final class ItemChanges {
     /** So lange nach einer solchen Zeile zaehlt auch, was bei offenem Fenster ankommt */
     private static final long LOOT_MILLIS = 5_000L;
 
-    /** "You Supercrafted Blessed Bait x256!" - gebaut, nicht gefunden */
+    /**
+     * "You Supercrafted Blessed Bait x256!" - gebaut, nicht gefunden.
+     *
+     * Zwei Formen. Entweder steht die Menge als "x9,432" hinter dem Namen, oder die
+     * Zeile kam mehrfach und der Chat hat sie zu "...! (14)" zusammengefasst - so wie
+     * er es daneben auch mit "Putting goods in escrow... (7)" macht.
+     */
     private static final Pattern SUPERCRAFT = Pattern.compile(
-            "^You Supercrafted (?<item>.+?)(?: x(?<amount>[\\d,]+))?!$", Pattern.CASE_INSENSITIVE);
+            "^You Supercrafted (?<item>.+?)(?: x(?<amount>[\\d,]+))?!(?: \\((?<repeat>[\\d,]+)\\))?$",
+            Pattern.CASE_INSENSITIVE);
+    /** So lange gilt eine zusammengefasste Zeile als dieselbe wie die davor */
+    private static final long REPEAT_MILLIS = 60_000L;
+    private static String lastCraft = "";
+    private static int lastCraftRepeat = 0;
+    private static long lastCraftMillis = 0L;
     /**
      * "Moved 9 Enchanted Bone from your Sacks to your inventory." - geholt, nicht gefunden.
      *
@@ -798,16 +810,38 @@ public final class ItemChanges {
         if (!matcher.matches()) return false;
 
         String name = matcher.group("item").trim();
-        int amount = matcher.group("amount") == null ? 1 : number(matcher.group("amount"));
-        if (name.isEmpty() || amount <= 0) return true;
+        int jeZeile = matcher.group("amount") == null ? 1 : number(matcher.group("amount"));
+        int wiederholt = matcher.group("repeat") == null ? 1 : number(matcher.group("repeat"));
+        if (name.isEmpty() || jeZeile <= 0 || wiederholt <= 0) return true;
 
         List<String> ids = ItemNames.idsFor(name);
-        if (ids.isEmpty()) return true;
+        if (ids.isEmpty()) {
+            // Ohne Kennung laesst sich nichts vormerken, und das Gebaute stuende als
+            // Fund im Kasten - also wenigstens nachlesbar, warum
+            ShokiMod.LOGGER.warn("[Profit] crafted, but no id for \"{}\"", name);
+            return true;
+        }
+        String id = ids.get(0);
+        long jetzt = System.currentTimeMillis();
 
+        // Der Chat zaehlt Wiederholungen hoch: erst "...!", dann "...! (2)", "...! (3)".
+        // Jede dieser Zeilen kommt hier an, und jede nennt die Gesamtzahl seit der
+        // ersten - vorgemerkt wird deshalb nur, was seit der letzten dazugekommen ist.
+        // Sonst waeren aus vierzehn Crafts hundertfuenf geworden
+        int neu = wiederholt;
+        if (id.equals(lastCraft) && wiederholt > lastCraftRepeat
+                && jetzt - lastCraftMillis < REPEAT_MILLIS) {
+            neu = wiederholt - lastCraftRepeat;
+        }
+        lastCraft = id;
+        lastCraftRepeat = wiederholt;
+        lastCraftMillis = jetzt;
+
+        int amount = jeZeile * neu;
         // Gecraftetes ist nur fuer die Sack-Meldung vorgemerkt - im Inventar liegt es
         // schon, und was danach dort ankommt, ist wieder ein Fund
-        losses.add(new Loss(ids.get(0), amount, System.currentTimeMillis(), true));
-        ShokiMod.LOGGER.info("[Profit] crafted, not found: {} x{}", ids.get(0), amount);
+        losses.add(new Loss(id, amount, jetzt, true));
+        ShokiMod.LOGGER.info("[Profit] crafted, not found: {} x{}", id, amount);
         return true;
     }
 
