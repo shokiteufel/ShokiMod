@@ -98,8 +98,8 @@ Voraussetzungen: Fabric Loader 0.19.3+ und Fabric API.
   Der Tag faengt zur eingestellten Stunde an, voreingestellt sechs Uhr morgens. Beim
   Tageswechsel wandert der Stand ins Archiv — die letzten dreissig Tage stehen unter
   `/shoki dayprofit`, mit den Waren jedes einzelnen Tages. Die Zeit des Tages laeuft
-  immer mit, auch wenn der Kasten keine Uhr zeigt — mit einer festen Pause von dreissig
-  Sekunden.
+  immer mit, auch wenn der Kasten keine Uhr zeigt: Jeder Fund zaehlt dreissig Sekunden,
+  dicht aufeinander folgende Funde lassen die Uhr durchlaufen.
   Wegwerfen und wieder aufheben zaehlt nicht mit, Umziehen ebenso wenig: Ruestung und
   Zweithand zaehlen mit, also ist ein Helm, der vom Kopf ins Inventar wandert, kein Fund —
   auch dann nicht, wenn der Server ihn ueber zwei Ticks verteilt umlegt (Loadout-Wechsel)
