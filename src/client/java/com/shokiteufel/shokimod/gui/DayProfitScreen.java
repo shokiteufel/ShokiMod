@@ -16,7 +16,9 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Was die vergangenen Tage gebracht haben.
@@ -33,8 +35,24 @@ public class DayProfitScreen extends Screen {
 
     private static final int ROW_HEIGHT = 20;
     private static final int LIST_WIDTH = 420;
-    private static final int LIST_TOP = 60;
+    private static final int LIST_TOP = 74;
     private static final DateTimeFormatter TAG = DateTimeFormatter.ofPattern("EEE, dd.MM.yyyy");
+
+    /** Welche Zusammenfassung gerade dasteht */
+    private enum Tab {
+        DAYS("Days"),
+        YEARS("SkyBlock year"),
+        MAYORS("Mayor");
+
+        final String label;
+
+        Tab(String label) {
+            this.label = label;
+        }
+    }
+
+    /** Ueberdauert das Schliessen - wer beim Jahr war, will dort weitermachen */
+    private static Tab tab = Tab.DAYS;
 
     private final Screen parent;
     private int page;
@@ -57,14 +75,47 @@ public class DayProfitScreen extends Screen {
         List<DayRecord> out = new ArrayList<>();
         ModConfig.ProfitCategory cfg = ProfitTracker.cfg();
         if (!cfg.dayCounts.isEmpty()) {
-            out.add(new DayRecord(cfg.dayStartedAt, cfg.dayUptimeMillis, cfg.dayCounts));
+            out.add(new DayRecord(cfg.dayStartedAt, cfg.dayUptimeMillis, cfg.dayCounts,
+                    com.shokiteufel.shokimod.util.SkyBlockYear.mayor()));
         }
         out.addAll(ProfitTracker.history());
         return out;
     }
 
+    /**
+     * Die Zeilen des gewaehlten Reiters.
+     *
+     * Jahre und Buergermeister sind zusammengefasste Tage: Ein Buergermeister regiert
+     * genau ein SkyBlock-Jahr, beide Listen gehen also ueber dieselben Zeitraeume - die
+     * eine nennt die Zahl, die andere den Namen. Der Zeitpunkt einer zusammengefassten
+     * Zeile ist der Anfang ihres Jahres, damit die Reihenfolge stimmt.
+     */
+    private List<DayRecord> rows() {
+        if (tab == Tab.DAYS) return days();
+
+        Map<String, DayRecord> gruppen = new LinkedHashMap<>();
+        for (DayRecord tag : days()) {
+            int jahr = com.shokiteufel.shokimod.util.SkyBlockYear.yearOf(tag.start);
+            String key = tab == Tab.YEARS ? String.valueOf(jahr)
+                    : (tag.mayor == null || tag.mayor.isBlank() ? "?" : tag.mayor) + "|" + jahr;
+
+            DayRecord ziel = gruppen.get(key);
+            if (ziel == null) {
+                ziel = new DayRecord(com.shokiteufel.shokimod.util.SkyBlockYear.startOf(jahr),
+                        0L, Map.of(), tag.mayor);
+                gruppen.put(key, ziel);
+            }
+            ziel.uptimeMillis += tag.uptimeMillis;
+            for (Map.Entry<String, Integer> entry : tag.counts.entrySet()) {
+                ziel.counts.merge(entry.getKey(), entry.getValue(), Integer::sum);
+            }
+            if ((ziel.mayor == null || ziel.mayor.isBlank()) && tag.mayor != null) ziel.mayor = tag.mayor;
+        }
+        return new ArrayList<>(gruppen.values());
+    }
+
     private int pageCount() {
-        return Math.max(1, (days().size() + perPage() - 1) / perPage());
+        return Math.max(1, (rows().size() + perPage() - 1) / perPage());
     }
 
     @Override
@@ -72,6 +123,19 @@ public class DayProfitScreen extends Screen {
         page = Math.min(page, pageCount() - 1);
         int unten = height - 30;
         int left = left();
+
+        // Die Reiter: derselbe Knopf, der gerade gilt, ist abgeschaltet
+        int x = left;
+        for (Tab eintrag : Tab.values()) {
+            Button knopf = Button.builder(Component.literal(eintrag.label), button -> {
+                tab = eintrag;
+                page = 0;
+                rebuild();
+            }).bounds(x, 40, 130, 20).build();
+            knopf.active = tab != eintrag;
+            addRenderableWidget(knopf);
+            x += 134;
+        }
 
         if (pageCount() > 1) {
             addRenderableWidget(Button.builder(Component.literal("◀"), button -> {
@@ -98,7 +162,7 @@ public class DayProfitScreen extends Screen {
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         if (super.mouseClicked(event, doubleClick)) return true;
 
-        List<DayRecord> tage = days();
+        List<DayRecord> tage = rows();
         int start = page * perPage();
         int left = left();
         if (event.y() >= LIST_TOP - 3 && event.x() >= left && event.x() <= left + LIST_WIDTH) {
@@ -121,15 +185,19 @@ public class DayProfitScreen extends Screen {
         graphics.centeredText(font, Component.literal("Day profit").withStyle(ChatFormatting.GOLD),
                 centerX, 14, 0xFFFFAA00);
         graphics.centeredText(font, Component.literal(
-                        "Priced as of now - each find counts 30 s of Active - click a day for its items")
+                        "Priced as of now - each find counts 30 s of Active - click a row for its items")
                 .withStyle(ChatFormatting.DARK_GRAY), centerX, 28, 0xFF888888);
 
-        graphics.text(font, "Day", left + 4, LIST_TOP - 12, 0xFF888888, false);
+        graphics.text(font, switch (tab) {
+            case DAYS -> "Day";
+            case YEARS -> "SkyBlock year";
+            case MAYORS -> "Mayor";
+        }, left + 4, LIST_TOP - 12, 0xFF888888, false);
         graphics.text(font, "Items", left + 170, LIST_TOP - 12, 0xFF888888, false);
         graphics.text(font, "Active", left + 240, LIST_TOP - 12, 0xFF888888, false);
         graphics.text(font, "Worth", left + 320, LIST_TOP - 12, 0xFF888888, false);
 
-        List<DayRecord> tage = days();
+        List<DayRecord> tage = rows();
         if (tage.isEmpty()) {
             graphics.centeredText(font, Component.literal("No day has finished yet")
                     .withStyle(ChatFormatting.GRAY), centerX, LIST_TOP + 20, 0xFFAAAAAA);
@@ -142,10 +210,9 @@ public class DayProfitScreen extends Screen {
             int y = LIST_TOP + i * ROW_HEIGHT;
             if ((i & 1) == 0) graphics.fill(left, y - 3, left + LIST_WIDTH, y + ROW_HEIGHT - 4, 0x30000000);
 
-            boolean laeuft = start + i == 0 && tag.start == ProfitTracker.cfg().dayStartedAt
-                    && !ProfitTracker.cfg().dayCounts.isEmpty();
-            graphics.text(font, label(tag) + (laeuft ? " (today)" : ""), left + 4, y,
-                    laeuft ? 0xFFFFAA00 : 0xFFFFFFFF, false);
+            boolean laeuft = start + i == 0 && laufend(tag);
+            graphics.text(font, label(tag) + (laeuft ? (tab == Tab.DAYS ? " (today)" : " (now)") : ""),
+                    left + 4, y, laeuft ? 0xFFFFAA00 : 0xFFFFFFFF, false);
             graphics.text(font, String.valueOf(tag.counts.size()), left + 170, y, 0xFFCCCCCC, false);
             graphics.text(font, clock(tag.uptimeMillis), left + 240, y, 0xFF55FFFF, false);
             graphics.text(font, ItemValue.format(ProfitTracker.worthOf(tag)), left + 320, y, 0xFF55FF55, false);
@@ -157,10 +224,31 @@ public class DayProfitScreen extends Screen {
         }
     }
 
-    /** "Mon, 29.09.2026" - der Tag, an dem die Zaehlung begann */
+    /** Laeuft dieser Zeitraum noch? */
+    private static boolean laufend(DayRecord tag) {
+        ModConfig.ProfitCategory cfg = ProfitTracker.cfg();
+        if (cfg.dayCounts.isEmpty()) return false;
+        if (tab == Tab.DAYS) return tag.start == cfg.dayStartedAt;
+        return com.shokiteufel.shokimod.util.SkyBlockYear.yearOf(tag.start)
+                == com.shokiteufel.shokimod.util.SkyBlockYear.yearOf(System.currentTimeMillis());
+    }
+
+    /**
+     * Die Beschriftung einer Zeile - je Reiter eine andere Frage.
+     *
+     * Beim Tag das Datum, beim Jahr seine Zahl, beim Buergermeister sein Name und das
+     * Jahr dazu. Wer vor dieser Neuerung gespielt hat, hat keinen Namen in den Daten;
+     * dort steht ein Fragezeichen statt eines geratenen.
+     */
     static String label(DayRecord tag) {
         if (tag.start <= 0) return "unknown day";
-        return TAG.format(Instant.ofEpochMilli(tag.start).atZone(ZoneId.systemDefault()));
+        int jahr = com.shokiteufel.shokimod.util.SkyBlockYear.yearOf(tag.start);
+        return switch (tab) {
+            case DAYS -> TAG.format(Instant.ofEpochMilli(tag.start).atZone(ZoneId.systemDefault()));
+            case YEARS -> "Year " + jahr;
+            case MAYORS -> (tag.mayor == null || tag.mayor.isBlank() ? "?" : tag.mayor)
+                    + "  (Year " + jahr + ")";
+        };
     }
 
     static String clock(long millis) {

@@ -193,7 +193,7 @@ Voraussetzungen: Fabric Loader 0.19.3+ und Fabric API.
 | `/shoki craftprofit` | Gewinn je Handwerks- und Forge-Rezept |
 | `/shoki petprofit` | Gewinn je Pet; die Liste fuehrt je Pet das beste Angebot und das beste auf Stufe 1 |
 | `/shoki profit` | Liste des Profit-Trackers: welche Funde zaehlen und wie sie verkauft werden |
-| `/shoki dayprofit` | Was die vergangenen Tage gebracht haben; ein Klick auf einen Tag zeigt die Waren |
+| `/shoki dayprofit` | Was die vergangenen Tage gebracht haben, wahlweise je SkyBlock-Jahr oder Buergermeister; ein Klick zeigt die Waren |
 | `/shoki pet` | Pet-HUD bauen |
 | `/shoki hub` | Zurueck in den Hub |
 | `/shoki update` | Neueste Fassung von GitHub holen; eingesetzt wird sie beim Beenden des Spiels |
