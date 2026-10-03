@@ -82,7 +82,8 @@ die Spielversion beim Start — die falsche Datei laedt der Loader gar nicht ers
   — auch ohne Chatzeile. Je Item einstellbar, ob es im Kasten steht und ob es sofort
   verkauft, in eine Order gelegt, dem NPC gegeben oder mit einem eigenen Preis gerechnet
   wird (`/shoki profit`). Zahlen bei offenem Inventar per `[-]` und `[+]` von Hand
-  richtigstellen, mit dem roten [X] daneben eine Ware ganz herausnehmen — oder per Befehl
+  richtigstellen, mit dem roten [X] daneben eine Ware ganz herausnehmen, und mit der Note
+  ganz links einen eigenen Klang je Ware einstellen, der beim naechsten Fund laeuft — oder per Befehl
   (`/shoki profittracker <Ware> set|add|remove <Zahl>`), mit Namensvorschlag ab dem ersten
   Buchstaben. Je Ware einstellbar, als was sie zaehlt: Bones als Enchanted Bones, Rough
   und Flawed als Fine, Magmafish und Silber als Gold — die Umrechnung kommt aus dem
