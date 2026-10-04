@@ -565,9 +565,22 @@ public final class ProfitTracker {
         if (maxed.matches()) {
             String rarity = rarityOf(maxed.group("tier"));
             String pet = maxed.group("pet");
+            String art = pet.substring(0, pet.indexOf(';'));
             long preis = com.shokiteufel.shokimod.util.PetProfitData.maxedPrice(
-                    pet.substring(0, pet.indexOf(';')), rarity, Integer.parseInt(maxed.group("level")));
-            return preis > 0 ? preis : -1;
+                    art, rarity, Integer.parseInt(maxed.group("level")));
+            if (preis <= 0) return -1;
+
+            // Abgezogen wird, was ein frisch geschluepftes Tier derselben Art kostet.
+            //
+            // Das Einser war schon da, bevor es hochgezogen wurde - oft steht es sogar
+            // selbst im Kasten, weil es als Fund hereinkam. Stuende hier der volle Preis
+            // des fertigen Tiers, waere derselbe Wert zweimal gezaehlt. Angewachsen ist
+            // allein der Unterschied, und das ist die Zahl, auf die es ankommt.
+            //
+            // Kennt die Liste keinen Einstiegspreis, bleibt es beim vollen - lieber eine
+            // zu hohe Zahl als gar keine
+            long einser = com.shokiteufel.shokimod.util.PetProfitData.freshPrice(art, rarity);
+            return einser > 0 && einser < preis ? preis - einser : preis;
         }
         return ItemValue.trackedUnitPrice(itemId, modeOf(itemId));
     }

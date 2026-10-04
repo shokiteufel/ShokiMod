@@ -68,6 +68,8 @@ public final class PetProfitData {
 
     private static volatile List<Row> rows = List.of();
     private static volatile List<Ready> ready = List.of();
+    /** Dieselbe Liste fuer Stufe eins - der Einstiegspreis je Pet-Art */
+    private static volatile List<Ready> fresh = List.of();
     private static volatile String updated = "";
     private static volatile long auctions = 0L;
     private static final AtomicBoolean fetching = new AtomicBoolean(false);
@@ -110,6 +112,25 @@ public final class PetProfitData {
     public static List<Ready> readyPets() {
         prefetch();
         return ready;
+    }
+
+    /**
+     * Was ein frisch geschluepftes Pet dieser Art kostet, oder 0.
+     *
+     * Der Einstiegspreis - die Zahl, die vom Preis des fertigen Tiers abzuziehen ist,
+     * wenn es darum geht, was das Hochziehen eingebracht hat. Das Einser war schon da,
+     * angewachsen ist nur der Unterschied.
+     */
+    public static long freshPrice(String petId, String rarity) {
+        if (petId == null) return 0;
+        prefetch();
+        for (Ready r : fresh) {
+            if (r.id().equalsIgnoreCase(petId)
+                    && (rarity == null || r.rarity().equalsIgnoreCase(rarity))) {
+                return r.price();
+            }
+        }
+        return 0;
     }
 
     /** Die Sparten, die in den Daten wirklich vorkommen - fuer die Auswahl im Fenster */
@@ -283,6 +304,27 @@ public final class PetProfitData {
         }
         fertige.sort((a, b) -> Long.compare(a.price(), b.price()));
         ready = List.copyOf(fertige);
+
+        // Und dieselbe Liste fuer Stufe eins
+        List<Ready> frische = new ArrayList<>();
+        JsonArray auchFrisch = root.getAsJsonArray("frische");
+        if (auchFrisch != null) {
+            for (JsonElement element : auchFrisch) {
+                if (!element.isJsonObject()) continue;
+                JsonObject o = element.getAsJsonObject();
+                String name = string(o, "name");
+                if (name.isEmpty()) continue;
+                frische.add(new Ready(
+                        string(o, "id"), name,
+                        string(o, "sparte").toUpperCase(Locale.ROOT),
+                        string(o, "seltenheit").toUpperCase(Locale.ROOT),
+                        number(o, "stufe").intValue(),
+                        number(o, "preis").longValue(),
+                        string(o, "auktion")));
+            }
+        }
+        frische.sort((a, b) -> Long.compare(a.price(), b.price()));
+        fresh = List.copyOf(frische);
         updated = string(root, "aktualisiert");
         auctions = number(root, "angebote").longValue();
         origin = from;
