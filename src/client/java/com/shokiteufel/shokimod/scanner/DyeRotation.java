@@ -13,6 +13,7 @@ import net.minecraft.world.item.ItemStack;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -102,18 +103,24 @@ public final class DyeRotation {
     record Boost(int factor, int year) {
     }
 
-    /** Die erste Zeile, die den Satz traegt. Keine passt: null */
+    /**
+     * Faktor und Jahr aus der Beschreibung, oder null.
+     *
+     * Gesucht wird in der ganzen Beschreibung am Stueck, nicht Zeile fuer Zeile.
+     * Minecraft bricht lange Saetze um, und "This dye is 3x as common during SkyBlock
+     * Year 518" passt nicht in eine Zeile - wer jede einzeln prueft, findet nie etwas.
+     * Genau daran lag es: Die Kiste war offen, gelesen wurde nichts.
+     */
     static Boost boostIn(List<String> lore) {
-        for (String zeile : lore) {
-            Matcher treffer = BOOST.matcher(zeile);
-            if (!treffer.find()) continue;
-            try {
-                return new Boost(Integer.parseInt(treffer.group(1)), Integer.parseInt(treffer.group(2)));
-            } catch (NumberFormatException ignored) {
-                // eine kaputte Zahl macht die uebrigen Zeilen nicht unbrauchbar
-            }
+        if (lore == null || lore.isEmpty()) return null;
+        String ganz = String.join(" ", lore).replaceAll("\\s+", " ");
+        Matcher treffer = BOOST.matcher(ganz);
+        if (!treffer.find()) return null;
+        try {
+            return new Boost(Integer.parseInt(treffer.group(1)), Integer.parseInt(treffer.group(2)));
+        } catch (NumberFormatException ignored) {
+            return null;   // eine kaputte Zahl ist keine Angabe
         }
-        return null;
     }
 
     private static void read(String titel, List<ItemStack> inhalt) {
@@ -128,7 +135,17 @@ public final class DyeRotation {
             jahr = boost.year();
         }
 
-        if (jahr <= 0 || gefunden.isEmpty()) return;
+        if (jahr <= 0 || gefunden.isEmpty()) {
+            // Stand eine Farbe im Fenster und kam trotzdem nichts an, liegt es am
+            // Wortlaut - und der steht dann im Log, statt dass man raten muss
+            for (ItemStack stack : inhalt) {
+                String name = stack.getHoverName().getString().replaceAll("§[0-9a-fk-or]", "").trim();
+                if (!name.toLowerCase(Locale.ROOT).contains("dye")) continue;
+                ShokiMod.LOGGER.warn("[ShokiMod] \"{}\" in \"{}\" has no boost line: {}",
+                        name, titel, String.join(" | ", SkyBlockItems.loreOf(stack)));
+            }
+            return;
+        }
 
         ModConfig.ProfitCategory cfg = ModConfig.INSTANCE.profit;
         Map<String, Integer> bisher = cfg.dyeYears.get(jahr);
