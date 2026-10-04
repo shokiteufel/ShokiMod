@@ -76,6 +76,11 @@ public class DayProfitScreen extends Screen {
 
     /** Der laufende Tag zuerst, danach die abgeschlossenen */
     private List<DayRecord> days() {
+        return allDays();
+    }
+
+    /** Dasselbe ohne Fenster - fuer den Sprung aus dem Chat in ein bestimmtes Jahr */
+    static List<DayRecord> allDays() {
         List<DayRecord> out = new ArrayList<>();
         ModConfig.ProfitCategory cfg = ProfitTracker.cfg();
         if (!cfg.dayCounts.isEmpty()) {
@@ -84,6 +89,20 @@ public class DayProfitScreen extends Screen {
         }
         out.addAll(ProfitTracker.history());
         return out;
+    }
+
+    /**
+     * Alles, was in einem SkyBlock-Jahr zusammenkam - oder null, wenn davon nichts steht.
+     *
+     * Gebraucht fuer den Sprung aus der Zeile, die beim Jahreswechsel im Chat steht:
+     * Sie fuehrt nicht in die Liste der Jahre, sondern gleich in die Waren des eben
+     * abgelaufenen.
+     */
+    public static DayRecord yearRecord(int jahr) {
+        for (DayRecord zeile : group(allDays(), Tab.YEARS)) {
+            if (com.shokiteufel.shokimod.util.SkyBlockYear.yearOf(zeile.start) == jahr) return zeile;
+        }
+        return null;
     }
 
     /**

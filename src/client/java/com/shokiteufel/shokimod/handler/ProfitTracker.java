@@ -815,6 +815,7 @@ public final class ProfitTracker {
                     ? "[Profit] SkyBlock year {} started, the day count is back to zero"
                     : "[Profit] a new day started, the day count is back to zero", jahrJetzt);
         }
+        if (neuesJahr) sayYearSummary(jahrJetzt - 1);
     }
 
     /**
@@ -1229,6 +1230,40 @@ public final class ProfitTracker {
             offen -= (int) ganze;
         }
         return amount - offen;
+    }
+
+    /**
+     * Was das abgelaufene SkyBlock-Jahr eingebracht hat, als Zeile im Chat.
+     *
+     * Ein Jahr dauert 124 Stunden; was darin zusammenkam, verschwindet sonst still in
+     * einem Reiter, in den niemand schaut. Die Zeile ist anklickbar und fuehrt nicht in
+     * die Jahresliste, sondern gleich in die Waren dieses Jahres - die Frage dahinter
+     * ist ja nicht "wie viel", sondern "womit".
+     *
+     * Bewertet wird zu den Preisen von jetzt, so wie ueberall im Kasten. Stand nichts
+     * darin, bleibt es still: Eine Null zu melden ist keine Nachricht.
+     */
+    private static void sayYearSummary(int jahr) {
+        if (jahr <= 0) return;
+        ModConfig.DayRecord satz = com.shokiteufel.shokimod.gui.DayProfitScreen.yearRecord(jahr);
+        if (satz == null || satz.counts.isEmpty()) return;
+
+        double wert = worthOf(satz);
+        if (wert <= 0) return;
+
+        String befehl = "/shoki dayprofit " + jahr;
+        say(Component.literal("You earned ").withStyle(ChatFormatting.YELLOW)
+                .append(Component.literal(ItemValue.format(Math.round(wert)))
+                        .withStyle(ChatFormatting.GREEN))
+                .append(Component.literal(" coins in SkyBlock Year " + jahr + ". ")
+                        .withStyle(ChatFormatting.YELLOW))
+                .append(Component.literal("[Click here]")
+                        .withStyle(ChatFormatting.AQUA, ChatFormatting.BOLD)
+                        .withStyle(style -> style
+                                .withClickEvent(new net.minecraft.network.chat.ClickEvent.RunCommand(befehl))
+                                .withHoverEvent(new net.minecraft.network.chat.HoverEvent.ShowText(
+                                        Component.literal(satz.counts.size()
+                                                + " kinds of item - click for the list"))))));
     }
 
     /** Eine Zeile der Mod im Chat */
