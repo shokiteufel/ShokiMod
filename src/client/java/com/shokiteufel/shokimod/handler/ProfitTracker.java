@@ -924,6 +924,21 @@ public final class ProfitTracker {
             String sorte = itemId.substring(strich + 1, gem);
             for (String stufe : List.of("FLAWED", "FINE")) kandidaten.add(stufe + "_" + sorte + "_GEM");
         }
+        // Ueber den Anzeigenamen, nicht ueber die Kennung: Die Kennungen sind
+        // historisch gewachsen und halten sich bei 36 der 165 verzauberten Waren
+        // nicht an das Schema. End Stone heisst ENDER_STONE, die Stufe darueber aber
+        // ENCHANTED_ENDSTONE - kein Zusammensetzen der Kennung kommt da hin, und
+        // deshalb stand im Fenster ein Strich statt eines Knopfes. Betroffen ist
+        // gerade das, was man oft farmt: Karotten, Kakao, Lapis, Eisen, Gold, jede
+        // Holzart. Die Namen dagegen sind einheitlich - "Enchanted " davor genuegt,
+        // und alle 36 Faelle loesen sich darueber auf
+        String anzeige = ItemNames.displayName(itemId);
+        if (anzeige != null && !anzeige.isBlank()) {
+            kandidaten.addAll(ItemNames.idsFor("Enchanted " + anzeige));
+            kandidaten.addAll(ItemNames.idsFor("Enchanted " + anzeige + " Block"));
+            kandidaten.addAll(ItemNames.idsFor(anzeige + " Block"));
+        }
+
         // Und was sonst nach der Ware benannt ist - Silver und Gold Magmafish zum
         // Beispiel. Hoechstens acht, damit aus einem Namen wie BONE keine Handvoll
         // Bauplan-Abfragen fuer Halsketten und Bumerangs wird
