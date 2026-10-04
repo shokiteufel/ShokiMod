@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.shokiteufel.shokimod.ShokiMod;
+import com.shokiteufel.shokimod.data.ModConfig;
 
 import java.io.IOException;
 import java.net.URI;
@@ -15,6 +16,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -127,7 +129,8 @@ public final class CraftProfitData {
     public enum Kind {
         ALL("All"),
         CRAFT("Craft"),
-        FORGE_ONLY("Forge");
+        FORGE_ONLY("Forge"),
+        BOOKS("Books");
 
         public final String label;
 
@@ -211,13 +214,27 @@ public final class CraftProfitData {
                                    boolean onlyGain, Kind kind, boolean perHour,
                                    int quickForge, int limit) {
         prefetch();
-        if (!ready()) return List.of();
-
         String suche = search == null ? "" : search.trim().toLowerCase(Locale.ROOT);
         List<Row> out = new ArrayList<>(Math.min(limit, 256));
 
+        // Buecher stehen in keinem Rezept und werden deshalb eigens gerechnet - vor dem
+        // Blick auf die Rezeptliste, denn sie brauchen sie nicht. Sie haengen allein am
+        // Basar, und solange der steht, soll der Reiter etwas zeigen statt leer zu sein,
+        // nur weil die Bauplaene gerade nicht geladen sind.
+        //
+        // Sie gehoeren nur dazu, wenn auf dem Basar verkauft wird - im Auktionshaus
+        // handelt niemand einzelne Buecher auf Stufe fuenf
+        if (sellToBazaar && (kind == Kind.ALL || kind == Kind.BOOKS)) {
+            out.addAll(bookRows(suche, instantBuy, instantSell, onlyGain));
+        }
+        if (!ready()) {
+            out.sort(Comparator.comparingLong(Row::profit).reversed());
+            return out.size() > limit ? out.subList(0, limit) : out;
+        }
+
         int schneller = Math.clamp(quickForge, 0, 90);
         for (Recipe r : recipes) {
+            if (kind == Kind.BOOKS) break;
             if (kind == Kind.FORGE_ONLY && !FORGE.equals(r.type())) continue;
             if (kind == Kind.CRAFT && FORGE.equals(r.type())) continue;
             if (!suche.isEmpty() && !matches(r, suche)) continue;
@@ -282,6 +299,58 @@ public final class CraftProfitData {
      * geht nur ueber das Auktionshaus - und was dort keinen Tiefstpreis hat, wird
      * gerade nicht angeboten.
      */
+    /** Wie die Buch-Zeilen heissen - sie stammen aus keinem Rezept */
+    public static final String BOOK = "book";
+    /** Zwei gleiche Buecher ergeben eines eine Stufe hoeher: 2 hoch 4 fuer den Weg von 1 auf 5 */
+    private static final int BOOKS_PER_FIVE = 16;
+
+    /**
+     * Was das Hochlegen von Buechern einbringt - immer von Stufe eins auf fuenf.
+     *
+     * Buecher stehen in keinem Rezept: Zusammengelegt werden sie am Amboss, und zwei
+     * gleiche ergeben eines eine Stufe hoeher. Von eins auf fuenf sind das vier
+     * Verdopplungen, also sechzehn Stueck - und es kostet weder Muenzen noch Erfahrung.
+     *
+     * Nur Stufe fuenf, keine Zwischenstufen (Vorgabe ShokiTeufel, 04.10.2026). Auf zwei,
+     * drei und vier wird kaum gehandelt, und wo wenig gehandelt wird, steht im Basar ein
+     * Preis, der von einem einzigen Angebot kommt. Eine Zeile mit so einer Zahl sieht aus
+     * wie ein Geschaeft und ist keines.
+     *
+     * Die Steuer wird abgezogen, anders als bei den Rezepten daneben. Beim Buchhandel ist
+     * sie kein Rundungsfehler: Man kauft sechzehn und verkauft eines, die Spanne liegt oft
+     * bei einem Zehntel, und davon ist die Steuer ein Achtel.
+     */
+    private static List<Row> bookRows(String suche, boolean instantBuy, boolean instantSell,
+                                      boolean onlyGain) {
+        double steuer = ModConfig.INSTANCE.bazaar.tax.percent;
+        List<Row> out = new ArrayList<>();
+        for (String eins : BazaarLive.ids()) {
+            if (!eins.startsWith("ENCHANTMENT_") || !eins.endsWith("_1")) continue;
+            String fuenf = eins.substring(0, eins.length() - 1) + "5";
+            if (BazaarLive.priceOf(fuenf) == null) continue;
+
+            // Nicht ueber nameOf: Die Namensliste kommt aus der Rezeptdatei, und die
+            // kennt keine Buecher - dort stuende "Enchantment Ultimate Chimera 5".
+            // readableName macht daraus "Chimera 5", so wie es auch im Kasten steht
+            String name = SkyBlockItems.readableName(fuenf);
+            String teilName = SkyBlockItems.readableName(eins);
+            if (!suche.isEmpty() && !name.toLowerCase(Locale.ROOT).contains(suche)
+                    && !teilName.toLowerCase(Locale.ROOT).contains(suche)) continue;
+
+            long stueck = buyPrice(eins, instantBuy);
+            long verkauf = sellPrice(fuenf, instantSell, true);
+            boolean vollstaendig = stueck > 0 && verkauf > 0;
+            long kosten = stueck * BOOKS_PER_FIVE;
+            long erloes = Math.round(verkauf * (1.0 - steuer / 100.0));
+            if (onlyGain && (!vollstaendig || erloes - kosten <= 0)) continue;
+
+            out.add(new Row(fuenf, name, 1,
+                    List.of(new Part(eins, teilName, BOOKS_PER_FIVE)),
+                    kosten, erloes, vollstaendig, BOOK, 0));
+        }
+        return out;
+    }
+
     private static boolean tradableAt(String id, boolean bazaar) {
         if (bazaar) {
             if (BazaarLive.priceOf(id) != null) return true;
