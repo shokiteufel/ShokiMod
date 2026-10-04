@@ -272,7 +272,12 @@ public class CraftProfitScreen extends Screen {
         Row row = zeilen.get(start + index);
         if (minecraft == null || minecraft.player == null) return false;
         minecraft.setScreen(null);
-        minecraft.player.connection.sendCommand("recipe " + row.name());
+        // Buecher haben kein Rezept - sie werden am Amboss zusammengelegt. Dort fuehrt
+        // der Basar weiter als ein Fenster, das es fuer sie gar nicht gibt
+        minecraft.player.connection.sendCommand(
+                CraftProfitData.BOOK.equals(row.type())
+                        ? "bz " + row.name()
+                        : "recipe " + row.name());
         return true;
     }
 
