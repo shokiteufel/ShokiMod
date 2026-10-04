@@ -39,6 +39,8 @@ public class DayProfitScreen extends Screen {
     private static final DateTimeFormatter TAG = DateTimeFormatter.ofPattern("EEE, dd.MM.yyyy");
     /** Fuer Zeitraeume: ohne Wochentag, der sagt dort nichts */
     private static final DateTimeFormatter KURZ = DateTimeFormatter.ofPattern("dd.MM.");
+    /** Nur die Uhrzeit - fuer Saetze, die nicht zur Reset-Stunde angefangen haben */
+    private static final DateTimeFormatter UHR = DateTimeFormatter.ofPattern("HH:mm");
 
     /** Welche Zusammenfassung gerade dasteht */
     private enum Tab {
@@ -294,7 +296,17 @@ public class DayProfitScreen extends Screen {
         if (tag.start <= 0) return "unknown day";
         int jahr = com.shokiteufel.shokimod.util.SkyBlockYear.yearOf(tag.start);
         return switch (tab) {
-            case DAYS -> TAG.format(Instant.ofEpochMilli(tag.start).atZone(ZoneId.systemDefault()));
+            case DAYS -> {
+                java.time.ZonedDateTime beginn =
+                        Instant.ofEpochMilli(tag.start).atZone(ZoneId.systemDefault());
+                String datum = TAG.format(beginn);
+                // Faengt ein Satz nicht zur Reset-Stunde an, steht die Uhrzeit dabei.
+                // Das passiert beim Jahreswechsel: Der bricht den Tag mitten durch, und
+                // dann stuenden sonst zwei Zeilen mit demselben Datum untereinander
+                yield beginn.getHour() == ProfitTracker.cfg().dayResetHour
+                        ? datum
+                        : datum + " " + UHR.format(beginn);
+            }
             case YEARS -> "Year " + jahr;
             case MAYORS -> {
                 String name = tag.mayor == null || tag.mayor.isBlank() ? "?" : tag.mayor;

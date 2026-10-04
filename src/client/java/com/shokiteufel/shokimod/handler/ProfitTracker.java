@@ -765,6 +765,22 @@ public final class ProfitTracker {
      */
     private static void rollDay(long now) {
         long start = dayStart(now, cfg().dayResetHour);
+
+        // Ein neues SkyBlock-Jahr bricht den Tag ebenfalls um.
+        //
+        // Sonst gehoert der ganze Tag dem Jahr, in dem er angefangen hat - und der
+        // Jahreswechsel liegt fast nie zur Reset-Stunde, sondern irgendwann mitten
+        // darin. Am 03.10. sass deshalb bei einem Spieler alles vom ganzen Tag noch
+        // im Jahr 517, obwohl 518 lief, und im Jahres-Reiter tauchte das neue Jahr
+        // ueberhaupt nicht auf. Das ist kein Schoenheitsfehler: Ein Jahr dauert 124
+        // Stunden, also fuenf Tage - ein falsch zugeordneter Tag ist ein Fuenftel.
+        int jahrJetzt = com.shokiteufel.shokimod.util.SkyBlockYear.yearOf(now);
+        boolean neuesJahr = cfg().dayStartedAt > 0L && jahrJetzt > 0
+                && jahrJetzt != com.shokiteufel.shokimod.util.SkyBlockYear.yearOf(cfg().dayStartedAt);
+        if (neuesJahr) {
+            // Faellt beides zusammen, zaehlt der spaetere der beiden Zeitpunkte
+            start = Math.max(start, com.shokiteufel.shokimod.util.SkyBlockYear.startOf(jahrJetzt));
+        }
         if (cfg().dayStartedAt >= start) return;
 
         boolean stand = !cfg().dayCounts.isEmpty() || cfg().dayUptimeMillis > 0L;
@@ -781,7 +797,11 @@ public final class ProfitTracker {
         cfg().dayUptimeMillis = 0L;
         cfg().dayStartedAt = start;
         dirty = true;
-        if (stand) ShokiMod.LOGGER.info("[Profit] a new day started, the day count is back to zero");
+        if (stand) {
+            ShokiMod.LOGGER.info(neuesJahr
+                    ? "[Profit] SkyBlock year {} started, the day count is back to zero"
+                    : "[Profit] a new day started, the day count is back to zero", jahrJetzt);
+        }
     }
 
     /**
