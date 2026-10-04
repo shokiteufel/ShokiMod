@@ -56,6 +56,8 @@ public class ShokiMod implements ClientModInitializer {
     private static boolean openFlipProfitNextTick = false;
     private static boolean openProfitItemsNextTick = false;
     private static boolean openDayProfitNextTick = false;
+    /** Statt der Jahresliste gleich die Waren dieses Jahres - 0 heisst: wie bisher */
+    private static int openYearNextTick = 0;
     private static boolean openPetBuilderNextTick = false;
 
 
@@ -121,7 +123,13 @@ public class ShokiMod implements ClientModInitializer {
             }
             if (openDayProfitNextTick) {
                 openDayProfitNextTick = false;
-                client.setScreen(new com.shokiteufel.shokimod.gui.DayProfitScreen(null));
+                int jahr = openYearNextTick;
+                openYearNextTick = 0;
+                com.shokiteufel.shokimod.data.ModConfig.DayRecord satz =
+                        jahr > 0 ? com.shokiteufel.shokimod.gui.DayProfitScreen.yearRecord(jahr) : null;
+                client.setScreen(satz != null
+                        ? new com.shokiteufel.shokimod.gui.DayItemScreen(null, satz, "SkyBlock Year " + jahr)
+                        : new com.shokiteufel.shokimod.gui.DayProfitScreen(null));
             }
             if (openPetBuilderNextTick) {
                 openPetBuilderNextTick = false;
@@ -259,10 +267,22 @@ public class ShokiMod implements ClientModInitializer {
                                         .then(profitChange("add", com.shokiteufel.shokimod.handler.ProfitTracker.Change.ADD))
                                         .then(profitChange("remove", com.shokiteufel.shokimod.handler.ProfitTracker.Change.REMOVE))))
                         // /shoki dayprofit -> was die vergangenen Tage gebracht haben
-                        .then(ClientCommands.literal("dayprofit").executes(context -> {
-                            openDayProfitNextTick = true;
-                            return 1;
-                        }))
+                        // /shoki dayprofit [Jahr] -> die Uebersicht, oder gleich die
+                        // Waren eines bestimmten SkyBlock-Jahres. Das zweite ist das Ziel
+                        // der Zeile, die beim Jahreswechsel im Chat steht
+                        .then(ClientCommands.literal("dayprofit")
+                                .then(ClientCommands.argument("year",
+                                                com.mojang.brigadier.arguments.IntegerArgumentType.integer(1))
+                                        .executes(context -> {
+                                            openYearNextTick = com.mojang.brigadier.arguments
+                                                    .IntegerArgumentType.getInteger(context, "year");
+                                            openDayProfitNextTick = true;
+                                            return 1;
+                                        }))
+                                .executes(context -> {
+                                    openDayProfitNextTick = true;
+                                    return 1;
+                                }))
                         // /shoki confirm -> die Rueckfrage aus dem Chat beantworten.
                         // Der Knopf in der Zeile fuehrt genau diesen Befehl aus
                         .then(ClientCommands.literal("confirm").executes(context -> {
