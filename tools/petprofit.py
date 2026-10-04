@@ -199,6 +199,37 @@ def fertige(pets: list[dict], xp: Erfahrung) -> list[dict]:
     return sorted(beste.values(), key=lambda e: e["preis"])
 
 
+def frische(pets: list[dict], xp: Erfahrung) -> list[dict]:
+    """Das guenstigste Angebot je Pet-Art auf Stufe eins.
+
+    Das Gegenstueck zu fertige(). Gebraucht wird es, um den Zugewinn zu beziffern: Wenn
+    im Profit-Tracker ein Pet die Hoechststufe erreicht, ist nicht der ganze Preis des
+    fertigen Tiers dazugekommen - das frisch geschluepfte war schon da und stand dort
+    schon mit seinem Wert. Angewachsen ist nur der Unterschied.
+    """
+    beste: dict[tuple[str, str], dict] = {}
+    for p in pets:
+        if p["preis"] <= 0 or not p["seltenheit"] or p["stufe"] != 1:
+            continue
+        # Bonbons heben die Stufe, ohne dass Erfahrung dahintersteckt - so ein Tier ist
+        # kein frisch geschluepftes und sein Preis nicht der Einstiegspreis
+        if p.get("candy", 0) > 0:
+            continue
+        schluessel = (p["id"], p["seltenheit"])
+        vorher = beste.get(schluessel)
+        if vorher is None or p["preis"] < vorher["preis"]:
+            beste[schluessel] = {
+                "auktion": p.get("auktion", ""),
+                "id": p["id"],
+                "name": p["name"],
+                "sparte": sparte_von(p, p["id"], xp),
+                "seltenheit": p["seltenheit"],
+                "stufe": 1,
+                "preis": p["preis"],
+            }
+    return sorted(beste.values(), key=lambda e: e["preis"])
+
+
 def rechne(pets: list[dict], xp: Erfahrung) -> list[dict]:
     """Je Angebot: was es kostet, was es fertig wert ist, und was dazwischen liegt."""
     nach_art: dict[tuple[str, str], list[dict]] = defaultdict(list)
@@ -297,6 +328,8 @@ def main() -> int:
     print(f"  {len(reihen):,} Pets mit Gewinnaussicht, {len(kappe(reihen)):,} davon in der Liste")
     fertig = fertige(pets, xp)
     print(f"  {len(fertig):,} Pet-Arten mit einem Angebot auf Hoechststufe")
+    frisch = frische(pets, xp)
+    print(f"  {len(frisch):,} Pet-Arten mit einem Angebot auf Stufe eins")
 
     ziel.parent.mkdir(parents=True, exist_ok=True)
     ziel.write_text(json.dumps({
@@ -304,6 +337,7 @@ def main() -> int:
         "angebote": gesamt,
         "pets": kappe(reihen),
         "fertige": fertig[:150],
+        "frische": frisch[:300],
     }, ensure_ascii=False, indent=1), encoding="utf-8")
     print(f"geschrieben: {ziel} ({ziel.stat().st_size:,} Bytes)")
     return 0
