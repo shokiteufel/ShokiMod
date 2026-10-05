@@ -14,6 +14,18 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 /** Serverwechsel und eingehende Chatnachrichten. */
 public class NetworkHandler {
 
+    /**
+     * "[Sacks] +269 items. (Last 5s.)" - die Sammelzeile, die Hypixel alle paar
+     * Sekunden schickt.
+     *
+     * Menge und Zeitraum stehen nie fest, und manchmal sind es zwei Haelften:
+     * "+10,144 items, -812,640 items. (Last 10s.)". Das Muster laesst beides zu, bleibt
+     * aber streng genug, dass andere Zeilen mit demselben Kopf stehen bleiben - "Moved
+     * 9 Enchanted Bone from your Sacks to your inventory." etwa soll man weiter sehen.
+     */
+    private static final java.util.regex.Pattern SACK_SUMMARY = java.util.regex.Pattern.compile(
+            "^\\[Sacks\\]\\s*[+-][\\d,.]+ items?(?:,\\s*[+-][\\d,.]+ items?)*\\.?(?:\\s*\\(Last [^)]*\\))?\\.?$");
+
     /** Farbcodes einer Chatzeile. Vorbereitet, weil jede Nachricht hier durchlaeuft */
     private static final java.util.regex.Pattern COLOUR_CODE = java.util.regex.Pattern.compile("§[0-9a-fk-or]");
 
@@ -86,7 +98,18 @@ public class NetworkHandler {
             com.shokiteufel.shokimod.scanner.ItemChanges.onChatMessage(message, msg, unformattedMsg);
 
             // Ein "false" blendet die Originalzeile aus
-            return ChatRuleHandler.handleMessage(message, msg, unformattedMsg);
+            boolean zeigen = ChatRuleHandler.handleMessage(message, msg, unformattedMsg);
+
+            // Die Sammelzeile der Saecke zuletzt - erst muss jeder sie gelesen haben.
+            //
+            // Sie steht hier ganz unten und nicht oben: Was in einen Sack faellt, sieht
+            // das Inventar nie, und diese Zeile ist die einzige Meldung darueber. Wer
+            // sie frueher abfangen wuerde, haette einen Kasten, der nichts mehr zaehlt
+            if (zeigen && com.shokiteufel.shokimod.data.ModConfig.INSTANCE.profit.hideSackLine
+                    && SACK_SUMMARY.matcher(unformattedMsg.trim()).matches()) {
+                return false;
+            }
+            return zeigen;
         });
     }
 }

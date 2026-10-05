@@ -1890,6 +1890,12 @@ public class ModConfig extends Config {
         /** Mehr als einen Monat hebt niemand auf, und die Datei soll klein bleiben */
         public static final int MAX_HISTORY = 30;
 
+        @Expose
+        @ConfigOption(name = "Hide the sack line",
+                desc = "Takes \"[Sacks] +269 items. (Last 5s.)\" out of the chat. The tracker keeps reading it - what falls into a sack never shows up in your inventory, and that line is the only word about it.")
+        @ConfigEditorBoolean
+        public boolean hideSackLine = false;
+
         /**
          * Welche Farben in welchem SkyBlock-Jahr haeufiger fielen: Jahr -> Farbe -> Faktor.
          *
