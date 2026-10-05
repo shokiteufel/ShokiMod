@@ -276,7 +276,7 @@ public class CraftProfitScreen extends Screen {
         // der Basar weiter als ein Fenster, das es fuer sie gar nicht gibt
         minecraft.player.connection.sendCommand(
                 CraftProfitData.BOOK.equals(row.type())
-                        ? "bz " + row.name()
+                        ? "bz " + com.shokiteufel.shokimod.util.BazaarFlips.searchName(row.id())
                         : "recipe " + row.name());
         return true;
     }
