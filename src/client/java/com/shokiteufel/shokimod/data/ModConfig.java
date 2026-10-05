@@ -287,6 +287,14 @@ public class ModConfig extends Config {
                         () -> INSTANCE.fishing.rareCatch.sound,
                         picked -> INSTANCE.fishing.rareCatch.sound = picked,
                         1.0f)));
+        INSTANCE.chat.petMax.openSound = () -> Minecraft.getInstance().execute(() ->
+                Minecraft.getInstance().setScreen(new SoundPickerScreen(
+                        Minecraft.getInstance().screen,
+                        () -> INSTANCE.chat.petMax.sound,
+                        picked -> INSTANCE.chat.petMax.sound = picked,
+                        1.0f)));
+        INSTANCE.chat.petMax.test = () -> Minecraft.getInstance().execute(
+                com.shokiteufel.shokimod.handler.PetMaxAlert::test);
         INSTANCE.fishing.rareCatch.test = () -> Minecraft.getInstance().execute(
                 com.shokiteufel.shokimod.handler.RareCatchAlert::test);
         INSTANCE.chat.testAlertVolume = () -> Minecraft.getInstance().execute(AlertVolume::test);
@@ -1622,6 +1630,57 @@ public class ModConfig extends Config {
      * tun und sollen ihn ueberdauern.
      */
     /**
+     * Die Einblendung, wenn ein Pet fertig ist.
+     *
+     * Nachgebaut aus Feesh (Apache 2.0). Welche Stufe die letzte ist, entscheidet das
+     * Pet: bei den drei Drachen 200, sonst 100.
+     */
+    public static class PetMaxCategory {
+
+        @ConfigOption(name = "Pet maxed", desc = "When a pet reaches its highest level, this says so - on screen, in chat, and with what levelling it was worth. The three dragons count at 200, everything else at 100.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Enabled", desc = "Watch the chat for pets reaching their highest level.")
+        @ConfigEditorBoolean
+        public boolean enabled = false;
+
+        @Expose
+        @ConfigOption(name = "Banner", desc = "Large text across the screen, same as a rare drop.")
+        @ConfigEditorBoolean
+        public boolean banner = true;
+
+        @Expose
+        @ConfigOption(name = "Banner design", desc = "Name of the banner design. Build one in Alerts > Banner > Sandbox. Empty uses the default.")
+        @ConfigEditorText
+        public String bannerDesign = "";
+
+        @Expose
+        @ConfigOption(name = "Chat line", desc = "Writes the pet into your chat.")
+        @ConfigEditorBoolean
+        public boolean chatLine = true;
+
+        @Expose
+        @ConfigOption(name = "Show what it brought", desc = "A second line with what the finished pet is worth and what levelling it gained - the price of a fresh one taken off.")
+        @ConfigEditorBoolean
+        public boolean showPrice = true;
+
+        @ConfigOption(name = "Sound", desc = "Your own file from config/shokimod/sounds. Leave empty for silence.")
+        @ConfigEditorButton(buttonText = "Pick")
+        public transient Runnable openSound = () -> {
+        };
+
+        @Expose
+        public String sound = "";
+
+        @ConfigOption(name = "Test", desc = "Fires the alert once with a Golden Dragon, so you can see and hear what you set.")
+        @ConfigEditorButton(buttonText = "Test")
+        public transient Runnable test = () -> {
+        };
+    }
+
+    /**
      * Der Bazaar-Handel mit eigenen Auftraegen.
      *
      * Was hier steht, gilt fuer jeden Verkauf und nicht nur fuer ein Fenster - deshalb
@@ -2360,6 +2419,10 @@ public class ModConfig extends Config {
         @Expose
         @Category(name = "Rare Loot", desc = "Rare drops from chat, priced on the bazaar and auction house. Three tiers with their own reactions, and sharing to your party or guild.")
         public RareLootCategory rareLoot = new RareLootCategory();
+
+        @Expose
+        @Category(name = "Pet maxed", desc = "Announces a pet reaching its highest level, with what levelling it brought. Ported from Feesh.")
+        public PetMaxCategory petMax = new PetMaxCategory();
 
         @Expose
         @Category(name = "Banner", desc = "How the drop banners look: try all twenty, then place, size and colour each tier in the HUD editor.")
