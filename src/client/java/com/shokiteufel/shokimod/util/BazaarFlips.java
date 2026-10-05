@@ -124,8 +124,41 @@ public final class BazaarFlips {
      * bleibt der angezeigte, und die Suche fuehrt wenigstens in die Naehe.
      */
     public static String searchName(String id) {
+        String roemisch = bookSearchName(id);
+        if (roemisch != null) return roemisch;
         String name = ItemNames.displayName(id);
         return name == null || name.isBlank() ? nameOf(id) : name;
+    }
+
+    /** "I" bis "X" - weiter gehen die Stufen der Verzauberungen nicht */
+    private static final String[] ROEMISCH =
+            {"", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"};
+
+    /**
+     * Der Suchname eines Buches, oder null wenn die Kennung keines ist.
+     *
+     * Angezeigt wird "Chimera 5", weil das in eine Zeile passt und sich lesen laesst.
+     * Der Basar sucht aber nach dem Namen, wie er im Spiel steht, und dort traegt die
+     * Stufe eine roemische Zahl: "Chimera V". Mit der arabischen findet /bz nichts, und
+     * das Fenster ging ins Leere auf.
+     */
+    static String bookSearchName(String id) {
+        if (id == null || !id.startsWith("ENCHANTMENT_")) return null;
+        int strich = id.lastIndexOf('_');
+        if (strich <= 0 || strich + 1 >= id.length()) return null;
+        int zahl;
+        try {
+            zahl = Integer.parseInt(id.substring(strich + 1));
+        } catch (NumberFormatException e) {
+            return null;   // eine Kennung ohne Stufe am Ende ist kein Buch
+        }
+        if (zahl < 1 || zahl >= ROEMISCH.length) return null;
+
+        String name = SkyBlockItems.readableName(id);
+        // readableName haengt die Stufe als Zahl an - die wird ersetzt
+        int letzte = name.lastIndexOf(' ');
+        String stamm = letzte > 0 ? name.substring(0, letzte) : name;
+        return stamm + " " + ROEMISCH[zahl];
     }
 
     /** Was der eigene Kaufauftrag kosten muss, um vor dem hoechsten zu stehen */
