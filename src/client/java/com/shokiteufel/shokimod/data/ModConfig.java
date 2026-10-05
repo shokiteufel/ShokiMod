@@ -288,8 +288,8 @@ public class ModConfig extends Config {
                         picked -> INSTANCE.fishing.rareCatch.sound = picked,
                         1.0f)));
         INSTANCE.chat.petMax.openSound = () -> Minecraft.getInstance().execute(() ->
-                Minecraft.getInstance().setScreen(new SoundPickerScreen(
-                        Minecraft.getInstance().screen,
+                Minecraft.getInstance().setScreenAndShow(new SoundPickerScreen(
+                        Minecraft.getInstance().gui.screen(),
                         () -> INSTANCE.chat.petMax.sound,
                         picked -> INSTANCE.chat.petMax.sound = picked,
                         1.0f)));
