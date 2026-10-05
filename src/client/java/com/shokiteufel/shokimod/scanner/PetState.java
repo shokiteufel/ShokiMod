@@ -78,9 +78,17 @@ public final class PetState {
      * WIRKLICH draussen ist - das Menue zeigt nur, was gerade angeklickt wurde.
      */
     private static final Pattern TAB_HEAD = Pattern.compile("^Pet:$", Pattern.CASE_INSENSITIVE);
-    /** Die Zeile mit Stufe, moeglicher Ueberschuss-Stufe und Namen */
+    /**
+     * Die Zeile mit Stufe, moeglicher Ueberschuss-Stufe und Namen.
+     *
+     * Hinter der Zahl darf noch etwas stehen: Bei einem Pet auf Hoechststufe setzt
+     * Hypixel dort ein Zeichen, "[Lvl 100✦]". Das Muster im Menue war dafuer
+     * laengst tolerant, dieses hier nicht - und weil ein Treffer Pflicht ist, kam aus
+     * der Tab-Liste gar nichts mehr an. Die Anzeige blieb auf dem Stand des letzten
+     * Menue-Besuchs stehen, waehrend im Chat weiter Stufen gemeldet wurden.
+     */
     private static final Pattern TAB_PET = Pattern.compile(
-            "^\\[Lvl (?<lvl>\\d+)\\]\\s*(?:\\[(?<over>\\d+)[^\\]]*\\]\\s*)?(?<name>.+)$");
+            "^\\[Lvl (?<lvl>\\d+)[^\\]]*\\]\\s*(?:\\[(?<over>\\d+)[^\\]]*\\]\\s*)?(?<name>.+)$");
     /** Die Erfahrung darunter: "+628,040,665.1 XP" */
     private static final Pattern TAB_XP = Pattern.compile(
             "^\\+?(?<xp>[0-9][0-9,.]*)\\s*XP$", Pattern.CASE_INSENSITIVE);
@@ -550,8 +558,18 @@ public final class PetState {
 
     /** Der blosse Name, ohne was andere Mods davorgesetzt haben */
     private static String cleanName(String text) {
-        return FOREIGN_TAG.matcher(clean(text)).replaceFirst("").trim();
+        String ohneTags = FOREIGN_TAG.matcher(clean(text)).replaceFirst("").trim();
+        return SKIN_MARK.matcher(ohneTags).replaceAll("").trim();
     }
+
+    /**
+     * Was hinter dem Namen steht, gehoert nicht dazu.
+     *
+     * Ein Pet mit Skin traegt bei Hypixel ein Zeichen dahinter: "Ammonite ✦". Unter
+     * diesem Namen fand weder das gemerkte Bild noch der gemerkte Ueberschuss sein Pet
+     * wieder - im Kasten stand es deshalb ohne Bild da.
+     */
+    private static final Pattern SKIN_MARK = Pattern.compile("[^\\p{L}\\p{N}]+$");
 
     private static int parseInt(String raw) {
         try {
