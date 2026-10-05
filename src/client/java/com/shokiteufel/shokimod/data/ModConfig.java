@@ -652,6 +652,18 @@ public class ModConfig extends Config {
         public boolean showHeldItem = false;
 
         @Expose
+        @ConfigOption(name = "Held item on its own line",
+                desc = "Put it under the pet instead of behind it - with \"Held Item:\" in front, like SkyblockAddons does. Only matters while the lines are joined.")
+        @ConfigEditorBoolean
+        public boolean heldItemOwnLine = false;
+
+        @Expose
+        @ConfigOption(name = "Held item as image",
+                desc = "Show the item's picture instead of its name. Saves the width of a long name like Burnt Texts.")
+        @ConfigEditorBoolean
+        public boolean heldItemIcon = false;
+
+        @Expose
         @ConfigOption(name = "Progress bar", desc = "How far it is to the next level. Only shown below the maximum level.")
         @ConfigEditorBoolean
         public boolean showProgress = true;
