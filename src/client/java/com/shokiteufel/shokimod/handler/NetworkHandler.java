@@ -69,6 +69,7 @@ public class NetworkHandler {
             HuntingTracker.onChatMessage(unformattedMsg);
             // Der Kuchen-Alarm merkt sich, wann welcher Kuchen gegessen wurde
             CakeReminder.onChatMessage(unformattedMsg);
+            RareCatchAlert.onChatMessage(unformattedMsg);
             // Der Wechsel per Autopet ist die einzige Meldung ueber das aktive Pet,
             // die ohne offenes Menue kommt
             com.shokiteufel.shokimod.scanner.PetState.onChatMessage(unformattedMsg);

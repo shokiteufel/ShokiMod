@@ -208,6 +208,17 @@ drinsteckt.
   uebernommen (`FLYING_FISH;4+100`) — zwei Mods, die dieselbe Ware gleich benennen,
   ersparen dem naechsten Leser eine Uebersetzung. Der Preis kommt hier aus der eigenen
   Auktions-Auswertung, nicht aus einer fremden Schnittstelle.
+- **Feesh** (Apache-2.0, `Sleepy-Panda/Feesh`) — der Alarm bei seltenen Meeresbewohnern
+  (`features/alerts/RareCatchAlert.kt` und `constants/SeaCreatures.kt`). Hier ist zum
+  ersten Mal nicht nur die Idee übernommen, sondern **Daten**: die Tabelle der neunzig
+  Meeresbewohner mit dem Satz, mit dem Hypixel jeden Fang meldet, dazu Seltenheit und
+  die Angabe, welche als selten gelten (26 von 90). Diese Sammlung *ist* die Arbeit —
+  ohne sie erkennt eine Mod gar nichts, und sie Zeile für Zeile neu abzuschreiben
+  brächte niemandem etwas. Übernommen sind außerdem die Muster, mit denen Feesh und
+  SkyHanni ihre Funde in den Gruppenchat schreiben, damit der Alarm auch dann greift,
+  wenn die anderen in der Gruppe eine andere Mod benutzen. Die Einblendung selbst ist
+  die dieser Mod: dasselbe Banner, derselbe Ton und dieselbe Lautstärkeregel wie bei
+  einem seltenen Fund.
 - **Feesh** (Apache-2.0, `Sleepy-Panda/Feesh`) — dort steht auch, dass George für einen
   Baby Yeti eine Million zahlt (`npcPrice = 1_000_000.0`). Nachgebaut ist das anders:
   Feesh trägt die Zahl je Fund von Hand ein und nimmt sie nur, wenn Basar und Auktionshaus
