@@ -126,6 +126,15 @@ public final class PetState {
     private static volatile double xpHave = -1.0;
     private static volatile double xpNeed = -1.0;
     private static volatile double totalXp = -1.0;
+    /**
+     * Zu welchem Pet die gesamte Erfahrung gehoert.
+     *
+     * Die Zahl allein sagt das nicht, und wird sie mit der Stufentabelle eines anderen
+     * verrechnet, kommt eine Stufe heraus, die es nie gab: Die 878.141.630 Erfahrung
+     * eines Golden Dragon ergeben mit der Tabelle des Ammonite genau 452 - und so oft
+     * stand "leveled up to level 452" im Chat.
+     */
+    private static volatile String totalXpPet = "";
     private static volatile boolean atMax = false;
     private static volatile int overflowLevel = 0;
     private static volatile double overflowXp = 0.0;
@@ -223,6 +232,7 @@ public final class PetState {
         xpHave = -1.0;
         xpNeed = -1.0;
         totalXp = -1.0;
+        totalXpPet = "";
         atMax = false;
         overflowLevel = 0;
         overflowXp = 0.0;
@@ -284,6 +294,7 @@ public final class PetState {
             xpNeed = -1.0;
             rarity = "";
             totalXp = -1.0;
+            totalXpPet = "";
             atMax = false;
             heldItem = "";
             // Was ueber das neue Pet schon bekannt war, gilt sofort. Beim Angeln mit
@@ -327,6 +338,7 @@ public final class PetState {
                 xpNeed = -1.0;
                 rarity = "";
                 totalXp = -1.0;
+            totalXpPet = "";
                 atMax = false;
                 heldItem = "";
                 icon = com.shokiteufel.shokimod.util.PetIcons.iconFor(neuerName);
@@ -370,31 +382,48 @@ public final class PetState {
                 // Weder Zahl noch Ueberschrift: das ist der Name des Items
                 if (gefundenesItem.isEmpty()) gefundenesItem = zeile;
             }
-            if (gefundeneXp > 0) overflowXp = gefundeneXp;
+            // Nur wenn die Zahl in DIESEM Durchlauf dastand, gehoert sie zu diesem Pet.
+            // Fehlt sie - beim Wechsel baut die Tab-Liste einen Augenblick lang um -,
+            // bleibt der alte Wert stehen, und der ist dann der des anderen Pets
+            boolean frischeXp = gefundeneXp > 0;
+            if (frischeXp) overflowXp = gefundeneXp;
             // Das Item nur setzen, nicht loeschen - beim Pet-Wechsel raeumt der
             // Block weiter oben ohnehin auf, und das Menue weiss es manchmal besser
             if (!gefundenesItem.isEmpty()) heldItem = gefundenesItem;
             // Fuer die drei Drachen nennt die Tab-Liste die Ueberschuss-Stufe selbst.
             // Fuer alle anderen steht dort nur die Erfahrung - die Stufe ergibt sich
             // daraus nach derselben Regel: je volle Kosten der letzten Stufe eine mehr.
-            if (overflowLevel <= 0 && overflowXp > 0) {
+            // Gerechnet wird nur mit Erfahrung, die eben dastand. Ein stehengebliebener
+            // Wert gehoert womoeglich zum vorigen Pet, und aus dem wuerde hier eine
+            // Stufe, die es nie gab
+            if (overflowLevel <= 0 && overflowXp > 0 && frischeXp) {
                 int schritt = overflowStep();
                 if (schritt > 0) {
                     overflowLevel = (int) Math.floor(overflowXp / schritt);
                     atMax = atMax || overflowLevel > 0;
                 }
             }
-            if (overflowLevel > 0) {
+            // Gemerkt - und damit auch gemeldet - wird nur, was belegt ist: entweder
+            // die Tab-Liste nennt die Stufe selbst, oder die Erfahrung dazu stand
+            // eben in dieser Zeile.
+            //
+            // Ohne diese Bedingung wanderte beim Pet-Wechsel die Erfahrung des einen
+            // unter den Namen des anderen. Wer im Sekundentakt zwischen Golden Dragon
+            // und Ammonite wechselt, bekam dadurch endlos "leveled up to level 452"
+            // gemeldet: Stufe 100 vom Ammonite, 664 Millionen Erfahrung vom Drachen.
+            // Die gemerkte Zahl sprang zwischen 309 und 352 hin und her, und jeder
+            // Sprung nach oben galt als Aufstieg
+            if (overflowLevel > 0 && (frischeXp || ueber != null)) {
                 com.shokiteufel.shokimod.util.PetIcons.rememberOverflow(
                         name, overflowLevel, overflowXp, combinedLevel());
             } else {
-                // Die Tab-Liste sagt gerade nichts dazu - dann gilt der letzte Stand,
-                // statt eine Luecke zu zeigen, wo eben noch eine Zahl war
+                // Die Tab-Liste sagt gerade nichts Belegtes dazu - dann gilt der letzte
+                // Stand DIESES Pets, statt eine Luecke zu zeigen oder eine Zahl, die vom
+                // vorigen stammt
                 int gemerkt = com.shokiteufel.shokimod.util.PetIcons.overflowLevelFor(name);
-                if (gemerkt > 0) {
-                    overflowLevel = gemerkt;
-                    overflowXp = com.shokiteufel.shokimod.util.PetIcons.overflowXpFor(name);
-                }
+                overflowLevel = Math.max(0, gemerkt);
+                overflowXp = gemerkt > 0
+                        ? com.shokiteufel.shokimod.util.PetIcons.overflowXpFor(name) : 0.0;
             }
             seenAt = System.currentTimeMillis();
             from = "tab list";
@@ -517,6 +546,7 @@ public final class PetState {
         xpNeed = noetig;
         atMax = maxErreicht || atMax;
         totalXp = gesamt;
+        totalXpPet = name;
         heldItem = getragen;
         icon = stack.copy();
         // Damit der Kasten sein Bild auch nach einem Neustart hat, ohne dass jemand
@@ -553,6 +583,9 @@ public final class PetState {
         overflowLevel = 0;
         overflowXp = 0.0;
         if (!atMax || totalXp < 0) return;
+        // Die Erfahrung muss zu diesem Pet gehoeren. Wer im Sekundentakt wechselt, hat
+        // sonst die Zahl des einen und die Tabelle des anderen in derselben Rechnung
+        if (!name.equalsIgnoreCase(totalXpPet)) return;
         // Ohne Seltenheit stimmt der Versatz nicht, und die Zahl waere frei erfunden
         if (rarity.isEmpty()) return;
 

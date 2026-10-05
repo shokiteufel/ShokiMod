@@ -170,10 +170,11 @@ public final class PetIcons {
         dirty = true;
         save();
 
-        if (gestiegen) {
-            // Im Kasten steht die Gesamtstufe, nicht der blosse Ueberschuss. Nennt die
-            // Meldung eine andere Zahl, sucht man beim Lesen erst, was gemeint ist
-            announceOverflow(petName, combined > 0 ? combined : level);
+        // Gemeldet wird nur mit bekannter Gesamtstufe. Fehlt sie, stuende in der Zeile
+        // der blosse Ueberschuss - eine andere Zahl als im Kasten, und beim Lesen sucht
+        // man erst, was gemeint ist
+        if (gestiegen && combined > 0) {
+            announceOverflow(petName, combined);
         }
     }
 
@@ -186,6 +187,7 @@ public final class PetIcons {
     private static void announceOverflow(String petName, int level) {
         if (!ModConfig.INSTANCE.hud.pet.announceOverflow) return;
         net.minecraft.client.Minecraft client = net.minecraft.client.Minecraft.getInstance();
+        if (client == null) return;   // ohne laufendes Spiel gibt es niemanden zu benachrichtigen
         client.execute(() -> {
             if (client.player == null) return;
             // Genau wie Hypixels eigene Meldung, die manche Drachen-Skins zeigen:
