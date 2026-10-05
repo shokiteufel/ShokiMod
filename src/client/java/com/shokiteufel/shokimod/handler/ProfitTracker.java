@@ -329,7 +329,9 @@ public final class ProfitTracker {
             "^Your (?<pet>.+?) leveled up to level (?<level>\\d+)!$");
 
     public static void onChatMessage(String formatted, String plain) {
-        if (!enabled() || plain == null) return;
+        // Kein Blick auf den Schalter des Kastens: Die Einblendung bei einem fertigen
+        // Pet haengt nicht am Tracker - wer ihn aus hat, will sie trotzdem sehen
+        if (plain == null) return;
 
         Matcher matcher = LEVEL_UP.matcher(plain.trim());
         if (!matcher.matches()) return;
@@ -369,6 +371,18 @@ public final class ProfitTracker {
             return;
         }
         if (level != table.maxLevel()) return;
+        petMaxed(petId, rarity, level);
+    }
+
+    /**
+     * Ein Pet ist auf seiner Hoechststufe angekommen.
+     *
+     * Zwei Dinge, die nicht zusammengehoeren: Die Einblendung gilt immer, der Eintrag
+     * im Kasten nur, wenn der Kasten laeuft.
+     */
+    private static void petMaxed(String petId, String rarity, int level) {
+        PetMaxAlert.show(petId, rarity, level);
+        if (!enabled()) return;
 
         String itemId = petId + ";" + tierOf(rarity) + "+" + level;
         adjust(itemId, 1);
@@ -399,11 +413,7 @@ public final class ProfitTracker {
             }
             pendingPets.remove(warte);
             if (warte.level() != table.maxLevel()) continue;
-
-            String itemId = warte.petId() + ";" + tierOf(warte.rarity()) + "+" + warte.level();
-            adjust(itemId, 1);
-            say(Component.literal(nameOf(itemId)).withStyle(ChatFormatting.WHITE)
-                    .append(Component.literal(" counts in the tracker.").withStyle(ChatFormatting.YELLOW)));
+            petMaxed(warte.petId(), warte.rarity(), warte.level());
         }
     }
 

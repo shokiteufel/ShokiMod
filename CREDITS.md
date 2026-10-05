@@ -208,6 +208,14 @@ drinsteckt.
   uebernommen (`FLYING_FISH;4+100`) — zwei Mods, die dieselbe Ware gleich benennen,
   ersparen dem naechsten Leser eine Uebersetzung. Der Preis kommt hier aus der eigenen
   Auktions-Auswertung, nicht aus einer fremden Schnittstelle.
+- **Feesh** (Apache-2.0, `Sleepy-Panda/Feesh`) — die Einblendung, wenn ein Pet seine
+  Höchststufe erreicht (`features/alerts/PetLevelUpAlert.kt`): ein Titel „X is maxed"
+  mit der Stufe darunter, ein Ton, und wahlweise eine Zeile dazu, was das Hochziehen
+  wert war. Nachgebaut, nicht übernommen — und mit einem Unterschied: Feesh meldet bei
+  Stufe 100 und 200 gleichermaßen, hier zählt die Höchststufe des jeweiligen Pets. Ein
+  Golden Dragon auf 100 ist nicht fertig, sondern halb fertig, und „is maxed" wäre dort
+  falsch. Die beiden Preise kommen aus der eigenen Auktions-Auswertung statt aus zwei
+  Einzelabfragen.
 - **Feesh** (Apache-2.0, `Sleepy-Panda/Feesh`) — der Alarm bei seltenen Meeresbewohnern
   (`features/alerts/RareCatchAlert.kt` und `constants/SeaCreatures.kt`). Hier ist zum
   ersten Mal nicht nur die Idee übernommen, sondern **Daten**: die Tabelle der neunzig
