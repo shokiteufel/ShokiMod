@@ -148,6 +148,18 @@ public final class PetHud {
                 addProgress(panel, c);
                 continue;
             }
+            // Das Pet-Item kann unter dem Pet stehen statt dahinter, und als Bild
+            // statt als Name. Beides zusammen ergibt die Zeile, die SkyblockAddons
+            // zeigt: "Held Item:" und daneben das Bild
+            if (part == Part.HELD_ITEM && (c.heldItemOwnLine || c.heldItemIcon)
+                    && !PetState.heldItem().isEmpty()) {
+                if (zeile != null && zeile.length() > 0) {
+                    bildOffen = flush(panel, c, bild, bildOffen, zeile.toString());
+                    zeile.setLength(0);
+                }
+                addHeldItem(panel, c);
+                continue;
+            }
             String text = textOf(part);
             if (text.isEmpty()) continue;
             if (zeile != null) {
@@ -185,6 +197,38 @@ public final class PetHud {
         }
         panel.pair(vorne, text, LABEL_COLOUR, colour(PetState.rarity()));
         return false;
+    }
+
+    /**
+     * Das Pet-Item in einer eigenen Zeile - wahlweise als Bild.
+     *
+     * Das Bild kommt nicht aus dem Pet-Menue: Dort steht das Item nur als Zeile in der
+     * Beschreibung, nicht als Feld, das man abgreifen koennte. Gesucht wird es deshalb
+     * ueber den Namen in der Item-Liste. Findet sich dazu nichts - oder ist das Bild
+     * abgeschaltet -, steht der Name da, und das ist auch kein Verlust.
+     */
+    private static void addHeldItem(HudPanel panel, ModConfig.PetHudCategory c) {
+        String name = PetState.heldItem();
+        if (name.isEmpty()) return;
+        String vorne = label(c, "Held Item:");
+
+        if (c.heldItemIcon) {
+            ItemStack stack = heldItemStack(name);
+            if (!stack.isEmpty()) {
+                panel.icon(stack, vorne, "", LABEL_COLOUR, VALUE_COLOUR);
+                return;
+            }
+        }
+        panel.pair(vorne, name, LABEL_COLOUR, VALUE_COLOUR);
+    }
+
+    /** Das Bild zum Namen des Pet-Items, oder ein leerer Stapel */
+    private static ItemStack heldItemStack(String name) {
+        for (String id : com.shokiteufel.shokimod.util.ItemNames.idsFor(name)) {
+            ItemStack stack = com.shokiteufel.shokimod.util.ItemIcons.stackFor(id);
+            if (!stack.isEmpty()) return stack;
+        }
+        return ItemStack.EMPTY;
     }
 
     private static void addProgress(HudPanel panel, ModConfig.PetHudCategory c) {
