@@ -160,7 +160,7 @@ public final class PetHud {
         if (zeile != null && zeile.length() > 0) flush(panel, c, bild, bildOffen, zeile.toString());
         // Wer alles abschaltet, soll trotzdem sehen, welches Pet draussen ist
         if (panel.isEmpty()) {
-            panel.pair(label(c, "Pet:"), PetState.name(), LABEL_COLOUR, colour(PetState.rarity()));
+            panel.pair(label(c, "Pet:"), PetState.shownName(), LABEL_COLOUR, colour(PetState.rarity()));
         }
         return panel;
     }
@@ -210,7 +210,7 @@ public final class PetHud {
             // ausgefallen, dabei reicht die Erfahrung nur noch nicht fuer eine Stufe
             case OVERFLOW_LEVEL -> PetState.overflowXp() > 0
                     ? "[" + PetState.combinedLevel() + STAR + "]" : "";
-            case NAME -> PetState.name();
+            case NAME -> PetState.shownName();
             case OVERFLOW_XP -> PetState.overflowXp() > 0
                     ? "+" + compact(PetState.overflowXp()) + " XP" : "";
             case HELD_ITEM -> PetState.heldItem();

@@ -111,6 +111,15 @@ public final class PetState {
     private static final long MENU_GAP_MILLIS = 500L;
 
     private static volatile String name = "";
+    /**
+     * Derselbe Name, wie Hypixel ihn schreibt - mit dem Zeichen eines Pet-Skins.
+     *
+     * Getrennt gehalten, weil beide etwas anderes sollen: Zugeordnet wird ueber den
+     * blossen Namen, sonst findet ein Pet mit Skin sein Bild nicht wieder. Gezeigt
+     * wird, was im Spiel steht - sonst sieht man dem Kasten nicht mehr an, dass das
+     * Pet einen Skin traegt.
+     */
+    private static volatile String shown = "";
     private static volatile int level = 0;
     private static volatile String rarity = "";
     private static volatile double percent = -1.0;
@@ -132,6 +141,11 @@ public final class PetState {
 
     public static boolean known() {
         return !name.isEmpty();
+    }
+
+    /** Fuer die Anzeige: mit dem Skin-Zeichen, falls eines dranhaengt */
+    public static String shownName() {
+        return shown.isEmpty() ? name : shown;
     }
 
     public static String name() {
@@ -202,6 +216,7 @@ public final class PetState {
     /** Nach einem Weltwechsel gilt der alte Stand nicht mehr */
     public static void reset() {
         name = "";
+        shown = "";
         level = 0;
         rarity = "";
         percent = -1.0;
@@ -259,6 +274,7 @@ public final class PetState {
         Matcher m = AUTOPET.matcher(plain.trim());
         if (!m.matches()) return;
         String neu = cleanName(m.group("name"));
+        String neuGezeigt = displayName(m.group("name"));
         int stufe = parseInt(m.group("lvl"));
         if (neu.isEmpty() || stufe <= 0) return;
         // Ein anderes Pet heisst: der alte Fortschritt gehoert nicht mehr dazu
@@ -280,6 +296,7 @@ public final class PetState {
             atMax = overflowLevel > 0;
         }
         name = neu;
+        shown = neuGezeigt;
         level = stufe;
         seenAt = System.currentTimeMillis();
         from = "autopet";
@@ -299,6 +316,7 @@ public final class PetState {
             Matcher pet = TAB_PET.matcher(clean(lines.get(i + 1)));
             if (!pet.matches()) return;
             String neuerName = cleanName(pet.group("name"));
+            String gezeigt = displayName(pet.group("name"));
             int stufe = parseInt(pet.group("lvl"));
             if (neuerName.isEmpty() || stufe <= 0) return;
 
@@ -316,6 +334,7 @@ public final class PetState {
                 overflowXp = com.shokiteufel.shokimod.util.PetIcons.overflowXpFor(neuerName);
             }
             name = neuerName;
+            shown = gezeigt;
             level = stufe;
             // Nach einem Neustart ist noch kein Bild da - das gemerkte springt ein
             if (icon.isEmpty()) icon = com.shokiteufel.shokimod.util.PetIcons.iconFor(neuerName);
@@ -490,6 +509,7 @@ public final class PetState {
         if (!active) return false;
 
         name = cleanName(named.group("name"));
+        shown = displayName(named.group("name"));
         level = parseInt(named.group("lvl"));
         if (!seltenheit.isEmpty()) rarity = seltenheit;
         percent = prozent;
@@ -556,10 +576,14 @@ public final class PetState {
         return COLOUR_CODE.matcher(text == null ? "" : text).replaceAll("").trim();
     }
 
-    /** Der blosse Name, ohne was andere Mods davorgesetzt haben */
+    /** Der Name ohne was andere Mods davorgesetzt haben - fuer die Anzeige */
+    private static String displayName(String text) {
+        return FOREIGN_TAG.matcher(clean(text)).replaceFirst("").trim();
+    }
+
+    /** Derselbe Name ohne Skin-Zeichen - darueber wird zugeordnet */
     private static String cleanName(String text) {
-        String ohneTags = FOREIGN_TAG.matcher(clean(text)).replaceFirst("").trim();
-        return SKIN_MARK.matcher(ohneTags).replaceAll("").trim();
+        return SKIN_MARK.matcher(displayName(text)).replaceAll("").trim();
     }
 
     /**
