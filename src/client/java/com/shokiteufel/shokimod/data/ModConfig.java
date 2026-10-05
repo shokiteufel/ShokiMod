@@ -282,8 +282,8 @@ public class ModConfig extends Config {
         INSTANCE.chat.rareLoot.testTier4 = () -> RareLootHandler.test(4);
         INSTANCE.chat.rareLoot.openDiagnostics = () -> Minecraft.getInstance().execute(RareLootHandler::writeDiagnostics);
         INSTANCE.fishing.rareCatch.openSound = () -> Minecraft.getInstance().execute(() ->
-                Minecraft.getInstance().setScreen(new SoundPickerScreen(
-                        Minecraft.getInstance().screen,
+                Minecraft.getInstance().setScreenAndShow(new SoundPickerScreen(
+                        Minecraft.getInstance().gui.screen(),
                         () -> INSTANCE.fishing.rareCatch.sound,
                         picked -> INSTANCE.fishing.rareCatch.sound = picked,
                         1.0f)));
