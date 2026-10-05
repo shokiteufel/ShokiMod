@@ -281,6 +281,14 @@ public class ModConfig extends Config {
                         1.0f)));
         INSTANCE.chat.rareLoot.testTier4 = () -> RareLootHandler.test(4);
         INSTANCE.chat.rareLoot.openDiagnostics = () -> Minecraft.getInstance().execute(RareLootHandler::writeDiagnostics);
+        INSTANCE.fishing.rareCatch.openSound = () -> Minecraft.getInstance().execute(() ->
+                Minecraft.getInstance().setScreen(new SoundPickerScreen(
+                        Minecraft.getInstance().screen,
+                        () -> INSTANCE.fishing.rareCatch.sound,
+                        picked -> INSTANCE.fishing.rareCatch.sound = picked,
+                        1.0f)));
+        INSTANCE.fishing.rareCatch.test = () -> Minecraft.getInstance().execute(
+                com.shokiteufel.shokimod.handler.RareCatchAlert::test);
         INSTANCE.chat.testAlertVolume = () -> Minecraft.getInstance().execute(AlertVolume::test);
         INSTANCE.hunting.tracker.resetTracker = () -> Minecraft.getInstance().execute(HuntingTracker::reset);
         INSTANCE.guild.events.testBanner = () -> Minecraft.getInstance().execute(GuildEvents::testBanner);
@@ -1302,6 +1310,61 @@ public class ModConfig extends Config {
         @Expose
         @Category(name = "Hotspot", desc = "Marks fishing hotspots with a circle in the colour of their bonus and warns when the one you fish in vanishes. Ported from SkyOcean.")
         public HotspotCategory hotspot = new HotspotCategory();
+
+        @Expose
+        @Category(name = "Rare catch", desc = "Announces rare sea creatures - yours and the ones your party reports. Ported from Feesh.")
+        public RareCatchCategory rareCatch = new RareCatchCategory();
+    }
+
+    /**
+     * Der Alarm bei seltenen Meeresbewohnern.
+     *
+     * Die Liste der Bewohner und ihrer Fang-Saetze stammt aus Feesh (Apache 2.0); die
+     * Einblendung ist dieselbe wie bei einem seltenen Fund.
+     */
+    public static class RareCatchCategory {
+
+        @ConfigOption(name = "Rare catch", desc = "Twenty-six of the ninety sea creatures count as rare - Water Hydra, Yeti, Reindrake, Grim Reaper and the like. When one of them surfaces, this says so.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Enabled", desc = "Watch the chat for rare sea creatures.")
+        @ConfigEditorBoolean
+        public boolean enabled = false;
+
+        @Expose
+        @ConfigOption(name = "From your party", desc = "Also announce what your party reports. Reads what Feesh and SkyHanni write into the party chat - so it works with whatever the others run.")
+        @ConfigEditorBoolean
+        public boolean fromParty = true;
+
+        @Expose
+        @ConfigOption(name = "Banner", desc = "Large text across the screen, same as a rare drop.")
+        @ConfigEditorBoolean
+        public boolean banner = true;
+
+        @Expose
+        @ConfigOption(name = "Banner design", desc = "Name of the banner design. Build one in Alerts > Banner > Sandbox. Empty uses the default.")
+        @ConfigEditorText
+        public String bannerDesign = "";
+
+        @Expose
+        @ConfigOption(name = "Chat line", desc = "Writes the creature into your chat.")
+        @ConfigEditorBoolean
+        public boolean chatLine = true;
+
+        @ConfigOption(name = "Sound", desc = "Your own file from config/shokimod/sounds. Leave empty for silence.")
+        @ConfigEditorButton(buttonText = "Pick")
+        public transient Runnable openSound = () -> {
+        };
+
+        @Expose
+        public String sound = "";
+
+        @ConfigOption(name = "Test", desc = "Fires the alert once with a Yeti, so you can see and hear what you set.")
+        @ConfigEditorButton(buttonText = "Test")
+        public transient Runnable test = () -> {
+        };
     }
 
     /** Der Hotspot-Kreis aus SkyOcean (Modified MIT, meowdding), nachgebaut mit Minecrafts Gizmos */
