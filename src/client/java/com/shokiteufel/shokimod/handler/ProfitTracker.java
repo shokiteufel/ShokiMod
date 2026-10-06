@@ -968,46 +968,39 @@ public final class ProfitTracker {
      * Solange die Bauplaene geholt werden, ist die Liste kuerzer oder leer. Sie wird
      * deshalb erst gemerkt, wenn etwas darin steht.
      */
-    public static List<String> upgradeTiers(String itemId) {
-        if (itemId == null) return List.of();
-        List<String> gemerkt = tierCache.get(itemId);
-        if (gemerkt != null) return gemerkt;
+    /**
+     * Stufen, deren Name sich nicht aus dem der Ware ergibt.
+     *
+     * Nur Farming - dort heisst die dritte Stufe oft anders als die zweite, und kein
+     * Zusammensetzen des Namens kommt dahin. Eingetragen ist, wohin zu suchen ist; ob es
+     * das Rezept gibt und mit welcher Zahl, steht im Bauplan, nicht hier.
+     *
+     * Weizen fehlt mit Absicht: Hay Bale und Enchanted Hay Bale haengen zusammen, aber das
+     * NEU-Verzeichnis fuehrt fuer Enchanted Hay Bale kein Rezept. Ohne Rezept laesst sich
+     * die Kette nicht rechnen, und Weizen bleibt bei Enchanted Wheat.
+     */
+    private static final Map<String, List<String>> IRREGULAR_NEXT = Map.ofEntries(
+            Map.entry("PUMPKIN", List.of("POLISHED_PUMPKIN")),
+            Map.entry("POTATO_ITEM", List.of("ENCHANTED_BAKED_POTATO")),
+            Map.entry("NETHER_STALK", List.of("MUTANT_NETHER_STALK")),
+            Map.entry("RED_MUSHROOM", List.of("ENCHANTED_RED_MUSHROOM", "ENCHANTED_HUGE_MUSHROOM_2")),
+            Map.entry("BROWN_MUSHROOM", List.of("ENCHANTED_BROWN_MUSHROOM", "ENCHANTED_HUGE_MUSHROOM_1")));
 
-        java.util.LinkedHashSet<String> kandidaten = new java.util.LinkedHashSet<>();
-        kandidaten.add("ENCHANTED_" + itemId);
-        kandidaten.add("ENCHANTED_" + itemId + "_BLOCK");
-        kandidaten.add(itemId + "_BLOCK");
-        // Edelsteine heissen nicht nacheinander, sondern jede Stufe anders
-        int gem = itemId.indexOf("_GEM");
-        int strich = itemId.indexOf('_');
-        if (gem > 0 && strich > 0 && strich < gem) {
-            String sorte = itemId.substring(strich + 1, gem);
-            for (String stufe : List.of("FLAWED", "FINE")) kandidaten.add(stufe + "_" + sorte + "_GEM");
-        }
-        // Ueber den Anzeigenamen, nicht ueber die Kennung: Die Kennungen sind
-        // historisch gewachsen und halten sich bei 36 der 165 verzauberten Waren
-        // nicht an das Schema. End Stone heisst ENDER_STONE, die Stufe darueber aber
-        // ENCHANTED_ENDSTONE - kein Zusammensetzen der Kennung kommt da hin, und
-        // deshalb stand im Fenster ein Strich statt eines Knopfes. Betroffen ist
-        // gerade das, was man oft farmt: Karotten, Kakao, Lapis, Eisen, Gold, jede
-        // Holzart. Die Namen dagegen sind einheitlich - "Enchanted " davor genuegt,
-        // und alle 36 Faelle loesen sich darueber auf
-        String anzeige = ItemNames.displayName(itemId);
-        if (anzeige != null && !anzeige.isBlank()) {
-            kandidaten.addAll(ItemNames.idsFor("Enchanted " + anzeige));
-            kandidaten.addAll(ItemNames.idsFor("Enchanted " + anzeige + " Block"));
-            kandidaten.addAll(ItemNames.idsFor(anzeige + " Block"));
-        }
+    /**
+     * Was nach einer Ware benannt ist, aber nie ihre naechste Stufe.
+     *
+     * Cropie-Stiefel, Feder-Ring, Fermento-Artefakt: Sie tragen den Namen der Ware, weil
+     * sie aus ihr gebaut werden - aber aus vier, zwanzig oder hundertacht Stueck, und das
+     * liest sich fuer den Vergleich wie eine kleinere Stufe als Enchanted. Der Knopf bot
+     * dann Stiefel an. Gesperrt wird nur auf dem namensverwandten Weg; was Hypixel wirklich
+     * als Stufe fuehrt (Enchanted, Compacted, Block), geht den anderen.
+     */
+    private static final java.util.regex.Pattern EQUIPMENT = java.util.regex.Pattern.compile(
+            "_(BOOTS|LEGGINGS|CHESTPLATE|HELMET|TALISMAN|RING|ARTIFACT|RELIC|CHARM|SWORD|PICKAXE|AXE|"
+                    + "HOE|SHOVEL|ROD|NECKLACE|CLOAK|BELT|GLOVES|GAUNTLET|BRACELET|HAT|CAP|TUNIC|TROUSERS)$");
 
-        // Und was sonst nach der Ware benannt ist - Silver und Gold Magmafish zum
-        // Beispiel. Hoechstens acht, damit aus einem Namen wie BONE keine Handvoll
-        // Bauplan-Abfragen fuer Halsketten und Bumerangs wird
-        int weitere = 0;
-        for (String id : ItemNames.allIds()) {
-            if (weitere >= 8) break;
-            if (id.startsWith(itemId + "_") && kandidaten.add(id)) weitere++;
-        }
-
+    /** Aus einer Kandidatenliste die erste und zweite Stufe waehlen */
+    private static List<String> tiersFrom(String itemId, Iterable<String> kandidaten) {
         String x1 = null;
         String x2 = null;
         long kleinsteStufe = Long.MAX_VALUE;
@@ -1038,7 +1031,74 @@ public final class ProfitTracker {
         List<String> stufen = new ArrayList<>();
         if (x1 != null) stufen.add(x1);
         if (x2 != null) stufen.add(x2);
-        List<String> fertig = List.copyOf(stufen);
+        return stufen;
+    }
+
+    public static List<String> upgradeTiers(String itemId) {
+        if (itemId == null) return List.of();
+        List<String> gemerkt = tierCache.get(itemId);
+        if (gemerkt != null) return gemerkt;
+
+        java.util.LinkedHashSet<String> kandidaten = new java.util.LinkedHashSet<>();
+        kandidaten.add("ENCHANTED_" + itemId);
+        kandidaten.add("ENCHANTED_" + itemId + "_BLOCK");
+        kandidaten.add(itemId + "_BLOCK");
+        // Edelsteine heissen nicht nacheinander, sondern jede Stufe anders
+        int gem = itemId.indexOf("_GEM");
+        int strich = itemId.indexOf('_');
+        if (gem > 0 && strich > 0 && strich < gem) {
+            String sorte = itemId.substring(strich + 1, gem);
+            for (String stufe : List.of("FLAWED", "FINE")) kandidaten.add(stufe + "_" + sorte + "_GEM");
+        }
+        // Ueber den Anzeigenamen, nicht ueber die Kennung: Die Kennungen sind
+        // historisch gewachsen und halten sich bei 36 der 165 verzauberten Waren
+        // nicht an das Schema. End Stone heisst ENDER_STONE, die Stufe darueber aber
+        // ENCHANTED_ENDSTONE - kein Zusammensetzen der Kennung kommt da hin, und
+        // deshalb stand im Fenster ein Strich statt eines Knopfes. Betroffen ist
+        // gerade das, was man oft farmt: Karotten, Kakao, Lapis, Eisen, Gold, jede
+        // Holzart. Die Namen dagegen sind einheitlich - "Enchanted " davor genuegt,
+        // und alle 36 Faelle loesen sich darueber auf
+        String anzeige = ItemNames.displayName(itemId);
+        if (anzeige != null && !anzeige.isBlank()) {
+            kandidaten.addAll(ItemNames.idsFor("Enchanted " + anzeige));
+            kandidaten.addAll(ItemNames.idsFor("Enchanted " + anzeige + " Block"));
+            kandidaten.addAll(ItemNames.idsFor(anzeige + " Block"));
+            // Die dritte Stufe der Garden-Blumen heisst Compacted: Sunflower, Moonflower
+            // und Wild Rose haben Enchanted und dann Compacted, nichts dazwischen
+            kandidaten.addAll(ItemNames.idsFor("Compacted " + anzeige));
+        }
+        kandidaten.add("COMPACTED_" + itemId);
+        // Fermento wird zu Condensed Fermento: dieselbe Idee mit anderem Vorsatz
+        kandidaten.add("CONDENSED_" + itemId);
+        // Was sich nicht aus dem Namen ableiten laesst: Hypixel nennt manche Stufen anders
+        // als die davor - Polished Pumpkin, Enchanted Baked Potato, Mutant Nether Wart,
+        // dazu die Pilz-Bloecke unter ihrer Huge-Mushroom-Kennung. Die Liste sagt nur, wohin
+        // zu suchen ist; ob es das Rezept wirklich gibt, entscheidet der Bauplan
+        kandidaten.addAll(IRREGULAR_NEXT.getOrDefault(itemId, List.of()));
+
+        // Und was sonst nach der Ware benannt ist - Silver und Gold Magmafish zum
+        // Beispiel. Hoechstens acht, damit aus einem Namen wie BONE keine Handvoll
+        // Bauplan-Abfragen fuer Halsketten und Bumerangs wird.
+        //
+        // Getrennt gehalten, weil es der unsicherere Weg ist: "LEATHER_" findet auch
+        // LEATHER_BOOTS, und vier Leder in einem Stiefel sahen aus wie eine kleinere Stufe
+        // als die 160 fuer Enchanted Leather - also bot der Knopf Stiefel an
+        java.util.LinkedHashSet<String> sekundaer = new java.util.LinkedHashSet<>();
+        int weitere = 0;
+        for (String id : ItemNames.allIds()) {
+            if (weitere >= 8) break;
+            if (id.startsWith(itemId + "_") && !kandidaten.contains(id)
+                    && !EQUIPMENT.matcher(id).find() && sekundaer.add(id)) weitere++;
+        }
+
+        // Erst die sicheren Wege. Nur wenn die gar nichts hergeben, kommen die
+        // namensverwandten dazu - sonst gewinnt eine Stiefel-Stufe gegen Enchanted Leather
+        List<String> fertig = List.copyOf(tiersFrom(itemId, kandidaten));
+        if (fertig.isEmpty() && !sekundaer.isEmpty()) {
+            java.util.LinkedHashSet<String> alle = new java.util.LinkedHashSet<>(kandidaten);
+            alle.addAll(sekundaer);
+            fertig = List.copyOf(tiersFrom(itemId, alle));
+        }
         // Gemerkt wird erst, wenn beide Stufen dastehen: Wer zu frueh merkt, merkt sich
         // die halbe Antwort - und die blieb dann stehen, obwohl die zweite Stufe kurz
         // darauf ankam
