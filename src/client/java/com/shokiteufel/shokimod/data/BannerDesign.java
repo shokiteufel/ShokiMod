@@ -437,6 +437,9 @@ public class BannerDesign {
     }
 
     /** Die Vorlagen, in der alten Reihenfolge - Namen bleiben, damit alte Einstellungen passen */
+    /** Die Vorlage, die der Fang-Alarm nimmt, solange niemand etwas anderes waehlt */
+    public static final String PLAIN_CATCH = "Plain catch";
+
     public static List<BannerDesign> presets() {
         List<BannerDesign> out = new ArrayList<>(25);
         out.add(preset("Classic band", Anchor.BAND, Background.BOX, 0.55f, Frame.NONE, Accent.EDGES, 3.0f, 1.6f, TextColour.ACCENT, TextColour.WHITE, TextEffect.SHADOW, "", "", Icon.NONE, Animation.NONE));
@@ -495,6 +498,21 @@ public class BannerDesign {
         farbe.particles = Particles.FLAME;
         farbe.particleTicks = 53;
         out.add(farbe);
+
+        // Der Fang-Alarm: nur der Name, klar und klein.
+        //
+        // Die anderen Vorlagen zeigen einen Fund her - Kiste, Funken, grosse Schrift.
+        // Beim Angeln taucht alle paar Minuten etwas auf, und dann will man lesen, was
+        // da ist, nicht einem Auftritt zusehen. Also keine Animation, kein Bild, kein
+        // Hintergrund, und eine Schrift, die neben dem Spiel nicht im Weg steht
+        BannerDesign fang = preset(PLAIN_CATCH, Anchor.BAND, Background.NONE, 0f, Frame.NONE,
+                Accent.NONE, 1.4f, 1.0f, TextColour.ACCENT, TextColour.WHITE, TextEffect.SHADOW,
+                "", "", Icon.NONE, Animation.NONE);
+        fang.showTier = false;
+        fang.valuePrefix = "";
+        fang.valueSuffix = "";
+        fang.durationMillis = 2500;
+        out.add(fang);
 
         BannerDesign auftritt = preset("Grand reveal", Anchor.CENTER, Background.NONE, 0f, Frame.NONE, Accent.NONE, 2.8f, 1.6f, TextColour.ACCENT, TextColour.WHITE, TextEffect.GLOW, "", "", Icon.MIDDLE, Animation.CHEST);
         auftritt.headlineBold = true;

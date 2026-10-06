@@ -178,13 +178,41 @@ public final class RareCatchAlert {
      * Der Name des Bewohners steht gross, darunter wer ihn hat - bei einem eigenen Fang
      * bleibt die Zeile leer, denn dann ist es klar.
      */
+    /**
+     * Das Aussehen der Einblendung.
+     *
+     * Wer eines benennt, bekommt es. Ohne Angabe aber nicht die allgemeine Vorlage,
+     * sondern die schlichte: Beim Angeln taucht alle paar Minuten etwas auf, und dann
+     * will man lesen, was da ist, statt einer Kiste beim Oeffnen zuzusehen. Ein eigenes
+     * Design mit diesem Namen geht der Vorlage vor - so laesst es sich im Sandkasten
+     * umbauen, ohne dass hier etwas zu aendern waere.
+     */
+    private static com.shokiteufel.shokimod.data.BannerDesign design() {
+        String name = cfg().bannerDesign;
+        if (name != null && !name.isBlank()) {
+            return ModConfig.INSTANCE.chat.banner.designOrDefault(name);
+        }
+        com.shokiteufel.shokimod.data.BannerDesign eigenes =
+                ModConfig.INSTANCE.chat.banner.design(
+                        com.shokiteufel.shokimod.data.BannerDesign.PLAIN_CATCH);
+        if (eigenes != null) return eigenes;
+        for (com.shokiteufel.shokimod.data.BannerDesign vorlage
+                : com.shokiteufel.shokimod.data.BannerDesign.presets()) {
+            if (com.shokiteufel.shokimod.data.BannerDesign.PLAIN_CATCH.equals(vorlage.name)) {
+                return vorlage;
+            }
+        }
+        return ModConfig.INSTANCE.chat.banner.designOrDefault("");
+    }
+
     private static void announce(SeaCreatures.Creature creature, boolean doppelt, String spieler) {
-        String kopf = (doppelt ? "DOUBLE HOOK! " : "") + creature.name();
+        // "2x Yeti" statt "DOUBLE HOOK! Yeti" - was gemeint ist, steht in der Zahl,
+        // und die Zeile bleibt kurz genug, um sie im Vorbeigehen zu lesen
+        String kopf = (doppelt ? "2x " : "") + creature.name();
         String unten = spieler.isEmpty() ? "" : "caught by " + spieler;
 
         if (cfg().banner) {
-            DropBanner.show(ModConfig.INSTANCE.chat.banner.designOrDefault(cfg().bannerDesign),
-                    kopf, unten, creature.rarity(), creature.colour(), ItemStack.EMPTY);
+            DropBanner.show(design(), kopf, unten, creature.rarity(), creature.colour(), ItemStack.EMPTY);
         }
         if (cfg().chatLine) {
             Minecraft client = Minecraft.getInstance();
