@@ -870,6 +870,7 @@ public final class ItemChanges {
 
         // Nicht nur fuer die Sack-Meldung: Hier kommt die Ware ins Inventar, und genau
         // dort muss sie wieder abgezogen werden
+        movedOutAt.put(ids.get(0), System.currentTimeMillis());
         losses.add(new Loss(ids.get(0), amount, System.currentTimeMillis(), false));
         ShokiMod.LOGGER.info("[Profit] out of the sack, not found: {} x{}", ids.get(0), amount);
         return true;
@@ -974,19 +975,27 @@ public final class ItemChanges {
         if (blocks.isEmpty()) return;
 
         Map<String, Integer> gains = new LinkedHashMap<>();
+        Map<String, Integer> consumed = new LinkedHashMap<>();
         for (String block : blocks) {
             // Jede Aufstellung fuer sich: die Ueberschrift "Added items:" gilt nur
             // innerhalb ihrer eigenen, nicht bis in die naechste hinein
             boolean adding = false;
+            boolean removing = false;
             for (String line : block.split("\n")) {
                 String clean = line.trim();
                 String lower = clean.toLowerCase(Locale.ROOT);
                 if (lower.startsWith("added items")) {
                     adding = true;
+                    removing = false;
                     continue;
                 }
                 if (lower.startsWith("removed items")) {
                     adding = false;
+                    removing = true;
+                    continue;
+                }
+                if (removing) {
+                    noteConsumed(clean, consumed);
                     continue;
                 }
                 if (!adding) continue;
@@ -1020,6 +1029,60 @@ public final class ItemChanges {
         }
 
         if (!net.isEmpty()) dispatch(net, "sacks");
+        subtractConsumed(consumed, now);
+    }
+
+    /** Wann zuletzt etwas dieser Ware aus einem Sack ins Inventar geholt wurde */
+    private static final Map<String, Long> movedOutAt = new HashMap<>();
+    /** So lange gilt ein Abgang aus dem Sack als Umzug ins Inventar, nicht als Verbrauch */
+    private static final long MOVE_MILLIS = 15_000L;
+
+    /**
+     * Eine Zeile unter "Removed items" - gemerkt wird sie nur bei Koedern.
+     *
+     * Was aus einem Sack verschwindet, ist meistens kein Verlust: Es wandert ins
+     * Inventar, wird gebaut oder verkauft, und in allen drei Faellen gibt es eine eigene
+     * Meldung, die es verrechnet. Beim Koeder gibt es keine - er wird beim Angeln
+     * direkt aus dem Sack verbraucht, und die Sack-Meldung ist das einzige Zeichen
+     * davon. Gezaehlt wurde er beim Hereinfallen, abgezogen wurde nie.
+     *
+     * Alle Koeder enden auf _BAIT (BLESSED, WHALE, CARROT, GLOWY_CHUM ...); Bait Ring und
+     * die Koedersaecke gehoeren nicht dazu.
+     */
+    private static void noteConsumed(String line, Map<String, Integer> consumed) {
+        Matcher matcher = SACK_LINE.matcher(line);
+        if (!matcher.find()) return;
+        int amount = number(matcher.group(2));
+        if (amount <= 0) return;
+
+        String name = TRAILING_SYMBOLS.matcher(LEADING_SYMBOLS.matcher(matcher.group(3))
+                .replaceAll("")).replaceAll("").trim();
+        if (name.isEmpty()) return;
+        List<String> ids = ItemNames.idsFor(name);
+        if (ids.isEmpty() || !ids.get(0).endsWith("_BAIT")) return;
+        consumed.merge(ids.get(0), amount, Integer::sum);
+    }
+
+    /**
+     * Den verbrauchten Koeder aus dem Kasten nehmen.
+     *
+     * Ausser er wurde gerade ins Inventar geholt: Dann steht der Abgang aus dem Sack
+     * in derselben Meldung, und die Ware ist nicht weg, sondern woanders. Abgezogen
+     * wuerde sie doppelt - einmal hier, einmal als Zugang im Inventar, den die
+     * "Moved ... from your Sacks"-Zeile schon aufgerechnet hat.
+     */
+    private static void subtractConsumed(Map<String, Integer> consumed, long now) {
+        if (consumed.isEmpty() || !com.shokiteufel.shokimod.handler.ProfitTracker.enabled()) return;
+        for (Map.Entry<String, Integer> entry : consumed.entrySet()) {
+            Long geholt = movedOutAt.get(entry.getKey());
+            if (geholt != null && now - geholt < MOVE_MILLIS) {
+                ShokiMod.LOGGER.info("[Profit] {} left the sack, but it was moved - not consumed",
+                        entry.getKey());
+                continue;
+            }
+            com.shokiteufel.shokimod.handler.ProfitTracker.adjust(entry.getKey(), -entry.getValue());
+            ShokiMod.LOGGER.info("[Profit] bait used from the sack: {} -{}", entry.getKey(), entry.getValue());
+        }
     }
 
     private static int number(String text) {
