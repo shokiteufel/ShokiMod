@@ -208,6 +208,18 @@ drinsteckt.
   uebernommen (`FLYING_FISH;4+100`) — zwei Mods, die dieselbe Ware gleich benennen,
   ersparen dem naechsten Leser eine Uebersetzung. Der Preis kommt hier aus der eigenen
   Auktions-Auswertung, nicht aus einer fremden Schnittstelle.
+- **Skysoft** (LGPL-3.0, `Akinsoft/Skysoft`) — der Lootshare Helper
+  (`features/event/diana/DianaRareMobTarget.kt`, `DianaRareMobSupport.kt`,
+  `features/combat/DamageSplashAttribution.kt`). Nachgebaut ist die Rechnung: Hypixel
+  verteilt Beute an die Schadensmacher mit mindestens einem Prozent der Lebenspunkte, und
+  Skysoft zählt dafür den eigenen Schaden mit — aus den Schadenszahlen, die als Text über
+  dem Mob schweben, jede nur dann, wenn kurz davor ein eigener Angriff auf ihn stattfand
+  und sie nahe an ihm entsteht. Dieselben Schwellen (ein Prozent, 0,9 Sekunden, fünf
+  Blöcke), dieselbe Party-Zeile „Loot share secured!" und dasselbe Häkchen über dem Kopf,
+  damit Nutzer beider Mods einander verstehen. Anders ist das Ziel: Skysoft meldet die
+  Mythologie-Mobs der Diana-Jagd, hier sind es Thunder, Lord Jawbus und die übrigen
+  seltenen Meeresbewohner; die Koordinaten-Weitergabe und die Pet-Prüfung entfallen. Neu
+  ist der Kasten, der den Schaden und den Anteil an den Lebenspunkten dauerhaft zeigt.
 - **Feesh** (Apache-2.0, `Sleepy-Panda/Feesh`) — die Einblendung, wenn ein Pet seine
   Höchststufe erreicht (`features/alerts/PetLevelUpAlert.kt`): ein Titel „X is maxed"
   mit der Stufe darunter, ein Ton, und wahlweise eine Zeile dazu, was das Hochziehen

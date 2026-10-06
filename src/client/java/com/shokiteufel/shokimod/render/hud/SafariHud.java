@@ -19,7 +19,7 @@ public final class SafariHud {
 
     /** Ein Kasten auf dem Bildschirm. Traegt seine eigene Lage und Groesse in der Config */
     public enum Panel {
-        PROGRESS, MISSING, CONTEST, NEARBY, HUNTING, GUILD, COLLECTION, PROFIT, MINING, PET, PERFORMANCE;
+        PROGRESS, MISSING, CONTEST, NEARBY, HUNTING, GUILD, COLLECTION, PROFIT, MINING, PET, PERFORMANCE, LOOTSHARE;
 
         public boolean visible() {
             ModConfig.SafariCategory c = ModConfig.INSTANCE.safari;
@@ -35,6 +35,7 @@ public final class SafariHud {
                 case MINING -> ModConfig.INSTANCE.mining.hud.showHud;
                 case PET -> ModConfig.INSTANCE.hud.pet.showHud;
                 case PERFORMANCE -> ModConfig.INSTANCE.hud.performance.showHud;
+                case LOOTSHARE -> ModConfig.INSTANCE.fishing.lootshare.enabled && ModConfig.INSTANCE.fishing.lootshare.showHud;
             };
         }
 
@@ -64,6 +65,7 @@ public final class SafariHud {
                 case MINING -> "Mining HUD";
                 case PET -> "Pet";
                 case PERFORMANCE -> "Performance";
+                case LOOTSHARE -> "Lootshare";
             };
         }
 
@@ -108,6 +110,7 @@ public final class SafariHud {
                 case MINING -> ModConfig.INSTANCE.mining.hud.hudX;
                 case PET -> ModConfig.INSTANCE.hud.pet.hudX;
                 case PERFORMANCE -> ModConfig.INSTANCE.hud.performance.hudX;
+                case LOOTSHARE -> ModConfig.INSTANCE.fishing.lootshare.hudX;
             };
         }
 
@@ -125,6 +128,7 @@ public final class SafariHud {
                 case MINING -> ModConfig.INSTANCE.mining.hud.hudY;
                 case PET -> ModConfig.INSTANCE.hud.pet.hudY;
                 case PERFORMANCE -> ModConfig.INSTANCE.hud.performance.hudY;
+                case LOOTSHARE -> ModConfig.INSTANCE.fishing.lootshare.hudY;
             };
         }
 
@@ -142,6 +146,7 @@ public final class SafariHud {
                 case MINING -> ModConfig.INSTANCE.mining.hud.hudScale;
                 case PET -> ModConfig.INSTANCE.hud.pet.hudScale;
                 case PERFORMANCE -> ModConfig.INSTANCE.hud.performance.hudScale;
+                case LOOTSHARE -> ModConfig.INSTANCE.fishing.lootshare.hudScale;
             };
         }
 
@@ -192,6 +197,10 @@ public final class SafariHud {
                     ModConfig.INSTANCE.hud.performance.hudX = x;
                     ModConfig.INSTANCE.hud.performance.hudY = y;
                 }
+                case LOOTSHARE -> {
+                    ModConfig.INSTANCE.fishing.lootshare.hudX = x;
+                    ModConfig.INSTANCE.fishing.lootshare.hudY = y;
+                }
             }
         }
 
@@ -210,6 +219,7 @@ public final class SafariHud {
                 case MINING -> ModConfig.INSTANCE.mining.hud.hudOpacity;
                 case PET -> ModConfig.INSTANCE.hud.pet.hudOpacity;
                 case PERFORMANCE -> ModConfig.INSTANCE.hud.performance.hudOpacity;
+                case LOOTSHARE -> ModConfig.INSTANCE.fishing.lootshare.hudAlpha;
             };
         }
 
@@ -230,6 +240,7 @@ public final class SafariHud {
                 case MINING -> ModConfig.INSTANCE.mining.hud.hudOpacity = clamped;
                 case PET -> ModConfig.INSTANCE.hud.pet.hudOpacity = clamped;
                 case PERFORMANCE -> ModConfig.INSTANCE.hud.performance.hudOpacity = clamped;
+                case LOOTSHARE -> ModConfig.INSTANCE.fishing.lootshare.hudAlpha = clamped;
             }
         }
 
@@ -248,6 +259,7 @@ public final class SafariHud {
                 case MINING -> ModConfig.INSTANCE.mining.hud.hudScale = clamped;
                 case PET -> ModConfig.INSTANCE.hud.pet.hudScale = clamped;
                 case PERFORMANCE -> ModConfig.INSTANCE.hud.performance.hudScale = clamped;
+                case LOOTSHARE -> ModConfig.INSTANCE.fishing.lootshare.hudScale = clamped;
             }
         }
 
@@ -285,6 +297,7 @@ public final class SafariHud {
                 case MINING -> MiningHud.build();
                 case PET -> PetHud.build();
                 case PERFORMANCE -> PerformanceHud.build();
+                case LOOTSHARE -> LootshareHud.build();
             };
         }
     }

@@ -1,5 +1,6 @@
 package com.shokiteufel.shokimod.gui;
 
+import com.shokiteufel.shokimod.handler.LootshareTracker;
 import com.shokiteufel.shokimod.handler.RareCatchAlert;
 import com.shokiteufel.shokimod.util.AlertVolume;
 import com.shokiteufel.shokimod.util.SeaCreatures;
@@ -33,11 +34,12 @@ public class SeaCreatureScreen extends Screen {
 
     private static final int ROW_HEIGHT = 22;
     private static final int SOUND_WIDTH = 20;
-    private static final int NAME_WIDTH = 170;
-    private static final int OWN_WIDTH = 66;
-    private static final int PARTY_WIDTH = 66;
-    private static final int SHARE_WIDTH = 66;
-    private static final int TEST_WIDTH = 38;
+    private static final int NAME_WIDTH = 150;
+    private static final int OWN_WIDTH = 58;
+    private static final int PARTY_WIDTH = 58;
+    private static final int SHARE_WIDTH = 58;
+    private static final int LOOT_WIDTH = 58;
+    private static final int TEST_WIDTH = 34;
     private static final int LIST_TOP = 74;
 
     private final Screen parent;
@@ -82,7 +84,7 @@ public class SeaCreatureScreen extends Screen {
 
         List<SeaCreatures.Creature> liste = visible();
         int gridWidth = SOUND_WIDTH + 4 + NAME_WIDTH + 4 + OWN_WIDTH + 4 + PARTY_WIDTH
-                + 4 + SHARE_WIDTH + 4 + TEST_WIDTH;
+                + 4 + SHARE_WIDTH + 4 + LOOT_WIDTH + 4 + TEST_WIDTH;
         int left = width / 2 - gridWidth / 2;
 
         EditBox search = new EditBox(font, left + SOUND_WIDTH + 4, 34, NAME_WIDTH, 20,
@@ -168,10 +170,24 @@ public class SeaCreatureScreen extends Screen {
                             + "Off by default: this one talks to other people.")));
             addRenderableWidget(share);
 
+            // Lootshare gibt es nur fuer die seltenen: Wer einen Squid nicht meldet,
+            // braucht fuer ihn auch keinen Schadenszaehler
+            if (c.rare()) {
+                Button loot = Button.builder(lootLabel(c), button -> {
+                    LootshareTracker.toggleWatched(c);
+                    rebuild();
+                }).bounds(left + SOUND_WIDTH + 20 + NAME_WIDTH + OWN_WIDTH + PARTY_WIDTH + SHARE_WIDTH,
+                        y, LOOT_WIDTH, 20).build();
+                loot.setTooltip(Tooltip.create(Component.literal(
+                        "Counts your damage on this one and tells you when it is enough "
+                                + "for loot - one percent of its health. Needs Fishing > Lootshare switched on.")));
+                addRenderableWidget(loot);
+            }
+
             Button test = Button.builder(Component.literal("Test").withStyle(ChatFormatting.GRAY),
                     button -> RareCatchAlert.preview(c))
-                    .bounds(left + SOUND_WIDTH + 20 + NAME_WIDTH + OWN_WIDTH + PARTY_WIDTH + SHARE_WIDTH, y,
-                            TEST_WIDTH, 20).build();
+                    .bounds(left + SOUND_WIDTH + 24 + NAME_WIDTH + OWN_WIDTH + PARTY_WIDTH + SHARE_WIDTH
+                            + LOOT_WIDTH, y, TEST_WIDTH, 20).build();
             test.setTooltip(Tooltip.create(Component.literal("Show this one once, as it would appear.")));
             addRenderableWidget(test);
         }
@@ -222,6 +238,12 @@ public class SeaCreatureScreen extends Screen {
                 .withStyle(an ? ChatFormatting.GOLD : ChatFormatting.DARK_GRAY);
     }
 
+    private Component lootLabel(SeaCreatures.Creature c) {
+        boolean an = LootshareTracker.isWatched(c);
+        return Component.literal(an ? "Loot ☑" : "Loot ☐")
+                .withStyle(an ? ChatFormatting.LIGHT_PURPLE : ChatFormatting.DARK_GRAY);
+    }
+
     private Component soundLabel(SeaCreatures.Creature c) {
         boolean eigener = !RareCatchAlert.soundOf(c).isBlank();
         return Component.literal("♪").withStyle(eigener ? ChatFormatting.GREEN : ChatFormatting.DARK_GRAY);
@@ -249,7 +271,7 @@ public class SeaCreatureScreen extends Screen {
         }
         graphics.centeredText(font, Component.literal(
                         gewaehlt + " of " + SeaCreatures.all().size() + " announce themselves"
-                        + "  ·  Own: your catch  ·  Party: what others report  ·  Share: tell your party")
+                        + "  ·  Own: your catch  ·  Party: what others report  ·  Share: tell your party  ·  Loot: count damage")
                 .withStyle(ChatFormatting.DARK_GRAY), centerX, 60, 0xFF888888);
 
         if (liste.isEmpty()) {
