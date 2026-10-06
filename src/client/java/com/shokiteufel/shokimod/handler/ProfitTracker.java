@@ -250,6 +250,17 @@ public final class ProfitTracker {
      * zurueckzusetzen. Unter null geht nichts; wer eine Ware auf null stellt, nimmt sie
      * aus der Liste.
      */
+    /**
+     * Ist das ein Koeder?
+     *
+     * Alle enden auf _BAIT. Nur bei ihnen steht der Kasten im Minus: Verbrauchte Koeder
+     * sind eine Ausgabe, und sie gehoert in die Rechnung - wer 600 verfischt und 200
+     * gefangen hat, hat 400 Koeder bezahlt.
+     */
+    public static boolean isBait(String itemId) {
+        return itemId != null && itemId.endsWith("_BAIT");
+    }
+
     public static void adjust(String itemId, int delta) {
         if (itemId == null || delta == 0) return;
 
@@ -261,7 +272,10 @@ public final class ProfitTracker {
             Integer vorher = zaehler.get(itemId);
             int neu = (vorher == null ? 0 : vorher) + delta;
             if (zaehler == activeCounts()) updated = neu;
-            if (neu > 0) zaehler.put(itemId, neu);
+            // Ein Koeder darf unter null: Er ist Geld, das ausgegeben wurde, und der
+            // Kasten zeigt dann das Minus, statt es zu verschweigen. Alles andere gibt
+            // es nicht in negativer Menge - da waere es ein Zaehlfehler
+            if (neu > 0 || (neu < 0 && isBait(itemId))) zaehler.put(itemId, neu);
             else zaehler.remove(itemId);
         }
         ModConfig.INSTANCE.saveNow();
@@ -648,7 +662,9 @@ public final class ProfitTracker {
         for (Map.Entry<String, Integer> entry : activeCounts().entrySet()) {
             String itemId = entry.getKey();
             int count = entry.getValue() == null ? 0 : entry.getValue();
-            if (itemId != null && count > 0) mengen.merge(itemId, (long) count, Long::sum);
+            if (itemId != null && (count > 0 || (count < 0 && isBait(itemId)))) {
+                mengen.merge(itemId, (long) count, Long::sum);
+            }
         }
         craftUp(mengen);
 
@@ -656,7 +672,7 @@ public final class ProfitTracker {
         for (Map.Entry<String, Long> entry : mengen.entrySet()) {
             String itemId = entry.getKey();
             long count = entry.getValue();
-            if (count <= 0 || !shown(itemId)) continue;
+            if (count == 0 || (count < 0 && !isBait(itemId)) || !shown(itemId)) continue;
 
             double unit = unitPrice(itemId);
             out.add(new Row(itemId, nameOf(itemId), count, unit > 0 ? unit * count : 0,
@@ -1286,7 +1302,7 @@ public final class ProfitTracker {
 
     /** Das [X] an einer Ware: erst fragen */
     public static void askRemove(String itemId) {
-        if (itemId == null || countOf(itemId) <= 0) return;
+        if (itemId == null || countOf(itemId) == 0) return;
 
         pending = itemId;
         pendingAt = System.currentTimeMillis();
