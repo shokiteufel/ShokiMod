@@ -33,10 +33,11 @@ public class SeaCreatureScreen extends Screen {
 
     private static final int ROW_HEIGHT = 22;
     private static final int SOUND_WIDTH = 20;
-    private static final int NAME_WIDTH = 190;
-    private static final int OWN_WIDTH = 74;
-    private static final int PARTY_WIDTH = 74;
-    private static final int TEST_WIDTH = 40;
+    private static final int NAME_WIDTH = 170;
+    private static final int OWN_WIDTH = 66;
+    private static final int PARTY_WIDTH = 66;
+    private static final int SHARE_WIDTH = 66;
+    private static final int TEST_WIDTH = 38;
     private static final int LIST_TOP = 74;
 
     private final Screen parent;
@@ -80,7 +81,8 @@ public class SeaCreatureScreen extends Screen {
         page = Math.clamp(page, 0, pageCount() - 1);
 
         List<SeaCreatures.Creature> liste = visible();
-        int gridWidth = SOUND_WIDTH + 4 + NAME_WIDTH + 4 + OWN_WIDTH + 4 + PARTY_WIDTH + 4 + TEST_WIDTH;
+        int gridWidth = SOUND_WIDTH + 4 + NAME_WIDTH + 4 + OWN_WIDTH + 4 + PARTY_WIDTH
+                + 4 + SHARE_WIDTH + 4 + TEST_WIDTH;
         int left = width / 2 - gridWidth / 2;
 
         EditBox search = new EditBox(font, left + SOUND_WIDTH + 4, 34, NAME_WIDTH, 20,
@@ -155,9 +157,20 @@ public class SeaCreatureScreen extends Screen {
                             + "The main switch under Fishing > Rare catch has to be on as well.")));
             addRenderableWidget(party);
 
+            Button share = Button.builder(shareLabel(c), button -> {
+                RareCatchAlert.toggleShare(c);
+                rebuild();
+            }).bounds(left + SOUND_WIDTH + 16 + NAME_WIDTH + OWN_WIDTH + PARTY_WIDTH, y,
+                    SHARE_WIDTH, 20).build();
+            share.setTooltip(Tooltip.create(Component.literal(
+                    "Writes your own catch into the party chat, in the wording Feesh uses "
+                            + "(\"--> A YETI has spawned <--\") - so everyone's mod understands it. "
+                            + "Off by default: this one talks to other people.")));
+            addRenderableWidget(share);
+
             Button test = Button.builder(Component.literal("Test").withStyle(ChatFormatting.GRAY),
                     button -> RareCatchAlert.preview(c))
-                    .bounds(left + SOUND_WIDTH + 16 + NAME_WIDTH + OWN_WIDTH + PARTY_WIDTH, y,
+                    .bounds(left + SOUND_WIDTH + 20 + NAME_WIDTH + OWN_WIDTH + PARTY_WIDTH + SHARE_WIDTH, y,
                             TEST_WIDTH, 20).build();
             test.setTooltip(Tooltip.create(Component.literal("Show this one once, as it would appear.")));
             addRenderableWidget(test);
@@ -203,6 +216,12 @@ public class SeaCreatureScreen extends Screen {
                 .withStyle(an ? ChatFormatting.AQUA : ChatFormatting.DARK_GRAY);
     }
 
+    private Component shareLabel(SeaCreatures.Creature c) {
+        boolean an = RareCatchAlert.wantsShare(c);
+        return Component.literal(an ? "Share ☑" : "Share ☐")
+                .withStyle(an ? ChatFormatting.GOLD : ChatFormatting.DARK_GRAY);
+    }
+
     private Component soundLabel(SeaCreatures.Creature c) {
         boolean eigener = !RareCatchAlert.soundOf(c).isBlank();
         return Component.literal("♪").withStyle(eigener ? ChatFormatting.GREEN : ChatFormatting.DARK_GRAY);
@@ -230,7 +249,7 @@ public class SeaCreatureScreen extends Screen {
         }
         graphics.centeredText(font, Component.literal(
                         gewaehlt + " of " + SeaCreatures.all().size() + " announce themselves"
-                        + " - click a name to switch it, ♪ for its own sound")
+                        + "  ·  Own: your catch  ·  Party: what others report  ·  Share: tell your party")
                 .withStyle(ChatFormatting.DARK_GRAY), centerX, 60, 0xFF888888);
 
         if (liste.isEmpty()) {

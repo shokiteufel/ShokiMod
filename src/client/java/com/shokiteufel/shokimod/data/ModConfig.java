@@ -1373,6 +1373,16 @@ public class ModConfig extends Config {
         @Expose
         public Map<String, String> sounds = new HashMap<>();
 
+        /**
+         * Welche Faenge in den Gruppenchat geschrieben werden.
+         *
+         * Hier ist die Voreinstellung AUS, auch bei den seltenen: Die beiden anderen
+         * Schalter aendern nur, was auf dem eigenen Bildschirm steht; dieser schickt
+         * etwas an andere Leute. Das macht man erst, wenn man es will.
+         */
+        @Expose
+        public Map<String, Boolean> share = new HashMap<>();
+
         @Expose
         @ConfigOption(name = "Banner", desc = "Large text across the screen, same as a rare drop.")
         @ConfigEditorBoolean
