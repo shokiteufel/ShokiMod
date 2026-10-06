@@ -251,11 +251,23 @@ public final class RareCatchAlert {
         return ModConfig.INSTANCE.chat.banner.designOrDefault("");
     }
 
+    /**
+     * Die Ueberschrift des Banners: "2x Yeti", bei einem Fang aus der Gruppe
+     * "Schiggy: 2x Yeti".
+     *
+     * Der Name steht vorn in der Ueberschrift und nicht in einer zweiten Zeile: Die
+     * schlichte Vorlage zeigt die klein, und im Vorbeigehen liest man sie nicht. Wer
+     * etwas gezogen hat, ist beim Angeln mit anderen die halbe Meldung.
+     */
+    static String headline(SeaCreatures.Creature creature, boolean doppelt, String spieler) {
+        String fang = (doppelt ? "2x " : "") + creature.name();
+        return spieler == null || spieler.isEmpty() ? fang : spieler + ": " + fang;
+    }
+
     private static void announce(SeaCreatures.Creature creature, boolean doppelt, String spieler) {
-        // "2x Yeti" statt "DOUBLE HOOK! Yeti" - was gemeint ist, steht in der Zahl,
-        // und die Zeile bleibt kurz genug, um sie im Vorbeigehen zu lesen
-        String kopf = (doppelt ? "2x " : "") + creature.name();
-        String unten = spieler.isEmpty() ? "" : "caught by " + spieler;
+        String kopf = headline(creature, doppelt, spieler);
+        String unten = "";
+        String vonWem = spieler.isEmpty() ? "" : " - caught by " + spieler;
 
         if (cfg().banner) {
             DropBanner.show(design(), kopf, unten, creature.rarity(), creature.colour(), ItemStack.EMPTY);
@@ -267,8 +279,7 @@ public final class RareCatchAlert {
                         .withStyle(ChatFormatting.DARK_AQUA)
                         .append(Component.literal(kopf).withStyle(style -> style
                                 .withColor(creature.colour()).withBold(true)))
-                        .append(Component.literal(unten.isEmpty() ? "" : " - " + unten)
-                                .withStyle(ChatFormatting.GRAY)));
+                        .append(Component.literal(vonWem).withStyle(ChatFormatting.GRAY)));
             }
         }
         // Der eigene Klang des Bewohners geht vor; ohne ihn der allgemeine
