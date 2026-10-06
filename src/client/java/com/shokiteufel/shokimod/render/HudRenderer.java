@@ -25,6 +25,7 @@ public class HudRenderer {
         // Namensschilder werden als HUD gezeichnet, nicht als Text in der Welt:
         // so liegen sie sicher vor dem Glow-Nacheffekt
         BossNameplateRenderer.render(graphics, client, deltaTracker.getGameTimeDeltaPartialTick(true));
+        LootshareRenderer.render(graphics, client, deltaTracker.getGameTimeDeltaPartialTick(true));
 
         // Waehrend man Banner oder Kaesten einrichtet, sollen die Kaesten nicht dazwischenliegen.
         // Bei jedem anderen offenen Fenster zeichnet sie der NearbyOverlayMixin darueber -

@@ -298,6 +298,9 @@ public class ModConfig extends Config {
         INSTANCE.fishing.rareCatch.openPicker = () -> Minecraft.getInstance().execute(() ->
                 Minecraft.getInstance().setScreenAndShow(new com.shokiteufel.shokimod.gui.SeaCreatureScreen(
                         Minecraft.getInstance().gui.screen())));
+        INSTANCE.fishing.lootshare.openPicker = () -> Minecraft.getInstance().execute(() ->
+                Minecraft.getInstance().setScreenAndShow(new com.shokiteufel.shokimod.gui.SeaCreatureScreen(
+                        Minecraft.getInstance().gui.screen())));
         INSTANCE.fishing.rareCatch.test = () -> Minecraft.getInstance().execute(
                 com.shokiteufel.shokimod.handler.RareCatchAlert::test);
         INSTANCE.chat.testAlertVolume = () -> Minecraft.getInstance().execute(AlertVolume::test);
@@ -1325,6 +1328,79 @@ public class ModConfig extends Config {
         @Expose
         @Category(name = "Rare catch", desc = "Announces rare sea creatures - yours and the ones your party reports. Ported from Feesh.")
         public RareCatchCategory rareCatch = new RareCatchCategory();
+
+        @Expose
+        @Category(name = "Lootshare", desc = "Counts the damage you deal to a sea creature and tells you when it is enough for loot - at one percent of its health. Modelled on Skysoft's Lootshare Helper.")
+        public LootshareCategory lootshare = new LootshareCategory();
+    }
+
+    /**
+     * Der Lootshare-Helfer fuer Meeresbewohner.
+     *
+     * Hypixel verteilt Beute an die fuenf staerksten Schadensmacher, die beim Tod hoechstens
+     * dreissig Bloecke entfernt sind und mindestens ein Prozent der Lebenspunkte gemacht
+     * haben. Hypixel sagt nicht, wo man steht - diese Rechnung schaetzt es aus den
+     * Schadenszahlen, die ueber dem Mob erscheinen. Nachgebaut aus Skysoft (LGPL-3.0).
+     */
+    public static class LootshareCategory {
+
+        @ConfigOption(name = "Lootshare", desc = "Counts what you deal to the creatures picked below and shows it. One percent of the creature's health is enough for loot - this tells you when you are there. It is an estimate: only hits that can be traced to a click of yours are counted.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Enabled", desc = "Watch the creatures picked below and count your damage on them.")
+        @ConfigEditorBoolean
+        public boolean enabled = false;
+
+        @Expose
+        @ConfigOption(name = "Tell the party", desc = "Writes \"Loot share secured!\" into the party chat the moment you reach one percent. Skysoft users see a checkmark over your head from it. Off means nobody is told - with no party, Hypixel answers that you are not in one.")
+        @ConfigEditorBoolean
+        public boolean shareMessage = true;
+
+        @Expose
+        @ConfigOption(name = "Party checkmarks", desc = "A checkmark over the head of every party member who wrote that line, for 75 seconds.")
+        @ConfigEditorBoolean
+        public boolean checkmarks = true;
+
+        @Expose
+        @ConfigOption(name = "Label over the creature", desc = "\"Lootshare 34%\" above the creature - red while it is not enough, green once it is.")
+        @ConfigEditorBoolean
+        public boolean showLabel = true;
+
+        @Expose
+        @ConfigOption(name = "30 block circle", desc = "The circle on the ground you have to be inside of when it dies.")
+        @ConfigEditorBoolean
+        public boolean showCircle = true;
+
+        @Expose
+        @ConfigOption(name = "Damage window", desc = "A small box on the HUD for as long as the creature lives: its name, your damage, the share of its health, and a checkmark once it is enough. The damage keeps counting after that. Move it with /shoki hud.")
+        @ConfigEditorBoolean
+        public boolean showHud = true;
+
+        @ConfigOption(name = "Pick creatures", desc = "Which creatures are watched. Thunder and Lord Jawbus are on from the start; every other rare one can be switched on in the list. Opens with /shoki seacreatures.")
+        @ConfigEditorButton(buttonText = "Open")
+        public transient Runnable openPicker = () -> {
+        };
+
+        /**
+         * Welche Bewohner beobachtet werden.
+         *
+         * Ohne Eintrag gilt die Voreinstellung: Thunder und Lord Jawbus ja, alle anderen
+         * nein. Auch hier wird nur gespeichert, was davon abweicht.
+         */
+        @Expose
+        public Map<String, Boolean> mobs = new HashMap<>();
+
+        // Lage und Aussehen des Kastens, gesetzt ueber /shoki hud
+        @Expose
+        public float hudX = 0.02f;
+        @Expose
+        public float hudY = 0.35f;
+        @Expose
+        public float hudScale = 1.0f;
+        @Expose
+        public float hudAlpha = 1.0f;
     }
 
     /**

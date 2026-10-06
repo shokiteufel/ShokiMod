@@ -44,6 +44,7 @@ public class NetworkHandler {
             PestReminder.reset();
             HotspotTracker.reset();
             com.shokiteufel.shokimod.scanner.PetState.reset();
+            LootshareTracker.reset();
             com.shokiteufel.shokimod.scanner.PerformanceState.reset();
         });
 
@@ -82,6 +83,8 @@ public class NetworkHandler {
             // Der Kuchen-Alarm merkt sich, wann welcher Kuchen gegessen wurde
             CakeReminder.onChatMessage(unformattedMsg);
             RareCatchAlert.onChatMessage(unformattedMsg);
+            // Wer aus der Gruppe "Loot share secured!" schreibt, bekommt ein Haeckchen
+            LootshareTracker.onChatMessage(unformattedMsg);
             // Der Wechsel per Autopet ist die einzige Meldung ueber das aktive Pet,
             // die ohne offenes Menue kommt
             com.shokiteufel.shokimod.scanner.PetState.onChatMessage(unformattedMsg);
