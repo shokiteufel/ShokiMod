@@ -80,6 +80,9 @@ public final class RareCatchAlert {
         if (gefangen == null) return;
         boolean doppelt = doubleHook;
         doubleHook = false;
+        // Teilen und anzeigen sind zwei Entscheidungen: Wer einen Fang meldet, will
+        // ihn nicht zwangslaeufig auch selbst eingeblendet bekommen - und umgekehrt
+        if (wantsShare(gefangen)) shareToParty(gefangen, doppelt);
         if (!wantsOwn(gefangen)) return;
         announce(gefangen, doppelt, "");
     }
@@ -156,6 +159,49 @@ public final class RareCatchAlert {
     public static boolean partyPicked(SeaCreatures.Creature creature) {
         if (creature == null) return false;
         return cfg().party.getOrDefault(creature.name(), creature.rare());
+    }
+
+    /**
+     * Soll dieser Fang in den Gruppenchat?
+     *
+     * Anders als die beiden anderen Schalter ist dieser von Haus aus aus - auch bei den
+     * seltenen. Die anderen aendern, was auf dem eigenen Bildschirm steht; dieser
+     * schickt etwas an andere Leute.
+     */
+    public static boolean wantsShare(SeaCreatures.Creature creature) {
+        if (creature == null) return false;
+        return cfg().share.getOrDefault(creature.name(), false);
+    }
+
+    public static void toggleShare(SeaCreatures.Creature creature) {
+        if (creature == null) return;
+        cfg().share.put(creature.name(), !wantsShare(creature));
+        ModConfig.INSTANCE.saveNow();
+    }
+
+    /**
+     * Den Fang in den Gruppenchat schreiben - in der Schreibweise von Feesh.
+     *
+     * Absichtlich deren Wortlaut: "--> A YETI has spawned <--". Wer in der Gruppe Feesh
+     * benutzt, bekommt die Meldung damit genauso eingeblendet wie von einem
+     * Feesh-Nutzer, und diese Mod liest sie ohnehin schon. Ein eigener Wortlaut haette
+     * nur erreicht, dass niemand ihn versteht.
+     */
+    private static void shareToParty(SeaCreatures.Creature creature, boolean doppelt) {
+        Minecraft client = Minecraft.getInstance();
+        if (client == null || client.getConnection() == null) return;
+
+        String gross = creature.name().toUpperCase(java.util.Locale.ROOT);
+        String text = doppelt
+                ? "--> DOUBLE HOOK! Two " + gross + "s have spawned <--"
+                : "--> " + artikel(gross) + " " + gross + " has spawned <--";
+        client.getConnection().sendCommand("pc " + text);
+        ShokiMod.LOGGER.info("[RareCatch] shared to party: {}", text);
+    }
+
+    /** "An" vor einem Selbstlaut, sonst "A" - so steht es auch in Feeshs Zeilen */
+    private static String artikel(String name) {
+        return name.isEmpty() || "AEIOU".indexOf(name.charAt(0)) < 0 ? "A" : "An";
     }
 
     /** Der eigene Klang dieses Bewohners, oder leer */
