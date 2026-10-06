@@ -54,6 +54,7 @@ public class ShokiMod implements ClientModInitializer {
     private static boolean openShardProfitNextTick = false;
     private static boolean openCraftProfitNextTick = false;
     private static boolean openFlipProfitNextTick = false;
+    private static boolean openSeaCreaturesNextTick = false;
     private static boolean openProfitItemsNextTick = false;
     private static boolean openDayProfitNextTick = false;
     /** Statt der Jahresliste gleich die Waren dieses Jahres - 0 heisst: wie bisher */
@@ -116,6 +117,10 @@ public class ShokiMod implements ClientModInitializer {
             if (openFlipProfitNextTick) {
                 openFlipProfitNextTick = false;
                 client.setScreenAndShow(new com.shokiteufel.shokimod.gui.FlipProfitScreen(null));
+            }
+            if (openSeaCreaturesNextTick) {
+                openSeaCreaturesNextTick = false;
+                client.setScreen(new com.shokiteufel.shokimod.gui.SeaCreatureScreen(null));
             }
             if (openProfitItemsNextTick) {
                 openProfitItemsNextTick = false;
@@ -212,6 +217,12 @@ public class ShokiMod implements ClientModInitializer {
                         .then(ClientCommands.literal("flipprofit").executes(context -> {
                             com.shokiteufel.shokimod.util.BazaarLive.wanted();
                             openFlipProfitNextTick = true;
+                            return 1;
+                        }))
+                        // /shoki seacreatures -> welcher Meeresbewohner sich meldet.
+                        // Neunzig Zeilen passen in keine Einstellungsliste
+                        .then(ClientCommands.literal("seacreatures").executes(context -> {
+                            openSeaCreaturesNextTick = true;
                             return 1;
                         }))
                         // /shoki profit -> die Liste des Profit-Trackers: was gefunden wurde,
