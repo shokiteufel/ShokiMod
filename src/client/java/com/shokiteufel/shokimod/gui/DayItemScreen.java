@@ -56,7 +56,8 @@ public class DayItemScreen extends Screen {
         List<Row> out = new ArrayList<>();
         for (Map.Entry<String, Integer> entry : tag.counts.entrySet()) {
             int count = entry.getValue() == null ? 0 : entry.getValue();
-            if (count <= 0) continue;
+            // Ein verbrauchter Koeder steht im Minus - das gehoert in die Liste
+            if (count == 0 || (count < 0 && !ProfitTracker.isBait(entry.getKey()))) continue;
 
             double unit = ProfitTracker.unitPrice(entry.getKey());
             out.add(new Row(entry.getKey(), ProfitTracker.nameOf(entry.getKey()), count,
@@ -131,8 +132,8 @@ public class DayItemScreen extends Screen {
 
             graphics.text(font, row.name(), left + 4, y, ProfitTracker.colourOf(row.itemId()), false);
             graphics.text(font, "x" + row.count(), left + 240, y, 0xFFCCCCCC, false);
-            graphics.text(font, row.worth() > 0 ? ItemValue.format(row.worth()) : "?",
-                    left + 330, y, row.worth() > 0 ? 0xFF55FF55 : 0xFF888888, false);
+            graphics.text(font, row.worth() != 0 ? ItemValue.format(row.worth()) : "?",
+                    left + 330, y, row.worth() > 0 ? 0xFF55FF55 : row.worth() < 0 ? 0xFFFF5555 : 0xFF888888, false);
         }
 
         if (pageCount() > 1) {

@@ -93,9 +93,12 @@ public final class ProfitHud {
             for (int i = 0; i < rows.size() && i < limit; i++) {
                 ProfitTracker.Row row = rows.get(i);
                 String worth = row.priced() ? ItemValue.format(row.value()) : "?";
+                // Ein verbrauchter Koeder steht im Minus - und in Rot, damit man es
+                // nicht fuer einen Fund haelt
                 panel.pair(prefix(clickable) + row.name() + " x" + HudNumbers.amount(row.count())
                                 + mark(row.itemId(), row.mode()),
-                        worth, ProfitTracker.colourOf(row.itemId()), VALUE_COLOUR);
+                        worth, ProfitTracker.colourOf(row.itemId()),
+                        row.value() < 0 ? HudColours.RED : VALUE_COLOUR);
                 ids.add(row.itemId());
             }
             if (rows.size() > limit) {
@@ -106,7 +109,8 @@ public final class ProfitHud {
 
         panel.blank();
         ids.add(null);
-        panel.pair("Total:", ItemValue.format(ProfitTracker.total()), LABEL_COLOUR, VALUE_COLOUR);
+        panel.pair("Total:", ItemValue.format(ProfitTracker.total()), LABEL_COLOUR,
+                ProfitTracker.total() < 0 ? HudColours.RED : VALUE_COLOUR);
         ids.add(null);
         // Beide Zeilen einzeln: Wer nur wissen will, wie lange er schon dran ist,
         // braucht die Coins je Stunde nicht daneben

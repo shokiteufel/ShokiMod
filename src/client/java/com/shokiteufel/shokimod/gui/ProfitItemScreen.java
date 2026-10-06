@@ -67,7 +67,8 @@ public class ProfitItemScreen extends Screen {
         String needle = filter.trim().toLowerCase(Locale.ROOT);
         List<String> out = new ArrayList<>();
         for (String itemId : ProfitTracker.seen()) {
-            if (ProfitTracker.countOf(itemId) <= 0) continue;
+            int menge = ProfitTracker.countOf(itemId);
+            if (menge == 0 || (menge < 0 && !ProfitTracker.isBait(itemId))) continue;
             if (!needle.isEmpty()
                     && !ProfitTracker.nameOf(itemId).toLowerCase(Locale.ROOT).contains(needle)
                     && !itemId.toLowerCase(Locale.ROOT).contains(needle)) {
