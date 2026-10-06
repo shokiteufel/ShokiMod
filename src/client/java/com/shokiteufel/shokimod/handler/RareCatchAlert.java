@@ -80,7 +80,7 @@ public final class RareCatchAlert {
         if (gefangen == null) return;
         boolean doppelt = doubleHook;
         doubleHook = false;
-        if (!gefangen.rare()) return;
+        if (!wantsOwn(gefangen)) return;
         announce(gefangen, doppelt, "");
     }
 
@@ -114,8 +114,62 @@ public final class RareCatchAlert {
 
     private static void melde(String name, boolean doppelt, String spieler) {
         SeaCreatures.Creature creature = SeaCreatures.byName(name);
-        if (creature == null || !creature.rare()) return;
+        if (creature == null || !wantsParty(creature)) return;
         announce(creature, doppelt, spieler);
+    }
+
+    /**
+     * Soll sich dieser Bewohner beim eigenen Fang melden?
+     *
+     * Steht er nicht in der Auswahl, gilt die Voreinstellung: die seltenen ja, die
+     * uebrigen nein. Dadurch bekommt ein Bewohner, den Hypixel spaeter hinzufuegt, von
+     * selbst das Richtige, statt stumm zu bleiben, bis jemand die Liste pflegt.
+     */
+    public static boolean wantsOwn(SeaCreatures.Creature creature) {
+        if (creature == null) return false;
+        return cfg().own.getOrDefault(creature.name(), creature.rare());
+    }
+
+    /** Dasselbe fuer einen Fang aus der Gruppe - der Hauptschalter geht vor */
+    public static boolean wantsParty(SeaCreatures.Creature creature) {
+        if (creature == null || !cfg().fromParty) return false;
+        return cfg().party.getOrDefault(creature.name(), creature.rare());
+    }
+
+    /** Den Schalter fuer den eigenen Fang umlegen */
+    public static void toggleOwn(SeaCreatures.Creature creature) {
+        if (creature == null) return;
+        cfg().own.put(creature.name(), !wantsOwn(creature));
+        ModConfig.INSTANCE.saveNow();
+    }
+
+    /** Dasselbe fuer die Gruppe - unabhaengig vom Hauptschalter, sonst liesse es sich
+     *  bei ausgeschalteter Gruppe nicht vorbereiten */
+    public static void toggleParty(SeaCreatures.Creature creature) {
+        if (creature == null) return;
+        boolean jetzt = cfg().party.getOrDefault(creature.name(), creature.rare());
+        cfg().party.put(creature.name(), !jetzt);
+        ModConfig.INSTANCE.saveNow();
+    }
+
+    /** Ob die Gruppe fuer diesen Bewohner angehakt ist - ohne den Hauptschalter */
+    public static boolean partyPicked(SeaCreatures.Creature creature) {
+        if (creature == null) return false;
+        return cfg().party.getOrDefault(creature.name(), creature.rare());
+    }
+
+    /** Der eigene Klang dieses Bewohners, oder leer */
+    public static String soundOf(SeaCreatures.Creature creature) {
+        if (creature == null) return "";
+        String ton = cfg().sounds.get(creature.name());
+        return ton == null ? "" : ton;
+    }
+
+    public static void setSound(SeaCreatures.Creature creature, String datei) {
+        if (creature == null) return;
+        if (datei == null || datei.isBlank()) cfg().sounds.remove(creature.name());
+        else cfg().sounds.put(creature.name(), datei);
+        ModConfig.INSTANCE.saveNow();
     }
 
     /**
@@ -143,7 +197,9 @@ public final class RareCatchAlert {
                                 .withStyle(ChatFormatting.GRAY)));
             }
         }
-        String ton = cfg().sound;
+        // Der eigene Klang des Bewohners geht vor; ohne ihn der allgemeine
+        String ton = soundOf(creature);
+        if (ton.isBlank()) ton = cfg().sound;
         if (ton != null && !ton.isBlank()) {
             CustomSoundPlayer.play(ton, AlertVolume.factor(), RareCatchAlert.class);
         }
@@ -152,6 +208,11 @@ public final class RareCatchAlert {
     }
 
     /** Der Knopf in den Einstellungen: einmal vorfuehren */
+    /** Einen einzelnen Bewohner vorfuehren - der Knopf in der Auswahl */
+    public static void preview(SeaCreatures.Creature creature) {
+        if (creature != null) announce(creature, false, "");
+    }
+
     public static void test() {
         SeaCreatures.Creature probe = SeaCreatures.byName("Yeti");
         if (probe == null) {

@@ -295,6 +295,9 @@ public class ModConfig extends Config {
                         1.0f)));
         INSTANCE.chat.petMax.test = () -> Minecraft.getInstance().execute(
                 com.shokiteufel.shokimod.handler.PetMaxAlert::test);
+        INSTANCE.fishing.rareCatch.openPicker = () -> Minecraft.getInstance().execute(() ->
+                Minecraft.getInstance().setScreen(new com.shokiteufel.shokimod.gui.SeaCreatureScreen(
+                        Minecraft.getInstance().screen)));
         INSTANCE.fishing.rareCatch.test = () -> Minecraft.getInstance().execute(
                 com.shokiteufel.shokimod.handler.RareCatchAlert::test);
         INSTANCE.chat.testAlertVolume = () -> Minecraft.getInstance().execute(AlertVolume::test);
@@ -1342,9 +1345,33 @@ public class ModConfig extends Config {
         public boolean enabled = false;
 
         @Expose
-        @ConfigOption(name = "From your party", desc = "Also announce what your party reports. Reads what Feesh and SkyHanni write into the party chat - so it works with whatever the others run.")
+        @ConfigOption(name = "From your party", desc = "Also announce what your party reports. Reads what Feesh and SkyHanni write into the party chat - so it works with whatever the others run. The list below decides which creatures that applies to.")
         @ConfigEditorBoolean
         public boolean fromParty = true;
+
+        @ConfigOption(name = "Pick creatures", desc = "Which of the ninety sea creatures say something, whether a party catch counts, and a sound for each one. Opens with /shoki seacreatures.")
+        @ConfigEditorButton(buttonText = "Open")
+        public transient Runnable openPicker = () -> {
+        };
+
+        /**
+         * Welche Bewohner sich bei einem eigenen Fang melden.
+         *
+         * Steht ein Name nicht darin, gilt die Voreinstellung: die sechsundzwanzig
+         * seltenen melden sich, die uebrigen nicht. So bekommt ein Bewohner, den
+         * Hypixel spaeter hinzufuegt, von selbst das Richtige - eine Liste aller
+         * neunzig waere beim naechsten Zuwachs unvollstaendig.
+         */
+        @Expose
+        public Map<String, Boolean> own = new HashMap<>();
+
+        /** Dasselbe fuer Faenge aus der Gruppe */
+        @Expose
+        public Map<String, Boolean> party = new HashMap<>();
+
+        /** Ein eigener Klang je Bewohner - leer heisst: der allgemeine aus "Sound" */
+        @Expose
+        public Map<String, String> sounds = new HashMap<>();
 
         @Expose
         @ConfigOption(name = "Banner", desc = "Large text across the screen, same as a rare drop.")
