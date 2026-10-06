@@ -124,7 +124,7 @@ public class SeaCreatureScreen extends Screen {
 
             Button sound = Button.builder(soundLabel(c), button -> {
                 if (minecraft != null) {
-                    minecraft.setScreen(new SoundPickerScreen(this,
+                    minecraft.setScreenAndShow(new SoundPickerScreen(this,
                             () -> RareCatchAlert.soundOf(c),
                             picked -> RareCatchAlert.setSound(c, picked),
                             AlertVolume.factor()));
@@ -182,7 +182,7 @@ public class SeaCreatureScreen extends Screen {
 
     @Override
     public void onClose() {
-        if (minecraft != null) minecraft.setScreen(parent);
+        if (minecraft != null) minecraft.setScreenAndShow(parent);
     }
 
     private Component nameLabel(SeaCreatures.Creature c) {

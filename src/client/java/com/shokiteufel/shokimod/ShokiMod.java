@@ -120,7 +120,7 @@ public class ShokiMod implements ClientModInitializer {
             }
             if (openSeaCreaturesNextTick) {
                 openSeaCreaturesNextTick = false;
-                client.setScreen(new com.shokiteufel.shokimod.gui.SeaCreatureScreen(null));
+                client.setScreenAndShow(new com.shokiteufel.shokimod.gui.SeaCreatureScreen(null));
             }
             if (openProfitItemsNextTick) {
                 openProfitItemsNextTick = false;

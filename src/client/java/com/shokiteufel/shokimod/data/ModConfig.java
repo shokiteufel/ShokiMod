@@ -296,8 +296,8 @@ public class ModConfig extends Config {
         INSTANCE.chat.petMax.test = () -> Minecraft.getInstance().execute(
                 com.shokiteufel.shokimod.handler.PetMaxAlert::test);
         INSTANCE.fishing.rareCatch.openPicker = () -> Minecraft.getInstance().execute(() ->
-                Minecraft.getInstance().setScreen(new com.shokiteufel.shokimod.gui.SeaCreatureScreen(
-                        Minecraft.getInstance().screen)));
+                Minecraft.getInstance().setScreenAndShow(new com.shokiteufel.shokimod.gui.SeaCreatureScreen(
+                        Minecraft.getInstance().gui.screen())));
         INSTANCE.fishing.rareCatch.test = () -> Minecraft.getInstance().execute(
                 com.shokiteufel.shokimod.handler.RareCatchAlert::test);
         INSTANCE.chat.testAlertVolume = () -> Minecraft.getInstance().execute(AlertVolume::test);
