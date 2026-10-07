@@ -66,6 +66,21 @@ public class ModConfig extends Config {
         return new File(dir, "shokimod_config.properties");
     }
     // ★修正4: 起動時にファイルを読み込むメソッドを強化
+    /**
+     * Farben bekamen ihre Kanaele bisher von den Drops: Teilen an Party und Guild war ein
+     * Schalter fuer beides. Wer "Share dyes" an hatte, bekommt die beiden Haken einmalig so
+     * gesetzt, wie sie standen - dann aendert sich fuer ihn nichts, und ab da lassen sich
+     * Drops und Farben getrennt einstellen.
+     */
+    static void migrateDyeChannels(RareLootCategory c) {
+        if (c == null || c.dyeChannelsMigrated) return;
+        if (c.dyeShare) {
+            c.dyeShareParty = c.shareParty;
+            c.dyeShareGuild = c.shareGuild;
+        }
+        c.dyeChannelsMigrated = true;
+    }
+
     public static void load() {
         File file = getConfigFile();
         if (file.exists()) {
@@ -85,6 +100,7 @@ public class ModConfig extends Config {
         if (INSTANCE.safari == null) INSTANCE.safari = new SafariCategory();
         // Der Unterreiter kann in einer Datei von vor 1.1.4 als null stehen
         if (INSTANCE.chat.rareLoot == null) INSTANCE.chat.rareLoot = new RareLootCategory();
+        migrateDyeChannels(INSTANCE.chat.rareLoot);
         if (INSTANCE.chat.banner == null) INSTANCE.chat.banner = new BannerCategory();
         migrateBanners();
         if (INSTANCE.hunting == null) INSTANCE.hunting = new HuntingCategory();
@@ -3146,16 +3162,44 @@ public class ModConfig extends Config {
         public boolean shareGuild = false;
 
         @Expose
-        @ConfigOption(name = "Share from", desc = "Coins. 0 shares every rare drop, even one without a known price.")
+        @ConfigOption(name = "Share from", desc = "Coins. 0 shares every rare drop, even one without a known price. Counts for the party chat, and for the guild chat too unless Guild from below is set.")
         @ConfigEditorText
         @ConfigAccordionId(id = 24)
         public String shareThreshold = "1M";
 
         @Expose
-        @ConfigOption(name = "Share dyes", desc = "Posts a dye into the chats chosen above, whatever it is worth - and even when sharing itself is off. A dye without a price would never clear the share threshold, and that is exactly the find worth telling.")
+        @ConfigOption(name = "Guild from", desc = "Coins, for the guild chat only. Empty uses Share from. Set it higher to keep the guild chat for the big drops while the party hears about the smaller ones - 35M here and 10M above, for example.")
+        @ConfigEditorText
+        @ConfigAccordionId(id = 24)
+        public String shareGuildThreshold = "";
+
+        @Expose
+        @ConfigOption(name = "Share dyes", desc = "Posts a dye into the chats picked right below, whatever it is worth - and even when sharing drops is off. A dye without a price would never clear a threshold, and that is exactly the find worth telling. Dyes have their own two switches: they do not follow Party and Guild above.")
         @ConfigEditorBoolean
         @ConfigAccordionId(id = 24)
         public boolean dyeShare = false;
+
+        @Expose
+        @ConfigOption(name = "Dye to party", desc = "Send a dye to the party chat. Needs Share dyes.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 24)
+        public boolean dyeShareParty = false;
+
+        @Expose
+        @ConfigOption(name = "Dye to guild", desc = "Send a dye to the guild chat. Needs Share dyes.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 24)
+        public boolean dyeShareGuild = false;
+
+        /**
+         * Ob die Kanaele fuer Farben schon uebernommen sind.
+         *
+         * Bis dahin folgte eine Farbe den Schaltern Party und Guild der Drops. Wer das so
+         * eingestellt hatte, soll es behalten: Beim ersten Laden werden diese Schalter
+         * einmal kopiert. Danach sind beide Seiten unabhaengig.
+         */
+        @Expose
+        public boolean dyeChannelsMigrated = false;
 
         @Expose
         @ConfigOption(name = "Message", desc = "The line that gets sent. Placeholders: {prefix} = RARE DROP! or LOOTSHARE DROP!, {item} = drop with count, {name}, {amount}, {mf} = Magic Find in brackets, {value} = value in brackets, {coins} = bare value. Empty restores the default.")

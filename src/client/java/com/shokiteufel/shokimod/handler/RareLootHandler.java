@@ -537,7 +537,11 @@ public final class RareLootHandler {
         String template = reached == null ? cfg.shareTemplate : cfg.shareTemplateFor(reached.number());
         String message = shareText(drop, value, lootshare, template, cfg.shareMagicFind, cfg.shareValue);
 
-        String blocked = shareBlocked(cfg, value, dye, message);
+        Channels channels = shareChannels(cfg, value, dye);
+        String blocked = channels.reason();
+        if (blocked == null && (message == null || message.isBlank())) {
+            blocked = "template produced an empty line";
+        }
         if (blocked != null) {
             note("  not shared: " + blocked);
             return;
@@ -549,14 +553,62 @@ public final class RareLootHandler {
             return;
         }
 
-        if (cfg.shareParty) {
+        if (channels.party()) {
             note("  sharing to party: " + message);
             connection.sendCommand("pc " + message);
         }
-        if (cfg.shareGuild) {
+        if (channels.guild()) {
             note("  sharing to guild: " + message);
             connection.sendCommand("gc " + message);
         }
+    }
+
+    /** In welchen Chat ein Fund geht - und, wenn in keinen, warum nicht */
+    record Channels(boolean party, boolean guild, String reason) {
+    }
+
+    /**
+     * Welche Chats diesen Fund bekommen.
+     *
+     * Jeder Chat entscheidet fuer sich. Bei Drops hat jeder seine eigene Schwelle: Party ab
+     * zehn Millionen und Guild ab fuenfunddreissig heisst, dass ein Fund von zwoelf nur in
+     * die Party geht und einer von vierzig in beide. Farben haben keine Schwelle - ihr Wert
+     * sagt wenig, eine Tentacle Dye steht heute in keiner Auktion -, dafuer zwei eigene
+     * Schalter, die von denen der Drops unabhaengig sind.
+     */
+    static Channels shareChannels(RareLootCategory cfg, Value value, boolean dye) {
+        if (dye) {
+            if (!cfg.dyeShareParty && !cfg.dyeShareGuild) return new Channels(false, false, "no dye channel chosen");
+            return new Channels(cfg.dyeShareParty, cfg.dyeShareGuild, null);
+        }
+        if (!cfg.shareParty && !cfg.shareGuild) return new Channels(false, false, "no channel chosen");
+
+        boolean party = cfg.shareParty && reaches(value, cfg.shareThreshold);
+        boolean guild = cfg.shareGuild && reaches(value, guildThreshold(cfg));
+        if (!party && !guild) {
+            return new Channels(false, false, value == null && (parseThreshold(cfg.shareThreshold) > 0
+                    || parseThreshold(guildThreshold(cfg)) > 0)
+                    ? "no price known"
+                    : "below the threshold of every chosen chat");
+        }
+        return new Channels(party, guild, null);
+    }
+
+    /** Die Schwelle der Guild: das eigene Feld, und nur wenn das leer ist, die allgemeine */
+    static String guildThreshold(RareLootCategory cfg) {
+        String own = cfg.shareGuildThreshold;
+        return own == null || own.isBlank() ? cfg.shareThreshold : own;
+    }
+
+    private static double parseThreshold(String text) {
+        return ItemValue.parseAmount(text);
+    }
+
+    /** Erreicht der Fund diese Schwelle? Null heisst: alles, auch ohne bekannten Preis */
+    private static boolean reaches(Value value, String threshold) {
+        double schwelle = parseThreshold(threshold);
+        if (schwelle <= 0) return true;
+        return value != null && value.coins() >= schwelle;
     }
 
     /**
@@ -568,11 +620,8 @@ public final class RareLootHandler {
      * gelten weiter, ohne Ziel wird nichts geschickt.
      */
     static String shareBlocked(RareLootCategory cfg, Value value, boolean dye, String message) {
-        double threshold = dye ? 0 : ItemValue.parseAmount(cfg.shareThreshold);
-
-        if (threshold > 0 && value == null) return "no price known";
-        if (threshold > 0 && value.coins() < threshold) return "below " + cfg.shareThreshold;
-        if (!cfg.shareParty && !cfg.shareGuild) return "no channel chosen";
+        String reason = shareChannels(cfg, value, dye).reason();
+        if (reason != null) return reason;
         if (message == null || message.isBlank()) return "template produced an empty line";
         return null;
     }
@@ -693,8 +742,13 @@ public final class RareLootHandler {
         out.append("share: enabled=").append(cfg.shareEnabled)
                 .append(" party=").append(cfg.shareParty)
                 .append(" guild=").append(cfg.shareGuild)
-                .append(" threshold=").append(cfg.shareThreshold)
+                .append(" party-from=").append(cfg.shareThreshold)
                 .append(" (=").append((long) ItemValue.parseAmount(cfg.shareThreshold)).append(")")
+                .append(" guild-from=").append(guildThreshold(cfg))
+                .append(" (=").append((long) ItemValue.parseAmount(guildThreshold(cfg))).append(")")
+                .append(" dyes=").append(cfg.dyeShare)
+                .append(" dye-party=").append(cfg.dyeShareParty)
+                .append(" dye-guild=").append(cfg.dyeShareGuild)
                 .append(" mf=").append(cfg.shareMagicFind)
                 .append(" value=").append(cfg.shareValue)
                 .append(" template=\"").append(cfg.shareTemplate).append("\"")
