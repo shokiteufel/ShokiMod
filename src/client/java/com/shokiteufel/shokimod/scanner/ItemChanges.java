@@ -213,7 +213,16 @@ public final class ItemChanges {
     private static final long SWAP_WINDOW_MILLIS = 8_000L;
 
     private static boolean looksLikeGear(ItemStack stack) {
+        // Ein Pet ist ein Spielerkopf, und Koepfe lassen sich aufsetzen - daran darf es nicht
+        // haengen: Der Baby Yeti galt deshalb als Ruestung und fiel nach einem Wechsel aus der Zaehlung
+        net.minecraft.world.item.component.CustomData data = stack.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
+        if (data != null && "PET".equals(data.copyTag().getStringOr("id", ""))) return false;
+        if (stack.is(net.minecraft.world.item.Items.PLAYER_HEAD)) return loreSaysGear(stack);
         if (stack.get(net.minecraft.core.component.DataComponents.EQUIPPABLE) != null) return true;
+        return loreSaysGear(stack);
+    }
+
+    private static boolean loreSaysGear(ItemStack stack) {
         net.minecraft.world.item.component.ItemLore lore = stack.get(net.minecraft.core.component.DataComponents.LORE);
         if (lore == null || lore.lines().isEmpty()) return false;
         // Die letzte Zeile nennt Seltenheit und Art: "MYTHIC HELMET", "LEGENDARY NECKLACE"
