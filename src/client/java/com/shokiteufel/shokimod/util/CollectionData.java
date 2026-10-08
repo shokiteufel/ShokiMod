@@ -209,7 +209,7 @@ public final class CollectionData {
 
         String cached = resolved.get(id);
         if (cached != null) {
-            if (cached.isEmpty()) return null; // schon geholt, ergab nichts
+            if (isNegative(cached)) return null; // schon geholt, ergab nichts
             int split = cached.lastIndexOf(':');
             try {
                 return new Yield(cached.substring(0, split), Long.parseLong(cached.substring(split + 1)));
@@ -222,7 +222,7 @@ public final class CollectionData {
             Thread worker = new Thread(() -> {
                 try {
                     Yield found = fetchYield(id, 0);
-                    resolved.put(id, found == null ? "" : found.collectionId() + ":" + found.amount());
+                    resolved.put(id, found == null ? negative() : found.collectionId() + ":" + found.amount());
                     cacheDirty = true;
                     writeCache();
                     if (found != null) {
@@ -288,6 +288,7 @@ public final class CollectionData {
         readCache();
         String key = a + ">" + b;
         String cached = resolved.get(key);
+        if (cached != null && isNegative(cached)) return List.of();
         if (cached != null) {
             List<Step> steps = parseChain(cached);
             // Leer und leer sind zweierlei: "" heisst "es gibt keinen Weg", ein Text, der
@@ -300,7 +301,7 @@ public final class CollectionData {
             Thread worker = new Thread(() -> {
                 try {
                     List<Step> found = fetchChain(a, b, 0);
-                    resolved.put(key, found == null ? "" : writeChain(found));
+                    resolved.put(key, found == null ? negative() : writeChain(found));
                     cacheDirty = true;
                     writeCache();
                     if (found != null) ShokiMod.LOGGER.info("[Collections] {} -> {}: {}", a, b, found);
@@ -537,7 +538,14 @@ public final class CollectionData {
             JsonObject root = GSON.fromJson(Files.readString(file, StandardCharsets.UTF_8), JsonObject.class);
             if (root == null) return;
             for (Map.Entry<String, JsonElement> entry : root.entrySet()) {
-                if (entry.getValue().isJsonPrimitive()) resolved.put(entry.getKey(), entry.getValue().getAsString());
+                if (!entry.getValue().isJsonPrimitive()) continue;
+                String value = entry.getValue().getAsString();
+                // Ein "gibt es nicht" gilt nur zwei Tage. Fuer immer gemerkt, blieb eine Stufe
+                // fuer immer unbekannt, wenn das Repo sie damals noch nicht fuehrte - oder
+                // wenn die Antwort an einem schlechten Tag ausfiel. Aeltere Eintraege und die
+                // alte Schreibweise (leerer Text) fallen hier heraus und werden neu geholt
+                if (isNegative(value) && !freshNegative(value)) continue;
+                resolved.put(entry.getKey(), value);
             }
         } catch (IOException | RuntimeException e) {
             ShokiMod.LOGGER.warn("[Collections] Rezept-Ablage nicht lesbar: {}", e.toString());
@@ -551,6 +559,27 @@ public final class CollectionData {
             Files.writeString(ModPaths.configDir().resolve(CACHE_FILE), GSON.toJson(resolved), StandardCharsets.UTF_8);
         } catch (IOException e) {
             ShokiMod.LOGGER.warn("[Collections] Rezept-Ablage nicht schreibbar: {}", e.toString());
+        }
+    }
+
+    private static final String NEGATIVE = "!";
+    private static final long NEGATIVE_DAYS = 2;
+
+    /** "Geholt, ergab nichts" - mit dem Tag, damit es verfallen kann */
+    private static String negative() {
+        return NEGATIVE + (System.currentTimeMillis() / 86_400_000L);
+    }
+
+    private static boolean isNegative(String value) {
+        return value.isEmpty() || value.startsWith(NEGATIVE);
+    }
+
+    private static boolean freshNegative(String value) {
+        if (!value.startsWith(NEGATIVE)) return false;
+        try {
+            return System.currentTimeMillis() / 86_400_000L - Long.parseLong(value.substring(1)) <= NEGATIVE_DAYS;
+        } catch (NumberFormatException e) {
+            return false;
         }
     }
 
