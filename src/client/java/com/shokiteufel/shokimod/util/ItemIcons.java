@@ -110,12 +110,25 @@ public final class ItemIcons {
         // Erst merken, wenn die Quelle da war - sonst bliebe der Ersatz fuer immer
         boolean settled = itemId.startsWith("SHARD_")
                 ? ShardIcons.texture(itemId) != null
+                : PetHeads.isPet(itemId)
+                ? !PetIcons.iconFor(PetHeads.nameOf(itemId)).isEmpty() || PetHeads.settled(itemId)
                 : !modelIndex.isEmpty() && ItemNames.FEED.ready();
         if (settled) cache.put(itemId, built.copy());
         return built;
     }
 
     private static ItemStack build(String itemId) {
+        // Ein Pet im Inventar: erst das Bild, das aus dem Pet-Menue bekannt ist, sonst der
+        // Kopf aus dem NEU-Repo. Ohne beides bleibt es beim Ersatzbild, bis die Textur da ist
+        if (PetHeads.isPet(itemId)) {
+            ItemStack seen = PetIcons.iconFor(PetHeads.nameOf(itemId));
+            if (!seen.isEmpty()) return seen.copy();
+            String texture = PetHeads.texture(itemId);
+            if (texture == null) return fallback(itemId);
+            ItemStack head = new ItemStack(Items.PLAYER_HEAD);
+            applySkin(head, texture);
+            return head;
+        }
         // Jagd-Shards sind Koepfe mit dem Gesicht des Mobs; die Textur kommt aus dem NEU-Repo
         if (itemId.startsWith("SHARD_")) {
             String texture = ShardIcons.texture(itemId);
