@@ -319,6 +319,7 @@ public final class ItemChanges {
 
         tickCount++;
         flushHeld();
+        rescueConfirmed();
 
         // Ein offener Behaelter ist der Weg, auf dem Gekauftes, Ausgelagertes und
         // Gecraftetes hereinkommt. Nichts davon ist ein Fund
@@ -733,6 +734,8 @@ public final class ItemChanges {
         if (supercraft(plain)) return;
         // Und aus demselben Grund die Zeile, die einen Umzug aus dem Sack meldet
         if (fromSacks(plain)) return;
+        // Ein gemeldeter Fund ist sicher gefallen - gemerkt, falls der Vergleich ihn verpasst
+        noteDropLine(plain);
 
         // Ein Loadout-Wechsel legt eine ganze Ruestung um - das ist kein Fund
         if (EQUIPPED.matcher(plain.trim()).matches()) {
@@ -1150,10 +1153,116 @@ public final class ItemChanges {
     }
 
     private static void dispatch(Map<String, Integer> gains, String source) {
+        long gezaehlt = System.currentTimeMillis();
+        for (String id : gains.keySet()) recentlyCounted.put(id, gezaehlt);
         lastSource = source;
         if (debug()) ShokiMod.LOGGER.info("[Profit] +{} via {}", gains, source);
         for (int i = 0; i < listeners.size(); i++) {
             listeners.get(i).accept(gains);
+        }
+    }
+
+    // ------------------------------------------------------------------ Rettung
+
+    /** Ein in den Chat gemeldeter Fund, der noch auf sein Inventar wartet */
+    private record Confirmed(java.util.List<String> ids, String preferred, int amount, long at) {
+    }
+
+    private static final List<Confirmed> confirmed = new ArrayList<>();
+    /** Was zuletzt gezaehlt wurde, je Kennung - von allen Wegen, die etwas melden */
+    private static final Map<String, Long> recentlyCounted = new HashMap<>();
+    /**
+     * So lange hat das Inventar Zeit, den Fund selbst zu zaehlen.
+     *
+     * Im Normalfall tut es das in derselben Sekunde, und dann geschieht hier nichts. Die
+     * Frist ist laenger als der Vergleich braucht, und kuerzer als alles, was danach
+     * noch zaehlen koennte.
+     */
+    private static final long CONFIRM_WAIT_MILLIS = 3_000L;
+
+    /**
+     * Eine Zeile "RARE DROP! ..." als Beweis merken.
+     *
+     * Steht sie im Chat, ist der Fund gefallen - ganz gleich, was das Inventar dazu
+     * sagt. Es sagt nicht immer etwas: Wer im selben Augenblick sein Loadout wechselt,
+     * hat eine Sekunde, in der nichts zaehlt, und die Warteschlange gegen Ruestungswechsel
+     * wird geleert. Ein Flash-Buch fiel genau in diese Sekunde und fehlte im Kasten.
+     */
+    private static void noteDropLine(String plain) {
+        String clean = plain.trim();
+        if (com.shokiteufel.shokimod.handler.RareLootHandler.isChatLine(clean)) return;
+        com.shokiteufel.shokimod.data.RareLootParser.Drop drop = com.shokiteufel.shokimod.data.RareLootParser.parse(clean);
+        if (drop == null || drop.amount() <= 0) return;
+
+        List<String> ids = com.shokiteufel.shokimod.handler.RareLootHandler.candidatesFor(drop);
+        if (ids.isEmpty()) return;
+        // Essence ist eine Waehrung: Sie waechst weiter, ein einzelner Fund ist keiner
+        if (ids.get(0).startsWith("ESSENCE_")) return;
+        // Die Preise werden gleich gebraucht, um die richtige Kennung zu waehlen
+        com.shokiteufel.shokimod.util.ItemValue.prefetch();
+        confirmed.add(new Confirmed(List.copyOf(ids), null, drop.amount(), System.currentTimeMillis()));
+        ShokiMod.LOGGER.info("[Profit] chat says {} x{} dropped - waiting {}s for the inventory",
+                ids.get(0), drop.amount(), CONFIRM_WAIT_MILLIS / 1000);
+    }
+
+    /**
+     * Welche der Kennungen ist die echte?
+     *
+     * Die Liste nennt mehrere, weil der Name nicht verraet, was gemeint ist: "Flash I" kann
+     * ENCHANTMENT_FLASH_1 sein oder ENCHANTMENT_ULTIMATE_FLASH_1. Echt ist die, fuer die
+     * es einen Preis gibt - eine Kennung, die niemand handelt, gibt es auch nicht. Die
+     * erste Kennung der Liste zu nehmen hiesse zu raten, und das Buch stuende danach unter
+     * einem Namen im Kasten, den das Inventar nie liefert.
+     */
+    private static String realId(List<String> ids) {
+        for (String id : ids) {
+            if (com.shokiteufel.shokimod.util.ItemValue.BAZAAR.get(id) != null) return id;
+        }
+        for (String id : ids) {
+            Double bin = com.shokiteufel.shokimod.util.ItemValue.LOWEST_BIN.get(id);
+            if (bin != null && bin > 0) return id;
+        }
+        return ids.get(0);
+    }
+
+    /**
+     * Was die Chatzeile sagte und das Inventar nicht bestaetigt hat, nachtragen.
+     *
+     * Erst nach der Frist, und nur, wenn in der Zwischenzeit keine der moeglichen
+     * Kennungen gezaehlt wurde. So aendert sich im Normalfall nichts - der Fund ist
+     * dann laengst im Kasten -, und nur der verlorene Fall wird gerettet.
+     *
+     * Dazu wird die Menge als bereits gebucht vermerkt. Kommt das Inventar spaeter doch
+     * noch dazu - ein Fenster, das erst zugeht -, bucht es damit nicht ein zweites Mal.
+     */
+    private static void rescueConfirmed() {
+        if (confirmed.isEmpty()) return;
+        long now = System.currentTimeMillis();
+        for (int i = 0; i < confirmed.size(); ) {
+            Confirmed c = confirmed.get(i);
+            if (now - c.at() < CONFIRM_WAIT_MILLIS) {
+                i++;
+                continue;
+            }
+            confirmed.remove(i);
+
+            boolean schonGezaehlt = false;
+            for (String id : c.ids()) {
+                Long at = recentlyCounted.get(id);
+                if (at != null && at >= c.at() - CONFIRM_WAIT_MILLIS) {
+                    schonGezaehlt = true;
+                    break;
+                }
+            }
+            if (schonGezaehlt) continue;
+
+            String echt = realId(c.ids());
+            Map<String, Integer> nachtrag = new LinkedHashMap<>();
+            nachtrag.put(echt, c.amount());
+            ShokiMod.LOGGER.info("[Profit] the inventory never counted {} x{} - taking it from the chat line",
+                    echt, c.amount());
+            for (String id : c.ids()) losses.add(new Loss(id, c.amount(), now, false));
+            dispatch(nachtrag, "drop line");
         }
     }
 
@@ -1168,5 +1277,6 @@ public final class ItemChanges {
         losses.clear();
         held.clear();
         worn.clear();
+        confirmed.clear();
     }
 }

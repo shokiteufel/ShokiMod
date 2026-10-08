@@ -391,7 +391,21 @@ public final class RareLootHandler {
      * "Ghostly Boots" heisst GHOST_BOOTS - das steht nur in der Liste. Was die Liste
      * nicht kennt, etwa Buecher und Shards, liefert der Parser aus dem Namen.
      */
-    private static List<String> candidatesFor(Drop drop) {
+    /**
+     * Ist das eine Zeile aus einem Chat und damit nicht die eigene Meldung?
+     *
+     * Dieselbe Liste, die auch den Alarm schuetzt: Eine Zeile "Party > X: RARE DROP! ..."
+     * ist ein fremder Fund, und der gehoert nicht in den eigenen Kasten.
+     */
+    public static boolean isChatLine(String clean) {
+        if (clean == null) return false;
+        for (String prefix : SKIPPED_PREFIXES) {
+            if (clean.startsWith(prefix)) return true;
+        }
+        return false;
+    }
+
+    public static List<String> candidatesFor(Drop drop) {
         LinkedHashSet<String> out = new LinkedHashSet<>(ItemNames.idsFor(drop.displayName()));
         for (String candidate : drop.itemIdCandidates()) {
             // "Wither Spectre" ist im Basar SHARD_WITHER_SPECTER: die Produktliste weiss es
