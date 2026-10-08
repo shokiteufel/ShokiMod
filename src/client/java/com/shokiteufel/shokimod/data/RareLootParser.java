@@ -330,7 +330,17 @@ public final class RareLootParser {
      * alle Stufen als Kandidaten, die gewoehnliche zuerst.
      */
     private static Drop petDrop(String rarity, String petName) {
-        String name = cleanDropName(petName);
+        // Hinter dem Namen kann ein Anhang stehen - "(+250 Magic Find)" oder "(Lvl 1)" -, und
+        // vor ihm "[Lvl 1]". Beides gehoert nicht zur Kennung: sonst hiesse das Pet
+        // BABY_YETI_250_MAGIC_FIND und fande sich nirgends
+        String stripped = petName.trim();
+        String previous;
+        do {
+            previous = stripped;
+            stripped = stripped.replaceAll("\\s*[(\\[][^)\\]]*[)\\]]\\s*$", "").trim();
+        } while (!stripped.equals(previous));
+        stripped = stripped.replaceAll("^\\[Lvl\\s+\\d+\\]\\s*", "").trim();
+        String name = cleanDropName(stripped);
         if (name == null) return null;
         String key = trimUnderscores(NOT_ID_CHARS.matcher(name.toUpperCase(Locale.US)).replaceAll("_"));
         if (key.isEmpty()) return null;

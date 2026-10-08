@@ -1192,6 +1192,12 @@ public final class ItemChanges {
         String clean = plain.trim();
         if (com.shokiteufel.shokimod.handler.RareLootHandler.isChatLine(clean)) return;
         com.shokiteufel.shokimod.data.RareLootParser.Drop drop = com.shokiteufel.shokimod.data.RareLootParser.parse(clean);
+        // Pet-Zeilen immer festhalten: Ihre genaue Form ist die Unbekannte, und ohne diese
+        // Zeile im Log laesst sich nicht sagen, warum ein Pet fehlte
+        if (clean.toUpperCase(java.util.Locale.ROOT).contains("PET DROP")) {
+            ShokiMod.LOGGER.info("[Profit] pet drop line: \"{}\" -> {}", clean,
+                    drop == null ? "not understood" : drop.itemIdCandidates());
+        }
         if (drop == null || drop.amount() <= 0) return;
 
         List<String> ids = com.shokiteufel.shokimod.handler.RareLootHandler.candidatesFor(drop);
