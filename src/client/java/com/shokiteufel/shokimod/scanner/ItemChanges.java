@@ -196,6 +196,44 @@ public final class ItemChanges {
      */
     private static final int HOLD_TICKS = 3;
 
+    /**
+     * Ist das ein Ruestungs- oder Ausruestungsteil? Je Kennung einmal festgestellt.
+     *
+     * Nur solche Teile sind es, die ein Loadout-Wechsel ins Inventar legt - und nur sie
+     * duerfen in der Sekunde danach aus der Zaehlung fallen. Alles andere, ein Pet etwa,
+     * das in genau dieser Sekunde faellt, ist ein echter Fund.
+     */
+    private static final Map<String, Boolean> gearById = new HashMap<>();
+    private static final Pattern GEAR_LINE = Pattern.compile(
+            "(HELMET|CHESTPLATE|LEGGINGS|BOOTS|NECKLACE|CLOAK|BELT|GLOVES|GAUNTLET|BRACELET)");
+    /** Wann zuletzt ein Loadout angelegt wurde - und ob die Sekunde danach noch aussteht */
+    private static long lastSwapAt = 0L;
+    private static boolean swapPending = false;
+    /** So lange nach einem Wechsel gilt ein Zugang durch das Fenster noch als Teil davon */
+    private static final long SWAP_WINDOW_MILLIS = 8_000L;
+
+    private static boolean looksLikeGear(ItemStack stack) {
+        if (stack.get(net.minecraft.core.component.DataComponents.EQUIPPABLE) != null) return true;
+        net.minecraft.world.item.component.ItemLore lore = stack.get(net.minecraft.core.component.DataComponents.LORE);
+        if (lore == null || lore.lines().isEmpty()) return false;
+        // Die letzte Zeile nennt Seltenheit und Art: "MYTHIC HELMET", "LEGENDARY NECKLACE"
+        String last = lore.lines().get(lore.lines().size() - 1).getString().toUpperCase(Locale.ROOT);
+        return GEAR_LINE.matcher(last).find();
+    }
+
+    private static boolean isGear(String itemId) {
+        return Boolean.TRUE.equals(gearById.get(itemId)) || worn.containsKey(itemId);
+    }
+
+    /** Dieselben Zugaenge ohne Ruestung und Ausruestung */
+    private static Map<String, Integer> withoutGear(Map<String, Integer> gains) {
+        Map<String, Integer> out = new LinkedHashMap<>();
+        for (Map.Entry<String, Integer> entry : gains.entrySet()) {
+            if (!isGear(entry.getKey())) out.put(entry.getKey(), entry.getValue());
+        }
+        return out;
+    }
+
     /** Ein Zugang, der noch wartet - und der Tick, in dem er gesehen wurde */
     private record Held(Map<String, Integer> gains, int tick) {
     }
@@ -374,6 +412,13 @@ public final class ItemChanges {
                 // spurlos verschwinden. Genau hier waren die vier Buecher weg, und im
                 // Log stand nichts darueber
                 if (previousCounts != null) {
+                    if (swapPending) {
+                        Map<String, Integer> echt = withoutGear(onlyGains(previousCounts, current));
+                        if (!echt.isEmpty()) {
+                            ShokiMod.LOGGER.info("[Profit] arrived during the armour swap, counted: {}", echt);
+                            held.add(new Held(echt, tickCount));
+                        }
+                    }
                     if (debug()) {
                         Map<String, Integer> verschluckt = onlyGains(previousCounts, current);
                         if (!verschluckt.isEmpty()) {
@@ -387,6 +432,7 @@ public final class ItemChanges {
                         losses.add(new Loss(entry.getKey(), entry.getValue(), jetzt, false));
                     }
                 }
+                swapPending = false;
                 previousCounts = current;
                 previousSignature = signature(client);
             }
@@ -435,10 +481,18 @@ public final class ItemChanges {
     private static void noteWindow(Map<String, Integer> before, Map<String, Integer> after) {
         Map<String, Integer> gains = new LinkedHashMap<>();
         long now = System.currentTimeMillis();
+        boolean afterSwap = now - lastSwapAt < SWAP_WINDOW_MILLIS;
         for (Map.Entry<String, Integer> entry : after.entrySet()) {
             int delta = entry.getValue() - before.getOrDefault(entry.getKey(), 0);
             if (delta <= 0) continue;
 
+            // Gleich nach einem Loadout-Wechsel kommt durch das Fenster nur Ruestung herein -
+            // alles andere ist ein Fund, der in diese Sekunde fiel, und zaehlt
+            if (afterSwap && !isGear(entry.getKey())) {
+                ShokiMod.LOGGER.info("[Profit] arrived next to a loadout swap, counted: {}={}", entry.getKey(), delta);
+                held.add(new Held(new LinkedHashMap<>(Map.of(entry.getKey(), delta)), tickCount));
+                continue;
+            }
             gains.put(entry.getKey(), delta);
             // Vorgemerkt, nicht nur uebergangen: Gekauftes und Gecraftetes wandert von
             // selbst in die Saecke, und deren Sammelmeldung kaeme sonst als Fund zurueck.
@@ -571,6 +625,7 @@ public final class ItemChanges {
         String id = SkyBlockItems.idOf(stack);
         if (id == null || MENU_ID.equals(id)) return;
         counts.merge(id, stack.getCount(), Integer::sum);
+        if (!gearById.containsKey(id)) gearById.put(id, looksLikeGear(stack));
         // Nur beim ersten Mal: den Namen auseinanderzunehmen lohnt sich nicht in jedem Tick
         if (!colours.containsKey(id)) {
             int colour = SkyBlockItems.nameColour(stack);
@@ -741,9 +796,15 @@ public final class ItemChanges {
         if (EQUIPPED.matcher(plain.trim()).matches()) {
             settleTicks = SETTLE_TICKS;
             settleAfterWindow = false;
-            previousCounts = null;
-            held.clear();
-            ShokiMod.LOGGER.info("[Profit] armour swapped - the next second does not count");
+            // Der Vergleichsstand bleibt: In der Sekunde danach fallen nur die Ruestungsteile
+            // aus der Zaehlung, alles andere zaehlt am Ende der Wartezeit ganz normal
+            swapPending = true;
+            lastSwapAt = System.currentTimeMillis();
+            for (int i = 0; i < held.size(); i++) {
+                held.set(i, new Held(withoutGear(held.get(i).gains()), held.get(i).tick()));
+            }
+            held.removeIf(h -> h.gains().isEmpty());
+            ShokiMod.LOGGER.info("[Profit] armour swapped - armour and equipment of the next second do not count");
             return;
         }
 
