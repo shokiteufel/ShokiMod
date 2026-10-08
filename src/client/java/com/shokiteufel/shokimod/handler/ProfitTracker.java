@@ -1034,6 +1034,8 @@ public final class ProfitTracker {
         return stufen;
     }
 
+    private static final java.util.Set<String> tierLogged = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
     public static List<String> upgradeTiers(String itemId) {
         if (itemId == null) return List.of();
         List<String> gemerkt = tierCache.get(itemId);
@@ -1103,6 +1105,11 @@ public final class ProfitTracker {
         // die halbe Antwort - und die blieb dann stehen, obwohl die zweite Stufe kurz
         // darauf ankam
         if (fertig.size() == 2) tierCache.put(itemId, fertig);
+        // Einmal je Ware ins Log, was gefunden wurde: fehlt eine Stufe, steht hier warum
+        if (tierLogged.add(itemId + "|" + fertig.size())) {
+            ShokiMod.LOGGER.info("[Profit] crafted-up forms of {}: {} (from {} candidates)",
+                    itemId, fertig, kandidaten.size());
+        }
         return fertig;
     }
 
