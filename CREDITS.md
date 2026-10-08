@@ -228,6 +228,10 @@ drinsteckt.
   Golden Dragon auf 100 ist nicht fertig, sondern halb fertig, und „is maxed" wäre dort
   falsch. Die beiden Preise kommen aus der eigenen Auktions-Auswertung statt aus zwei
   Einzelabfragen.
+- **Feesh** (Apache-2.0, `Sleepy-Panda/Feesh`) — die Form der Pet-Beutezeile
+  (`events/publishers/RareDropsPublisher.kt`): "PET DROP!", davor optional die Seltenheit als
+  Wort. Abgelesen als Zeilenformat, die Umsetzung (Kennung `NAME;Stufe`, Rettung aus dem Chat)
+  ist eigen.
 - **Feesh** (Apache-2.0, `Sleepy-Panda/Feesh`) — der Alarm bei seltenen Meeresbewohnern
   (`features/alerts/RareCatchAlert.kt` und `constants/SeaCreatures.kt`). Hier ist zum
   ersten Mal nicht nur die Idee übernommen, sondern **Daten**: die Tabelle der neunzig

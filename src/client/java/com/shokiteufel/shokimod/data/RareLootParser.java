@@ -29,6 +29,19 @@ public final class RareLootParser {
     private static final Pattern DUG_OUT = Pattern.compile(
             "^(?:(?:(?:VERY|CRAZY)\\s+)?RARE DROP!\\s+|Wow!\\s+)?You dug out(?: an? )?(?<drop>.+?)!(?: .*)?$",
             Pattern.CASE_INSENSITIVE);
+    /**
+     * Ein Pet als Beute: "PET DROP! COMMON Baby Yeti".
+     *
+     * Pets fallen nicht als "RARE DROP!", sondern unter eigener Ueberschrift, und die
+     * Seltenheit steht als Wort vor dem Namen. Die Form liest auch Feesh (Apache-2.0,
+     * Sleepy-Panda) in seinem RareDropsPublisher; hier ist sie eigen umgesetzt. Die
+     * Seltenheit ist dort wie hier freiwillig - fehlt sie, bleibt sie offen.
+     */
+    private static final Pattern PET_DROP = Pattern.compile(
+            "^PET DROP!\\s+(?:(?<rarity>LEGENDARY|MYTHIC|EPIC|RARE|UNCOMMON|COMMON)\\s+)?(?<pet>.+?)\\s*$",
+            Pattern.CASE_INSENSITIVE);
+    private static final List<String> PET_TIERS = List.of(
+            "COMMON", "UNCOMMON", "RARE", "EPIC", "LEGENDARY", "MYTHIC");
     private static final Pattern DIRECT = Pattern.compile(
             "^(?:(?:VERY|CRAZY)\\s+)?RARE DROP!\\s+(?<drop>.+)$",
             Pattern.CASE_INSENSITIVE);
@@ -291,6 +304,9 @@ public final class RareLootParser {
             return name == null ? null : build(name, null);
         }
 
+        Matcher pet = PET_DROP.matcher(clean);
+        if (pet.matches()) return petDrop(pet.group("rarity"), pet.group("pet"));
+
         Matcher direct = DIRECT.matcher(clean);
         if (!direct.matches()) return null;
 
@@ -304,6 +320,29 @@ public final class RareLootParser {
 
         String name = cleanDropName(body);
         return name == null ? null : build(name, context);
+    }
+
+    /**
+     * "Baby Yeti" und "COMMON" werden zu BABY_YETI;0.
+     *
+     * So heisst das Pet im Inventar (SkyBlockItems.petId) und in den Preislisten - die
+     * Stufe hinter dem Semikolon ist die Seltenheit. Ohne Seltenheit in der Zeile kommen
+     * alle Stufen als Kandidaten, die gewoehnliche zuerst.
+     */
+    private static Drop petDrop(String rarity, String petName) {
+        String name = cleanDropName(petName);
+        if (name == null) return null;
+        String key = trimUnderscores(NOT_ID_CHARS.matcher(name.toUpperCase(Locale.US)).replaceAll("_"));
+        if (key.isEmpty()) return null;
+
+        List<String> candidates = new ArrayList<>(PET_TIERS.size());
+        int tier = rarity == null ? -1 : PET_TIERS.indexOf(rarity.toUpperCase(Locale.US));
+        if (tier >= 0) {
+            candidates.add(key + ";" + tier);
+        } else {
+            for (int i = 0; i < PET_TIERS.size(); i++) candidates.add(key + ";" + i);
+        }
+        return new Drop(titleCase(name), 1, null, candidates);
     }
 
     private static Drop build(String name, String context) {
