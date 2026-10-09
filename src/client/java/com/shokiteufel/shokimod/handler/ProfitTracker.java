@@ -697,7 +697,7 @@ public final class ProfitTracker {
         for (int runde = 0; runde < 5; runde++) {
             boolean etwasGetan = false;
             for (String itemId : new ArrayList<>(mengen.keySet())) {
-                String ziel = countAsOf(itemId);
+                String ziel = effectiveTarget(itemId);
                 if (ziel == null) continue;
 
                 // Stufe fuer Stufe bis zum eingestellten Ziel, nicht in einem Sprung:
@@ -717,6 +717,47 @@ public final class ProfitTracker {
             }
             if (!etwasGetan) return;
         }
+    }
+
+    private record Inherited(String target, long at) {
+    }
+
+    private static final Map<String, Inherited> inheritedMemo = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final long INHERIT_MEMO_MILLIS = 3_000L;
+
+    /**
+     * Das Ziel, das eine Ware von einer Stufe ueber sich erbt.
+     *
+     * Wer Enchanted Sunflower auf Compacted stellt, meint die ganze Familie: Auch die
+     * Sunflower darunter soll in Compacted aufgehen - sonst blieben 159 von 160 lose
+     * Sunflowers im Kasten stehen, die ohne den Zwischenschritt nie dorthin kaemen. Die
+     * eigene Einstellung einer Ware geht immer vor; vererbt wird nur, wo keine steht.
+     *
+     * Kurz gemerkt, weil das Bild das mehrmals je Sekunde fragt und die Stufenliste
+     * nicht billig ist.
+     */
+    public static String inheritedTarget(String itemId) {
+        if (itemId == null || cfg().countAs.isEmpty() || countAsOf(itemId) != null) return null;
+        long now = System.currentTimeMillis();
+        Inherited memo = inheritedMemo.get(itemId);
+        if (memo != null && now - memo.at() < INHERIT_MEMO_MILLIS) return memo.target();
+
+        String found = null;
+        for (String stufe : upgradeTiers(itemId)) {
+            String ziel = countAsOf(stufe);
+            if (ziel != null) {
+                found = ziel;
+                break;
+            }
+        }
+        inheritedMemo.put(itemId, new Inherited(found, now));
+        return found;
+    }
+
+    /** Das eigene Ziel einer Ware, sonst das geerbte */
+    public static String effectiveTarget(String itemId) {
+        String own = countAsOf(itemId);
+        return own != null ? own : inheritedTarget(itemId);
     }
 
     /**
@@ -739,6 +780,7 @@ public final class ProfitTracker {
         if (itemId == null) return -1;
         if (targetId == null || targetId.isBlank() || targetId.equals(itemId)) {
             cfg().countAs.remove(itemId);
+            inheritedMemo.clear();
             ModConfig.INSTANCE.saveNow();
             return 1;
         }
@@ -747,6 +789,7 @@ public final class ProfitTracker {
         if (teiler <= 0) return -1;
 
         cfg().countAs.put(itemId, targetId);
+        inheritedMemo.clear();
         ModConfig.INSTANCE.saveNow();
         ShokiMod.LOGGER.info("[Profit] {} counts as {} ({} to one)", itemId, targetId, teiler);
         return teiler;
@@ -984,7 +1027,25 @@ public final class ProfitTracker {
             Map.entry("POTATO_ITEM", List.of("ENCHANTED_BAKED_POTATO")),
             Map.entry("NETHER_STALK", List.of("MUTANT_NETHER_STALK")),
             Map.entry("RED_MUSHROOM", List.of("ENCHANTED_RED_MUSHROOM", "ENCHANTED_HUGE_MUSHROOM_2")),
-            Map.entry("BROWN_MUSHROOM", List.of("ENCHANTED_BROWN_MUSHROOM", "ENCHANTED_HUGE_MUSHROOM_1")));
+            Map.entry("BROWN_MUSHROOM", List.of("ENCHANTED_BROWN_MUSHROOM", "ENCHANTED_HUGE_MUSHROOM_1")),
+            // Die ersten Stufen, die nicht "Enchanted " + Name heissen: Zuckerrohr wird zu
+            // Enchanted Sugar, der Kaktus zu Enchanted Cactus Green, Kakao zu Enchanted Cocoa
+            Map.entry("SUGAR_CANE", List.of("ENCHANTED_SUGAR", "ENCHANTED_SUGAR_CANE")),
+            Map.entry("CACTUS", List.of("ENCHANTED_CACTUS_GREEN", "ENCHANTED_CACTUS")),
+            Map.entry("INK_SACK:3", List.of("ENCHANTED_COCOA", "ENCHANTED_COOKIE")),
+            Map.entry("CARROT_ITEM", List.of("ENCHANTED_GOLDEN_CARROT")),
+            // Und die Stufen darueber, damit auch eine verzauberte Ware weiter hoch kann -
+            // wer nur Enchanted Carrots im Kasten hat, soll sie als Golden zaehlen lassen koennen
+            Map.entry("ENCHANTED_CARROT", List.of("ENCHANTED_GOLDEN_CARROT")),
+            Map.entry("ENCHANTED_PUMPKIN", List.of("POLISHED_PUMPKIN")),
+            Map.entry("ENCHANTED_POTATO", List.of("ENCHANTED_BAKED_POTATO")),
+            Map.entry("ENCHANTED_MELON", List.of("ENCHANTED_MELON_BLOCK")),
+            Map.entry("ENCHANTED_SUGAR", List.of("ENCHANTED_SUGAR_CANE")),
+            Map.entry("ENCHANTED_CACTUS_GREEN", List.of("ENCHANTED_CACTUS")),
+            Map.entry("ENCHANTED_COCOA", List.of("ENCHANTED_COOKIE")),
+            Map.entry("ENCHANTED_NETHER_STALK", List.of("MUTANT_NETHER_STALK")),
+            Map.entry("ENCHANTED_RED_MUSHROOM", List.of("ENCHANTED_HUGE_MUSHROOM_2")),
+            Map.entry("ENCHANTED_BROWN_MUSHROOM", List.of("ENCHANTED_HUGE_MUSHROOM_1")));
 
     /**
      * Was nach einer Ware benannt ist, aber nie ihre naechste Stufe.
@@ -1072,6 +1133,15 @@ public final class ProfitTracker {
         kandidaten.add("COMPACTED_" + itemId);
         // Fermento wird zu Condensed Fermento: dieselbe Idee mit anderem Vorsatz
         kandidaten.add("CONDENSED_" + itemId);
+        // Eine verzauberte Ware sucht ihre naechste Stufe unter dem Namen der Familie:
+        // ENCHANTED_SUNFLOWER -> COMPACTED_SUNFLOWER. Sonst gaebe es fuer sie keinen Knopf,
+        // obwohl die Stufe darueber existiert
+        if (itemId.startsWith("ENCHANTED_") && itemId.length() > "ENCHANTED_".length()) {
+            String familie = itemId.substring("ENCHANTED_".length());
+            kandidaten.add("COMPACTED_" + familie);
+            kandidaten.add("CONDENSED_" + familie);
+            kandidaten.add("ENCHANTED_" + familie + "_BLOCK");
+        }
         // Was sich nicht aus dem Namen ableiten laesst: Hypixel nennt manche Stufen anders
         // als die davor - Polished Pumpkin, Enchanted Baked Potato, Mutant Nether Wart,
         // dazu die Pilz-Bloecke unter ihrer Huge-Mushroom-Kennung. Die Liste sagt nur, wohin

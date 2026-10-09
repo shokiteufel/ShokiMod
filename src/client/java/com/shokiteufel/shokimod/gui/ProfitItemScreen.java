@@ -230,6 +230,15 @@ public class ProfitItemScreen extends Screen {
         String ziel = ProfitTracker.countAsOf(itemId);
         List<String> stufen = ProfitTracker.upgradeTiers(itemId);
         if (ziel == null) {
+            // Keine eigene Einstellung, aber eine Stufe darueber zieht diese Ware mit hoch
+            String geerbt = ProfitTracker.inheritedTarget(itemId);
+            if (geerbt != null && stufen.indexOf(geerbt) >= 0) {
+                return Component.literal("(x" + (stufen.indexOf(geerbt) + 1) + ")")
+                        .withStyle(ChatFormatting.DARK_AQUA);
+            }
+            if (geerbt != null) {
+                return Component.literal("(up)").withStyle(ChatFormatting.DARK_AQUA);
+            }
             return Component.literal(stufen.isEmpty() ? "-" : "as is")
                     .withStyle(ChatFormatting.DARK_GRAY);
         }
@@ -251,6 +260,11 @@ public class ProfitItemScreen extends Screen {
             long teiler = com.shokiteufel.shokimod.util.CollectionData.ratio(itemId, stufen.get(i));
             text.append("\nx").append(i + 1).append(" = ").append(ProfitTracker.nameOf(stufen.get(i)));
             if (teiler > 0) text.append(" (").append(teiler).append(" to one)");
+        }
+        String geerbt = ProfitTracker.inheritedTarget(itemId);
+        if (geerbt != null) {
+            text.append("\nNo own setting: it follows a higher form and counts up to ")
+                    .append(ProfitTracker.nameOf(geerbt)).append(" with it.");
         }
         text.append("\nWhole pieces only - the rest stays as it is.");
         return net.minecraft.client.gui.components.Tooltip.create(Component.literal(text.toString()));
