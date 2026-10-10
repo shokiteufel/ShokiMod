@@ -30,7 +30,6 @@ import io.github.notenoughupdates.moulconfig.common.text.StructuredText;
 import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.api.ModContainer;
 import net.minecraft.client.Minecraft;
-import org.lwjgl.glfw.GLFW;
 
 import java.io.File;
 import java.io.FileReader;

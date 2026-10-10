@@ -701,7 +701,7 @@ public final class RareLootHandler {
         if (client.player != null) {
             client.player.sendSystemMessage(Component.literal("§6[ShokiMod] §eDiagnostics written to §f" + file));
         }
-        Util.getPlatform().openPath(logs);
+        com.mojang.blaze3d.Blaze3D.openPath(logs);
     }
 
     private static String buildReport(Path logs) {

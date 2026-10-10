@@ -230,7 +230,7 @@ public final class HotspotTracker {
         for (Hotspot hotspot : hotspots.values()) {
             Vec3 surface = hotspot.surface;
             if (surface == null) continue;
-            double dx = packet.getX() - surface.x, dz = packet.getZ() - surface.z;
+            double dx = packet.x() - surface.x, dz = packet.z() - surface.z;
             double sq = dx * dx + dz * dz;
             if (sq <= nearestSq) {
                 nearest = hotspot;
@@ -249,14 +249,14 @@ public final class HotspotTracker {
         String map = GameState.Server.map;
         boolean crimson = map != null && map.contains("Crimson");
         if (crimson) {
-            return packet.getParticle().getType() == ParticleTypes.SMOKE
-                    && (packet.getCount() == 5 || packet.getCount() == 2);
+            return packet.particle().getType() == ParticleTypes.SMOKE
+                    && (packet.count() == 5 || packet.count() == 2);
         }
-        return packet.getParticle() instanceof DustParticleOptions dust
+        return packet.particle() instanceof DustParticleOptions dust
                 && dust.getColor().equals(PARTICLE_COLOUR)
-                && packet.getCount() == 0
-                && packet.getXDist() == 1.0F
-                && packet.getMaxSpeed() == 1.0F;
+                && packet.count() == 0
+                && packet.xDist() == 1.0F
+                && packet.xMaxSpeed() == 1.0F;
     }
 
     private static long key(Vec3 pos) {

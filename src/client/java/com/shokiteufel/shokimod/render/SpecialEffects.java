@@ -65,7 +65,7 @@ public final class SpecialEffects {
         client.execute(() -> {
             if (client.player == null || client.level == null) return;
             if (flug && client.gameRenderer != null) {
-                client.gameRenderer.displayItemActivation(icon.copy());
+                client.player.displayItemActivation(icon.copy());
             }
             ParticleOptions art = particleFor(funken);
             if (art != null && client.particleEngine != null) {

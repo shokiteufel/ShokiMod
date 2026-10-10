@@ -72,10 +72,8 @@ public final class NearbyOverlay {
 
     /** Haelt der Spieler gerade eine Umschalttaste? */
     private static boolean shiftDown() {
-        com.mojang.blaze3d.platform.Window window = Minecraft.getInstance().getWindow();
-        if (window == null) return false;
-        return com.mojang.blaze3d.platform.InputConstants.isKeyDown(window, org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_SHIFT)
-                || com.mojang.blaze3d.platform.InputConstants.isKeyDown(window, org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT_SHIFT);
+        return com.mojang.blaze3d.platform.InputConstants.isKeyDown(com.mojang.blaze3d.platform.InputConstants.KEY_LSHIFT)
+                || com.mojang.blaze3d.platform.InputConstants.isKeyDown(com.mojang.blaze3d.platform.InputConstants.KEY_RSHIFT);
     }
 
     /**

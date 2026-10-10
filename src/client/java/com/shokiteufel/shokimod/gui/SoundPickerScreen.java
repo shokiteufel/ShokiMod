@@ -84,7 +84,7 @@ public class SoundPickerScreen extends Screen {
         }).bounds(left, y, 90, 20).build());
 
         addRenderableWidget(Button.builder(Component.literal("Open folder"), button ->
-                net.minecraft.util.Util.getPlatform().openPath(CustomSoundPlayer.SOUND_DIRECTORY)
+                com.mojang.blaze3d.Blaze3D.openPath(CustomSoundPlayer.SOUND_DIRECTORY)
         ).bounds(left + 94, y, 100, 20).build());
 
         addRenderableWidget(Button.builder(Component.literal("Rescan"), button -> rebuild())
