@@ -1056,6 +1056,17 @@ public class ModConfig extends Config {
         @Expose
         public Map<String, MineshaftRule> shaftRules = new HashMap<>();
 
+        /**
+         * Adern, die nicht angeschrieben werden sollen - je Bauplan und Ausfuehrung ("AMET_C"),
+         * jede als Kasten "minX,minY,minZ,maxX,maxY,maxZ".
+         *
+         * Gedacht fuer den Kristall in den Schaechten mit Kristall-Ausfuehrung: Er besteht aus
+         * denselben Bloecken wie eine Ader, laesst sich aber nicht abbauen. Eine Ader, deren
+         * Ankerpunkt in einem dieser Kaesten liegt, wird uebersprungen.
+         */
+        @Expose
+        public Map<String, java.util.List<String>> ignoredVeins = new HashMap<>();
+
         @ConfigOption(name = "Panel and party", desc = "What goes into the mining panel and into the party chat.")
         @ConfigEditorAccordion(id = 42)
         public transient boolean panelFolder = false;
