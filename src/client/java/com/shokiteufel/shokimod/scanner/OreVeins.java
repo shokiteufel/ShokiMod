@@ -100,6 +100,101 @@ public final class OreVeins {
         return veins;
     }
 
+    // ---- Ignorierte Adern (der Kristall) ----
+
+    private static String layoutKey() {
+        return MineshaftState.type() + "_" + MineshaftState.variant();
+    }
+
+    /** Was in den Kaesten der ignorierten Adern liegt, fliegt heraus */
+    private static List<Vein> withoutIgnored(List<Vein> found, ModConfig.MineshaftCategory cfg) {
+        if (found.isEmpty() || !MineshaftState.inMineshaft()) return found;
+        List<String> ignored = cfg.ignoredVeins.get(layoutKey());
+        if (ignored == null || ignored.isEmpty()) return found;
+
+        List<int[]> boxes = new ArrayList<>(ignored.size());
+        for (String text : ignored) {
+            String[] part = text.split(",");
+            if (part.length != 6) continue;
+            try {
+                int[] box = new int[6];
+                for (int i = 0; i < 6; i++) box[i] = Integer.parseInt(part[i].trim());
+                boxes.add(box);
+            } catch (NumberFormatException e) {
+                // ein kaputter Eintrag stoert die anderen nicht
+            }
+        }
+        if (boxes.isEmpty()) return found;
+
+        List<Vein> out = new ArrayList<>(found.size());
+        for (Vein vein : found) {
+            if (!insideAny(vein.anchor(), boxes)) out.add(vein);
+        }
+        return out;
+    }
+
+    /** Liegt der Punkt in einem der Kaesten - mit einem Block Luft rundherum? */
+    private static boolean insideAny(BlockPos p, List<int[]> boxes) {
+        for (int[] b : boxes) {
+            if (p.getX() >= b[0] - 1 && p.getX() <= b[3] + 1
+                    && p.getY() >= b[1] - 1 && p.getY() <= b[4] + 1
+                    && p.getZ() >= b[2] - 1 && p.getZ() <= b[5] + 1) return true;
+        }
+        return false;
+    }
+
+    /**
+     * Die naechste angezeigte Ader auf die Liste setzen.
+     *
+     * @return was dem Spieler gesagt werden soll
+     */
+    public static String ignoreNearest() {
+        if (!MineshaftState.inMineshaft()) return "You are not in a mineshaft.";
+        if (veins.isEmpty()) return "No vein is marked right now.";
+
+        Vein vein = veins.get(0);
+        AABB box = vein.box();
+        String text = (int) Math.floor(box.minX) + "," + (int) Math.floor(box.minY) + "," + (int) Math.floor(box.minZ)
+                + "," + (int) Math.floor(box.maxX) + "," + (int) Math.floor(box.maxY) + "," + (int) Math.floor(box.maxZ);
+        ModConfig.INSTANCE.mining.mineshaft.ignoredVeins
+                .computeIfAbsent(layoutKey(), k -> new ArrayList<>()).add(text);
+        ModConfig.INSTANCE.saveNow();
+        veins = withoutIgnored(veins, ModConfig.INSTANCE.mining.mineshaft);
+        return "Ignoring the " + vein.kind() + " vein (" + vein.size() + " blocks) at "
+                + vein.anchor().getX() + " " + vein.anchor().getY() + " " + vein.anchor().getZ()
+                + " in " + MineshaftState.readable(MineshaftState.type()) + " " + MineshaftState.variant()
+                + " from now on.";
+    }
+
+    /** Alle ignorierten Adern dieses Bauplans wieder zulassen */
+    public static String clearIgnored() {
+        if (!MineshaftState.inMineshaft()) return "You are not in a mineshaft.";
+        List<String> removed = ModConfig.INSTANCE.mining.mineshaft.ignoredVeins.remove(layoutKey());
+        ModConfig.INSTANCE.saveNow();
+        return removed == null || removed.isEmpty()
+                ? "Nothing was ignored in this layout."
+                : "Showing " + removed.size() + " ignored vein(s) of this layout again.";
+    }
+
+    /**
+     * Die Groessen der gefundenen Adern, einmal je Schacht ins Log.
+     *
+     * Ein Kristall ist ein grosser, frei stehender Haufen aus denselben Bloecken. Welche
+     * Groesse ihn von einer echten Ader trennt, steht nirgends - die Zahlen hier sollen es
+     * zeigen, bevor ueber eine Grenze entschieden wird.
+     */
+    private static void logSizes() {
+        if (veins.isEmpty() || !MineshaftState.inMineshaft()) return;
+        String key = layoutKey() + "|" + com.shokiteufel.shokimod.data.GameState.Server.id;
+        if (key.equals(loggedFor)) return;
+        loggedFor = key;
+        StringBuilder sizes = new StringBuilder();
+        for (Vein v : veins) sizes.append(v.kind()).append(':').append(v.size()).append(' ');
+        com.shokiteufel.shokimod.ShokiMod.LOGGER.info("[Veins] {} vein sizes: {}", layoutKey(), sizes.toString().trim());
+    }
+
+    private static String loggedFor = "";
+
     /**
      * Die Ader, zu der gefuehrt wird: die naechste, an der man noch nicht war.
      *
@@ -162,7 +257,8 @@ public final class OreVeins {
         if (++ticks < SCAN_INTERVAL_TICKS) return;
         ticks = 0;
 
-        veins = scan(client, cfg);
+        veins = withoutIgnored(scan(client, cfg), cfg);
+        logSizes();
         noteReached(client);
     }
 

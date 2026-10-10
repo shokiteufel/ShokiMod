@@ -59,6 +59,15 @@ public class ShokiMod implements ClientModInitializer {
     private static boolean openDayProfitNextTick = false;
     /** Statt der Jahresliste gleich die Waren dieses Jahres - 0 heisst: wie bisher */
     private static int openYearNextTick = 0;
+
+    /** Eine Antwort des Befehls /shoki ignorevein in den Chat */
+    private static void sayVein(String text) {
+        Minecraft client = Minecraft.getInstance();
+        if (client == null || client.player == null) return;
+        client.player.sendSystemMessage(Component.literal("[ShokiMod] ")
+                .withStyle(net.minecraft.ChatFormatting.DARK_AQUA)
+                .append(Component.literal(text).withStyle(net.minecraft.ChatFormatting.GRAY)));
+    }
     private static boolean openPetBuilderNextTick = false;
 
 
@@ -293,6 +302,17 @@ public class ShokiMod implements ClientModInitializer {
                                         }))
                                 .executes(context -> {
                                     openDayProfitNextTick = true;
+                                    return 1;
+                                }))
+                        // /shoki ignorevein -> die naechste angezeigte Ader (der Kristall im
+                        // Schacht) kuenftig nicht mehr anschreiben; "clear" nimmt es zurueck
+                        .then(ClientCommands.literal("ignorevein")
+                                .then(ClientCommands.literal("clear").executes(context -> {
+                                    sayVein(com.shokiteufel.shokimod.scanner.OreVeins.clearIgnored());
+                                    return 1;
+                                }))
+                                .executes(context -> {
+                                    sayVein(com.shokiteufel.shokimod.scanner.OreVeins.ignoreNearest());
                                     return 1;
                                 }))
                         // /shoki confirm -> die Rueckfrage aus dem Chat beantworten.
