@@ -11,6 +11,7 @@
 		"GizmoTextFogMixin",
 		"NearbyOverlayMixin",
 		"NearbyClickMixin",
+		"DungeonChestClickMixin",
 		"FloorDropParticleMixin",
 		"HotspotParticleMixin",
 		"ServerTimeMixin",

@@ -684,6 +684,16 @@ public final class ItemChanges {
     }
 
     /** Zugaenge zwischen zwei Staenden, verrechnet mit den Abgaengen der letzten Sekunden */
+    /**
+     * Etwas wurde schon gebucht, ohne dass das Inventar es gesehen hat - zum Beispiel die
+     * Beute einer Belohnungstruhe. Kommt es danach noch im Inventar an, soll es nicht ein
+     * zweites Mal zaehlen: Es wird als Abgang vorgemerkt, gegen den der Zugang aufgerechnet wird.
+     */
+    public static void noteBooked(String itemId, int amount) {
+        if (itemId == null || amount <= 0) return;
+        losses.add(new Loss(itemId, amount, System.currentTimeMillis(), false));
+    }
+
     /** Welche Leichen-Schluessel zwischen zwei Staenden aus dem Inventar verschwunden sind - im Schacht */
     private static void noteKeysSpent(Map<String, Integer> before, Map<String, Integer> after) {
         if (!com.shokiteufel.shokimod.scanner.MineshaftState.inMineshaft()) return;
