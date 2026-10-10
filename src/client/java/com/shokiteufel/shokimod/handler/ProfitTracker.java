@@ -261,6 +261,34 @@ public final class ProfitTracker {
         return itemId != null && itemId.endsWith("_BAIT");
     }
 
+    /**
+     * Darf diese Ware unter null stehen?
+     *
+     * Koeder und Leichen-Schluessel: beides ist Geld, das ausgegeben wurde. Der Kasten zeigt
+     * dann das Minus, statt es zu verschweigen.
+     */
+    public static boolean mayBeNegative(String itemId) {
+        return isBait(itemId) || com.shokiteufel.shokimod.scanner.CorpseKeys.isKey(itemId);
+    }
+
+    /**
+     * Ein verbrauchter Leichen-Schluessel: als Ausgabe in den Kasten.
+     *
+     * Gezaehlt wird, was beim Oeffnen einer Leiche aus dem Inventar verschwindet. Der
+     * Schluessel steht danach mit negativer Menge da und kostet seinen Preis - wie bei
+     * SkyHanni, wo jede gepluenderte Leiche den Schluessel ihrer Sorte abzieht.
+     */
+    /** Rechnet der Tracker die Schluessel als Kosten? */
+    public static boolean keysCounted() {
+        return cfg().countCorpseKeys;
+    }
+
+    public static void keySpent(String keyId, int amount) {
+        if (!enabled() || !cfg().countCorpseKeys || amount <= 0) return;
+        adjust(keyId, -amount);
+        ShokiMod.LOGGER.info("[Profit] corpse key used: {} -{}", keyId, amount);
+    }
+
     public static void adjust(String itemId, int delta) {
         if (itemId == null || delta == 0) return;
 
@@ -275,7 +303,7 @@ public final class ProfitTracker {
             // Ein Koeder darf unter null: Er ist Geld, das ausgegeben wurde, und der
             // Kasten zeigt dann das Minus, statt es zu verschweigen. Alles andere gibt
             // es nicht in negativer Menge - da waere es ein Zaehlfehler
-            if (neu > 0 || (neu < 0 && isBait(itemId))) zaehler.put(itemId, neu);
+            if (neu > 0 || (neu < 0 && mayBeNegative(itemId))) zaehler.put(itemId, neu);
             else zaehler.remove(itemId);
         }
         ModConfig.INSTANCE.saveNow();
@@ -662,7 +690,7 @@ public final class ProfitTracker {
         for (Map.Entry<String, Integer> entry : activeCounts().entrySet()) {
             String itemId = entry.getKey();
             int count = entry.getValue() == null ? 0 : entry.getValue();
-            if (itemId != null && (count > 0 || (count < 0 && isBait(itemId)))) {
+            if (itemId != null && (count > 0 || (count < 0 && mayBeNegative(itemId)))) {
                 mengen.merge(itemId, (long) count, Long::sum);
             }
         }
@@ -672,7 +700,7 @@ public final class ProfitTracker {
         for (Map.Entry<String, Long> entry : mengen.entrySet()) {
             String itemId = entry.getKey();
             long count = entry.getValue();
-            if (count == 0 || (count < 0 && !isBait(itemId)) || !shown(itemId)) continue;
+            if (count == 0 || (count < 0 && !mayBeNegative(itemId)) || !shown(itemId)) continue;
 
             double unit = unitPrice(itemId);
             out.add(new Row(itemId, nameOf(itemId), count, unit > 0 ? unit * count : 0,

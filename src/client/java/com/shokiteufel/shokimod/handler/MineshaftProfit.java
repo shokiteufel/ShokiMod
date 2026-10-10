@@ -30,6 +30,8 @@ public final class MineshaftProfit {
 
     /** Was seit dem Betreten hereingekommen ist */
     private static final Map<String, Integer> gains = new LinkedHashMap<>();
+    /** Die Schluessel, die in diesem Schacht verbraucht wurden */
+    private static final Map<String, Integer> keys = new LinkedHashMap<>();
     /** Der Schacht, in dem gezaehlt wird - leer heisst: gerade keiner */
     private static String shaft = "";
 
@@ -48,6 +50,13 @@ public final class MineshaftProfit {
         leave();
         shaft = name;
         gains.clear();
+        keys.clear();
+    }
+
+    /** Ein Schluessel wurde an einer Leiche verbraucht: zieht von der Bilanz des Schachts ab */
+    public static void keySpent(String keyId, int amount) {
+        if (shaft.isEmpty() || amount <= 0) return;
+        keys.merge(keyId, amount, Integer::sum);
     }
 
     /**
@@ -61,11 +70,15 @@ public final class MineshaftProfit {
 
         String gewesen = shaft;
         shaft = "";
-        if (gains.isEmpty()) return;
+        if (gains.isEmpty()) {
+            keys.clear();
+            return;
+        }
 
         double coins = worth();
         Map<String, Integer> beute = Map.copyOf(gains);
         gains.clear();
+        keys.clear();
         ShokiMod.LOGGER.info("[Mineshaft] {} brought {} at sell order: {}",
                 gewesen, ItemValue.format(coins), beute);
         if (coins <= 0) return;
@@ -85,6 +98,13 @@ public final class MineshaftProfit {
         for (Map.Entry<String, Integer> entry : gains.entrySet()) {
             double unit = ItemValue.trackedUnitPrice(entry.getKey(), SellMode.SELL_ORDER);
             if (unit > 0) sum += unit * entry.getValue();
+        }
+        // Und was die Schluessel gekostet haben, wenn der Tracker sie mitrechnet
+        if (com.shokiteufel.shokimod.handler.ProfitTracker.keysCounted()) {
+            for (Map.Entry<String, Integer> entry : keys.entrySet()) {
+                double unit = ItemValue.trackedUnitPrice(entry.getKey(), SellMode.SELL_ORDER);
+                if (unit > 0) sum -= unit * entry.getValue();
+            }
         }
         return sum;
     }

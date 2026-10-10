@@ -461,6 +461,9 @@ public final class ItemChanges {
         }
 
         refreshFloorLosses(client, System.currentTimeMillis());
+        // Ein Schluessel, der beim Oeffnen einer Leiche verschwindet, ist eine Ausgabe -
+        // nur ohne Fenster: In einer Truhe oder Ender-Kiste liegt er bloss woanders
+        if (!windowOpen) noteKeysSpent(previousCounts, current);
         Map<String, Integer> gains = diff(previousCounts, current);
         previousCounts = current;
         // Beute bei offenem Fenster: der Vergleichspunkt des Fensters wandert mit.
@@ -681,6 +684,18 @@ public final class ItemChanges {
     }
 
     /** Zugaenge zwischen zwei Staenden, verrechnet mit den Abgaengen der letzten Sekunden */
+    /** Welche Leichen-Schluessel zwischen zwei Staenden aus dem Inventar verschwunden sind - im Schacht */
+    private static void noteKeysSpent(Map<String, Integer> before, Map<String, Integer> after) {
+        if (!com.shokiteufel.shokimod.scanner.MineshaftState.inMineshaft()) return;
+        for (Map.Entry<String, Integer> entry : before.entrySet()) {
+            if (!com.shokiteufel.shokimod.scanner.CorpseKeys.isKey(entry.getKey())) continue;
+            int used = entry.getValue() - after.getOrDefault(entry.getKey(), 0);
+            if (used <= 0) continue;
+            com.shokiteufel.shokimod.handler.ProfitTracker.keySpent(entry.getKey(), used);
+            com.shokiteufel.shokimod.handler.MineshaftProfit.keySpent(entry.getKey(), used);
+        }
+    }
+
     private static Map<String, Integer> diff(Map<String, Integer> before, Map<String, Integer> after) {
         long now = System.currentTimeMillis();
         expireLosses(now);

@@ -2020,6 +2020,11 @@ public class ModConfig extends Config {
         public static final int MAX_HISTORY = 30;
 
         @Expose
+        @ConfigOption(name = "Count corpse keys as cost",
+                desc = "A Tungsten, Umber or Skeleton key that is used up on a corpse in a mineshaft counts against the profit - at its price, like bait. The mineshaft summary subtracts them too.")
+        @ConfigEditorBoolean
+        public boolean countCorpseKeys = true;
+
         @ConfigOption(name = "Hide the sack line",
                 desc = "Takes \"[Sacks] +269 items. (Last 5s.)\" out of the chat. The tracker keeps reading it - what falls into a sack never shows up in your inventory, and that line is the only word about it.")
         @ConfigEditorBoolean
