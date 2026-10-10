@@ -268,7 +268,39 @@ public final class ProfitTracker {
      * dann das Minus, statt es zu verschweigen.
      */
     public static boolean mayBeNegative(String itemId) {
-        return isBait(itemId) || com.shokiteufel.shokimod.scanner.CorpseKeys.isKey(itemId);
+        return isBait(itemId) || com.shokiteufel.shokimod.scanner.CorpseKeys.isKey(itemId)
+                || CHEST_COINS.equals(itemId) || "DUNGEON_CHEST_KEY".equals(itemId);
+    }
+
+    /**
+     * Die Coins, die eine Belohnungstruhe gekostet hat, als Posten im Kasten.
+     *
+     * Kein Gegenstand, sondern Geld: Ein Stueck ist ein Coin, und die Menge steht im Minus.
+     */
+    public static final String CHEST_COINS = "SHOKI_CHEST_COINS";
+
+    /**
+     * Eine geoeffnete Belohnungstruhe: Beute dazu, Kosten und Schluessel weg.
+     *
+     * @param loot  Kennung -> Menge, wie sie in der Truhe lag
+     * @param coins was die Truhe in Coins kostet, 0 wenn nichts
+     * @param keyId der Schluessel, den sie braucht, oder null
+     */
+    public static void chestOpened(Map<String, Integer> loot, long coins, String keyId) {
+        if (!enabled()) return;
+        if (cfg().countChestLoot) {
+            for (Map.Entry<String, Integer> entry : loot.entrySet()) {
+                adjust(entry.getKey(), entry.getValue());
+                com.shokiteufel.shokimod.scanner.ItemChanges.noteBooked(entry.getKey(), entry.getValue());
+            }
+        }
+        if (cfg().countChestCost && coins > 0) {
+            adjust(CHEST_COINS, (int) Math.min(Integer.MAX_VALUE, coins) * -1);
+        }
+        // Nur ein Schluessel mit Preis: Ohne Preisliste stuende er als Posten ohne Wert da
+        if (cfg().countChestKey && keyId != null && ItemValue.trackedUnitPrice(keyId, SellMode.INSTANT_SELL) > 0) {
+            adjust(keyId, -1);
+        }
     }
 
     /**
@@ -334,6 +366,7 @@ public final class ProfitTracker {
 
     /** Der Name, wie ihn das Spiel schreibt - sonst aus der Kennung gebildet */
     public static String nameOf(String itemId) {
+        if (CHEST_COINS.equals(itemId)) return "Chest cost (coins)";
         Matcher maxed = MAXED_PET.matcher(itemId == null ? "" : itemId);
         if (maxed.matches()) {
             // Ohne die Seltenheit im Namen: Die steht in der Farbe der Zeile, so wie im
@@ -606,6 +639,7 @@ public final class ProfitTracker {
      * waehlt und das Feld leer laesst, sieht weiter den Marktpreis statt einer Null.
      */
     public static double unitPrice(String itemId) {
+        if (CHEST_COINS.equals(itemId)) return 1.0;
         if (modeOf(itemId) == SellMode.CUSTOM) {
             double own = customPrice(itemId);
             if (own > 0) return own;

@@ -2020,6 +2020,24 @@ public class ModConfig extends Config {
         public static final int MAX_HISTORY = 30;
 
         @Expose
+        @ConfigOption(name = "Count reward chests (loot)",
+                desc = "Books what a dungeon or Kuudra reward chest gives when you click Open Reward Chest. The loot goes into the tracker as found.")
+        @ConfigEditorBoolean
+        public boolean countChestLoot = true;
+
+        @Expose
+        @ConfigOption(name = "Chest cost as minus",
+                desc = "The coins a reward chest costs show up as a minus line, so the profit is what is left after paying for the chest.")
+        @ConfigEditorBoolean
+        public boolean countChestCost = true;
+
+        @Expose
+        @ConfigOption(name = "Chest key as minus",
+                desc = "The Dungeon Chest Key a reward chest needs counts as spent, at its price. Kuudra keys have no price list and are left out.")
+        @ConfigEditorBoolean
+        public boolean countChestKey = true;
+
+        @Expose
         @ConfigOption(name = "Count corpse keys as cost",
                 desc = "A Tungsten, Umber or Skeleton key that is used up on a corpse in a mineshaft counts against the profit - at its price, like bait. The mineshaft summary subtracts them too.")
         @ConfigEditorBoolean
