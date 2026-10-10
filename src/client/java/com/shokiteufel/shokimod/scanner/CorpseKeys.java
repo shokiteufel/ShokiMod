@@ -56,6 +56,11 @@ public final class CorpseKeys {
         return found == null ? 0 : found;
     }
 
+    /** Ist das ein Leichen-Schluessel? */
+    public static boolean isKey(String itemId) {
+        return itemId != null && LABELS.containsKey(itemId);
+    }
+
     /** Der Schluessel, den diese Leichensorte braucht - oder null, wenn keiner noetig ist */
     public static String keyFor(String corpseType) {
         return corpseType == null ? null : KEYS.get(corpseType.toLowerCase(Locale.ROOT));
