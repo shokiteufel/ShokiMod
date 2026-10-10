@@ -40,6 +40,10 @@ public final class MineshaftState {
     private static int ticks = 0;
     /** Hoechstens eine Erklaerung je Schacht - sie soll helfen, nicht zutexten */
     private static boolean explained = false;
+    /** Wie oft in diesem Schacht schon keine Leichen-Zeilen in der Tab-Liste standen */
+    private static int blindScans = 0;
+    /** So viele Durchgaenge (je etwa eine Sekunde) ohne Zeilen, bevor es als Fehlen gilt */
+    private static final int BLIND_SCANS_BEFORE_NOTE = 6;
 
     private MineshaftState() {
     }
@@ -115,6 +119,23 @@ public final class MineshaftState {
             explained = true;
             return;
         }
+        // Eine Regel, die nicht geprueft werden konnte: ohne Leichen-Zeilen in der Tab-Liste
+        // gilt der Schacht als erfuellt - und genau so kam es zu "3 eingestellt, 2 Lapis, trotzdem
+        // Marker". Das muss dastehen, statt nach einem Fehler der Regel auszusehen. Ursache ist
+        // meist eine andere Mod oder Einstellung, die die Tab-Liste umbaut oder ausblendet
+        MineshaftRule gestellt = cfg.shaftRules.get(type);
+        if (cfg.veins != ModConfig.VeinFilter.OFF && gestellt != null && !gestellt.empty() && !gestellt.never()
+                && MiningState.allCorpses().isEmpty()) {
+            if (++blindScans >= BLIND_SCANS_BEFORE_NOTE) {
+                say(client, where + ": your rule (" + gestellt.describe() + ") could not be checked - the "
+                        + "\"Frozen Corpses\" lines are missing from the tab list, so the gemstone markers "
+                        + "show anyway.");
+                com.shokiteufel.shokimod.ShokiMod.LOGGER.info(
+                        "[Mineshaft] rule {} cannot be checked: no corpse lines in the tab list", gestellt.describe());
+                explained = true;
+                return;
+            }
+        }
         if (cfg.corpseWaypoints && corpses().isEmpty()) {
             // Die Liste kommt aus dem Netz; bevor sie da ist, ist leer keine Aussage
             if (!MineshaftCorpses.ready()) return;
@@ -165,6 +186,7 @@ public final class MineshaftState {
             type = foundType;
             variant = foundVariant;
             explained = false;
+            blindScans = 0;
             CorpseFinder.forgetVisited();
             OreVeins.forgetReached();
             com.shokiteufel.shokimod.handler.MineshaftProfit.enter(type, variant);
@@ -180,6 +202,7 @@ public final class MineshaftState {
         type = null;
         variant = null;
         explained = false;
+        blindScans = 0;
         CorpseFinder.forgetVisited();
         OreVeins.forgetReached();
         // Beim Hinausgehen die eine Zeile - der Aufruf tut nichts, wenn nichts lief
