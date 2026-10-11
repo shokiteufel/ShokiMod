@@ -2525,9 +2525,14 @@ public class ModConfig extends Config {
             public int count = 2;
 
             @Expose
-            @ConfigOption(name = "Line to the nearest", desc = "Draws a line from your crosshair to the nearest marked vein.")
+            @ConfigOption(name = "Lines to the spots", desc = "Draws a line from your crosshair to each marked spot. The vein itself is not outlined, only the way there.")
             @ConfigEditorBoolean
             public boolean line = true;
+
+            @Expose
+            @ConfigOption(name = "Line thickness", desc = "How thick the lines are drawn.")
+            @ConfigEditorSlider(minValue = 1f, maxValue = 12f, minStep = 1f)
+            public int lineWidth = 5;
         }
 
         public static class MineshaftSecretCategory {
