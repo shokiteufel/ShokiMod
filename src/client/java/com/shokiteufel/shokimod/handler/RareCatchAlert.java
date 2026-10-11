@@ -270,7 +270,9 @@ public final class RareCatchAlert {
         String vonWem = spieler.isEmpty() ? "" : " - caught by " + spieler;
 
         if (cfg().banner) {
-            DropBanner.show(design(), kopf, unten, creature.rarity(), creature.colour(), ItemStack.EMPTY);
+            // Der Fangende steht klein und grau darueber, der Bewohner gross darunter
+            DropBanner.show(design(), spieler, (doppelt ? "2x " : "") + creature.name(), unten,
+                    creature.rarity(), creature.colour(), ItemStack.EMPTY, 0d);
         }
         if (cfg().chatLine) {
             Minecraft client = Minecraft.getInstance();

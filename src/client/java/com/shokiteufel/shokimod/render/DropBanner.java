@@ -84,6 +84,8 @@ public final class DropBanner {
     private static final class Shown {
         BannerDesign design;
         String headline = "";
+        /** Kleine graue Zeile ueber der Ueberschrift (zum Beispiel wer es gefangen hat) */
+        String byline = "";
         String worth = "";
         String tierLabel = "";
         int tint = 0xFFFFFF;
@@ -125,7 +127,14 @@ public final class DropBanner {
      */
     public static void show(BannerDesign chosen, String headlineText, String worthText, String tierText,
                             int rgb, ItemStack iconStack, double value) {
+        show(chosen, "", headlineText, worthText, tierText, rgb, iconStack, value);
+    }
+
+    /** Dasselbe mit einer kleinen grauen Zeile ueber der Ueberschrift */
+    public static void show(BannerDesign chosen, String bylineText, String headlineText, String worthText,
+                            String tierText, int rgb, ItemStack iconStack, double value) {
         Shown s = new Shown();
+        s.byline = bylineText == null ? "" : bylineText;
         s.design = chosen == null ? BannerDesign.presets().get(0) : chosen;
         s.headline = headlineText == null ? "" : headlineText;
         s.worth = worthText == null ? "" : worthText;
@@ -301,6 +310,8 @@ public final class DropBanner {
         float hs = clamp(d.headlineSize, 0.5f, 6.0f) * scale;
         float vs = clamp(d.valueSize, 0.5f, 6.0f) * scale;
         float ts = Math.max(0.8f, scale);
+        String byline = banner.byline;
+        float bs = Math.max(0.7f, scale * 0.7f);
 
         // ---- Die Kiste, wenn sie dran ist ----
         //
@@ -344,6 +355,8 @@ public final class DropBanner {
 
         int headW = (int) (font.width(head) * hs * pop);
         int headH = (int) (10 * hs * pop);
+        int bylineW = byline.isEmpty() ? 0 : (int) (font.width(byline) * bs);
+        int bylineH = byline.isEmpty() ? 0 : (int) (10 * bs);
         int valueW = value.isEmpty() ? 0 : (int) (font.width(value) * vs);
         int valueH = value.isEmpty() ? 0 : (int) (10 * vs);
         int tierW = tier.isEmpty() ? 0 : (int) (font.width(tier) * ts);
@@ -353,8 +366,8 @@ public final class DropBanner {
         boolean iconBeside = (d.icon == Icon.LEFT || d.icon == Icon.RIGHT) && iconSize > 0;
 
         // Der Textblock: Ueberschrift, (Bild), Wert, Stufe untereinander
-        int textW = Math.max(headW, Math.max(valueW, tierW));
-        int textH = headH + (valueH > 0 ? gap + valueH : 0) + (tierH > 0 ? gap + tierH : 0);
+        int textW = Math.max(Math.max(headW, bylineW), Math.max(valueW, tierW));
+        int textH = (bylineH > 0 ? bylineH + gap / 2 : 0) + headH + (valueH > 0 ? gap + valueH : 0) + (tierH > 0 ? gap + tierH : 0);
         int blockW;
         int blockH;
         if (d.icon == Icon.MIDDLE && iconSize > 0) {
@@ -495,12 +508,19 @@ public final class DropBanner {
             textTop = top + (boxH - textH) / 2;
         }
         int headCentre = lineCentre(align, textLeft, textW, headW);
+        int bylineSpace = bylineH > 0 ? bylineH + gap / 2 : 0;
         if (d.accent == Accent.DOT) {
             int dot = Math.max(3, (int) (4 * scale));
-            g.fill(textLeft - accentPad, textTop + headH / 2 - dot / 2, textLeft - accentPad + dot, textTop + headH / 2 + dot / 2, argb(alpha, colour));
+            int dotY = textTop + bylineSpace + headH / 2;
+            g.fill(textLeft - accentPad, dotY - dot / 2, textLeft - accentPad + dot, dotY + dot / 2, argb(alpha, colour));
         }
 
         int y = textTop;
+        if (bylineH > 0 && !typing) {
+            drawText(g, font, byline, lineCentre(align, textLeft, textW, bylineW), y, bs,
+                    0xAAAAAA, TextEffect.PLAIN, alpha, colour);
+        }
+        y += bylineSpace;
         if (nameAuf > 0f) {
             // Von links hereinfahren und dabei aufklaren. Bei allen anderen
             // Animationen ist nameAuf eins, also aendert sich dort nichts
