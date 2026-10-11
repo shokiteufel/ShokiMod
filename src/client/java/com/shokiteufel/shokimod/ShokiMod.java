@@ -91,6 +91,7 @@ public class ShokiMod implements ClientModInitializer {
         com.shokiteufel.shokimod.scanner.MineshaftState.register();
         com.shokiteufel.shokimod.scanner.CorpseFinder.register();
         com.shokiteufel.shokimod.scanner.OreVeins.register();
+        com.shokiteufel.shokimod.scanner.HollowsOres.register();
         com.shokiteufel.shokimod.handler.MineshaftProfit.register();
         com.shokiteufel.shokimod.scanner.RouteGuide.register();
         // Ein Helfer-Skript von einem Update liegt jetzt nicht mehr im Weg
