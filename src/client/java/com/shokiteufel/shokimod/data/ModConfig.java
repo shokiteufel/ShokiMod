@@ -133,6 +133,8 @@ public class ModConfig extends Config {
         MobVisualsCategory visuals = INSTANCE.mobVisuals;
         if (visuals.safari == null) visuals.safari = new MobVisualsCategory.SafariSecretCategory();
         if (visuals.mineshaft == null) visuals.mineshaft = new MobVisualsCategory.MineshaftSecretCategory();
+        if (visuals.hollows == null) visuals.hollows = new MobVisualsCategory.HollowsSecretCategory();
+        if (visuals.hollows.ore == null) visuals.hollows.ore = com.shokiteufel.shokimod.scanner.HollowsOres.Ore.OFF;
         if (visuals.legacyShinyAlert != null) { visuals.safari.shinyAlert = visuals.legacyShinyAlert; visuals.legacyShinyAlert = null; }
         if (visuals.legacyShinyColour != null) { visuals.safari.shinyColour = visuals.legacyShinyColour; visuals.legacyShinyColour = null; }
         if (visuals.legacyHideyhoFinder != null) { visuals.safari.hideyhoFinder = visuals.legacyHideyhoFinder; visuals.legacyHideyhoFinder = null; }
@@ -2486,6 +2488,11 @@ public class ModConfig extends Config {
         @Category(name = "Mineshaft extras", desc = "The mineshaft helper that lives here on purpose: corpses recognised across the whole render distance instead of only close up.")
         public MineshaftSecretCategory mineshaft = new MineshaftSecretCategory();
 
+        /** Und die Crystal Hollows: Kohle und Redstone in der Naehe zeigen */
+        @Expose
+        @Category(name = "Crystal Hollows extras", desc = "Points you to the nearest coal or redstone in the Crystal Hollows.")
+        public HollowsSecretCategory hollows = new HollowsSecretCategory();
+
         /** Bis 1.1.17 lagen die drei Werte direkt hier; sie werden einmal in den Unterreiter uebernommen */
         @Expose @SerializedName("shinyAlert") public Boolean legacyShinyAlert = null;
         @Expose @SerializedName("shinyColour") public String legacyShinyColour = null;
@@ -2499,6 +2506,28 @@ public class ModConfig extends Config {
         @ConfigOption(name = "Debug Logging", desc = "Writes into the log why a custom mob does or does not glow. Only for troubleshooting.")
         @ConfigEditorBoolean
         public boolean debugLogging = false;
+
+        public static class HollowsSecretCategory {
+
+            @ConfigOption(name = "Crystal Hollows extras", desc = "Marks the nearest veins of one ore, read from the blocks around you. Only active in the Crystal Hollows.")
+            @ConfigEditorInfoText
+            public transient String about = "";
+
+            @Expose
+            @ConfigOption(name = "Ore to find", desc = "Which ore to mark. Off turns the whole helper off.")
+            @ConfigEditorDropdown
+            public com.shokiteufel.shokimod.scanner.HollowsOres.Ore ore = com.shokiteufel.shokimod.scanner.HollowsOres.Ore.OFF;
+
+            @Expose
+            @ConfigOption(name = "How many spots", desc = "How many of the nearest veins are marked.")
+            @ConfigEditorSlider(minValue = 1f, maxValue = 5f, minStep = 1f)
+            public int count = 2;
+
+            @Expose
+            @ConfigOption(name = "Line to the nearest", desc = "Draws a line from your crosshair to the nearest marked vein.")
+            @ConfigEditorBoolean
+            public boolean line = true;
+        }
 
         public static class MineshaftSecretCategory {
 
