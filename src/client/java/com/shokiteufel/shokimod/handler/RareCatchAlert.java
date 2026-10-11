@@ -265,7 +265,8 @@ public final class RareCatchAlert {
     }
 
     private static void announce(SeaCreatures.Creature creature, boolean doppelt, String spieler) {
-        String kopf = headline(creature, doppelt, spieler);
+        // Der Spieler steht hinten in "caught by", nicht noch einmal vorn
+        String kopf = (doppelt ? "2x " : "") + creature.name();
         String unten = "";
         String vonWem = spieler.isEmpty() ? "" : " - caught by " + spieler;
 
