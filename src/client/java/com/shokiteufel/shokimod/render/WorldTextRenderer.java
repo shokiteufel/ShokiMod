@@ -107,8 +107,9 @@ public class WorldTextRenderer {
     }
 
     /**
-     * Kohle oder Redstone in den Crystal Hollows: die naechsten Klumpen mit Rahmen und
-     * Entfernung, zum naechsten dazu ein Strich vom Fadenkreuz.
+     * Kohle oder Redstone in den Crystal Hollows: zu jedem der naechsten Klumpen ein
+     * Strich vom Fadenkreuz und eine Beschriftung mit Entfernung - ohne den Klumpen
+     * selbst zu umranden, damit die Sicht frei bleibt.
      */
     private static void renderHollowsOres() {
         var cfg = ModConfig.INSTANCE.mobVisuals.hollows;
@@ -117,13 +118,12 @@ public class WorldTextRenderer {
         for (int i = 0; i < list.size(); i++) {
             var c = list.get(i);
             int argb = c.ore().argb();
-            Gizmos.cuboid(c.box(), GizmoStyle.stroke(argb, 2f)).setAlwaysOnTop();
             String text = c.ore().label() + " " + (int) c.distance() + "m (" + c.size() + ")"
                     + (c.hidden() ? " - in wall" : "");
             renderGizmoLabel(text, c.nearest(), argb);
-            if (i == 0 && cfg.line) {
+            if (cfg.line) {
                 Vec3 mitte = new Vec3(c.nearest().getX() + 0.5, c.nearest().getY() + 0.5, c.nearest().getZ() + 0.5);
-                Gizmos.line(crosshair(), mitte, argb, 2f).setAlwaysOnTop();
+                Gizmos.line(crosshair(), mitte, argb, Math.max(1, cfg.lineWidth)).setAlwaysOnTop();
             }
         }
     }
