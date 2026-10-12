@@ -5,18 +5,22 @@ import com.shokiteufel.shokimod.handler.SeaCreatureTracker;
 import com.shokiteufel.shokimod.handler.SeaCreatureTracker.Count;
 
 import java.util.List;
+import java.util.Locale;
 
 /**
- * Der Kasten des Sea Creature Trackers: oben die Summe mit Double Hooks (DH) und
- * Cocoons (CC), darunter eine Zeile je gewaehltem Bewohner, ganz unten "Others".
+ * Der Kasten des Sea Creature Trackers, aufgebaut wie bei Feesh: je Bewohner eine Zeile
+ * mit Anzahl und Anteil an allen Faengen, daneben die Spalte DH mit den Double Hooks
+ * und ihrem Anteil. Zuunterst "Others" und die Summe, darunter die Blood Shots (BS).
  *
  * Gezeigt wird nur, was schon gefangen wurde - ein Bewohner ohne Fang hat keine Zeile.
+ * Die Farbe eines Namens ist die Seltenheit des Bewohners.
  */
 public final class SeaTrackerHud {
 
     private static final int TITLE_COLOUR = HudColours.GOLD;
     private static final int LABEL_COLOUR = HudColours.WHITE;
     private static final int VALUE_COLOUR = HudColours.GREEN;
+    private static final int HEADER_COLOUR = HudColours.AQUA;
 
     private SeaTrackerHud() {
     }
@@ -26,32 +30,47 @@ public final class SeaTrackerHud {
         HudPanel panel = new HudPanel();
         panel.title("Sea Creatures", TITLE_COLOUR);
 
-        panel.pair("Total:", value(SeaCreatureTracker.total(), cfg), LABEL_COLOUR, VALUE_COLOUR);
+        Count total = SeaCreatureTracker.total();
+        if (cfg.showDoubleHooks) panel.table("", "", "DH", HEADER_COLOUR, HEADER_COLOUR);
 
-        List<SeaCreatureTracker.Row> rows = SeaCreatureTracker.rows();
-        if (!rows.isEmpty()) panel.blank();
-        for (SeaCreatureTracker.Row row : rows) {
-            panel.pair(row.name() + ":", value(row.count(), cfg), row.colour(), VALUE_COLOUR);
+        for (SeaCreatureTracker.Row row : SeaCreatureTracker.rows()) {
+            line(panel, row.name() + ":", row.colour(), row.count(), total, cfg);
         }
-
         Count others = SeaCreatureTracker.others();
-        if (others != null && cfg.showOthers) {
-            if (rows.isEmpty()) panel.blank();
-            panel.pair("Others:", value(others, cfg), LABEL_COLOUR, VALUE_COLOUR);
+        if (others != null && cfg.showOthers) line(panel, "Others:", LABEL_COLOUR, others, total, cfg);
+
+        // Die Summe steht unten, wo man sie sucht - ohne Anteil, der waere immer hundert
+        panel.table("Total:", HudNumbers.amount(total.total),
+                cfg.showDoubleHooks ? share(total.dh, events(total)) : "", LABEL_COLOUR, VALUE_COLOUR);
+        if (cfg.showBloodShot) {
+            panel.table("BS:", HudNumbers.amount(total.cc), "", LABEL_COLOUR, VALUE_COLOUR);
         }
         return panel;
     }
 
-    /** "120 (DH 8, CC 2)" - die Klammer nur mit dem, was eingeschaltet ist */
-    private static String value(Count count, ModConfig.SeaTrackerCategory cfg) {
-        StringBuilder text = new StringBuilder(HudNumbers.amount(count.total));
-        StringBuilder extra = new StringBuilder();
-        if (cfg.showDoubleHooks) extra.append("DH ").append(HudNumbers.amount(count.dh));
-        if (cfg.showCocoons) {
-            if (extra.length() > 0) extra.append(", ");
-            extra.append("CC ").append(HudNumbers.amount(count.cc));
-        }
-        if (extra.length() > 0) text.append(" (").append(extra).append(')');
-        return text.toString();
+    private static void line(HudPanel panel, String name, int colour, Count count, Count total,
+                             ModConfig.SeaTrackerCategory cfg) {
+        String first = HudNumbers.amount(count.total) + " " + percent(count.total, total.total);
+        String second = cfg.showDoubleHooks ? share(count.dh, events(count)) : "";
+        panel.table(name, first, second, colour, VALUE_COLOUR);
+    }
+
+    /** Wie oft die Angel ausgeworfen wurde: ein Double Hook bringt zwei Fange auf einmal */
+    private static int events(Count count) {
+        return count.total - count.dh;
+    }
+
+    /** "4 14,29%" - die Anzahl und ihr Anteil an den Auswuerfen */
+    private static String share(int part, int of) {
+        return HudNumbers.amount(part) + " " + percent(part, of);
+    }
+
+    private static String percent(int part, int of) {
+        if (of <= 0) return "0%";
+        double value = part * 100.0 / of;
+        // Deutsch mit Komma, wie auf dem Vorbild; ein ganzer Wert ohne Nachkommastellen
+        return value == Math.rint(value)
+                ? String.format(Locale.GERMANY, "%.0f%%", value)
+                : String.format(Locale.GERMANY, "%.2f%%", value);
     }
 }
