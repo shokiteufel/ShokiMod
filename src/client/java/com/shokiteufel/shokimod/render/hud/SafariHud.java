@@ -36,7 +36,8 @@ public final class SafariHud {
                 case PET -> ModConfig.INSTANCE.hud.pet.showHud;
                 case PERFORMANCE -> ModConfig.INSTANCE.hud.performance.showHud;
                 case SEATRACKER -> ModConfig.INSTANCE.fishing.tracker.enabled && ModConfig.INSTANCE.fishing.tracker.showHud;
-                case EFFECTS -> ModConfig.INSTANCE.effects.enabled && ModConfig.INSTANCE.effects.showHud;
+                case EFFECTS -> ModConfig.INSTANCE.effects.enabled && ModConfig.INSTANCE.effects.showHud
+                        && EffectsHud.hasRows();
             };
         }
 
