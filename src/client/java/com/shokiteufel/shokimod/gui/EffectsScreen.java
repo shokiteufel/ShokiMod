@@ -1,5 +1,6 @@
 package com.shokiteufel.shokimod.gui;
 
+import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.data.ModConfig.EffectEntry;
 import com.shokiteufel.shokimod.handler.EffectsTracker;
 import com.shokiteufel.shokimod.render.hud.EffectsHud;
@@ -92,6 +93,23 @@ public class EffectsScreen extends Screen {
             }).bounds(mitte + 40, height - 50, 20, 20).build());
         }
 
+        // Oeffnet /effects, damit die Mod es liest - ohne den Befehl selbst zu tippen
+        addRenderableWidget(Button.builder(Component.literal("Open /effects"), button -> {
+            if (minecraft != null && minecraft.getConnection() != null) {
+                minecraft.setScreen(null);
+                minecraft.getConnection().sendCommand("effects");
+            }
+        }).bounds(left, height - 28, 110, 20).build());
+
+        addRenderableWidget(Button.builder(
+                Component.literal(ModConfig.INSTANCE.effects.enabled ? "Enabled ☑" : "Enabled ☐")
+                        .withStyle(ModConfig.INSTANCE.effects.enabled ? ChatFormatting.GREEN : ChatFormatting.RED),
+                button -> {
+                    ModConfig.INSTANCE.effects.enabled = !ModConfig.INSTANCE.effects.enabled;
+                    ModConfig.INSTANCE.saveNow();
+                    rebuild();
+                }).bounds(left + 116, height - 28, 90, 20).build());
+
         addRenderableWidget(Button.builder(Component.literal("Done"), button -> onClose())
                 .bounds(left + GRID_WIDTH - 80, height - 28, 80, 20).build());
     }
@@ -110,6 +128,11 @@ public class EffectsScreen extends Screen {
         graphics.centeredText(font, Component.literal(
                         "Open /effects once - every effect in it is remembered here")
                 .withStyle(ChatFormatting.DARK_GRAY), centerX, 26, 0xFF888888);
+        if (!ModConfig.INSTANCE.effects.enabled) {
+            graphics.centeredText(font, Component.literal(
+                            "Panel and alerts are off - switch Enabled on below")
+                    .withStyle(ChatFormatting.RED), centerX, 38, 0xFFFF5555);
+        }
 
         List<EffectEntry> liste = EffectsTracker.entries();
         if (liste.isEmpty()) {
