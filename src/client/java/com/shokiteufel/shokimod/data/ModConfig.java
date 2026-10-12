@@ -1373,7 +1373,7 @@ public class ModConfig extends Config {
         public LootshareCategory lootshare = new LootshareCategory();
 
         @Expose
-        @Category(name = "Sea creature tracker", desc = "Counts your catches, Double Hooks and Cocoons - as Feesh does.")
+        @Category(name = "Sea creature tracker", desc = "Counts your catches, Double Hooks and Blood Shots - as Feesh does.")
         public SeaTrackerCategory tracker = new SeaTrackerCategory();
     }
 
@@ -1454,7 +1454,7 @@ public class ModConfig extends Config {
      */
     public static class SeaTrackerCategory {
 
-        @ConfigOption(name = "Sea creature tracker", desc = "Counts what you catch: the total, how many came as a Double Hook (DH) and how many you cocooned (CC). Picked creatures get their own line, the rest is counted under Others.")
+        @ConfigOption(name = "Sea creature tracker", desc = "Counts what you catch: the total, how many came as a Double Hook (DH) and how many your Bloodshot reforge cocooned (BS). Picked creatures get their own line, the rest is counted under Others.")
         @ConfigEditorInfoText
         public transient String about = "";
 
@@ -1469,14 +1469,14 @@ public class ModConfig extends Config {
         public boolean showHud = true;
 
         @Expose
-        @ConfigOption(name = "Show Double Hooks", desc = "Adds DH, the number of Double Hooks, behind every count.")
+        @ConfigOption(name = "Show Double Hooks", desc = "Adds a DH column: the Double Hooks of each creature and how often it came as one.")
         @ConfigEditorBoolean
         public boolean showDoubleHooks = true;
 
         @Expose
-        @ConfigOption(name = "Show Cocoons", desc = "Adds CC, the number of creatures you cocooned, behind every count.")
+        @ConfigOption(name = "Show Blood Shot", desc = "Adds BS, the number of creatures your Bloodshot reforge cocooned, under the total.")
         @ConfigEditorBoolean
-        public boolean showCocoons = true;
+        public boolean showBloodShot = true;
 
         @Expose
         @ConfigOption(name = "Show Others", desc = "A last line that adds up every creature without a line of its own.")
