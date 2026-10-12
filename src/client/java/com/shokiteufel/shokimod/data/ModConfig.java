@@ -124,6 +124,8 @@ public class ModConfig extends Config {
         if (collectionTracker.totalExact == null) collectionTracker.totalExact = new HashMap<>();
         if (collectionTracker.priceMode == null) collectionTracker.priceMode = ItemValue.PriceMode.INSTANT_SELL;
         if (collectionTracker.lineOrder == null) collectionTracker.lineOrder = CollectionTrackerCategory.LineOrder.TOTAL_GAINED_HOUR;
+        if (INSTANCE.effects == null) INSTANCE.effects = new EffectsCategory();
+        if (INSTANCE.effects.list == null) INSTANCE.effects.list = new java.util.LinkedHashMap<>();
         if (INSTANCE.fishing.hotspot == null) INSTANCE.fishing.hotspot = new HotspotCategory();
         if (INSTANCE.fishing.tracker == null) INSTANCE.fishing.tracker = new SeaTrackerCategory();
         if (INSTANCE.fishing.tracker.view == null) INSTANCE.fishing.tracker.view = SeaView.TOTAL;
@@ -313,6 +315,17 @@ public class ModConfig extends Config {
                         () -> INSTANCE.chat.petMax.sound,
                         picked -> INSTANCE.chat.petMax.sound = picked,
                         1.0f)));
+        INSTANCE.effects.openSound = () -> Minecraft.getInstance().execute(() ->
+                Minecraft.getInstance().setScreen(new SoundPickerScreen(
+                        Minecraft.getInstance().screen,
+                        () -> INSTANCE.effects.sound,
+                        picked -> INSTANCE.effects.sound = picked,
+                        1.0f)));
+        INSTANCE.effects.openList = () -> Minecraft.getInstance().execute(() ->
+                Minecraft.getInstance().setScreen(new com.shokiteufel.shokimod.gui.EffectsScreen(
+                        Minecraft.getInstance().screen)));
+        INSTANCE.effects.test = () -> Minecraft.getInstance().execute(
+                com.shokiteufel.shokimod.handler.EffectsTracker::test);
         INSTANCE.chat.petMax.test = () -> Minecraft.getInstance().execute(
                 com.shokiteufel.shokimod.handler.PetMaxAlert::test);
         INSTANCE.fishing.rareCatch.openPicker = () -> Minecraft.getInstance().execute(() ->
@@ -588,6 +601,10 @@ public class ModConfig extends Config {
     @Expose
     @Category(name = "Collections", desc = "What your collections gain while you play.")
     public CollectionsCategory collections = new CollectionsCategory();
+
+    @Expose
+    @Category(name = "Effects", desc = "Remembers your potion effects that are not God Potions, shows what is left and warns you before one runs out. Open /shoki effects to pick which ones.")
+    public EffectsCategory effects = new EffectsCategory();
 
     @Expose
     @Category(name = "Profit", desc = "What a run brought in: every item that landed in your inventory or a sack, priced item by item.")
@@ -1808,6 +1825,97 @@ public class ModConfig extends Config {
      * Nachgebaut aus Feesh (Apache 2.0). Welche Stufe die letzte ist, entscheidet das
      * Pet: bei den drei Drachen 200, sonst 100.
      */
+    /** Ein gemerkter Effekt */
+    public static class EffectEntry {
+        @Expose
+        public String name = "";
+        /** Wann er ausgeht, in Millisekunden seit 1970 - 0 heisst unbekannt */
+        @Expose
+        public long expiry = 0L;
+        @Expose
+        public boolean hud = true;
+        @Expose
+        public boolean alert = true;
+    }
+
+    public static class EffectsCategory {
+
+        @ConfigOption(name = "Effects", desc = "Open /effects in the game once: every effect in that menu is remembered, with its time. Then choose here or in /shoki effects what is shown and what warns you. Modelled on SkyHanni's Non-God Pot Effects.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Enabled", desc = "Read the /effects menu and the tab list, show the panel and give alerts.")
+        @ConfigEditorBoolean
+        public boolean enabled = false;
+
+        @Expose
+        @ConfigOption(name = "Show panel", desc = "The panel with the remaining times on screen. Move it with /shoki hud.")
+        @ConfigEditorBoolean
+        public boolean showHud = true;
+
+        @ConfigOption(name = "Pick effects", desc = "Which remembered effects are shown and which ones warn you. Opens with /shoki effects.")
+        @ConfigEditorButton(buttonText = "Open")
+        public transient Runnable openList = () -> {
+        };
+
+        @Expose
+        @ConfigOption(name = "Alert before it runs out", desc = "Warns once when this many minutes are left. 0 turns the early warning off.")
+        @ConfigEditorSlider(minValue = 0f, maxValue = 120f, minStep = 1f)
+        public int alertMinutes = 5;
+
+        @Expose
+        @ConfigOption(name = "Alert when it is off", desc = "Warns once when an effect has run out.")
+        @ConfigEditorBoolean
+        public boolean alertOnExpire = true;
+
+        @Expose
+        @ConfigOption(name = "Repeat while it is off", desc = "Keeps warning every few seconds until the effect is back - for the effects with Alert switched on.")
+        @ConfigEditorBoolean
+        public boolean repeatExpired = false;
+
+        @Expose
+        @ConfigOption(name = "Repeat every (seconds)", desc = "How often the warning is repeated while an effect is off.")
+        @ConfigEditorSlider(minValue = 5f, maxValue = 300f, minStep = 5f)
+        public int repeatSeconds = 60;
+
+        @Expose
+        @ConfigOption(name = "Banner", desc = "Large text across the screen.")
+        @ConfigEditorBoolean
+        public boolean banner = true;
+
+        @Expose
+        @ConfigOption(name = "Chat line", desc = "Writes the warning into your chat.")
+        @ConfigEditorBoolean
+        public boolean chatLine = true;
+
+        @ConfigOption(name = "Sound", desc = "Your own file from config/shokimod/sounds. Leave empty for silence.")
+        @ConfigEditorButton(buttonText = "Pick")
+        public transient Runnable openSound = () -> {
+        };
+
+        @Expose
+        public String sound = "";
+
+        @ConfigOption(name = "Test", desc = "Fires the warning once so you can see and hear what you set.")
+        @ConfigEditorButton(buttonText = "Test")
+        public transient Runnable test = () -> {
+        };
+
+        /** Die gemerkten Effekte: kleingeschriebener Name -> Eintrag */
+        @Expose
+        public Map<String, EffectEntry> list = new java.util.LinkedHashMap<>();
+
+        @Expose
+        public float hudX = 0.02f;
+        @Expose
+        public float hudY = 0.3f;
+        @Expose
+        public float hudScale = 1.0f;
+        @Expose
+        public float hudAlpha = 1.0f;
+    }
+
     public static class PetMaxCategory {
 
         @ConfigOption(name = "Pet maxed", desc = "When a pet reaches its highest level, this says so - on screen, in chat, and with what levelling it was worth. The three dragons count at 200, everything else at 100.")

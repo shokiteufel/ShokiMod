@@ -136,6 +136,7 @@ public final class FeatureGate {
 
     public static boolean location() {
         return contest() || safari() || nearbyPanel() || rareLoot() || huntingTracker() || mobMarkers() || chatRules()
-                || cakeReminder() || hotspots() || collectionTracker() || pestTraps();
+                || cakeReminder() || hotspots() || collectionTracker() || pestTraps()
+                || ModConfig.INSTANCE.effects.enabled;
     }
 }
