@@ -29,6 +29,5 @@ public class WorldTextRenderMixin {
         EntityTracerRenderer.emitGizmos(client, partialTicks);
         BoxHighlightRenderer.emitGizmos(client, partialTicks);
         HotspotRenderer.emitGizmos(client);
-        com.shokiteufel.shokimod.render.LootshareRenderer.emitGizmos(client);
     }
 }
