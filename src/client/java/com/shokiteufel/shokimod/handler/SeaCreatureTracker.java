@@ -30,6 +30,21 @@ public final class SeaCreatureTracker {
     /** Der naechste Fang kommt doppelt */
     private static boolean doubleHook = false;
 
+    /**
+     * Die Zaehlung dieser Sitzung - sie wird nicht gespeichert, ein neuer Spielstart beginnt
+     * von vorn. Der Gesamtstand (Total) liegt dagegen in der Config.
+     */
+    private static final java.util.Map<String, Count> session = new java.util.HashMap<>();
+
+    /**
+     * Die Fischzeit der Sitzung. Sie laeuft nur, solange gefangen wird: Zwischen zwei Faengen
+     * zaehlen hoechstens fuenf Minuten, alles darueber ist eine Pause - sonst wuerde
+     * eine Kaffeepause die Rate druecken.
+     */
+    private static final long IDLE_MILLIS = 5L * 60_000L;
+    private static long sessionActiveMillis = 0L;
+    private static long lastCatchAt = 0L;
+
     /** Ein Zaehlstand: Faenge (Double Hook doppelt gerechnet), Double Hooks, Cocoons */
     public static final class Count {
         public int total = 0;
@@ -48,6 +63,47 @@ public final class SeaCreatureTracker {
         return ModConfig.INSTANCE.fishing.tracker;
     }
 
+    public static boolean sessionView() {
+        return cfg().view == ModConfig.SeaView.SESSION;
+    }
+
+    /** Der Zaehlstand, den der Kasten gerade zeigt */
+    private static java.util.Map<String, Count> counts() {
+        return sessionView() ? session : cfg().counts;
+    }
+
+    /** Verbuchen: in den Gesamtstand und in die Sitzung */
+    private static void bump(String name, boolean doppelt, boolean cocoon) {
+        for (java.util.Map<String, Count> map : java.util.List.of(cfg().counts, session)) {
+            Count count = map.computeIfAbsent(name, k -> new Count());
+            if (cocoon) {
+                count.cc++;
+            } else {
+                count.total += doppelt ? 2 : 1;
+                if (doppelt) count.dh++;
+            }
+        }
+        long now = System.currentTimeMillis();
+        if (lastCatchAt > 0L) sessionActiveMillis += Math.min(now - lastCatchAt, IDLE_MILLIS);
+        lastCatchAt = now;
+        ModConfig.INSTANCE.saveNow();
+    }
+
+    /** Aktive Fischzeit dieser Sitzung; das laufende Stueck seit dem letzten Fang zaehlt mit */
+    public static long sessionMillis() {
+        long running = lastCatchAt > 0L ? Math.min(System.currentTimeMillis() - lastCatchAt, IDLE_MILLIS) : 0L;
+        return sessionActiveMillis + running;
+    }
+
+    /** Meeresbewohner je Stunde: Double Hooks sind schon doppelt gezaehlt, Blood Shots kommen dazu */
+    public static double perHour() {
+        long millis = sessionMillis();
+        if (millis < 1000L) return 0.0;
+        int sum = 0;
+        for (Count c : session.values()) sum += c.total + c.cc;
+        return sum * 3_600_000.0 / millis;
+    }
+
     public static void onChatMessage(String plain) {
         if (plain == null || plain.isEmpty() || !cfg().enabled) return;
         String text = plain.trim();
@@ -60,10 +116,7 @@ public final class SeaCreatureTracker {
         Matcher cocoon = COCOONED.matcher(text);
         if (cocoon.matches()) {
             SeaCreatures.Creature creature = SeaCreatures.byName(cocoon.group("name"));
-            if (creature != null) {
-                cfg().counts.computeIfAbsent(creature.name(), k -> new Count()).cc++;
-                ModConfig.INSTANCE.saveNow();
-            }
+            if (creature != null) bump(creature.name(), false, true);
             return;
         }
 
@@ -71,10 +124,7 @@ public final class SeaCreatureTracker {
         if (caught == null) return;
         boolean doppelt = doubleHook;
         doubleHook = false;
-        Count count = cfg().counts.computeIfAbsent(caught.name(), k -> new Count());
-        count.total += doppelt ? 2 : 1;
-        if (doppelt) count.dh++;
-        ModConfig.INSTANCE.saveNow();
+        bump(caught.name(), doppelt, false);
     }
 
     // ------------------------------------------------------------------ Anzeige
@@ -82,7 +132,7 @@ public final class SeaCreatureTracker {
     /** Die Summe ueber alle Bewohner - auch die, die nicht einzeln gezeigt werden */
     public static Count total() {
         Count sum = new Count();
-        for (Count c : cfg().counts.values()) {
+        for (Count c : counts().values()) {
             sum.total += c.total;
             sum.dh += c.dh;
             sum.cc += c.cc;
@@ -94,7 +144,7 @@ public final class SeaCreatureTracker {
     public static List<Row> rows() {
         List<Row> out = new ArrayList<>();
         for (SeaCreatures.Creature creature : SeaCreatures.all()) {
-            Count count = cfg().counts.get(creature.name());
+            Count count = counts().get(creature.name());
             if (count == null || !picked(creature)) continue;
             out.add(new Row(creature.name(), 0xFF000000 | creature.colour(), count));
         }
@@ -105,7 +155,7 @@ public final class SeaCreatureTracker {
     /** Alles, was nicht einzeln gezeigt wird, zusammengezaehlt - null, wenn nichts da ist */
     public static Count others() {
         Count sum = new Count();
-        for (var entry : cfg().counts.entrySet()) {
+        for (var entry : counts().entrySet()) {
             SeaCreatures.Creature creature = SeaCreatures.byName(entry.getKey());
             // Ein Name, den die Liste nicht mehr kennt, gehoert zu "Others" und nirgends sonst hin
             if (creature != null && picked(creature)) continue;
@@ -134,8 +184,15 @@ public final class SeaCreatureTracker {
         ModConfig.INSTANCE.saveNow();
     }
 
+    /** Setzt die gerade gezeigte Ansicht zurueck - den Gesamtstand oder die Sitzung */
     public static void reset() {
-        cfg().counts.clear();
+        if (sessionView()) {
+            session.clear();
+            sessionActiveMillis = 0L;
+            lastCatchAt = 0L;
+        } else {
+            cfg().counts.clear();
+        }
         doubleHook = false;
         ModConfig.INSTANCE.saveNow();
     }
