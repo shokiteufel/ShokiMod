@@ -83,6 +83,8 @@ public class NetworkHandler {
             // Der Kuchen-Alarm merkt sich, wann welcher Kuchen gegessen wurde
             CakeReminder.onChatMessage(unformattedMsg);
             RareCatchAlert.onChatMessage(unformattedMsg);
+            // Der Zaehler fuer Faenge, Double Hooks und Cocoons liest dieselbe Zeile
+            com.shokiteufel.shokimod.handler.SeaCreatureTracker.onChatMessage(unformattedMsg);
             // Wer aus der Gruppe "Loot share secured!" schreibt, bekommt ein Haeckchen
             LootshareTracker.onChatMessage(unformattedMsg);
             // Der Wechsel per Autopet ist die einzige Meldung ueber das aktive Pet,

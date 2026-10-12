@@ -124,6 +124,9 @@ public class ModConfig extends Config {
         if (collectionTracker.priceMode == null) collectionTracker.priceMode = ItemValue.PriceMode.INSTANT_SELL;
         if (collectionTracker.lineOrder == null) collectionTracker.lineOrder = CollectionTrackerCategory.LineOrder.TOTAL_GAINED_HOUR;
         if (INSTANCE.fishing.hotspot == null) INSTANCE.fishing.hotspot = new HotspotCategory();
+        if (INSTANCE.fishing.tracker == null) INSTANCE.fishing.tracker = new SeaTrackerCategory();
+        if (INSTANCE.fishing.tracker.mobs == null) INSTANCE.fishing.tracker.mobs = new HashMap<>();
+        if (INSTANCE.fishing.tracker.counts == null) INSTANCE.fishing.tracker.counts = new HashMap<>();
         if (INSTANCE.chat.reminder == null) INSTANCE.chat.reminder = new ReminderCategory();
         if (INSTANCE.chat.reminder.cakes == null) INSTANCE.chat.reminder.cakes = new HashMap<>();
         if (INSTANCE.hunting.tracker == null) INSTANCE.hunting.tracker = new HuntingTrackerCategory();
@@ -318,6 +321,11 @@ public class ModConfig extends Config {
                         Minecraft.getInstance().gui.screen())));
         INSTANCE.fishing.rareCatch.test = () -> Minecraft.getInstance().execute(
                 com.shokiteufel.shokimod.handler.RareCatchAlert::test);
+        INSTANCE.fishing.tracker.openPicker = () -> Minecraft.getInstance().execute(() ->
+                Minecraft.getInstance().setScreen(new com.shokiteufel.shokimod.gui.SeaTrackerScreen(
+                        Minecraft.getInstance().screen)));
+        INSTANCE.fishing.tracker.resetTracker = () -> Minecraft.getInstance().execute(
+                com.shokiteufel.shokimod.handler.SeaCreatureTracker::reset);
         INSTANCE.chat.testAlertVolume = () -> Minecraft.getInstance().execute(AlertVolume::test);
         INSTANCE.hunting.tracker.resetTracker = () -> Minecraft.getInstance().execute(HuntingTracker::reset);
         INSTANCE.guild.events.testBanner = () -> Minecraft.getInstance().execute(GuildEvents::testBanner);
@@ -1363,6 +1371,10 @@ public class ModConfig extends Config {
         @Expose
         @Category(name = "Lootshare", desc = "Counts the damage you deal to a sea creature and tells you when it is enough for loot - at one percent of its health. Modelled on Skysoft's Lootshare Helper.")
         public LootshareCategory lootshare = new LootshareCategory();
+
+        @Expose
+        @Category(name = "Sea creature tracker", desc = "Counts your catches, Double Hooks and Cocoons - as Feesh does.")
+        public SeaTrackerCategory tracker = new SeaTrackerCategory();
     }
 
     /**
@@ -1428,6 +1440,71 @@ public class ModConfig extends Config {
         public float hudX = 0.02f;
         @Expose
         public float hudY = 0.35f;
+        @Expose
+        public float hudScale = 1.0f;
+        @Expose
+        public float hudAlpha = 1.0f;
+    }
+
+    /**
+     * Der Zaehler fuer Meeresbewohner: Fang, Double Hooks (DH) und Cocoons (CC).
+     *
+     * Abgeguckt bei Feesh (Apache 2.0). Was in der Auswahl steht, bekommt eine eigene
+     * Zeile; alles andere wird unter "Others" zusammengezaehlt.
+     */
+    public static class SeaTrackerCategory {
+
+        @ConfigOption(name = "Sea creature tracker", desc = "Counts what you catch: the total, how many came as a Double Hook (DH) and how many you cocooned (CC). Picked creatures get their own line, the rest is counted under Others.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Enabled", desc = "Count your sea creature catches. Off means nothing is counted.")
+        @ConfigEditorBoolean
+        public boolean enabled = false;
+
+        @Expose
+        @ConfigOption(name = "Show panel", desc = "The tracker panel on screen. Move it with /shoki hud.")
+        @ConfigEditorBoolean
+        public boolean showHud = true;
+
+        @Expose
+        @ConfigOption(name = "Show Double Hooks", desc = "Adds DH, the number of Double Hooks, behind every count.")
+        @ConfigEditorBoolean
+        public boolean showDoubleHooks = true;
+
+        @Expose
+        @ConfigOption(name = "Show Cocoons", desc = "Adds CC, the number of creatures you cocooned, behind every count.")
+        @ConfigEditorBoolean
+        public boolean showCocoons = true;
+
+        @Expose
+        @ConfigOption(name = "Show Others", desc = "A last line that adds up every creature without a line of its own.")
+        @ConfigEditorBoolean
+        public boolean showOthers = true;
+
+        @ConfigOption(name = "Pick creatures", desc = "Which creatures get their own line. The rare ones are picked from the start; everything else counts under Others.")
+        @ConfigEditorButton(buttonText = "Open")
+        public transient Runnable openPicker = () -> {
+        };
+
+        @ConfigOption(name = "Reset", desc = "Sets every count back to zero.")
+        @ConfigEditorButton(buttonText = "Reset")
+        public transient Runnable resetTracker = () -> {
+        };
+
+        /** Welche Bewohner eine eigene Zeile haben; ohne Eintrag gilt: die seltenen ja */
+        @Expose
+        public Map<String, Boolean> mobs = new HashMap<>();
+
+        /** Der Zaehlstand je Bewohner */
+        @Expose
+        public Map<String, com.shokiteufel.shokimod.handler.SeaCreatureTracker.Count> counts = new HashMap<>();
+
+        @Expose
+        public float hudX = 0.02f;
+        @Expose
+        public float hudY = 0.55f;
         @Expose
         public float hudScale = 1.0f;
         @Expose
