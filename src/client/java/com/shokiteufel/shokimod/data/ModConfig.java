@@ -126,6 +126,7 @@ public class ModConfig extends Config {
         if (collectionTracker.lineOrder == null) collectionTracker.lineOrder = CollectionTrackerCategory.LineOrder.TOTAL_GAINED_HOUR;
         if (INSTANCE.fishing.hotspot == null) INSTANCE.fishing.hotspot = new HotspotCategory();
         if (INSTANCE.fishing.tracker == null) INSTANCE.fishing.tracker = new SeaTrackerCategory();
+        if (INSTANCE.fishing.tracker.view == null) INSTANCE.fishing.tracker.view = SeaView.TOTAL;
         if (INSTANCE.fishing.tracker.mobs == null) INSTANCE.fishing.tracker.mobs = new HashMap<>();
         if (INSTANCE.fishing.tracker.counts == null) INSTANCE.fishing.tracker.counts = new HashMap<>();
         if (INSTANCE.chat.reminder == null) INSTANCE.chat.reminder = new ReminderCategory();
@@ -1453,6 +1454,22 @@ public class ModConfig extends Config {
      * Abgeguckt bei Feesh (Apache 2.0). Was in der Auswahl steht, bekommt eine eigene
      * Zeile; alles andere wird unter "Others" zusammengezaehlt.
      */
+    public enum SeaView {
+        TOTAL("Total"),
+        SESSION("Session");
+
+        private final String label;
+
+        SeaView(String label) {
+            this.label = label;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
+    }
+
     public static class SeaTrackerCategory {
 
         @ConfigOption(name = "Sea creature tracker", desc = "Counts what you catch: the total, how many came as a Double Hook (DH) and how many your Bloodshot reforge cocooned (BS). Picked creatures get their own line, the rest is counted under Others.")
@@ -1468,6 +1485,11 @@ public class ModConfig extends Config {
         @ConfigOption(name = "Show panel", desc = "The tracker panel on screen. Move it with /shoki hud.")
         @ConfigEditorBoolean
         public boolean showHud = true;
+
+        @Expose
+        @ConfigOption(name = "View", desc = "Total: everything counted since the last reset, kept between sessions. Session: only this game session, with the fishing time and sea creatures per hour (SC/h). Reset clears the view you have selected.")
+        @ConfigEditorDropdown
+        public SeaView view = SeaView.TOTAL;
 
         @Expose
         @ConfigOption(name = "Show Double Hooks", desc = "Adds a DH column: the Double Hooks of each creature and how often it came as one.")
