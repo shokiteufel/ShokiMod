@@ -53,6 +53,7 @@ public final class EffectsTracker {
     private static final long MENU_GAP_MILLIS = 500L;
     private static long lastMenuLook = 0L;
     private static long lastSecond = 0L;
+    private static String lastOddTitle = "";
 
     /** Der Vorab-Alarm ("noch x Minuten") ist fuer diesen Effekt schon gekommen */
     private static final Set<String> earlyFired = new HashSet<>();
@@ -112,13 +113,16 @@ public final class EffectsTracker {
     // ------------------------------------------------------------------ Takt
 
     public static void tick(Minecraft client) {
-        if (client == null || client.player == null || client.level == null || !cfg().enabled) return;
+        if (client == null || client.player == null || client.level == null) return;
         long now = System.currentTimeMillis();
 
         if (client.gui.screen() instanceof AbstractContainerScreen<?> screen && now - lastMenuLook >= MENU_GAP_MILLIS) {
             lastMenuLook = now;
+            // Das Menue wird auch bei ausgeschalteter Funktion gelesen: Wer /effects oeffnet,
+            // will, dass es gemerkt wird, und schaltet den Rest danach ein
             readMenu(screen, now);
         }
+        if (!cfg().enabled) return;
 
         if (now - lastSecond < 1000L) return;
         lastSecond = now;
@@ -140,7 +144,14 @@ public final class EffectsTracker {
 
     /** Das Menue /effects: jeder Effekt mit "Remaining: ..." wird gemerkt oder aufgefrischt */
     private static void readMenu(AbstractContainerScreen<?> screen, long now) {
-        if (!INVENTORY_TITLE.matcher(clean(screen.getTitle().getString())).matches()) return;
+        String title = clean(screen.getTitle().getString());
+        if (!INVENTORY_TITLE.matcher(title).matches()) {
+            if (title.toLowerCase(Locale.ROOT).contains("effect") && !title.equals(lastOddTitle)) {
+                lastOddTitle = title;
+                ShokiMod.LOGGER.info("[Effects] menu title not recognised: '{}'", title);
+            }
+            return;
+        }
 
         // Zeigt der Filter die God Potion, sind das nicht die gesuchten Effekte
         for (Slot slot : screen.getMenu().slots) {
