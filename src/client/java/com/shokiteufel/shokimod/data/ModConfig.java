@@ -827,6 +827,11 @@ public class ModConfig extends Config {
         public boolean spawnRoute = false;
 
         @Expose
+        @ConfigOption(name = "Coal route", desc = "Leads you along a round through the Crystal Hollows that passes a lot of coal - point by point, the next one always marked. Only active in the Crystal Hollows.")
+        @ConfigEditorBoolean
+        public boolean coalRoute = false;
+
+        @Expose
         @Category(name = "Mining HUD", desc = "One panel with what matters underground: commissions, the pickaxe ability with its cooldown, the Sky Mall buff. The numbers come from the tab list.")
         public MiningHudCategory hud = new MiningHudCategory();
 

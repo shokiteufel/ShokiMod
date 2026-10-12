@@ -56,7 +56,7 @@ public final class RouteGuide {
 
     /** Der Punkt, zu dem gerade gefuehrt wird - oder null */
     public static BlockPos target() {
-        if (route == null || !ModConfig.INSTANCE.mining.spawnRoute) return null;
+        if (route == null || !enabled(route)) return null;
         return route.points().get(index % route.points().size());
     }
 
@@ -68,7 +68,7 @@ public final class RouteGuide {
      * keinen zweiten.
      */
     public static BlockPos following() {
-        if (route == null || !ModConfig.INSTANCE.mining.spawnRoute) return null;
+        if (route == null || !enabled(route)) return null;
         if (route.points().size() < 2) return null;
         return route.points().get((index + 1) % route.points().size());
     }
@@ -84,9 +84,23 @@ public final class RouteGuide {
         return (index % route.points().size() + 1) + "/" + route.points().size();
     }
 
+    /** Ist der Schalter dieser Runde an? Fehlt die Angabe, gilt der der Spawn-Runde */
+    static boolean enabled(SpawnRoutes.Route route) {
+        if ("coal".equals(route.setting())) return ModConfig.INSTANCE.mining.coalRoute;
+        return ModConfig.INSTANCE.mining.spawnRoute;
+    }
+
+    /** Gilt die Runde in dieser Welt? Leer heisst: in jeder */
+    static boolean inWorld(SpawnRoutes.Route route) {
+        String world = route.world();
+        if (world == null || world.isEmpty()) return true;
+        String map = GameState.Server.map;
+        return map != null && map.toLowerCase(java.util.Locale.ROOT).contains(world.toLowerCase(java.util.Locale.ROOT));
+    }
+
     private static void tick(Minecraft client) {
-        if (!ModConfig.INSTANCE.mining.spawnRoute || client.player == null || client.level == null
-                || !GameState.Server.isSkyblock()) {
+        if (!(ModConfig.INSTANCE.mining.spawnRoute || ModConfig.INSTANCE.mining.coalRoute)
+                || client.player == null || client.level == null || !GameState.Server.isSkyblock()) {
             route = null;
             return;
         }
@@ -180,6 +194,7 @@ public final class RouteGuide {
         for (int i = 0; i < alle.size(); i++) {
             SpawnRoutes.Route kandidat = alle.get(i);
             // Eine Runde mit Gebiet gilt nur dort - egal wie nah ihre Punkte liegen
+            if (!enabled(kandidat) || !inWorld(kandidat)) continue;
             if (!inArea(kandidat.areas(), sidebar)) continue;
             for (BlockPos point : kandidat.points()) {
                 double abstand = at.distanceToSqr(point.getX() + 0.5, point.getY() + 0.5, point.getZ() + 0.5);
