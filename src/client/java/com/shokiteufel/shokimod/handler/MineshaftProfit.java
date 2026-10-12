@@ -32,6 +32,11 @@ public final class MineshaftProfit {
     private static final Map<String, Integer> gains = new LinkedHashMap<>();
     /** Die Schluessel, die in diesem Schacht verbraucht wurden */
     private static final Map<String, Integer> keys = new LinkedHashMap<>();
+    /** Die Lagerfeuer, die in diesem Schacht aufgestellt wurden - jedes ist eine Ausgabe */
+    private static int campfires = 0;
+    private static final String CAMPFIRE = "PORTABLE_CAMPFIRE";
+    private static final java.util.regex.Pattern CAMPFIRE_PLACED =
+            java.util.regex.Pattern.compile("^You placed a Portable Campfire!");
     /** Der Schacht, in dem gezaehlt wird - leer heisst: gerade keiner */
     private static String shaft = "";
 
@@ -51,6 +56,19 @@ public final class MineshaftProfit {
         shaft = name;
         gains.clear();
         keys.clear();
+        campfires = 0;
+    }
+
+    /**
+     * "You placed a Portable Campfire!" im Schacht: das Lagerfeuer kostet, und der Preis
+     * gehoert in die Bilanz - im Schacht wie im Profit-Tracker.
+     */
+    public static void onChatMessage(String plain) {
+        if (plain == null || !CAMPFIRE_PLACED.matcher(plain.trim()).find()) return;
+        if (!FeatureGate.mineshaftKnown() || !MineshaftState.inMineshaft()) return;
+
+        if (!shaft.isEmpty()) campfires++;
+        ProfitTracker.campfirePlaced();
     }
 
     /** Ein Schluessel wurde an einer Leiche verbraucht: zieht von der Bilanz des Schachts ab */
@@ -72,6 +90,7 @@ public final class MineshaftProfit {
         shaft = "";
         if (gains.isEmpty()) {
             keys.clear();
+            campfires = 0;
             return;
         }
 
@@ -79,6 +98,7 @@ public final class MineshaftProfit {
         Map<String, Integer> beute = Map.copyOf(gains);
         gains.clear();
         keys.clear();
+        campfires = 0;
         ShokiMod.LOGGER.info("[Mineshaft] {} brought {} at sell order: {}",
                 gewesen, ItemValue.format(coins), beute);
         if (coins <= 0) return;
@@ -98,6 +118,11 @@ public final class MineshaftProfit {
         for (Map.Entry<String, Integer> entry : gains.entrySet()) {
             double unit = ItemValue.trackedUnitPrice(entry.getKey(), SellMode.SELL_ORDER);
             if (unit > 0) sum += unit * entry.getValue();
+        }
+        // Die aufgestellten Lagerfeuer
+        if (campfires > 0) {
+            double unit = ItemValue.trackedUnitPrice(CAMPFIRE, SellMode.INSTANT_SELL);
+            if (unit > 0) sum -= unit * campfires;
         }
         // Und was die Schluessel gekostet haben, wenn der Tracker sie mitrechnet
         if (com.shokiteufel.shokimod.handler.ProfitTracker.keysCounted()) {
@@ -128,5 +153,6 @@ public final class MineshaftProfit {
     static void openFor(String name) {
         shaft = name;
         gains.clear();
+        campfires = 0;
     }
 }
