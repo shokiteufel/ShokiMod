@@ -75,7 +75,7 @@ public final class NearbyOverlay {
     private static void drawNegativeTooltip(GuiGraphicsExtractor graphics) {
         Minecraft client = Minecraft.getInstance();
         SafariHud.Panel panel = SafariHud.Panel.PROFIT;
-        if (client.screen == null || client.getWindow() == null || !panel.visible()) return;
+        if (client.gui.screen() == null || client.getWindow() == null || !panel.visible()) return;
 
         double mouseX = client.mouseHandler.xpos() * client.getWindow().getGuiScaledWidth()
                 / client.getWindow().getScreenWidth();
