@@ -170,11 +170,27 @@ public final class SkyBlockItems {
      */
     public static List<String> priceCandidates(String itemId) {
         if (itemId == null || itemId.isEmpty()) return List.of();
-        List<String> out = new ArrayList<>(2);
+        List<String> out = new ArrayList<>(3);
+        // Pets stehen in der Auktionsliste als LVL_100_MYTHIC_ENDERMITE, nicht als ENDERMITE;5+100
+        String pet = petAuctionKey(itemId);
+        if (pet != null) out.add(pet);
         out.add(itemId);
         int semicolon = itemId.indexOf(';');
         if (semicolon > 0) out.add(itemId.substring(0, semicolon));
         return out;
+    }
+
+    private static final java.util.regex.Pattern PET_ID =
+            java.util.regex.Pattern.compile("^([A-Z_]+);([0-5])(?:\\+(\\d+))?$");
+    private static final String[] PET_TIERS =
+            {"COMMON", "UNCOMMON", "RARE", "EPIC", "LEGENDARY", "MYTHIC"};
+
+    /** "ENDERMITE;5+100" wird zu "LVL_100_MYTHIC_ENDERMITE"; ohne Stufe zaehlt Stufe 1. Sonst null */
+    static String petAuctionKey(String itemId) {
+        java.util.regex.Matcher m = PET_ID.matcher(itemId);
+        if (!m.matches()) return null;
+        String level = m.group(3) == null ? "1" : m.group(3);
+        return "LVL_" + level + "_" + PET_TIERS[Integer.parseInt(m.group(2))] + "_" + m.group(1);
     }
 
     /**
