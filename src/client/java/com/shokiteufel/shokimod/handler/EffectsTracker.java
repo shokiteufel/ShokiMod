@@ -282,7 +282,8 @@ public final class EffectsTracker {
                 lastRepeat.remove(k);
                 if (early > 0L && left <= early) {
                     if (earlyFired.add(k)) {
-                        fire(e, "Effect running out", minutes(left) + " left", 0xFFAA00);
+                        fire(e, "Effect running out", minutes(left) + " left", 0xFFAA00,
+                                " runs out in " + minutesLong(left) + ".");
                     }
                 } else {
                     earlyFired.remove(k);
@@ -293,14 +294,20 @@ public final class EffectsTracker {
             if (!c.alertOnExpire && !c.repeatExpired) continue;
             if (expiredFired.add(k)) {
                 lastRepeat.put(k, now);
-                if (c.alertOnExpire) fire(e, "Effect ran out", "renew it", 0xFF5555);
+                if (c.alertOnExpire) fire(e, "Effect ran out", "renew it", 0xFF5555, " has run out.");
             } else if (c.repeatExpired
                     && now - lastRepeat.getOrDefault(k, 0L) >= Math.max(5, c.repeatSeconds) * 1000L) {
                 lastRepeat.put(k, now);
-                fire(e, "Effect is still off", "renew it", 0xFF5555);
+                fire(e, "Effect is still off", "renew it", 0xFF5555, " is still off.");
             }
             earlyFired.add(k);
         }
+    }
+
+    /** "5 minutes", "1 minute" - fuer die Chatzeile */
+    private static String minutesLong(long millis) {
+        long minutes = Math.max(1L, Math.round(millis / 60_000.0));
+        return minutes + (minutes == 1L ? " minute" : " minutes");
     }
 
     private static String minutes(long millis) {
@@ -308,7 +315,7 @@ public final class EffectsTracker {
         return minutes + " min";
     }
 
-    private static void fire(EffectEntry entry, String headline, String detail, int rgb) {
+    private static void fire(EffectEntry entry, String headline, String detail, int rgb, String chatText) {
         ModConfig.EffectsCategory c = cfg();
         if (c.banner) AlertBanner.show(headline, entry.name, detail, rgb, 4000L);
         if (c.chatLine) {
@@ -317,8 +324,7 @@ public final class EffectsTracker {
                 client.player.sendSystemMessage(Component.literal("[ShokiMod] ")
                         .withStyle(ChatFormatting.DARK_AQUA)
                         .append(Component.literal(entry.name).withStyle(ChatFormatting.WHITE))
-                        .append(Component.literal(" - " + headline.toLowerCase(Locale.ROOT) + ", " + detail + ".")
-                                .withStyle(ChatFormatting.YELLOW)));
+                        .append(Component.literal(chatText).withStyle(ChatFormatting.YELLOW)));
             }
         }
         String ton = c.sound;
@@ -332,6 +338,6 @@ public final class EffectsTracker {
     public static void test() {
         EffectEntry probe = new EffectEntry();
         probe.name = "Spelunker V";
-        fire(probe, "Effect running out", "5 min left", 0xFFAA00);
+        fire(probe, "Effect running out", "5 min left", 0xFFAA00, " runs out in 5 minutes.");
     }
 }
