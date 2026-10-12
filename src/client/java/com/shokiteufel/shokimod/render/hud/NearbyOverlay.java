@@ -97,7 +97,7 @@ public final class NearbyOverlay {
         if (!interactive()) return HuntingBoxOverlay.shown();
         return HuntingBoxOverlay.shown() || shown()
                 || SafariHud.Panel.HUNTING.visible() || SafariHud.Panel.COLLECTION.visible()
-                || SafariHud.Panel.PROFIT.visible();
+                || SafariHud.Panel.PROFIT.visible() || SafariHud.Panel.SEATRACKER.visible();
     }
 
     /** Sitzt der Zeiger auf einer Zeile? Dann handeln und den Klick schlucken */
@@ -171,6 +171,19 @@ public final class NearbyOverlay {
                     SafariHud.invalidate(panel);
                     return true;
                 }
+            }
+        }
+
+        if (SafariHud.Panel.SEATRACKER.visible()) {
+            SafariHud.Panel panel = SafariHud.Panel.SEATRACKER;
+            HudPanel content = panel.build();
+            int row = content.rowAt(Minecraft.getInstance().font,
+                    SafariHud.originX(panel), SafariHud.originY(panel), panel.scale(), mouseX, mouseY);
+            // Die Ueberschrift wechselt zwischen Total und Session
+            if (row == 0) {
+                com.shokiteufel.shokimod.handler.SeaCreatureTracker.toggleView();
+                SafariHud.invalidate(panel);
+                return true;
             }
         }
 

@@ -1492,6 +1492,11 @@ public class ModConfig extends Config {
         public SeaView view = SeaView.TOTAL;
 
         @Expose
+        @ConfigOption(name = "Answer HPH?", desc = "When someone writes \"HPH?\" in the party chat, answers with your hooks per hour from this session. Needs the tracker switched on and a few minutes of fishing - otherwise it says there are too few hooks to post.")
+        @ConfigEditorBoolean
+        public boolean answerHph = true;
+
+        @Expose
         @ConfigOption(name = "Show Double Hooks", desc = "Adds a DH column: the Double Hooks of each creature and how often it came as one.")
         @ConfigEditorBoolean
         public boolean showDoubleHooks = true;
