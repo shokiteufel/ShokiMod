@@ -32,8 +32,11 @@ import java.util.stream.Stream;
  */
 public final class SpawnRoutes {
 
-    /** Die mitgelieferte Runde im Jar */
-    private static final String BUNDLED = "/assets/shokimod/routes/glacite-spawn.json";
+    /** Die mitgelieferten Runden im Jar */
+    private static final String[][] BUNDLED = {
+            {"/assets/shokimod/routes/glacite-spawn.json", "Glacite spawn"},
+            {"/assets/shokimod/routes/coal-hollows.json", "Coal Hollows"},
+    };
     /** Wo eigene Runden liegen duerfen - eine Datei je Runde */
     private static final String FOLDER = "routes";
 
@@ -50,7 +53,8 @@ public final class SpawnRoutes {
      * Leer heisst "ueberall, wo ich in der Naehe bin" - die Notloesung fuer Dateien,
      * die ohne Gebiet geschrieben wurden.
      */
-    public record Route(String name, List<String> areas, int argb, List<BlockPos> points) {
+    public record Route(String name, List<String> areas, int argb, List<BlockPos> points,
+                        String setting, String world) {
     }
 
     private static List<Route> routes = null;
@@ -72,14 +76,16 @@ public final class SpawnRoutes {
     private static List<Route> load() {
         List<Route> found = new ArrayList<>();
 
-        try (InputStream in = SpawnRoutes.class.getResourceAsStream(BUNDLED)) {
-            if (in != null) {
-                Route route = parse("Glacite spawn", JsonParser.parseReader(
-                        new InputStreamReader(in, StandardCharsets.UTF_8)));
-                if (route != null) found.add(route);
+        for (String[] bundled : BUNDLED) {
+            try (InputStream in = SpawnRoutes.class.getResourceAsStream(bundled[0])) {
+                if (in != null) {
+                    Route route = parse(bundled[1], JsonParser.parseReader(
+                            new InputStreamReader(in, StandardCharsets.UTF_8)));
+                    if (route != null) found.add(route);
+                }
+            } catch (IOException | RuntimeException e) {
+                ShokiMod.LOGGER.warn("[Route] bundled route {} not readable: {}", bundled[1], e.toString());
             }
-        } catch (IOException | RuntimeException e) {
-            ShokiMod.LOGGER.warn("[Route] bundled route not readable: {}", e.toString());
         }
 
         Path folder = ModPaths.resolve(FOLDER);
@@ -111,6 +117,9 @@ public final class SpawnRoutes {
         String name = fallbackName;
         List<String> areas = new ArrayList<>();
         int argb = 0xFF55FF55;
+        // Welcher Schalter die Runde einschaltet und in welcher Welt sie gilt (Area-Zeile der Tab-Liste)
+        String setting = "spawn";
+        String world = "";
 
         if (json.isJsonArray()) {
             list = json.getAsJsonArray();
@@ -120,6 +129,8 @@ public final class SpawnRoutes {
             if (points == null || !points.isJsonArray()) return null;
             list = points.getAsJsonArray();
             if (object.has("name")) name = object.get("name").getAsString();
+            if (object.has("setting")) setting = object.get("setting").getAsString();
+            if (object.has("world")) world = object.get("world").getAsString();
             // Beide Schreibweisen: ein Gebiet als Text, oder mehrere als Liste
             if (object.has("area")) areas.add(object.get("area").getAsString());
             if (object.has("areas") && object.get("areas").isJsonArray()) {
@@ -137,6 +148,8 @@ public final class SpawnRoutes {
             if (!element.isJsonObject()) continue;
             JsonObject point = element.getAsJsonObject();
             if (!point.has("x") || !point.has("y") || !point.has("z")) continue;
+            // Ein Punkt mit null-Koordinaten (so schreibt ihn mancher Exporter am Ende) zaehlt nicht
+            if (point.get("x").isJsonNull() || point.get("y").isJsonNull() || point.get("z").isJsonNull()) continue;
 
             points.add(new BlockPos(point.get("x").getAsInt(), point.get("y").getAsInt(),
                     point.get("z").getAsInt()));
@@ -149,6 +162,6 @@ public final class SpawnRoutes {
                 farbeGelesen = true;
             }
         }
-        return points.isEmpty() ? null : new Route(name, List.copyOf(areas), argb, List.copyOf(points));
+        return points.isEmpty() ? null : new Route(name, List.copyOf(areas), argb, List.copyOf(points), setting, world);
     }
 }
