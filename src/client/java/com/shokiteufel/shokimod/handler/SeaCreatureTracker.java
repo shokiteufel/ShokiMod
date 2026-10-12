@@ -47,8 +47,11 @@ public final class SeaCreatureTracker {
 
     /** Ein Zaehlstand: Faenge (Double Hook doppelt gerechnet), Double Hooks, Cocoons */
     public static final class Count {
+        @com.google.gson.annotations.Expose
         public int total = 0;
+        @com.google.gson.annotations.Expose
         public int dh = 0;
+        @com.google.gson.annotations.Expose
         public int cc = 0;
     }
 
