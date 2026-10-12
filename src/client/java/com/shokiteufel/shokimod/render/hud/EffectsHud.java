@@ -17,6 +17,14 @@ public final class EffectsHud {
     private EffectsHud() {
     }
 
+    /** Gibt es etwas zu zeigen? Sonst bleibt der Kasten weg und nur der Alarm meldet sich */
+    public static boolean hasRows() {
+        for (EffectEntry e : EffectsTracker.entries()) {
+            if (e.hud && EffectsTracker.remaining(e) != null) return true;
+        }
+        return false;
+    }
+
     public static HudPanel build() {
         HudPanel panel = new HudPanel();
         panel.title("Effects", TITLE_COLOUR);
