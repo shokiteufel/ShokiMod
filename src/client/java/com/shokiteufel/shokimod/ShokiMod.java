@@ -98,7 +98,6 @@ public class ShokiMod implements ClientModInitializer {
         HotspotTracker.register();
         CollectionTracker.register();
         com.shokiteufel.shokimod.scanner.DyeRotation.init();
-        com.shokiteufel.shokimod.handler.LootshareTracker.register();
         NestTracker.register();
         ContestState.register();
         SessionManager.register();
