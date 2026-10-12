@@ -112,6 +112,9 @@ public final class LootshareTracker {
         boolean add(long amount) {
             if (amount <= 0) return false;
             damage += amount;
+            // Mehr als alle Lebenspunkte kann niemand allein machen: Was darueber kommt, sind
+            // Treffer anderer, die in dasselbe Zeitfenster fielen
+            if (maxHp > 0) damage = Math.min(damage, maxHp);
             boolean war = eligible;
             long need = threshold();
             eligible = need > 0 && damage >= need;
@@ -156,6 +159,16 @@ public final class LootshareTracker {
     }
 
     private static final Map<Integer, Target> targets = new LinkedHashMap<>();
+
+    /**
+     * Der Schaden eines Mobs, der aus dem Blick war, aber nicht gestorben ist - etwa weil man
+     * selbst starb und zurueckgelaufen ist. Sonst finge die Zaehlung bei null von vorn an.
+     */
+    private record Saved(String name, long damage, boolean eligible, long at) {
+    }
+
+    private static final Map<Integer, Saved> remembered = new HashMap<>();
+    private static final long REMEMBER_MILLIS = 10L * 60_000L;
     /** Gruppenmitglieder, die sich gemeldet haben: Name (klein) -> bis wann */
     private static final Map<String, Long> marked = new HashMap<>();
     private static final Map<String, String> markedNames = new HashMap<>();
@@ -181,6 +194,12 @@ public final class LootshareTracker {
             if (level.isClientSide() && cfg().enabled) noteAttack(entity);
             return InteractionResult.PASS;
         });
+        // Rechtsklick mit einem Gegenstand: Faehigkeiten wie der Wither Impact des Hyperion
+        // treffen ohne Klick auf ein Wesen. Dann zaehlen die Zahlen in der Naehe der Mobs
+        net.fabricmc.fabric.api.event.player.UseItemCallback.EVENT.register((player, level, hand) -> {
+            if (level.isClientSide() && cfg().enabled) noteAbility();
+            return InteractionResult.PASS;
+        });
     }
 
     /** Die Mobs, die gerade beobachtet werden */
@@ -197,10 +216,18 @@ public final class LootshareTracker {
         targets.clear();
         marked.clear();
         markedNames.clear();
+        remembered.clear();
         lastAttackEntity = -1;
     }
 
     // ------------------------------------------------------------------ Angriffe
+
+    /** Eine Faehigkeit wurde ausgeloest: ohne Ziel, die Zahlen gehoeren den Mobs in der Naehe */
+    private static void noteAbility() {
+        lastAttackEntity = -1;
+        lastAttackAt = System.currentTimeMillis();
+        lastAttackPos = null;
+    }
 
     private static void noteAttack(Entity entity) {
         if (entity == null) return;
@@ -251,6 +278,7 @@ public final class LootshareTracker {
             if (target == null) {
                 target = new Target(name, body, stand, now);
                 targets.put(body.getId(), target);
+                restore(target, now);
                 ShokiMod.LOGGER.info("[Lootshare] watching {} ({} blocks away)", name,
                         Math.round(client.player.distanceTo(body)));
             }
@@ -290,6 +318,29 @@ public final class LootshareTracker {
             }
         }
         return best;
+    }
+
+    /** Einen vergessenen Zaehlstand zurueckgeben: dieselbe Kennung und derselbe Name, sonst der juengste desselben Namens */
+    private static void restore(Target target, long now) {
+        remembered.values().removeIf(s -> now - s.at() > REMEMBER_MILLIS);
+        Integer key = null;
+        Saved own = remembered.get(target.entityId);
+        if (own != null && own.name().equalsIgnoreCase(target.name)) {
+            key = target.entityId;
+        } else {
+            long newest = -1L;
+            for (Map.Entry<Integer, Saved> e : remembered.entrySet()) {
+                if (e.getValue().name().equalsIgnoreCase(target.name) && e.getValue().at() > newest) {
+                    newest = e.getValue().at();
+                    key = e.getKey();
+                }
+            }
+        }
+        if (key == null) return;
+        Saved saved = remembered.remove(key);
+        target.damage = saved.damage();
+        target.eligible = saved.eligible();
+        ShokiMod.LOGGER.info("[Lootshare] {} is back - {} damage restored", target.name, target.damage);
     }
 
     private static boolean tightPair(Entity body, ArmorStand stand) {
@@ -371,6 +422,11 @@ public final class LootshareTracker {
         for (Integer id : weg) {
             Target t = targets.remove(id);
             if (t != null) {
+                boolean gestorben = (t.hp == 0L && t.maxHp > 0L)
+                        || (t.entity instanceof LivingEntity le && le.isDeadOrDying());
+                if (!gestorben && t.damage > 0) {
+                    remembered.put(id, new Saved(t.name, t.damage, t.eligible, now));
+                }
                 ShokiMod.LOGGER.info("[Lootshare] {} is gone - {} damage, {}", t.name, t.damage,
                         t.eligible ? "enough for loot" : "not enough");
             }
