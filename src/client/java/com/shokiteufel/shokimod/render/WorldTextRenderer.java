@@ -33,7 +33,6 @@ public class WorldTextRenderer {
         renderNests();
         renderMineshaftCorpses(client);
         renderGemstoneVeins(client);
-        renderHollowsOres();
         renderSpawnRoute(client);
     }
 
@@ -103,28 +102,6 @@ public class WorldTextRenderer {
             Vec3 mitte = new Vec3(andock.getX() + 0.5, andock.getY() + 0.5, andock.getZ() + 0.5);
             GizmoProperties line = Gizmos.line(crosshair(), mitte, argb, staerke);
             line.setAlwaysOnTop();
-        }
-    }
-
-    /**
-     * Kohle oder Redstone in den Crystal Hollows: zu jedem der naechsten Klumpen ein
-     * Strich vom Fadenkreuz und eine Beschriftung mit Entfernung - ohne den Klumpen
-     * selbst zu umranden, damit die Sicht frei bleibt.
-     */
-    private static void renderHollowsOres() {
-        var cfg = ModConfig.INSTANCE.mobVisuals.hollows;
-        var list = com.shokiteufel.shokimod.scanner.HollowsOres.nearest();
-        if (list.isEmpty()) return;
-        for (int i = 0; i < list.size(); i++) {
-            var c = list.get(i);
-            int argb = c.ore().argb();
-            String text = c.ore().label() + " " + (int) c.distance() + "m (" + c.size() + ")"
-                    + (c.hidden() ? " - in wall" : "");
-            renderGizmoLabel(text, c.nearest(), argb);
-            if (cfg.line) {
-                Vec3 mitte = new Vec3(c.nearest().getX() + 0.5, c.nearest().getY() + 0.5, c.nearest().getZ() + 0.5);
-                Gizmos.line(crosshair(), mitte, argb, Math.max(1, cfg.lineWidth)).setAlwaysOnTop();
-            }
         }
     }
 
