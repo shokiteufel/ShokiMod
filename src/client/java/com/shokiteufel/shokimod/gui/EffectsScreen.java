@@ -96,7 +96,7 @@ public class EffectsScreen extends Screen {
         // Oeffnet /effects, damit die Mod es liest - ohne den Befehl selbst zu tippen
         addRenderableWidget(Button.builder(Component.literal("Open /effects"), button -> {
             if (minecraft != null && minecraft.getConnection() != null) {
-                minecraft.setScreen(null);
+                minecraft.setScreenAndShow(null);
                 minecraft.getConnection().sendCommand("effects");
             }
         }).bounds(left, height - 28, 110, 20).build());
