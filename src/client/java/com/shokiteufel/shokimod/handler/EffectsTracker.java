@@ -115,7 +115,7 @@ public final class EffectsTracker {
         if (client == null || client.player == null || client.level == null || !cfg().enabled) return;
         long now = System.currentTimeMillis();
 
-        if (client.screen instanceof AbstractContainerScreen<?> screen && now - lastMenuLook >= MENU_GAP_MILLIS) {
+        if (client.gui.screen() instanceof AbstractContainerScreen<?> screen && now - lastMenuLook >= MENU_GAP_MILLIS) {
             lastMenuLook = now;
             readMenu(screen, now);
         }

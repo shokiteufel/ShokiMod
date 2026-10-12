@@ -315,14 +315,14 @@ public class ModConfig extends Config {
                         picked -> INSTANCE.chat.petMax.sound = picked,
                         1.0f)));
         INSTANCE.effects.openSound = () -> Minecraft.getInstance().execute(() ->
-                Minecraft.getInstance().setScreen(new SoundPickerScreen(
-                        Minecraft.getInstance().screen,
+                Minecraft.getInstance().setScreenAndShow(new SoundPickerScreen(
+                        Minecraft.getInstance().gui.screen(),
                         () -> INSTANCE.effects.sound,
                         picked -> INSTANCE.effects.sound = picked,
                         1.0f)));
         INSTANCE.effects.openList = () -> Minecraft.getInstance().execute(() ->
-                Minecraft.getInstance().setScreen(new com.shokiteufel.shokimod.gui.EffectsScreen(
-                        Minecraft.getInstance().screen)));
+                Minecraft.getInstance().setScreenAndShow(new com.shokiteufel.shokimod.gui.EffectsScreen(
+                        Minecraft.getInstance().gui.screen())));
         INSTANCE.effects.test = () -> Minecraft.getInstance().execute(
                 com.shokiteufel.shokimod.handler.EffectsTracker::test);
         INSTANCE.chat.petMax.test = () -> Minecraft.getInstance().execute(

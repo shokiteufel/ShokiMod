@@ -134,7 +134,7 @@ public class ShokiMod implements ClientModInitializer {
             }
             if (openEffectsNextTick) {
                 openEffectsNextTick = false;
-                client.setScreen(new com.shokiteufel.shokimod.gui.EffectsScreen(null));
+                client.setScreenAndShow(new com.shokiteufel.shokimod.gui.EffectsScreen(null));
             }
             if (openProfitItemsNextTick) {
                 openProfitItemsNextTick = false;
