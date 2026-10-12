@@ -77,7 +77,6 @@ public final class HollowsOres {
     public record Cluster(Ore ore, BlockPos nearest, AABB box, int size, boolean hidden, double distance) {
     }
 
-    private static final int SCAN_INTERVAL_TICKS = 40;
     /** Weiter als das laeuft man nicht fuer ein bisschen Kohle - und die Suche bliebe teuer */
     private static final int MAX_RANGE = 96;
     /** Hoechstens so viele Klumpen werden je Suche geliefert */
@@ -105,65 +104,116 @@ public final class HollowsOres {
         return map != null && map.toLowerCase(java.util.Locale.ROOT).contains("crystal hollows");
     }
 
+    /** Je Tick werden so viele Chunks durchgesehen - der Rest der Arbeit wartet auf den naechsten */
+    private static final int CHUNKS_PER_TICK = 3;
+    /** Zwischen zwei Durchlaeufen wird kurz Pause gemacht */
+    private static final int PAUSE_TICKS = 20;
+
+    /** Die Chunks des laufenden Durchlaufs, die noch fehlen (nah zuerst) */
+    private static final Deque<int[]> pending = new ArrayDeque<>();
+    private static final Set<BlockPos> acc = new HashSet<>();
+    private static BlockPos runMiddle = BlockPos.ZERO;
+    private static int runRange = 0;
+    private static Ore runOre = Ore.OFF;
+
     private static void tick(Minecraft client) {
         Ore ore = ModConfig.INSTANCE.mobVisuals.hollows.ore;
         if (ore == null || ore == Ore.OFF || client.level == null || client.player == null
                 || !GameState.Server.isSkyblock() || !inHollows()) {
             clusters = List.of();
-            ticks = SCAN_INTERVAL_TICKS;
+            pending.clear();
+            acc.clear();
+            ticks = PAUSE_TICKS;
             return;
         }
-        if (++ticks < SCAN_INTERVAL_TICKS) return;
-        ticks = 0;
 
-        clusters = scan(client, ore);
+        // Kein Durchlauf offen: nach der Pause einen neuen anlegen
+        if (pending.isEmpty()) {
+            if (++ticks < PAUSE_TICKS) return;
+            ticks = 0;
+            startRun(client, ore);
+            return;
+        }
+
+        // Die Ausgangslage kann sich waehrend des Durchlaufs aendern (Sorte, Ort): dann von vorn
+        if (ore != runOre) {
+            pending.clear();
+            acc.clear();
+            return;
+        }
+
+        Level level = client.level;
+        long rangeSquared = (long) runRange * runRange;
+        for (int n = 0; n < CHUNKS_PER_TICK && !pending.isEmpty(); n++) {
+            int[] at = pending.poll();
+            scanChunk(level, at[0], at[1], ore, rangeSquared);
+        }
+
+        if (pending.isEmpty()) finishRun(client, ore);
+    }
+
+    private static void startRun(Minecraft client, Ore ore) {
+        runOre = ore;
+        runMiddle = client.player.blockPosition();
+        runRange = Math.min(MAX_RANGE, client.options.getEffectiveRenderDistance() * 16);
+        acc.clear();
+
+        int chunkRadius = (runRange >> 4) + 1;
+        int centerChunkX = runMiddle.getX() >> 4;
+        int centerChunkZ = runMiddle.getZ() >> 4;
+        List<int[]> all = new ArrayList<>();
+        for (int cx = centerChunkX - chunkRadius; cx <= centerChunkX + chunkRadius; cx++) {
+            for (int cz = centerChunkZ - chunkRadius; cz <= centerChunkZ + chunkRadius; cz++) {
+                all.add(new int[] {cx, cz});
+            }
+        }
+        // Nah zuerst: Das Naheliegende ist das, was man braucht
+        all.sort(Comparator.comparingInt(c -> (c[0] - centerChunkX) * (c[0] - centerChunkX)
+                + (c[1] - centerChunkZ) * (c[1] - centerChunkZ)));
+        pending.addAll(all);
+    }
+
+    private static void scanChunk(Level level, int cx, int cz, Ore ore, long rangeSquared) {
+        LevelChunk chunk = level.getChunk(cx, cz);
+        LevelChunkSection[] sections = chunk.getSections();
+        for (int index = 0; index < sections.length; index++) {
+            LevelChunkSection section = sections[index];
+            if (section.hasOnlyAir()) continue;
+            int baseY = (level.getMinSectionY() + index) << 4;
+            if (baseY + 16 < runMiddle.getY() - runRange || baseY > runMiddle.getY() + runRange) continue;
+            if (!section.maybeHas(ore::matches)) continue;
+
+            for (int x = 0; x < 16; x++) {
+                for (int y = 0; y < 16; y++) {
+                    for (int z = 0; z < 16; z++) {
+                        if (!ore.matches(section.getBlockState(x, y, z))) continue;
+                        BlockPos pos = new BlockPos((cx << 4) + x, baseY + y, (cz << 4) + z);
+                        if (runMiddle.distSqr(pos) <= rangeSquared) acc.add(pos);
+                    }
+                }
+            }
+        }
+    }
+
+    /** Alle Chunks gesehen: aus den Bloecken werden Klumpen */
+    private static void finishRun(Minecraft client, Ore ore) {
+        Level level = client.level;
+        if (acc.isEmpty()) {
+            clusters = List.of();
+        } else {
+            Vec3 eye = client.player.getEyePosition();
+            List<Cluster> out = cluster(ore, new HashSet<>(acc), pos -> level.getBlockState(pos).isAir(), eye);
+            out.sort(Comparator.comparingDouble(Cluster::distance));
+            clusters = out.size() > MAX_CLUSTERS ? List.copyOf(out.subList(0, MAX_CLUSTERS)) : List.copyOf(out);
+        }
+        acc.clear();
+
         if (ore != lastLogged) {
             lastLogged = ore;
             StringBuilder sizes = new StringBuilder();
             for (Cluster c : clusters) sizes.append(c.size()).append('@').append((int) c.distance()).append(' ');
             ShokiMod.LOGGER.info("[HollowsOres] {}: {} clusters {}", ore, clusters.size(), sizes.toString().trim());
         }
-    }
-
-    private static List<Cluster> scan(Minecraft client, Ore ore) {
-        Level level = client.level;
-        Vec3 eye = client.player.getEyePosition();
-        BlockPos middle = client.player.blockPosition();
-        int range = Math.min(MAX_RANGE, client.options.getEffectiveRenderDistance() * 16);
-        long rangeSquared = (long) range * range;
-
-        Set<BlockPos> found = new HashSet<>();
-        int chunkRadius = (range >> 4) + 1;
-        int centerChunkX = middle.getX() >> 4;
-        int centerChunkZ = middle.getZ() >> 4;
-        for (int cx = centerChunkX - chunkRadius; cx <= centerChunkX + chunkRadius; cx++) {
-            for (int cz = centerChunkZ - chunkRadius; cz <= centerChunkZ + chunkRadius; cz++) {
-                LevelChunk chunk = level.getChunk(cx, cz);
-                LevelChunkSection[] sections = chunk.getSections();
-                for (int index = 0; index < sections.length; index++) {
-                    LevelChunkSection section = sections[index];
-                    if (section.hasOnlyAir()) continue;
-                    int baseY = (level.getMinSectionY() + index) << 4;
-                    if (baseY + 16 < middle.getY() - range || baseY > middle.getY() + range) continue;
-                    if (!section.maybeHas(ore::matches)) continue;
-
-                    for (int x = 0; x < 16; x++) {
-                        for (int y = 0; y < 16; y++) {
-                            for (int z = 0; z < 16; z++) {
-                                if (!ore.matches(section.getBlockState(x, y, z))) continue;
-                                BlockPos pos = new BlockPos((cx << 4) + x, baseY + y, (cz << 4) + z);
-                                if (middle.distSqr(pos) <= rangeSquared) found.add(pos);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        if (found.isEmpty()) return List.of();
-
-        List<Cluster> out = cluster(ore, found, pos -> level.getBlockState(pos).isAir(), eye);
-        out.sort(Comparator.comparingDouble(Cluster::distance));
-        return out.size() > MAX_CLUSTERS ? List.copyOf(out.subList(0, MAX_CLUSTERS)) : List.copyOf(out);
     }
 
     /** Was sich beruehrt - auch ueber die Ecke -, ist ein Klumpen */
