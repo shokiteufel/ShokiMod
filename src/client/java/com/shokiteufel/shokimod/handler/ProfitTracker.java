@@ -268,7 +268,7 @@ public final class ProfitTracker {
      * dann das Minus, statt es zu verschweigen.
      */
     public static boolean mayBeNegative(String itemId) {
-        return isBait(itemId) || com.shokiteufel.shokimod.scanner.CorpseKeys.isKey(itemId)
+        return isBait(itemId) || "PORTABLE_CAMPFIRE".equals(itemId) || com.shokiteufel.shokimod.scanner.CorpseKeys.isKey(itemId)
                 || CHEST_COINS.equals(itemId) || "DUNGEON_CHEST_KEY".equals(itemId);
     }
 
@@ -313,6 +313,13 @@ public final class ProfitTracker {
     /** Rechnet der Tracker die Schluessel als Kosten? */
     public static boolean keysCounted() {
         return cfg().countCorpseKeys;
+    }
+
+    /** Ein Portable Campfire im Schacht aufgestellt: einmal als Ausgabe in den Kasten */
+    public static void campfirePlaced() {
+        if (!enabled()) return;
+        adjust("PORTABLE_CAMPFIRE", -1);
+        ShokiMod.LOGGER.info("[Profit] portable campfire placed -1");
     }
 
     public static void keySpent(String keyId, int amount) {
