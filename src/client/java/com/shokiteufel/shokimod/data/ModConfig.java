@@ -323,8 +323,8 @@ public class ModConfig extends Config {
         INSTANCE.fishing.rareCatch.test = () -> Minecraft.getInstance().execute(
                 com.shokiteufel.shokimod.handler.RareCatchAlert::test);
         INSTANCE.fishing.tracker.openPicker = () -> Minecraft.getInstance().execute(() ->
-                Minecraft.getInstance().setScreen(new com.shokiteufel.shokimod.gui.SeaTrackerScreen(
-                        Minecraft.getInstance().screen)));
+                Minecraft.getInstance().setScreenAndShow(new com.shokiteufel.shokimod.gui.SeaTrackerScreen(
+                        Minecraft.getInstance().gui.screen())));
         INSTANCE.fishing.tracker.resetTracker = () -> Minecraft.getInstance().execute(
                 com.shokiteufel.shokimod.handler.SeaCreatureTracker::reset);
         INSTANCE.chat.testAlertVolume = () -> Minecraft.getInstance().execute(AlertVolume::test);
