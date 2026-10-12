@@ -95,6 +95,62 @@ public final class SeaCreatureTracker {
         return sessionActiveMillis + running;
     }
 
+    /** Wie oft die Angel in dieser Sitzung etwas gebracht hat: ein Double Hook zaehlt zwei Fange, aber ein Auswurf */
+    public static int sessionHooks() {
+        int sum = 0;
+        for (Count c : session.values()) sum += c.total - c.dh;
+        return sum;
+    }
+
+    /** Hooks je Stunde - die Meeresbewohner ohne Double Hooks und ohne Blood Shots */
+    public static double hooksPerHour() {
+        long millis = sessionMillis();
+        return millis < 1000L ? 0.0 : sessionHooks() * 3_600_000.0 / millis;
+    }
+
+    /** Wechselt zwischen Total und Session - der Klick auf die Ueberschrift */
+    public static void toggleView() {
+        cfg().view = sessionView() ? ModConfig.SeaView.TOTAL : ModConfig.SeaView.SESSION;
+        ModConfig.INSTANCE.saveNow();
+    }
+
+    // ------------------------------------------------------------------ HPH?
+
+    private static final Pattern PARTY_LINE = Pattern.compile(
+            "^(?:Party|\u041f\u0430\u0440\u0442\u0438\u044f|\u041a\u043e\u043c\u043f\u0430\u043d\u0438\u044f) > (?:\\[[^\\]]*\\] )?(?<player>[A-Za-z0-9_]+): (?<text>.+)$");
+    private static final Pattern HPH_ASK = Pattern.compile("^(?i:hph\\??)$");
+    /** Mindestens so viel Fischzeit und so viele Hooks, bevor eine Zahl etwas sagt */
+    private static final long HPH_MIN_MILLIS = 60_000L;
+    private static final int HPH_MIN_HOOKS = 10;
+    /** Fragen mehrere, antwortet die Mod nur einmal */
+    private static final long HPH_COOLDOWN_MILLIS = 8_000L;
+    private static long lastAnswerAt = 0L;
+
+    /** Fragt jemand in der Gruppe "HPH?", gibt es die Antwort in den Gruppenchat */
+    private static void answerHph(String plain) {
+        if (!cfg().answerHph) return;
+        Matcher party = PARTY_LINE.matcher(plain.trim());
+        if (!party.matches() || !HPH_ASK.matcher(party.group("text").trim()).matches()) return;
+
+        net.minecraft.client.Minecraft client = net.minecraft.client.Minecraft.getInstance();
+        if (client == null || client.player == null || client.getConnection() == null) return;
+        // Die eigene Frage kommt als Gruppenzeile zurueck - darauf nicht antworten
+        if (client.player.getName().getString().equalsIgnoreCase(party.group("player"))) return;
+
+        long now = System.currentTimeMillis();
+        if (now - lastAnswerAt < HPH_COOLDOWN_MILLIS) return;
+        lastAnswerAt = now;
+
+        String text;
+        if (cfg().enabled && sessionHooks() >= HPH_MIN_HOOKS && sessionMillis() >= HPH_MIN_MILLIS) {
+            text = "HPH: " + Math.round(hooksPerHour()) + " hooks/h (" + Math.round(perHour())
+                    + " SC/h, " + (sessionMillis() / 60_000L) + " min)";
+        } else {
+            text = "to less Hooks to post \uD83D\uDE1E";
+        }
+        client.getConnection().sendCommand("pc " + text);
+    }
+
     /** Meeresbewohner je Stunde: Double Hooks sind schon doppelt gezaehlt, Blood Shots kommen dazu */
     public static double perHour() {
         long millis = sessionMillis();
@@ -105,7 +161,10 @@ public final class SeaCreatureTracker {
     }
 
     public static void onChatMessage(String plain) {
-        if (plain == null || plain.isEmpty() || !cfg().enabled) return;
+        if (plain == null || plain.isEmpty()) return;
+        // Die Antwort gilt auch bei ausgeschaltetem Tracker: dann sagt sie, dass nichts da ist
+        answerHph(plain);
+        if (!cfg().enabled) return;
         String text = plain.trim();
 
         if (DOUBLE_HOOK.matcher(text).find()) {
