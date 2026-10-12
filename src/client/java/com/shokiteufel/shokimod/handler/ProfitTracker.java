@@ -322,6 +322,13 @@ public final class ProfitTracker {
         ShokiMod.LOGGER.info("[Profit] portable campfire placed -1");
     }
 
+    /** "Resourceful" hat den Schluessel gerettet: die Ausgabe wieder streichen */
+    public static void keyRefunded(String keyId, int amount) {
+        if (!enabled() || !cfg().countCorpseKeys || amount <= 0) return;
+        adjust(keyId, amount);
+        ShokiMod.LOGGER.info("[Profit] corpse key saved by Resourceful: {} +{}", keyId, amount);
+    }
+
     public static void keySpent(String keyId, int amount) {
         if (!enabled() || !cfg().countCorpseKeys || amount <= 0) return;
         adjust(keyId, -amount);

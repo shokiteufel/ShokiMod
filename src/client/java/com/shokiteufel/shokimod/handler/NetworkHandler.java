@@ -86,6 +86,7 @@ public class NetworkHandler {
             // Der Zaehler fuer Faenge, Double Hooks und Cocoons liest dieselbe Zeile
             com.shokiteufel.shokimod.handler.SeaCreatureTracker.onChatMessage(unformattedMsg);
             com.shokiteufel.shokimod.handler.MineshaftProfit.onChatMessage(unformattedMsg);
+            com.shokiteufel.shokimod.scanner.ItemChanges.onChatMessage(unformattedMsg);
             // Wer aus der Gruppe "Loot share secured!" schreibt, bekommt ein Haeckchen
             LootshareTracker.onChatMessage(unformattedMsg);
             // Der Wechsel per Autopet ist die einzige Meldung ueber das aktive Pet,
