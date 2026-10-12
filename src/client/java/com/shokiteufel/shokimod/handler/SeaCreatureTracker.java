@@ -134,8 +134,7 @@ public final class SeaCreatureTracker {
 
         net.minecraft.client.Minecraft client = net.minecraft.client.Minecraft.getInstance();
         if (client == null || client.player == null || client.getConnection() == null) return;
-        // Die eigene Frage kommt als Gruppenzeile zurueck - darauf nicht antworten
-        if (client.player.getName().getString().equalsIgnoreCase(party.group("player"))) return;
+        // Auch die eigene Frage wird beantwortet; die Antwort selbst passt nicht auf "HPH?", das gibt keine Schleife
 
         long now = System.currentTimeMillis();
         if (now - lastAnswerAt < HPH_COOLDOWN_MILLIS) return;
