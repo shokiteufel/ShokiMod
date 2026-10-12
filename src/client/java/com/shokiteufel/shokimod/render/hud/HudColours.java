@@ -22,6 +22,8 @@ public final class HudColours {
     public static final int GOLD = 0xFFFFAA00;          // §6
     public static final int LIGHT_PURPLE = 0xFFFF55FF;  // §d
     public static final int RED = 0xFFFF5555;           // §c
+    public static final int DARK_AQUA = 0xFF00AAAA;     // §3 - die Farbe von "Sea Creature Chance"
+    public static final int DOUBLE_HOOK = 0xFF459BFF;   // das Blau von "Double Hook Chance"
 
     private HudColours() {
     }
