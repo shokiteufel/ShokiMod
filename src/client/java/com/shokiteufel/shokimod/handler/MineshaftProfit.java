@@ -77,6 +77,12 @@ public final class MineshaftProfit {
         keys.merge(keyId, amount, Integer::sum);
     }
 
+    /** Der Schluessel wurde gerettet: er kostet nichts */
+    public static void keyRefunded(String keyId, int amount) {
+        if (shaft.isEmpty() || amount <= 0) return;
+        keys.computeIfPresent(keyId, (k, v) -> v - amount > 0 ? v - amount : null);
+    }
+
     /**
      * Raus aus dem Schacht: einmal Bescheid sagen.
      *
