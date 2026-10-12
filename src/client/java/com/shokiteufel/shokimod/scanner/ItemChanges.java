@@ -694,6 +694,34 @@ public final class ItemChanges {
         losses.add(new Loss(itemId, amount, System.currentTimeMillis(), false));
     }
 
+    /** Der zuletzt verbuchte Schluessel und wann - falls "Resourceful" ihn danach doch rettet */
+    private static String lastKeyId = null;
+    private static int lastKeyAmount = 0;
+    private static long lastKeyAt = 0L;
+    /** Die Rettung kam vor der Buchung */
+    private static long savedAt = 0L;
+    private static final long SAVE_WINDOW_MILLIS = 5_000L;
+    private static final java.util.regex.Pattern KEY_SAVED = java.util.regex.Pattern.compile(
+            "^LUCKY! Your Resourceful perk saved your key from being consumed!");
+
+    /**
+     * "LUCKY! Your Resourceful perk saved your key from being consumed!": der Schluessel
+     * kostet nichts. Je nachdem, was zuerst ankommt - Meldung oder Inventar - wird die
+     * Buchung zurueckgenommen oder die naechste uebersprungen.
+     */
+    public static void onChatMessage(String plain) {
+        if (plain == null || !KEY_SAVED.matcher(plain.trim()).find()) return;
+
+        long now = System.currentTimeMillis();
+        if (lastKeyId != null && lastKeyAmount > 0 && now - lastKeyAt < SAVE_WINDOW_MILLIS) {
+            com.shokiteufel.shokimod.handler.ProfitTracker.keyRefunded(lastKeyId, 1);
+            com.shokiteufel.shokimod.handler.MineshaftProfit.keyRefunded(lastKeyId, 1);
+            lastKeyAmount--;
+        } else {
+            savedAt = now;
+        }
+    }
+
     /** Welche Leichen-Schluessel zwischen zwei Staenden aus dem Inventar verschwunden sind - im Schacht */
     private static void noteKeysSpent(Map<String, Integer> before, Map<String, Integer> after) {
         if (!com.shokiteufel.shokimod.scanner.MineshaftState.inMineshaft()) return;
@@ -701,6 +729,15 @@ public final class ItemChanges {
             if (!com.shokiteufel.shokimod.scanner.CorpseKeys.isKey(entry.getKey())) continue;
             int used = entry.getValue() - after.getOrDefault(entry.getKey(), 0);
             if (used <= 0) continue;
+            long now = System.currentTimeMillis();
+            if (savedAt > 0L && now - savedAt < SAVE_WINDOW_MILLIS) {
+                savedAt = 0L;
+                used--;
+                if (used <= 0) continue;
+            }
+            lastKeyId = entry.getKey();
+            lastKeyAmount = used;
+            lastKeyAt = now;
             com.shokiteufel.shokimod.handler.ProfitTracker.keySpent(entry.getKey(), used);
             com.shokiteufel.shokimod.handler.MineshaftProfit.keySpent(entry.getKey(), used);
         }
