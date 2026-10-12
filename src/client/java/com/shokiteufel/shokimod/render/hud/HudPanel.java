@@ -40,11 +40,26 @@ public class HudPanel {
     /** Feine helle Kante oben, damit der Kasten eine Form hat statt zu verlaufen */
     private static final int TOP_EDGE = 0x50FFFFFF;
 
-    private enum Kind { TITLE, TEXT, PAIR, BAR, BLANK, ICON, TABLE }
+    private enum Kind { TITLE, TEXT, PAIR, BAR, BLANK, ICON, TABLE, SEGMENTS }
+
+    /** Ein Stueck einer Segment-Zeile: ein Text in einer eigenen Farbe */
+    public record Segment(String text, int colour) {
+    }
+
+    /** Zwischen zwei Segmenten einer Zeile */
+    private static final String SEGMENT_SEPARATOR = " | ";
+    private static final int SEPARATOR_COLOUR = 0xFFAAAAAA;
 
     private record Row(Kind kind, String label, String value,
                        int labelColour, int valueColour, int current, int max,
-                       net.minecraft.world.item.ItemStack icon, String extra) {
+                       net.minecraft.world.item.ItemStack icon, String extra,
+                       List<Segment> parts, float scale) {
+
+        /** Ohne Segmente */
+        Row(Kind kind, String label, String value, int labelColour, int valueColour, int current, int max,
+            net.minecraft.world.item.ItemStack icon, String extra) {
+            this(kind, label, value, labelColour, valueColour, current, max, icon, extra, List.of(), 1.0f);
+        }
 
         /** Ohne zweite Spalte */
         Row(Kind kind, String label, String value, int labelColour, int valueColour, int current, int max,
@@ -120,6 +135,19 @@ public class HudPanel {
     public HudPanel table(String label, String first, String second, int labelColour, int valueColour) {
         rows.add(new Row(Kind.TABLE, label, first, labelColour, valueColour, 0, 0,
                 net.minecraft.world.item.ItemStack.EMPTY, second));
+        return this;
+    }
+
+    /**
+     * Eine Zeile aus mehreren Stuecken nebeneinander, jedes in seiner Farbe, mit " | " dazwischen -
+     * wie die Summenzeile anderer Tracker. `scale` macht sie kleiner (oder groesser) als den Rest;
+     * die Zeile behaelt dabei die Hoehe einer gewoehnlichen, damit Klicks auf die Ueberschrift
+     * weiter die richtige Zeile treffen.
+     */
+    public HudPanel segments(float scale, List<Segment> parts) {
+        rows.add(new Row(Kind.SEGMENTS, "", "", 0, 0, 0, 0,
+                net.minecraft.world.item.ItemStack.EMPTY, "", List.copyOf(parts),
+                Math.max(0.4f, Math.min(2.0f, scale))));
         return this;
     }
 
@@ -203,10 +231,21 @@ public class HudPanel {
                               + (secondColumn == 0 ? 0 : GUTTER + secondColumn);
                 case ICON -> iconSize() + GUTTER + font.width(row.label())
                              + (valueWidths[i] == 0 ? 0 : GUTTER + valueWidths[i]);
+                case SEGMENTS -> (int) Math.ceil(segmentsWidth(font, row) * row.scale());
             };
             widest = Math.max(widest, width);
         }
         measuredWidth = widest;
+    }
+
+    /** Die Breite einer Segment-Zeile in ihren eigenen Massen, vor dem Verkleinern */
+    private static int segmentsWidth(Font font, Row row) {
+        int width = 0;
+        for (int i = 0; i < row.parts().size(); i++) {
+            if (i > 0) width += font.width(SEGMENT_SEPARATOR);
+            width += font.width(row.parts().get(i).text());
+        }
+        return width;
     }
 
     /**
@@ -368,6 +407,25 @@ public class HudPanel {
             }
             case TITLE, TEXT -> text(graphics, font, row.label(), labelOutline[index],
                     x, y, row.labelColour());
+            case SEGMENTS -> {
+                // Verkleinert wird ueber die Zeichenflaeche, und die Schrift sitzt dann mittig in der
+                // Zeilenhoehe - sonst klebte eine kleinere Zeile oben an der Kante
+                float shift = (LINE_HEIGHT - font.lineHeight * row.scale()) / 2f;
+                graphics.pose().pushMatrix();
+                graphics.pose().translate(x, y + shift);
+                graphics.pose().scale(row.scale(), row.scale());
+                int cursor = 0;
+                for (int i = 0; i < row.parts().size(); i++) {
+                    if (i > 0) {
+                        text(graphics, font, SEGMENT_SEPARATOR, SEGMENT_SEPARATOR, cursor, 0, SEPARATOR_COLOUR);
+                        cursor += font.width(SEGMENT_SEPARATOR);
+                    }
+                    Segment part = row.parts().get(i);
+                    text(graphics, font, part.text(), stripColours(part.text()), cursor, 0, part.colour());
+                    cursor += font.width(part.text());
+                }
+                graphics.pose().popMatrix();
+            }
             case TABLE -> {
                 text(graphics, font, row.label(), labelOutline[index], x, y, row.labelColour());
                 int secondRight = x + content;
