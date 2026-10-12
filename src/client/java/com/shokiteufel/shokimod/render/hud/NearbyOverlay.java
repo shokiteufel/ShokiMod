@@ -68,6 +68,44 @@ public final class NearbyOverlay {
         }
         // Dieselbe Auswahl wie beim Spielen - was eingeschaltet ist und hierher gehoert
         SafariHud.render(graphics);
+        drawNegativeTooltip(graphics);
+    }
+
+    /** Zeiger auf "Negative:" im Profit-Tracker: zeigt, was wie viel abgezogen hat */
+    private static void drawNegativeTooltip(GuiGraphicsExtractor graphics) {
+        Minecraft client = Minecraft.getInstance();
+        SafariHud.Panel panel = SafariHud.Panel.PROFIT;
+        if (client.screen == null || client.getWindow() == null || !panel.visible()) return;
+
+        double mouseX = client.mouseHandler.xpos() * client.getWindow().getGuiScaledWidth()
+                / client.getWindow().getScreenWidth();
+        double mouseY = client.mouseHandler.ypos() * client.getWindow().getGuiScaledHeight()
+                / client.getWindow().getScreenHeight();
+        HudPanel content = panel.build();
+        int row = content.rowAt(client.font, SafariHud.originX(panel), SafariHud.originY(panel),
+                panel.scale(), mouseX, mouseY);
+        if (row < 0 || row != ProfitHud.negativeRow()) return;
+
+        java.util.Map<String, Double> parts = com.shokiteufel.shokimod.handler.ProfitTracker.negatives();
+        java.util.List<String> lines = new java.util.ArrayList<>();
+        if (parts.isEmpty()) lines.add("Nothing deducted yet");
+        for (var entry : parts.entrySet()) {
+            lines.add(entry.getKey() + " - " + com.shokiteufel.shokimod.util.ItemValue.format(-entry.getValue()));
+        }
+        int width = 0;
+        for (String line : lines) width = Math.max(width, client.font.width(line));
+        int x = (int) mouseX + 10;
+        int y = (int) mouseY + 10;
+        int height = lines.size() * 10 + 6;
+        int screenW = client.getWindow().getGuiScaledWidth();
+        int screenH = client.getWindow().getGuiScaledHeight();
+        if (x + width + 8 > screenW) x = Math.max(0, (int) mouseX - width - 14);
+        if (y + height > screenH) y = Math.max(0, screenH - height);
+        graphics.fill(x - 3, y - 3, x + width + 3, y + lines.size() * 10 + 1, 0xF0100010);
+        graphics.fill(x - 2, y - 2, x + width + 2, y + lines.size() * 10, 0xF0200030);
+        for (int i = 0; i < lines.size(); i++) {
+            graphics.text(client.font, lines.get(i), x, y + i * 10, 0xFFFF5555, true);
+        }
     }
 
     /** Haelt der Spieler gerade eine Umschalttaste? */

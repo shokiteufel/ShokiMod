@@ -871,6 +871,33 @@ public final class ProfitTracker {
         return sum;
     }
 
+    /**
+     * Was bisher abgezogen wurde, nach Herkunft: Truhe (Coins und Schluessel), Leichen-Schluessel,
+     * Lagerfeuer, Koeder. Die Werte sind negativ; wer nichts gekostet hat, fehlt.
+     */
+    public static Map<String, Double> negatives() {
+        Map<String, Double> out = new LinkedHashMap<>();
+        for (Row row : rows()) {
+            if (row.count() >= 0 || row.value() >= 0) continue;
+            String label = CHEST_COINS.equals(row.itemId()) || "DUNGEON_CHEST_KEY".equals(row.itemId())
+                    ? "Dungeon chest"
+                    : "PORTABLE_CAMPFIRE".equals(row.itemId()) ? "Campfire"
+                    : com.shokiteufel.shokimod.scanner.CorpseKeys.isKey(row.itemId())
+                            ? row.itemId().substring(0, row.itemId().indexOf('_')).charAt(0)
+                                    + row.itemId().substring(1, row.itemId().indexOf('_')).toLowerCase(Locale.ROOT)
+                                    + " key"
+                    : row.name();
+            out.merge(label, row.value(), Double::sum);
+        }
+        return out;
+    }
+
+    public static double negativeTotal() {
+        double sum = 0;
+        for (double v : negatives().values()) sum += v;
+        return sum;
+    }
+
     public static double perHour() {
         long uptime = uptimeMillis();
         if (uptime < 1_000L) return 0;

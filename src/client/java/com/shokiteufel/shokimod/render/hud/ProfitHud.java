@@ -65,6 +65,13 @@ public final class ProfitHud {
      */
     private static List<String> rowIds = new ArrayList<>();
 
+    /** Die Zeile "Negative:" - fuer den Tooltip */
+    private static int negativeRow = -1;
+
+    public static int negativeRow() {
+        return negativeRow;
+    }
+
     private ProfitHud() {
     }
 
@@ -108,6 +115,11 @@ public final class ProfitHud {
         }
 
         panel.blank();
+        ids.add(null);
+        // Was bisher abgezogen wurde; die Aufschluesselung steht im Tooltip (NearbyOverlay)
+        negativeRow = ids.size();
+        panel.pair("Negative:", ItemValue.format(ProfitTracker.negativeTotal()), LABEL_COLOUR,
+                ProfitTracker.negativeTotal() < 0 ? HudColours.RED : VALUE_COLOUR);
         ids.add(null);
         panel.pair("Total:", ItemValue.format(ProfitTracker.total()), LABEL_COLOUR,
                 ProfitTracker.total() < 0 ? HudColours.RED : VALUE_COLOUR);
