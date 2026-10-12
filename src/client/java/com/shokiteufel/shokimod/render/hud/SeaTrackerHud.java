@@ -28,7 +28,8 @@ public final class SeaTrackerHud {
     public static HudPanel build() {
         ModConfig.SeaTrackerCategory cfg = ModConfig.INSTANCE.fishing.tracker;
         HudPanel panel = new HudPanel();
-        panel.title("Sea Creatures", TITLE_COLOUR);
+        boolean session = SeaCreatureTracker.sessionView();
+        panel.title(session ? "Sea Creatures (Session)" : "Sea Creatures", TITLE_COLOUR);
 
         Count total = SeaCreatureTracker.total();
         if (cfg.showDoubleHooks) panel.table("", "", "DH", HEADER_COLOUR, HEADER_COLOUR);
@@ -45,7 +46,24 @@ public final class SeaTrackerHud {
         if (cfg.showBloodShot) {
             panel.table("BS:", HudNumbers.amount(total.cc), "", LABEL_COLOUR, VALUE_COLOUR);
         }
+        // Zeit und Rate gibt es nur fuer die Sitzung: der Gesamtstand hat keine Uhr
+        if (session) {
+            panel.table("Time:", clock(SeaCreatureTracker.sessionMillis()), "", LABEL_COLOUR, HEADER_COLOUR);
+            panel.table("SC/h:", HudNumbers.amount(Math.round(SeaCreatureTracker.perHour())), "",
+                    LABEL_COLOUR, VALUE_COLOUR);
+        }
         return panel;
+    }
+
+    /** Millisekunden als h:mm:ss, ohne fuehrende Stunde solange noch keine voll ist */
+    private static String clock(long millis) {
+        long seconds = Math.max(0L, millis / 1000L);
+        long hours = seconds / 3600;
+        long minutes = (seconds % 3600) / 60;
+        long rest = seconds % 60;
+        return hours > 0
+                ? String.format(Locale.ROOT, "%d:%02d:%02d", hours, minutes, rest)
+                : String.format(Locale.ROOT, "%d:%02d", minutes, rest);
     }
 
     private static void line(HudPanel panel, String name, int colour, Count count, Count total,
