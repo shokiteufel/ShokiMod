@@ -167,7 +167,7 @@ public final class SeaCreatures {
                     "^The desolate wail of a Banshee breaks the silence\\.$"),
             neu("Bayou Sludge", "EPIC", 0xAA00AA, false,
                     "^A swampy mass of slime emerges, the Bayou Sludge\\!$"),
-            neu("Alligator", "LEGENDARY", 0xFFAA00, true,
+            neu("Alligator", "EPIC", 0xAA00AA, true,
                     "^A long snout breaks the surface of the water\\. It\\'s an Alligator\\!$"),
             neu("Titanoboa", "MYTHIC", 0xFF55FF, true,
                     "^A massive Titanoboa surfaces\\. Its body stretches as far as the eye can see\\.$"),

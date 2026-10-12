@@ -40,11 +40,17 @@ public class HudPanel {
     /** Feine helle Kante oben, damit der Kasten eine Form hat statt zu verlaufen */
     private static final int TOP_EDGE = 0x50FFFFFF;
 
-    private enum Kind { TITLE, TEXT, PAIR, BAR, BLANK, ICON }
+    private enum Kind { TITLE, TEXT, PAIR, BAR, BLANK, ICON, TABLE }
 
     private record Row(Kind kind, String label, String value,
                        int labelColour, int valueColour, int current, int max,
-                       net.minecraft.world.item.ItemStack icon) {
+                       net.minecraft.world.item.ItemStack icon, String extra) {
+
+        /** Ohne zweite Spalte */
+        Row(Kind kind, String label, String value, int labelColour, int valueColour, int current, int max,
+            net.minecraft.world.item.ItemStack icon) {
+            this(kind, label, value, labelColour, valueColour, current, max, icon, "");
+        }
 
         /** Alle Zeilen ausser der Bild-Zeile kommen ohne Gegenstand aus */
         Row(Kind kind, String label, String value, int labelColour, int valueColour, int current, int max) {
@@ -85,6 +91,9 @@ public class HudPanel {
      */
     private int measuredWidth = -1;
     private int[] valueWidths = null;
+    /** Breite der beiden Spalten der Tabellenzeilen */
+    private int firstColumn = 0;
+    private int secondColumn = 0;
     /** Dieselben Zeilen ohne Farbcodes - der Umriss soll einfarbig dunkel sein */
     private String[] labelOutline = null;
     private String[] valueOutline = null;
@@ -101,6 +110,16 @@ public class HudPanel {
 
     public HudPanel pair(String label, String value, int labelColour, int valueColour) {
         rows.add(new Row(Kind.PAIR, label, value, labelColour, valueColour, 0, 0));
+        return this;
+    }
+
+    /**
+     * Eine Zeile mit zwei Spalten rechts: Name, dann zwei Zahlenspalten, die in allen
+     * Tabellenzeilen buendig untereinander stehen. Fuer Zaehler wie "6  0,23%   2  50%".
+     */
+    public HudPanel table(String label, String first, String second, int labelColour, int valueColour) {
+        rows.add(new Row(Kind.TABLE, label, first, labelColour, valueColour, 0, 0,
+                net.minecraft.world.item.ItemStack.EMPTY, second));
         return this;
     }
 
@@ -162,6 +181,13 @@ public class HudPanel {
         labelOutline = new String[rows.size()];
         valueOutline = new String[rows.size()];
         int widest = 0;
+        firstColumn = 0;
+        secondColumn = 0;
+        for (Row row : rows) {
+            if (row.kind() != Kind.TABLE) continue;
+            firstColumn = Math.max(firstColumn, font.width(row.value()));
+            secondColumn = Math.max(secondColumn, font.width(row.extra()));
+        }
         for (int i = 0; i < rows.size(); i++) {
             Row row = rows.get(i);
             valueWidths[i] = row.value().isEmpty() ? 0 : font.width(row.value());
@@ -173,6 +199,8 @@ public class HudPanel {
                 case PAIR -> font.width(row.label()) + GUTTER + valueWidths[i];
                 case BAR -> font.width(row.label()) + GUTTER + BAR_WIDTH + GUTTER + valueWidths[i];
                 case BLANK -> 0;
+                case TABLE -> font.width(row.label()) + GUTTER + firstColumn
+                              + (secondColumn == 0 ? 0 : GUTTER + secondColumn);
                 case ICON -> iconSize() + GUTTER + font.width(row.label())
                              + (valueWidths[i] == 0 ? 0 : GUTTER + valueWidths[i]);
             };
@@ -340,6 +368,19 @@ public class HudPanel {
             }
             case TITLE, TEXT -> text(graphics, font, row.label(), labelOutline[index],
                     x, y, row.labelColour());
+            case TABLE -> {
+                text(graphics, font, row.label(), labelOutline[index], x, y, row.labelColour());
+                int secondRight = x + content;
+                int firstRight = secondRight - (secondColumn == 0 ? 0 : secondColumn + GUTTER);
+                if (!row.value().isEmpty()) {
+                    text(graphics, font, row.value(), valueOutline[index],
+                            firstRight - font.width(row.value()), y, row.valueColour());
+                }
+                if (!row.extra().isEmpty()) {
+                    text(graphics, font, row.extra(), stripColours(row.extra()),
+                            secondRight - font.width(row.extra()), y, row.valueColour());
+                }
+            }
             case PAIR -> {
                 text(graphics, font, row.label(), labelOutline[index], x, y, row.labelColour());
                 int valueX = x + content - valueWidth;
