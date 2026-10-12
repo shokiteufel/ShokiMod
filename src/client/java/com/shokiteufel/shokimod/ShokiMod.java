@@ -55,6 +55,7 @@ public class ShokiMod implements ClientModInitializer {
     private static boolean openCraftProfitNextTick = false;
     private static boolean openFlipProfitNextTick = false;
     private static boolean openSeaCreaturesNextTick = false;
+    private static boolean openEffectsNextTick = false;
     private static boolean openProfitItemsNextTick = false;
     private static boolean openDayProfitNextTick = false;
     /** Statt der Jahresliste gleich die Waren dieses Jahres - 0 heisst: wie bisher */
@@ -131,6 +132,10 @@ public class ShokiMod implements ClientModInitializer {
                 openSeaCreaturesNextTick = false;
                 client.setScreen(new com.shokiteufel.shokimod.gui.SeaCreatureScreen(null));
             }
+            if (openEffectsNextTick) {
+                openEffectsNextTick = false;
+                client.setScreen(new com.shokiteufel.shokimod.gui.EffectsScreen(null));
+            }
             if (openProfitItemsNextTick) {
                 openProfitItemsNextTick = false;
                 client.setScreen(new com.shokiteufel.shokimod.gui.ProfitItemScreen(null));
@@ -152,6 +157,7 @@ public class ShokiMod implements ClientModInitializer {
             // Der Fortschritt des Pets steht nur im Pet-Menue; solange es offen ist,
             // wird er mitgelesen
             com.shokiteufel.shokimod.scanner.PetState.tick(client);
+            com.shokiteufel.shokimod.handler.EffectsTracker.tick(client);
             // Was an Shards im Lager liegt, sobald die Box offen ist
             com.shokiteufel.shokimod.scanner.ShardStock.tick(client);
             // Nur wenn eingeschaltet - sonst laeuft der schnelle Bazaar-Weg allein
@@ -232,6 +238,11 @@ public class ShokiMod implements ClientModInitializer {
                         // Neunzig Zeilen passen in keine Einstellungsliste
                         .then(ClientCommands.literal("seacreatures").executes(context -> {
                             openSeaCreaturesNextTick = true;
+                            return 1;
+                        }))
+                        // /shoki effects -> die gemerkten Traenke: Kasten und Alarm je Effekt
+                        .then(ClientCommands.literal("effects").executes(context -> {
+                            openEffectsNextTick = true;
                             return 1;
                         }))
                         // /shoki profit -> die Liste des Profit-Trackers: was gefunden wurde,

@@ -19,7 +19,7 @@ public final class SafariHud {
 
     /** Ein Kasten auf dem Bildschirm. Traegt seine eigene Lage und Groesse in der Config */
     public enum Panel {
-        PROGRESS, MISSING, CONTEST, NEARBY, HUNTING, GUILD, COLLECTION, PROFIT, MINING, PET, PERFORMANCE, SEATRACKER;
+        PROGRESS, MISSING, CONTEST, NEARBY, HUNTING, GUILD, COLLECTION, PROFIT, MINING, PET, PERFORMANCE, SEATRACKER, EFFECTS;
 
         public boolean visible() {
             ModConfig.SafariCategory c = ModConfig.INSTANCE.safari;
@@ -36,6 +36,7 @@ public final class SafariHud {
                 case PET -> ModConfig.INSTANCE.hud.pet.showHud;
                 case PERFORMANCE -> ModConfig.INSTANCE.hud.performance.showHud;
                 case SEATRACKER -> ModConfig.INSTANCE.fishing.tracker.enabled && ModConfig.INSTANCE.fishing.tracker.showHud;
+                case EFFECTS -> ModConfig.INSTANCE.effects.enabled && ModConfig.INSTANCE.effects.showHud;
             };
         }
 
@@ -66,6 +67,7 @@ public final class SafariHud {
                 case PET -> "Pet";
                 case PERFORMANCE -> "Performance";
                 case SEATRACKER -> "Sea creature";
+                case EFFECTS -> "Effects";
             };
         }
 
@@ -111,6 +113,7 @@ public final class SafariHud {
                 case PET -> ModConfig.INSTANCE.hud.pet.hudX;
                 case PERFORMANCE -> ModConfig.INSTANCE.hud.performance.hudX;
                 case SEATRACKER -> ModConfig.INSTANCE.fishing.tracker.hudX;
+                case EFFECTS -> ModConfig.INSTANCE.effects.hudX;
             };
         }
 
@@ -129,6 +132,7 @@ public final class SafariHud {
                 case PET -> ModConfig.INSTANCE.hud.pet.hudY;
                 case PERFORMANCE -> ModConfig.INSTANCE.hud.performance.hudY;
                 case SEATRACKER -> ModConfig.INSTANCE.fishing.tracker.hudY;
+                case EFFECTS -> ModConfig.INSTANCE.effects.hudY;
             };
         }
 
@@ -147,6 +151,7 @@ public final class SafariHud {
                 case PET -> ModConfig.INSTANCE.hud.pet.hudScale;
                 case PERFORMANCE -> ModConfig.INSTANCE.hud.performance.hudScale;
                 case SEATRACKER -> ModConfig.INSTANCE.fishing.tracker.hudScale;
+                case EFFECTS -> ModConfig.INSTANCE.effects.hudScale;
             };
         }
 
@@ -201,6 +206,10 @@ public final class SafariHud {
                     ModConfig.INSTANCE.fishing.tracker.hudX = x;
                     ModConfig.INSTANCE.fishing.tracker.hudY = y;
                 }
+                case EFFECTS -> {
+                    ModConfig.INSTANCE.effects.hudX = x;
+                    ModConfig.INSTANCE.effects.hudY = y;
+                }
             }
         }
 
@@ -220,6 +229,7 @@ public final class SafariHud {
                 case PET -> ModConfig.INSTANCE.hud.pet.hudOpacity;
                 case PERFORMANCE -> ModConfig.INSTANCE.hud.performance.hudOpacity;
                 case SEATRACKER -> ModConfig.INSTANCE.fishing.tracker.hudAlpha;
+                case EFFECTS -> ModConfig.INSTANCE.effects.hudAlpha;
             };
         }
 
@@ -241,6 +251,7 @@ public final class SafariHud {
                 case PET -> ModConfig.INSTANCE.hud.pet.hudOpacity = clamped;
                 case PERFORMANCE -> ModConfig.INSTANCE.hud.performance.hudOpacity = clamped;
                 case SEATRACKER -> ModConfig.INSTANCE.fishing.tracker.hudAlpha = clamped;
+                case EFFECTS -> ModConfig.INSTANCE.effects.hudAlpha = clamped;
             }
         }
 
@@ -260,6 +271,7 @@ public final class SafariHud {
                 case PET -> ModConfig.INSTANCE.hud.pet.hudScale = clamped;
                 case PERFORMANCE -> ModConfig.INSTANCE.hud.performance.hudScale = clamped;
                 case SEATRACKER -> ModConfig.INSTANCE.fishing.tracker.hudScale = clamped;
+                case EFFECTS -> ModConfig.INSTANCE.effects.hudScale = clamped;
             }
         }
 
@@ -298,6 +310,7 @@ public final class SafariHud {
                 case PET -> PetHud.build();
                 case PERFORMANCE -> PerformanceHud.build();
                 case SEATRACKER -> SeaTrackerHud.build();
+                case EFFECTS -> EffectsHud.build();
             };
         }
     }
