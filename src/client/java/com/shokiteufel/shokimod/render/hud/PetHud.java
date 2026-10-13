@@ -286,10 +286,12 @@ public final class PetHud {
 
     /** Die Farbe der Seltenheit, wie im Spiel */
     private static int colour(String rarity) {
+        ModConfig.NameColour chosen = cfg().nameColour;
+        if (chosen != null && chosen != ModConfig.NameColour.AUTO) rarity = chosen.name();
         return switch (rarity.toUpperCase(Locale.ROOT)) {
             case "UNCOMMON" -> HudColours.GREEN;
-            case "RARE" -> HudColours.AQUA;
-            case "EPIC" -> HudColours.LIGHT_PURPLE;
+            case "RARE" -> 0xFF5555FF;
+            case "EPIC" -> 0xFFAA00AA;
             case "LEGENDARY" -> HudColours.GOLD;
             case "MYTHIC" -> HudColours.LIGHT_PURPLE;
             default -> HudColours.WHITE;
