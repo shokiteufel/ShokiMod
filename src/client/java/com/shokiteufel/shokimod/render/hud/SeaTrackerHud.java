@@ -47,7 +47,7 @@ public final class SeaTrackerHud {
         HudPanel panel = new HudPanel();
         boolean session = SeaCreatureTracker.sessionView();
         // Zeile 0: ein Klick darauf wechselt die Ansicht (NearbyOverlay)
-        panel.title("Sea Creatures §n" + (session ? "Session" : "Total"), TITLE_COLOUR);
+        panel.title(titleText(session), TITLE_COLOUR);
 
         Count total = SeaCreatureTracker.total();
         if (cfg.showDoubleHooks) panel.table("", "", "DH", HEADER_COLOUR, HEADER_COLOUR);
@@ -83,6 +83,24 @@ public final class SeaTrackerHud {
                             DOUBLE_HOOK_COLOUR)));
         }
         return panel;
+    }
+
+    private static final String RESET_LABEL = "§c[Reset]";
+
+    /** "Sea Creatures Session [Reset]" - der Name der Ansicht unterstrichen, dahinter der Reset-Knopf */
+    private static String titleText(boolean session) {
+        return "Sea Creatures §n" + (session ? "Session" : "Total") + "§r  " + RESET_LABEL;
+    }
+
+    /**
+     * Liegt ein Klick in der Ueberschrift auf dem Reset-Knopf?
+     *
+     * @param localX Abstand vom linken Rand der Schrift, in den Massen des Kastens
+     */
+    public static boolean resetAt(net.minecraft.client.gui.Font font, double localX) {
+        String before = "Sea Creatures " + (SeaCreatureTracker.sessionView() ? "Session" : "Total") + "  ";
+        int start = font.width(before);
+        return localX >= start && localX < start + font.width(RESET_LABEL);
     }
 
     private static void line(HudPanel panel, String name, int colour, Count count, Count total,
