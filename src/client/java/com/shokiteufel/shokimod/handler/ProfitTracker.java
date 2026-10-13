@@ -886,6 +886,27 @@ public final class ProfitTracker {
         Map<String, Double> out = new LinkedHashMap<>();
         for (Row row : rows()) {
             if (row.count() >= 0 || row.value() >= 0) continue;
+            out.merge(negativeLabel(row), row.value(), Double::sum);
+        }
+        return out;
+    }
+
+    /**
+     * Wie viele Stueck hinter jedem Posten von {@link #negatives()} stehen: verbrauchte
+     * Koeder, Schluessel, Lagerfeuer. Was zurueckkam, ist schon abgezogen, es ist die Netto-Menge.
+     * Bei den Truhen-Coins ist es die Zahl der Coins, deshalb fehlt sie dort.
+     */
+    public static Map<String, Long> negativeCounts() {
+        Map<String, Long> out = new LinkedHashMap<>();
+        for (Row row : rows()) {
+            if (row.count() >= 0 || row.value() >= 0 || CHEST_COINS.equals(row.itemId())) continue;
+            out.merge(negativeLabel(row), -row.count(), Long::sum);
+        }
+        return out;
+    }
+
+    private static String negativeLabel(Row row) {
+        {
             String label = CHEST_COINS.equals(row.itemId()) || "DUNGEON_CHEST_KEY".equals(row.itemId())
                     ? "Dungeon chest"
                     : "PORTABLE_CAMPFIRE".equals(row.itemId()) ? "Campfire"
@@ -894,9 +915,8 @@ public final class ProfitTracker {
                                     + row.itemId().substring(1, row.itemId().indexOf('_')).toLowerCase(Locale.ROOT)
                                     + " key"
                     : row.name();
-            out.merge(label, row.value(), Double::sum);
+            return label;
         }
-        return out;
     }
 
     public static double negativeTotal() {

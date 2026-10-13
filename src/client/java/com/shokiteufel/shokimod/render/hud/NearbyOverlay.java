@@ -89,8 +89,11 @@ public final class NearbyOverlay {
         java.util.Map<String, Double> parts = com.shokiteufel.shokimod.handler.ProfitTracker.negatives();
         java.util.List<String> lines = new java.util.ArrayList<>();
         if (parts.isEmpty()) lines.add("Nothing deducted yet");
+        java.util.Map<String, Long> used = com.shokiteufel.shokimod.handler.ProfitTracker.negativeCounts();
         for (var entry : parts.entrySet()) {
-            lines.add(entry.getKey() + " - " + com.shokiteufel.shokimod.util.ItemValue.format(-entry.getValue()));
+            Long amount = used.get(entry.getKey());
+            lines.add(entry.getKey() + (amount == null ? "" : " x" + amount) + " - "
+                    + com.shokiteufel.shokimod.util.ItemValue.format(-entry.getValue()));
         }
         int width = 0;
         for (String line : lines) width = Math.max(width, client.font.width(line));
