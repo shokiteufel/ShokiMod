@@ -131,6 +131,7 @@ public class ModConfig extends Config {
         if (INSTANCE.fishing.tracker.view == null) INSTANCE.fishing.tracker.view = SeaView.TOTAL;
         if (INSTANCE.fishing.tracker.mobs == null) INSTANCE.fishing.tracker.mobs = new HashMap<>();
         if (INSTANCE.fishing.tracker.counts == null) INSTANCE.fishing.tracker.counts = new HashMap<>();
+        if (INSTANCE.fishing.tracker.areaCounts == null) INSTANCE.fishing.tracker.areaCounts = new HashMap<>();
         if (INSTANCE.chat.reminder == null) INSTANCE.chat.reminder = new ReminderCategory();
         if (INSTANCE.chat.reminder.cakes == null) INSTANCE.chat.reminder.cakes = new HashMap<>();
         if (INSTANCE.hunting.tracker == null) INSTANCE.hunting.tracker = new HuntingTrackerCategory();
@@ -1474,6 +1475,15 @@ public class ModConfig extends Config {
         /** Der Zaehlstand je Bewohner */
         @Expose
         public Map<String, com.shokiteufel.shokimod.handler.SeaCreatureTracker.Count> counts = new HashMap<>();
+
+        /** Der Zaehlstand je Gebiet und Bewohner - was die Total-Ansicht zeigt, wenn "Total per area" an ist */
+        @Expose
+        public Map<String, Map<String, com.shokiteufel.shokimod.handler.SeaCreatureTracker.Count>> areaCounts = new HashMap<>();
+
+        @Expose
+        @ConfigOption(name = "Total per area", desc = "The Total view only shows what you caught in the area you are in now; every area keeps its own numbers. Catches from before this existed are not assigned to an area - switch it off to see them. Reset clears only the area you are in.")
+        @ConfigEditorBoolean
+        public boolean perArea = true;
 
         @Expose
         public float hudX = 0.02f;
