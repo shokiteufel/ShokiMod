@@ -246,7 +246,7 @@ public final class SeaCreatureTracker {
         return sum;
     }
 
-    /** Die gewaehlten Bewohner mit Fang, der haeufigste zuerst */
+    /** Die gewaehlten Bewohner mit Fang, nach Seltenheit sortiert (Mythic zuerst) */
     public static List<Row> rows() {
         List<Row> out = new ArrayList<>();
         for (SeaCreatures.Creature creature : SeaCreatures.all()) {
@@ -255,8 +255,23 @@ public final class SeaCreatureTracker {
             if (cfg().onlyThisArea && !SeaCreatures.availableIn(creature.name(), GameState.Server.map)) continue;
             out.add(new Row(creature.name(), 0xFF000000 | creature.colour(), count));
         }
-        out.sort(Comparator.comparingInt((Row r) -> r.count().total).reversed());
+        // Nach Seltenheit: Mythic zuerst, dann Legendary, Epic ...; innerhalb davon der haeufigste
+        out.sort(Comparator.comparingInt((Row r) -> rarityRank(r.name())).reversed()
+                .thenComparing(Comparator.comparingInt((Row r) -> r.count().total).reversed()));
         return out;
+    }
+
+    private static int rarityRank(String name) {
+        SeaCreatures.Creature creature = SeaCreatures.byName(name);
+        if (creature == null) return -1;
+        return switch (creature.rarity()) {
+            case "UNCOMMON" -> 1;
+            case "RARE" -> 2;
+            case "EPIC" -> 3;
+            case "LEGENDARY" -> 4;
+            case "MYTHIC" -> 5;
+            default -> 0;
+        };
     }
 
     /** Alles, was nicht einzeln gezeigt wird, zusammengezaehlt - null, wenn nichts da ist */
