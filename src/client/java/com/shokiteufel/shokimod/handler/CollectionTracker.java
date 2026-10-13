@@ -260,6 +260,20 @@ public final class CollectionTracker {
         for (Component sibling : component.getSiblings()) collectHoverText(sibling, out);
     }
 
+    /**
+     * Gebietswechsel: Die Uhr haelt an und laeuft erst beim naechsten Fund wieder an.
+     * Die Wartezeit seit dem letzten Fund zaehlt nicht mit.
+     */
+    public static void pauseNow() {
+        if (!paused) {
+            cfg().uptimeMillis = Math.max(0L, cfg().uptimeMillis - unconfirmedMillis);
+            paused = true;
+            dirty = true;
+        }
+        unconfirmedMillis = 0L;
+        lastActivityMillis = 0L;
+    }
+
     private static void markActivity() {
         long now = System.currentTimeMillis();
         if (cfg().startedAt <= 0L) cfg().startedAt = now;

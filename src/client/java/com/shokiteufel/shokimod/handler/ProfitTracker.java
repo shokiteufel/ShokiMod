@@ -126,6 +126,21 @@ public final class ProfitTracker {
     private static final long DAY_PAUSE_MILLIS = 30_000L;
     private static boolean dayPaused = true;
 
+    /**
+     * Gebietswechsel: Die Uhr haelt an und laeuft erst beim naechsten Fund wieder an.
+     * Die Wartezeit seit dem letzten Fund zaehlt nicht mit.
+     */
+    public static void pauseNow() {
+        if (!paused) {
+            cfg().uptimeMillis = Math.max(0L, cfg().uptimeMillis - unconfirmedMillis);
+            cfg().totalUptimeMillis = Math.max(0L, cfg().totalUptimeMillis - unconfirmedMillis);
+            paused = true;
+            dirty = true;
+        }
+        unconfirmedMillis = 0L;
+        lastActivityMillis = 0L;
+    }
+
     private static void markActivity() {
         long now = System.currentTimeMillis();
         if (cfg().startedAt <= 0L) cfg().startedAt = now;
@@ -668,7 +683,12 @@ public final class ProfitTracker {
             String art = pet.substring(0, pet.indexOf(';'));
             long preis = com.shokiteufel.shokimod.util.PetProfitData.maxedPrice(
                     art, rarity, Integer.parseInt(maxed.group("level")));
-            if (preis <= 0) return -1;
+            // Die Liste kennt nur eine Auswahl an fertigen Pets. Fehlt das hier, steht es trotzdem
+            // in den Auktionspreisen: LVL_100_MYTHIC_ENDERMITE
+            if (preis <= 0) {
+                preis = Math.round(auctionPet(art, rarity, maxed.group("level")));
+                if (preis <= 0) return -1;
+            }
 
             // Abgezogen wird, was ein frisch geschluepftes Tier derselben Art kostet.
             //
@@ -680,9 +700,17 @@ public final class ProfitTracker {
             // Kennt die Liste keinen Einstiegspreis, bleibt es beim vollen - lieber eine
             // zu hohe Zahl als gar keine
             long einser = com.shokiteufel.shokimod.util.PetProfitData.freshPrice(art, rarity);
+            if (einser <= 0) einser = Math.round(auctionPet(art, rarity, "1"));
             return einser > 0 && einser < preis ? preis - einser : preis;
         }
         return ItemValue.trackedUnitPrice(itemId, modeOf(itemId));
+    }
+
+    /** Der niedrigste Auktionspreis eines Pets: LVL_<Stufe>_<SELTENHEIT>_<ART>, oder -1 */
+    private static double auctionPet(String art, String rarity, String level) {
+        if (art == null || rarity == null) return -1;
+        String key = "LVL_" + level + "_" + rarity.toUpperCase(Locale.ROOT) + "_" + art.toUpperCase(Locale.ROOT);
+        return ItemValue.unitPrice(List.of(key), SellMode.INSTANT_SELL);
     }
 
     /**
