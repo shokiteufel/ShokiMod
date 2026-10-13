@@ -150,6 +150,12 @@ public final class SeaCreatureTracker {
         return lastHookAt > 0L && System.currentTimeMillis() - lastHookAt <= HIDE_AFTER_MILLIS;
     }
 
+    /** Gebietswechsel: Die Fischzeit haelt an und laeuft mit dem naechsten Fang weiter */
+    public static void pauseNow() {
+        lastCatchAt = 0L;
+        lastHookAt = 0L;
+    }
+
     /** Wechselt zwischen Total und Session - der Klick auf die Ueberschrift */
     public static void toggleView() {
         cfg().view = sessionView() ? ModConfig.SeaView.TOTAL : ModConfig.SeaView.SESSION;
