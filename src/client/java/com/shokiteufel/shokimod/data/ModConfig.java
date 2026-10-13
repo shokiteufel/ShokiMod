@@ -1438,6 +1438,11 @@ public class ModConfig extends Config {
         public boolean answerHph = true;
 
         @Expose
+        @ConfigOption(name = "Only this area", desc = "Shows only the creatures you can catch in the area you are in now (a Jawbus does not clutter the list on the Hub). Events and hotspots count everywhere. Off shows everything you have caught.")
+        @ConfigEditorBoolean
+        public boolean onlyThisArea = true;
+
+        @Expose
         @ConfigOption(name = "Show Double Hooks", desc = "Adds a DH column: the Double Hooks of each creature and how often it came as one.")
         @ConfigEditorBoolean
         public boolean showDoubleHooks = true;

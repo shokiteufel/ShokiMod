@@ -237,6 +237,55 @@ public final class SeaCreatures {
         return null;
     }
 
+    /** Inseln und Gebiete mit eigenen Bewohnern: dort fangen die gewoehnlichen nicht */
+    private static final java.util.Set<String> OWN_WATERS = java.util.Set.of(
+            "Backwater Bayou", "Lotus Atoll", "Moonglade Marsh", "Torrhus Canyon", "Jerry's Workshop");
+
+    /** Name -> Gebiete, in denen es ihn gibt. Was hier fehlt, faengt man ueberall (siehe availableIn) */
+    private static final java.util.Map<String, java.util.Set<String>> REGIONAL = new java.util.HashMap<>();
+
+    private static void region(String areas, String... names) {
+        java.util.Set<String> set = java.util.Set.of(areas.split("\\|"));
+        for (String name : names) REGIONAL.put(name, set);
+    }
+
+    /** Die gewoehnlichen Bewohner: Wasser auf allen Inseln ausser den eigenen Gebieten */
+    private static final java.util.Set<String> BASIC = java.util.Set.of(
+            "Squid", "Night Squid", "Sea Walker", "Sea Guardian", "Sea Witch", "Sea Archer",
+            "Rider of the Deep", "Catfish", "Sea Leech", "Guardian Defender", "Deep Sea Protector",
+            "Water Hydra", "Oasis Rabbit");
+
+    static {
+        // Quelle: SkyBlock-Wiki (Sea Creatures). Feste, Hotspots und Koeder-Fange (Carrot King,
+        // Agarimoo, Haie, Spooky, Frog Man ...) gibt es auf jeder Insel und stehen deshalb nicht hier
+        region("Backwater Bayou", "Trash Gobbler", "Dumpster Diver", "Banshee", "Bayou Sludge", "Alligator", "Titanoboa");
+        region("Lotus Atoll", "Atoll Croaker", "Lotus Guardian", "gorF", "Drowned Captain", "Puddle Jumper", "Frog Prince");
+        region("Moonglade Marsh", "Bogged", "Wetwing", "Tadgang", "Ent", "The Loch Emperor", "Nessie", "Stridersurfer");
+        region("Torrhus Canyon", "Haggard", "Brineling", "Sprawl", "Torrid", "Silkbreeze", "Giant Isopod");
+        region("Crimson Isle", "Fried Chicken", "Volcanic Snail", "Fireproof Witch", "Magma Slug", "Moogma", "Lava Leech",
+                "Pyroclastic Worm", "Lava Flame", "Fire Eel", "Taurus", "Thunder", "Lord Jawbus", "Fiery Scuttler",
+                "Ragnarok", "Plhlegblast", "Magma Pillar");
+        region("Jerry's Workshop", "Frozen Steve", "Frosty", "Grinch", "Nutcracker", "Yeti", "Reindrake");
+        region("Crystal Hollows", "Water Worm", "Poisoned Water Worm", "Flaming Worm", "Lava Blaze", "Lava Pigman", "Abyssal Miner");
+        region("Dwarven Mines|Abandoned Quarry", "Small Mithril Grubber", "Medium Mithril Grubber",
+                "Large Mithril Grubber", "Bloated Mithril Grubber");
+        region("Mushroom Desert", "Oasis Sheep");
+    }
+
+    /**
+     * Kann man diesen Bewohner im Gebiet fangen?
+     *
+     * Bei unbekanntem Gebiet oder einem Namen ohne Eintrag: ja - lieber einen zu viel zeigen als
+     * einen verschweigen, den die Liste nur noch nicht kennt.
+     */
+    public static boolean availableIn(String name, String area) {
+        if (area == null || area.isBlank() || "Unknown".equals(area) || name == null) return true;
+        java.util.Set<String> areas = REGIONAL.get(name);
+        if (areas != null) return areas.contains(area);
+        if (BASIC.contains(name)) return !OWN_WATERS.contains(area);
+        return true;
+    }
+
     /** Der Eintrag zu einem Namen, oder null */
     public static Creature byName(String name) {
         if (name == null) return null;

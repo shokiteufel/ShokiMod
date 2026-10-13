@@ -1,5 +1,6 @@
 package com.shokiteufel.shokimod.handler;
 
+import com.shokiteufel.shokimod.data.GameState;
 import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.util.SeaCreatures;
 
@@ -207,6 +208,7 @@ public final class SeaCreatureTracker {
         for (SeaCreatures.Creature creature : SeaCreatures.all()) {
             Count count = counts().get(creature.name());
             if (count == null || !picked(creature)) continue;
+            if (cfg().onlyThisArea && !SeaCreatures.availableIn(creature.name(), GameState.Server.map)) continue;
             out.add(new Row(creature.name(), 0xFF000000 | creature.colour(), count));
         }
         out.sort(Comparator.comparingInt((Row r) -> r.count().total).reversed());
