@@ -222,6 +222,12 @@ public final class NearbyOverlay {
                     SafariHud.originX(panel), SafariHud.originY(panel), panel.scale(), mouseX, mouseY);
             // Die Ueberschrift wechselt zwischen Total und Session
             if (row == 0) {
+                double localX = (mouseX - SafariHud.originX(panel)) / panel.scale() - HudPanel.padding();
+                if (SeaTrackerHud.resetAt(Minecraft.getInstance().font, localX)) {
+                    com.shokiteufel.shokimod.handler.SeaCreatureTracker.reset();
+                    SafariHud.invalidate(panel);
+                    return true;
+                }
                 com.shokiteufel.shokimod.handler.SeaCreatureTracker.toggleView();
                 SafariHud.invalidate(panel);
                 return true;
