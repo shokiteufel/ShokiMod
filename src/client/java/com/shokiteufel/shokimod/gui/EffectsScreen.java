@@ -110,6 +110,20 @@ public class EffectsScreen extends Screen {
                     rebuild();
                 }).bounds(left + 116, height - 28, 90, 20).build());
 
+        // Der Ton des Alarms: eine eigene Datei aus config/shokimod/sounds, leer heisst stumm
+        boolean hasSound = ModConfig.INSTANCE.effects.sound != null && !ModConfig.INSTANCE.effects.sound.isBlank();
+        addRenderableWidget(Button.builder(
+                Component.literal(hasSound ? "Sound ♪" : "Sound").withStyle(
+                        hasSound ? ChatFormatting.GREEN : ChatFormatting.GRAY),
+                button -> {
+                    if (minecraft != null) {
+                        minecraft.setScreen(new SoundPickerScreen(this,
+                                () -> ModConfig.INSTANCE.effects.sound,
+                                picked -> ModConfig.INSTANCE.effects.sound = picked,
+                                1.0f));
+                    }
+                }).bounds(left + 212, height - 28, 70, 20).build());
+
         addRenderableWidget(Button.builder(Component.literal("Done"), button -> onClose())
                 .bounds(left + GRID_WIDTH - 80, height - 28, 80, 20).build());
     }

@@ -103,7 +103,8 @@ public final class SeaTrackerHud {
 
     /** "4 14,29%" - die Zahl weiss, ihr Anteil grau */
     private static String share(int part, int of) {
-        return white(part) + " §7" + percent(part, of);
+        // Zahl und Anteil getrennt, damit sie in der Tabelle je in einer eigenen Spalte buendig stehen
+        return white(part) + HudPanel.CELL_SPLIT + "§7" + percent(part, of);
     }
 
     private static String percent(int part, int of) {
