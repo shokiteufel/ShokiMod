@@ -109,6 +109,46 @@ public class HudPanel {
     /** Breite der beiden Spalten der Tabellenzeilen */
     private int firstColumn = 0;
     private int secondColumn = 0;
+    /**
+     * Eine Zelle kann aus Zahl und Anteil bestehen, getrennt durch dieses Zeichen: Dann stehen
+     * die Zahlen in allen Zeilen rechtsbuendig untereinander und die Anteile ebenso, statt dass
+     * jede Zelle als Ganzes am rechten Rand klebt.
+     */
+    public static final char CELL_SPLIT = '\u0001';
+    private static final int CELL_GAP = 4;
+    private int firstNumber = 0;
+    private int firstShare = 0;
+    private int secondNumber = 0;
+    private int secondShare = 0;
+
+    private static String numberOf(String cell) {
+        int i = cell.indexOf(CELL_SPLIT);
+        return i < 0 ? cell : cell.substring(0, i);
+    }
+
+    private static String shareOf(String cell) {
+        int i = cell.indexOf(CELL_SPLIT);
+        return i < 0 ? "" : cell.substring(i + 1);
+    }
+
+    private static String joined(String cell) {
+        return numberOf(cell) + (shareOf(cell).isEmpty() ? "" : " " + shareOf(cell));
+    }
+
+    /** Wo eine Zelle ihre Zahl und ihren Anteil zeichnet - rechtsbuendig in Zahl- und Anteilsspalte */
+    private void drawCell(GuiGraphicsExtractor graphics, Font font, String cell, int right,
+                          int numberWidth, int shareWidth, int y, int colour) {
+        if (cell.isEmpty()) return;
+        if (cell.indexOf(CELL_SPLIT) < 0) {
+            text(graphics, font, cell, stripColours(cell), right - font.width(cell), y, colour);
+            return;
+        }
+        String number = numberOf(cell);
+        String share = shareOf(cell);
+        text(graphics, font, share, stripColours(share), right - font.width(share), y, colour);
+        int numberRight = right - (shareWidth > 0 ? shareWidth + CELL_GAP : 0);
+        text(graphics, font, number, stripColours(number), numberRight - font.width(number), y, colour);
+    }
     /** Dieselben Zeilen ohne Farbcodes - der Umriss soll einfarbig dunkel sein */
     private String[] labelOutline = null;
     private String[] valueOutline = null;
@@ -211,11 +251,22 @@ public class HudPanel {
         int widest = 0;
         firstColumn = 0;
         secondColumn = 0;
+        firstNumber = 0;
+        firstShare = 0;
+        secondNumber = 0;
+        secondShare = 0;
         for (Row row : rows) {
             if (row.kind() != Kind.TABLE) continue;
-            firstColumn = Math.max(firstColumn, font.width(row.value()));
-            secondColumn = Math.max(secondColumn, font.width(row.extra()));
+            firstNumber = Math.max(firstNumber, font.width(numberOf(row.value())));
+            firstShare = Math.max(firstShare, font.width(shareOf(row.value())));
+            secondNumber = Math.max(secondNumber, font.width(numberOf(row.extra())));
+            secondShare = Math.max(secondShare, font.width(shareOf(row.extra())));
+            // Eine Zelle ohne Anteil (eine Kopfzeile) darf auch breiter sein als beide Spalten
+            firstColumn = Math.max(firstColumn, font.width(joined(row.value())));
+            secondColumn = Math.max(secondColumn, font.width(joined(row.extra())));
         }
+        firstColumn = Math.max(firstColumn, firstNumber + (firstShare > 0 ? CELL_GAP + firstShare : 0));
+        secondColumn = Math.max(secondColumn, secondNumber + (secondShare > 0 ? CELL_GAP + secondShare : 0));
         for (int i = 0; i < rows.size(); i++) {
             Row row = rows.get(i);
             valueWidths[i] = row.value().isEmpty() ? 0 : font.width(row.value());
@@ -430,14 +481,8 @@ public class HudPanel {
                 text(graphics, font, row.label(), labelOutline[index], x, y, row.labelColour());
                 int secondRight = x + content;
                 int firstRight = secondRight - (secondColumn == 0 ? 0 : secondColumn + GUTTER);
-                if (!row.value().isEmpty()) {
-                    text(graphics, font, row.value(), valueOutline[index],
-                            firstRight - font.width(row.value()), y, row.valueColour());
-                }
-                if (!row.extra().isEmpty()) {
-                    text(graphics, font, row.extra(), stripColours(row.extra()),
-                            secondRight - font.width(row.extra()), y, row.valueColour());
-                }
+                drawCell(graphics, font, row.value(), firstRight, firstNumber, firstShare, y, row.valueColour());
+                drawCell(graphics, font, row.extra(), secondRight, secondNumber, secondShare, y, row.valueColour());
             }
             case PAIR -> {
                 text(graphics, font, row.label(), labelOutline[index], x, y, row.labelColour());
