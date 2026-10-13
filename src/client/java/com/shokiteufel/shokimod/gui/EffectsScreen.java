@@ -117,7 +117,7 @@ public class EffectsScreen extends Screen {
                         hasSound ? ChatFormatting.GREEN : ChatFormatting.GRAY),
                 button -> {
                     if (minecraft != null) {
-                        minecraft.setScreen(new SoundPickerScreen(this,
+                        minecraft.setScreenAndShow(new SoundPickerScreen(this,
                                 () -> ModConfig.INSTANCE.effects.sound,
                                 picked -> ModConfig.INSTANCE.effects.sound = picked,
                                 1.0f));
