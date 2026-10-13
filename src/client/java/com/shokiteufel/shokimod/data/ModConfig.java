@@ -80,17 +80,34 @@ public class ModConfig extends Config {
         c.dyeChannelsMigrated = true;
     }
 
+    /** Die Datei einlesen - null, wenn sie fehlt, leer oder kaputt ist */
+    private static ModConfig read(File file) {
+        try (FileReader reader = new FileReader(file, java.nio.charset.StandardCharsets.UTF_8)) {
+            return GSON.fromJson(reader, ModConfig.class);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     public static void load() {
         File file = getConfigFile();
         if (file.exists()) {
-            try (FileReader reader = new FileReader(file)) {
-                ModConfig loaded = GSON.fromJson(reader, ModConfig.class);
-                if (loaded != null) {
-                    INSTANCE = loaded;
+            ModConfig loaded = read(file);
+            if (loaded == null) {
+                // Datei leer oder kaputt (etwa nach einem Absturz): erst die Sicherung versuchen und
+                // die kaputte Datei beiseitelegen, statt sie mit Standardwerten zu ueberschreiben
+                File backup = new File(file.getParentFile(), file.getName() + ".bak");
+                System.err.println("[ShokiMod] Config unreadable - trying the backup");
+                try {
+                    java.nio.file.Files.copy(file.toPath(), new File(file.getParentFile(),
+                            file.getName() + ".corrupt").toPath(),
+                            java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                } catch (Exception ignored) {
+                    // beiseitelegen ist nur Zugabe
                 }
-            } catch (Exception e) {
-                System.err.println("[ShokiMod] Old config format detected or file corrupted. Overwriting with JSON...");
+                if (backup.exists()) loaded = read(backup);
             }
+            if (loaded != null) INSTANCE = loaded;
         }
 
         // ★超重要: Gsonでデータを読み込むと、transient（保存除外）にしていた「ボタンの処理」が消滅してしまうため、ここで再セットする！
@@ -561,10 +578,33 @@ public class ModConfig extends Config {
     // ★追加: 消えてしまっていた「セーブ処理」の本体を復活！
     // ==========================================
     @Override
-    public void saveNow() {
-        try (FileWriter writer = new FileWriter(getConfigFile())) {
-            // Gsonを使って、現在の設定をJSON形式でファイルに書き込む
-            GSON.toJson(this, writer);
+    public synchronized void saveNow() {
+        // Nie direkt in die Datei: Ein Absturz oder Stromausfall mitten im Schreiben liesse sie
+        // leer zurueck, und die Mod finge mit Standardwerten an - Tagesprofit und alle Zaehler weg.
+        // Deshalb erst in eine Nebendatei, auf die Platte zwingen und dann in einem Zug austauschen;
+        // die Datei ist so immer entweder ganz alt oder ganz neu
+        File file = getConfigFile();
+        java.nio.file.Path target = file.toPath();
+        java.nio.file.Path temp = target.resolveSibling(file.getName() + ".tmp");
+        java.nio.file.Path backup = target.resolveSibling(file.getName() + ".bak");
+        try {
+            String json = GSON.toJson(this);
+            try (java.io.FileOutputStream out = new java.io.FileOutputStream(temp.toFile())) {
+                out.write(json.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                out.getFD().sync();
+            }
+            // Eine Sicherung des letzten guten Standes, hoechstens alle fuenf Minuten erneuert
+            if (java.nio.file.Files.exists(target) && java.nio.file.Files.size(target) > 2
+                    && (!java.nio.file.Files.exists(backup)
+                    || System.currentTimeMillis() - backup.toFile().lastModified() > 5 * 60_000L)) {
+                java.nio.file.Files.copy(target, backup, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            }
+            try {
+                java.nio.file.Files.move(temp, target, java.nio.file.StandardCopyOption.ATOMIC_MOVE,
+                        java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            } catch (java.nio.file.AtomicMoveNotSupportedException e) {
+                java.nio.file.Files.move(temp, target, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            }
         } catch (Exception e) {
             System.err.println("Failed to save ShokiMod config!");
             e.printStackTrace();
