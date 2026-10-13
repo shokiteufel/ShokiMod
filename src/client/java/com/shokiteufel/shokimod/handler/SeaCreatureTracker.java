@@ -73,12 +73,20 @@ public final class SeaCreatureTracker {
 
     /** Der Zaehlstand, den der Kasten gerade zeigt */
     private static java.util.Map<String, Count> counts() {
-        return sessionView() ? session : cfg().counts;
+        if (sessionView()) return session;
+        return cfg().perArea ? cfg().areaCounts.computeIfAbsent(area(), k -> new java.util.HashMap<>()) : cfg().counts;
+    }
+
+    /** Das Gebiet, in dem gerade gefangen wird (Area-Zeile der Tab-Liste) */
+    private static String area() {
+        String map = GameState.Server.map;
+        return map == null || map.isBlank() ? "Unknown" : map;
     }
 
     /** Verbuchen: in den Gesamtstand und in die Sitzung */
     private static void bump(String name, boolean doppelt, boolean cocoon) {
-        for (java.util.Map<String, Count> map : java.util.List.of(cfg().counts, session)) {
+        for (java.util.Map<String, Count> map : java.util.List.of(cfg().counts, session,
+                cfg().areaCounts.computeIfAbsent(area(), k -> new java.util.HashMap<>()))) {
             Count count = map.computeIfAbsent(name, k -> new Count());
             if (cocoon) {
                 count.cc++;
@@ -254,7 +262,7 @@ public final class SeaCreatureTracker {
             sessionActiveMillis = 0L;
             lastCatchAt = 0L;
         } else {
-            cfg().counts.clear();
+            counts().clear();
         }
         doubleHook = false;
         ModConfig.INSTANCE.saveNow();
