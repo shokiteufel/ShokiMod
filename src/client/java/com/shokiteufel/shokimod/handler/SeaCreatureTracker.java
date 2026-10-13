@@ -145,7 +145,7 @@ public final class SeaCreatureTracker {
      */
     public static boolean shownNow() {
         if (!cfg().hideWhenIdle) return true;
-        if (net.minecraft.client.Minecraft.getInstance().screen != null) return true;
+        if (net.minecraft.client.Minecraft.getInstance().gui.screen() != null) return true;
         if (NO_FISHING.contains(GameState.Server.map)) return false;
         return lastHookAt > 0L && System.currentTimeMillis() - lastHookAt <= HIDE_AFTER_MILLIS;
     }
