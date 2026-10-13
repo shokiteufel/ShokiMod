@@ -890,6 +890,15 @@ public final class ItemChanges {
         // Gekaufte und zurueckgegebene Ware ist keine gefundene
         if (bazaarGoods(plain)) return;
 
+        // Ein bei Kat aufgewertetes Pet ist kein Fund
+        if (KAT_DONE.matcher(plain.trim()).matches()) {
+            katUntil = System.currentTimeMillis() + KAT_MILLIS;
+            held.removeIf(h -> {
+                h.gains().keySet().removeIf(com.shokiteufel.shokimod.util.PetHeads::isPet);
+                return h.gains().isEmpty();
+            });
+        }
+
         // Teilt der Server gerade Beute aus, zaehlt sie auch bei offenem Fenster
         if (KILL_REWARD.matcher(plain.trim()).matches()) {
             lootUntil = System.currentTimeMillis() + LOOT_MILLIS;
@@ -1284,7 +1293,18 @@ public final class ItemChanges {
         dispatch(gains, source);
     }
 
+    /** "[NPC] Kat: I was able to upgrade your Squid to LEGENDARY." - das Pet kommt von Kat, nicht aus der Beute */
+    private static final Pattern KAT_DONE = Pattern.compile("^\\[NPC\\] Kat: I was able to upgrade your .+ to .+\\.$");
+    /** So lange nach Kats Meldung zaehlt kein Pet als Fund: Es wandert erst beim Abholen ins Inventar */
+    private static final long KAT_MILLIS = 45_000L;
+    private static long katUntil = 0L;
+
     private static void dispatch(Map<String, Integer> gains, String source) {
+        if (System.currentTimeMillis() < katUntil
+                && gains.keySet().removeIf(com.shokiteufel.shokimod.util.PetHeads::isPet)) {
+            ShokiMod.LOGGER.info("[Profit] pet picked up from Kat - not a find");
+            if (gains.isEmpty()) return;
+        }
         long gezaehlt = System.currentTimeMillis();
         for (String id : gains.keySet()) recentlyCounted.put(id, gezaehlt);
         lastSource = source;
