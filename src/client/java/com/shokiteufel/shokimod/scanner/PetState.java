@@ -122,6 +122,8 @@ public final class PetState {
     private static volatile String shown = "";
     private static volatile int level = 0;
     private static volatile String rarity = "";
+    /** Die Tab-Liste kennt die Seltenheit schon - dann zaehlt das Menue nicht dagegen */
+    private static volatile boolean rarityFromTab = false;
     private static volatile double percent = -1.0;
     private static volatile double xpHave = -1.0;
     private static volatile double xpNeed = -1.0;
@@ -320,7 +322,7 @@ public final class PetState {
      * das gerade draussen ist, waehrend im Menue auch ein anderes angeklickt sein
      * kann. Genau daran lag es, dass zwischendurch das falsche Pet im Kasten stand.
      */
-    public static void processTabList(java.util.List<String> lines) {
+    public static void processTabList(java.util.List<String> lines, java.util.List<String> formatted) {
         for (int i = 0; i < lines.size() - 1; i++) {
             if (!TAB_HEAD.matcher(clean(lines.get(i))).matches()) continue;
 
@@ -348,6 +350,11 @@ public final class PetState {
             name = neuerName;
             shown = gezeigt;
             level = stufe;
+            // Die Farbe des Namens in der Tab-Liste ist die Seltenheit - das gilt auch ohne
+            // je das Pet-Menue geoeffnet zu haben und stimmt immer fuer das Pet, das draussen ist
+            String tabRarity = rarityFromColour(formatted.get(i + 1), gezeigt);
+            if (!tabRarity.isEmpty()) rarity = tabRarity;
+            rarityFromTab = !tabRarity.isEmpty();
             // Nach einem Neustart ist noch kein Bild da - das gemerkte springt ein
             if (icon.isEmpty()) icon = com.shokiteufel.shokimod.util.PetIcons.iconFor(neuerName);
 
@@ -540,7 +547,7 @@ public final class PetState {
         name = cleanName(named.group("name"));
         shown = displayName(named.group("name"));
         level = parseInt(named.group("lvl"));
-        if (!seltenheit.isEmpty()) rarity = seltenheit;
+        if (!seltenheit.isEmpty() && !rarityFromTab) rarity = seltenheit;
         percent = prozent;
         xpHave = haben;
         xpNeed = noetig;
@@ -603,6 +610,22 @@ public final class PetState {
             com.shokiteufel.shokimod.util.PetIcons.rememberOverflow(
                     name, overflowLevel, overflowXp, combinedLevel());
         }
+    }
+
+    /** Die Farbcode-Stelle direkt vor dem Namen: f/a/9/5/6/d = COMMON bis MYTHIC */
+    private static String rarityFromColour(String formatted, String shownName) {
+        if (formatted == null || shownName.isEmpty()) return "";
+        int at = formatted.indexOf(shownName);
+        if (at < 2 || formatted.charAt(at - 2) != '§') return "";
+        return switch (formatted.charAt(at - 1)) {
+            case 'f' -> "COMMON";
+            case 'a' -> "UNCOMMON";
+            case '9' -> "RARE";
+            case '5' -> "EPIC";
+            case '6' -> "LEGENDARY";
+            case 'd' -> "MYTHIC";
+            default -> "";
+        };
     }
 
     private static String clean(String text) {

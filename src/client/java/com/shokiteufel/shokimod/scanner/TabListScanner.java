@@ -97,7 +97,7 @@ public class TabListScanner {
         // Gebiet und Server-ID stehen in der Tab-Liste
         LocationScanner.processTabList(unformattedLines);
         // Welches Pet draussen ist, samt Ueberschuss - die verlaesslichste Quelle
-        PetState.processTabList(unformattedLines);
+        PetState.processTabList(unformattedLines, formattedLines);
         // Auftraege und Spitzhacken-Faehigkeit stehen dort ebenfalls - aber nur in den Minen
         if (ModConfig.INSTANCE.mining.hud.showHud) MiningState.processTabList(unformattedLines);
         // Der Stand der Pest-Fallen steht ebenfalls dort, sobald das Widget an ist

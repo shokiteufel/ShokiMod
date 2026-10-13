@@ -695,6 +695,23 @@ public class ModConfig extends Config {
         public float hudOpacity = 0.5f;
     }
 
+    /** In welcher Seltenheits-Farbe der Pet-Name steht: wie das Pet, oder fest gewaehlt */
+    public enum NameColour {
+        AUTO("Pet's own rarity"), COMMON("Common"), UNCOMMON("Uncommon"), RARE("Rare"),
+        EPIC("Epic"), LEGENDARY("Legendary"), MYTHIC("Mythic");
+
+        public final String label;
+
+        NameColour(String label) {
+            this.label = label;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
+    }
+
     /** Wo das Bild des Pets sitzt */
     public enum IconPlace {
         LEFT("In front"), RIGHT("Behind"), OWN_LINE("Own line");
@@ -732,6 +749,11 @@ public class ModConfig extends Config {
         @ConfigOption(name = "Pet name", desc = "The name, in the colour of its rarity.")
         @ConfigEditorBoolean
         public boolean showName = true;
+
+        @Expose
+        @ConfigOption(name = "Name colour", desc = "Which rarity colour the pet name is drawn in. The pet's own rarity is read from the tab list.")
+        @ConfigEditorDropdown
+        public NameColour nameColour = NameColour.AUTO;
 
         @Expose
         @ConfigOption(name = "Pet level", desc = "The level in brackets, as the game writes it: [Lvl 100].")
