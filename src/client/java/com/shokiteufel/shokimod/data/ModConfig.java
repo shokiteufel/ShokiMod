@@ -1481,6 +1481,11 @@ public class ModConfig extends Config {
         public Map<String, Map<String, com.shokiteufel.shokimod.handler.SeaCreatureTracker.Count>> areaCounts = new HashMap<>();
 
         @Expose
+        @ConfigOption(name = "Hide when not fishing", desc = "Like Feesh: the panel only shows while you are somewhere you can fish and had a rod in water or lava in the last 5 minutes. It always shows while a window (inventory, HUD editor) is open.")
+        @ConfigEditorBoolean
+        public boolean hideWhenIdle = true;
+
+        @Expose
         @ConfigOption(name = "Total per area", desc = "The Total view only shows what you caught in the area you are in now; every area keeps its own numbers. Catches from before this existed are not assigned to an area - switch it off to see them. Reset clears only the area you are in.")
         @ConfigEditorBoolean
         public boolean perArea = true;

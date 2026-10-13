@@ -96,6 +96,7 @@ public final class SeaCreatureTracker {
             }
         }
         long now = System.currentTimeMillis();
+        lastHookAt = now;
         if (lastCatchAt > 0L) sessionActiveMillis += Math.min(now - lastCatchAt, IDLE_MILLIS);
         lastCatchAt = now;
         ModConfig.INSTANCE.saveNow();
@@ -118,6 +119,35 @@ public final class SeaCreatureTracker {
     public static double hooksPerHour() {
         long millis = sessionMillis();
         return millis < 1000L ? 0.0 : sessionHooks() * 3_600_000.0 / millis;
+    }
+
+    /** Gebiete, in denen es nichts zu fangen gibt - der Kasten bleibt dort weg (wie bei Feesh) */
+    private static final java.util.Set<String> NO_FISHING = java.util.Set.of(
+            "The Rift", "Garden", "Kuudra's Hollow", "Dungeons", "Dungeon Hub", "The End",
+            "Glacite Mineshafts", "Safari");
+    /** So lange nach dem letzten Wurf in Wasser oder Lava bleibt der Kasten stehen */
+    private static final long HIDE_AFTER_MILLIS = 5L * 60_000L;
+    private static long lastHookAt = 0L;
+
+    /** Jeden Tick: liegt die eigene Angel gerade in Wasser oder Lava? Dann wird das gemerkt */
+    public static void tick(net.minecraft.client.Minecraft client) {
+        if (client == null || client.player == null) return;
+        net.minecraft.world.entity.projectile.FishingHook hook = client.player.fishing;
+        if (hook != null && (hook.isInWater() || hook.isInLava())) lastHookAt = System.currentTimeMillis();
+    }
+
+    /**
+     * Soll der Kasten gerade stehen?
+     *
+     * Wie bei Feesh: nur in einem Gebiet, in dem man angeln kann, und nur wenn in den letzten
+     * fuenf Minuten eine Angel im Wasser oder in der Lava lag. Ein offenes Fenster (Inventar,
+     * HUD-Editor) zeigt ihn immer, damit man ihn anklicken und verschieben kann.
+     */
+    public static boolean shownNow() {
+        if (!cfg().hideWhenIdle) return true;
+        if (net.minecraft.client.Minecraft.getInstance().screen != null) return true;
+        if (NO_FISHING.contains(GameState.Server.map)) return false;
+        return lastHookAt > 0L && System.currentTimeMillis() - lastHookAt <= HIDE_AFTER_MILLIS;
     }
 
     /** Wechselt zwischen Total und Session - der Klick auf die Ueberschrift */
