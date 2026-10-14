@@ -223,11 +223,31 @@ public final class DropBanner {
         preview(chosen, true);
     }
 
+    /**
+     * Welche Probe die Vorschau zeigt: ein Fund aus der Beute (Ghost Shard) oder ein Fang
+     * beim Angeln (Spieler klein darueber, Bewohner gross darunter, wie der Fang-Alarm ihn
+     * schreibt). Der Sandkasten stellt das um, damit man den Namen eines Fangs so einrichtet,
+     * wie er im Spiel dann steht.
+     */
+    private static boolean catchSample = false;
+
+    public static void useCatchSample(boolean on) {
+        catchSample = on;
+    }
+
+    public static boolean catchSample() {
+        return catchSample;
+    }
+
     private static void preview(BannerDesign chosen, boolean mitAuftritt) {
         // Die Vorschau steht fuer sich - was noch wartet, hat hier nichts zu suchen
         waiting.clear();
         running.clear();
-        show(chosen, "3x Ghost Shard", "10.5k", "Tier 1", 0xFFD700, ItemIcons.stackFor("SHARD_GHOST"));
+        if (catchSample) {
+            show(chosen, "Schiggy", "2x Yeti", "", "", 0xFF55FF, ItemStack.EMPTY, 0d);
+        } else {
+            show(chosen, "3x Ghost Shard", "10.5k", "Tier 1", 0xFFD700, ItemIcons.stackFor("SHARD_GHOST"));
+        }
         Shown s = waiting.get(0);
         s.displayMillis = Math.max(s.displayMillis, 4500L);
         s.startedAt = System.currentTimeMillis();

@@ -443,6 +443,13 @@ public class ModConfig extends Config {
         }
         banner.looks = null;
         topUpPresets(banner);
+        // Der Name im Fang-Alarm war mit 1.4x zu klein. Wer die Vorlage nie angefasst hat,
+        // bekommt einmal die neue Groesse; wer sie umgestellt hat, behaelt seine
+        if (!banner.plainCatchResized) {
+            BannerDesign fang = banner.design(BannerDesign.PLAIN_CATCH);
+            if (fang != null && Math.abs(fang.headlineSize - 1.4f) < 0.001f) fang.headlineSize = 2.4f;
+            banner.plainCatchResized = true;
+        }
 
         RareLootCategory rare = INSTANCE.chat.rareLoot;
         if (rare.tier1Style != null) { rare.tier1Design = BannerDesign.presetNameFor(rare.tier1Style); rare.tier1Style = null; }
@@ -2890,6 +2897,10 @@ public class ModConfig extends Config {
          */
         @Expose
         public List<String> seededPresets = null;
+
+        /** Die Vorlage "Plain catch" ist einmal von 1.4x auf 2.4x vergroessert worden */
+        @Expose
+        public boolean plainCatchResized = false;
 
         /** Alte Ablage bis 1.1.16: Ort und Farbe je Stil. Nur noch fuer die Uebernahme */
         @Expose

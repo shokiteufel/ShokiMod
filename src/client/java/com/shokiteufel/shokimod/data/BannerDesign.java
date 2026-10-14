@@ -506,7 +506,7 @@ public class BannerDesign {
         // da ist, nicht einem Auftritt zusehen. Also keine Animation, kein Bild, kein
         // Hintergrund, und eine Schrift, die neben dem Spiel nicht im Weg steht
         BannerDesign fang = preset(PLAIN_CATCH, Anchor.BAND, Background.NONE, 0f, Frame.NONE,
-                Accent.NONE, 1.4f, 1.0f, TextColour.ACCENT, TextColour.WHITE, TextEffect.SHADOW,
+                Accent.NONE, 2.4f, 1.0f, TextColour.ACCENT, TextColour.WHITE, TextEffect.SHADOW,
                 "", "", Icon.NONE, Animation.NONE);
         fang.showTier = false;
         fang.valuePrefix = "";
