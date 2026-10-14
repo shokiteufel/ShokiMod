@@ -174,6 +174,9 @@ public final class SkyBlockItems {
         // Pets stehen in der Auktionsliste als LVL_100_MYTHIC_ENDERMITE, nicht als ENDERMITE;5+100
         String pet = petAuctionKey(itemId);
         if (pet != null) out.add(pet);
+        // Ein Shard aus dem Inventar heisst nach seinem Attribut, der Basar nach dem Namen
+        String shard = ShardIcons.bazaarIdOf(itemId);
+        if (shard != null) out.add(shard);
         out.add(itemId);
         int semicolon = itemId.indexOf(';');
         if (semicolon > 0) out.add(itemId.substring(0, semicolon));
@@ -250,6 +253,9 @@ public final class SkyBlockItems {
             return words(body);
         }
         if (rest.startsWith("ATTRIBUTE_SHARD_")) {
+            // Der Name im Spiel ist der des Shards, nicht der seines Attributs
+            String bazaar = ShardIcons.bazaarIdOf(rest);
+            if (bazaar != null) return words(bazaar.substring("SHARD_".length())) + " Shard";
             return words(rest.substring("ATTRIBUTE_SHARD_".length())) + " Shard";
         }
         if (rest.startsWith("SHARD_")) {

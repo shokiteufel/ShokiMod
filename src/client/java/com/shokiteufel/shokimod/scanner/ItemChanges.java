@@ -1299,32 +1299,7 @@ public final class ItemChanges {
     private static final long KAT_MILLIS = 45_000L;
     private static long katUntil = 0L;
 
-    /**
-     * Die Shards der Slayer: Primordial, Revenant, Paragon.
-     *
-     * Sie fallen ohne Chatzeile einfach ins Inventar und gehoeren nicht zum Angeln oder Jagen
-     * - der Kasten soll sie nicht als Fund zaehlen.
-     */
-    private static final String[] SLAYER_SHARDS = {"PRIMORDIAL", "REVENANT", "PARAGON"};
-
-    static boolean isSlayerShard(String id) {
-        if (id == null) return false;
-        String rest = id.startsWith("ATTRIBUTE_SHARD_") ? id.substring("ATTRIBUTE_SHARD_".length())
-                : id.startsWith(SHARD_PREFIX) ? id.substring(SHARD_PREFIX.length()) : null;
-        if (rest == null) return false;
-        int semi = rest.indexOf(';');
-        if (semi >= 0) rest = rest.substring(0, semi);
-        for (String name : SLAYER_SHARDS) {
-            if (rest.contains(name)) return true;
-        }
-        return false;
-    }
-
     private static void dispatch(Map<String, Integer> gains, String source) {
-        if (gains.keySet().removeIf(ItemChanges::isSlayerShard)) {
-            ShokiMod.LOGGER.info("[Profit] slayer shard - not counted");
-            if (gains.isEmpty()) return;
-        }
         if (System.currentTimeMillis() < katUntil
                 && gains.keySet().removeIf(com.shokiteufel.shokimod.util.PetHeads::isPet)) {
             ShokiMod.LOGGER.info("[Profit] pet picked up from Kat - not a find");
