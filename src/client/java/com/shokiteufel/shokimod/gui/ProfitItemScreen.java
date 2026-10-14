@@ -68,7 +68,9 @@ public class ProfitItemScreen extends Screen {
         List<String> out = new ArrayList<>();
         for (String itemId : ProfitTracker.seen()) {
             int menge = ProfitTracker.countOf(itemId);
-            if (menge == 0 || (menge < 0 && !ProfitTracker.isBait(itemId))) continue;
+            // Auch was im Minus steht (Koeder, Schluessel, Lagerfeuer): Wer seine Schluessel
+            // selbst baut, traegt hier ein, was sie ihn kosten
+            if (menge == 0 || (menge < 0 && !ProfitTracker.mayBeNegative(itemId))) continue;
             if (!needle.isEmpty()
                     && !ProfitTracker.nameOf(itemId).toLowerCase(Locale.ROOT).contains(needle)
                     && !itemId.toLowerCase(Locale.ROOT).contains(needle)) {
@@ -292,7 +294,8 @@ public class ProfitItemScreen extends Screen {
         double value = worth(itemId);
         String text = (on ? "☑ " : "☐ ") + ProfitTracker.nameOf(itemId)
                 + " x" + ProfitTracker.countOf(itemId);
-        String tail = value > 0 ? "  " + ItemValue.format(value) : "  ?";
+        String tail = value > 0 ? "  " + ItemValue.format(value)
+                : value < 0 ? "  -" + ItemValue.format(-value) : "  ?";
         return Component.literal(trimToWidth(text, tail) + tail)
                 .withStyle(on ? ChatFormatting.GREEN : ChatFormatting.DARK_GRAY);
     }
