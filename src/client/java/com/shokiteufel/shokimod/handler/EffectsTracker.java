@@ -106,6 +106,9 @@ public final class EffectsTracker {
         lastRepeat.remove(key);
     }
 
+    /** Um so viel muss das Ende nach hinten rutschen, damit es als neu aufgefrischt gilt */
+    private static final long REFRESH_MILLIS = 15_000L;
+
     private static String key(String name) {
         return name.toLowerCase(Locale.ROOT).trim();
     }
@@ -207,8 +210,13 @@ public final class EffectsTracker {
             // Die Schaetzung bleibt, solange sie in dem Bereich liegt, den die Anzeige zulaesst
             long fixed = estimate < shown ? shown : estimate >= upper ? upper - 1000L : estimate;
             if (Math.abs(fixed - estimate) > 1000L || entry.expiry <= 0L) {
+                long before = entry.expiry;
                 entry.expiry = now + fixed;
-                forget(key(entry.name));
+                // Die Alarme gelten wieder, wenn der Effekt wirklich aufgefrischt wurde. Eine Anzeige,
+                // die stehen bleibt (Smoldering Polarization zaehlt nicht immer herunter), schiebt
+                // das Ende nur Sekunde um Sekunde nach hinten - das ist kein neuer Effekt, und
+                // jedes Vergessen liess den Alarm jede Sekunde neu ausloesen
+                if (before <= 0L || entry.expiry - before > REFRESH_MILLIS) forget(key(entry.name));
                 changed = true;
             }
         }
