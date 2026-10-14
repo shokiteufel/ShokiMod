@@ -1189,7 +1189,7 @@ public class ModConfig extends Config {
         public boolean vanguardCall = false;
 
         @Expose
-        @ConfigOption(name = "Call the guild", desc = "When you enter a Vanguard shaft, writes \"Vanguard + wenn ihr wollt\" into the guild chat. For 30 seconds after that, everyone who answers with a + gets a clickable line for you: click it to invite them to your party.")
+        @ConfigOption(name = "Call the guild", desc = "When you enter a Vanguard shaft, writes \"Vanguard!!! schreibt \"+\" wenn ihr wollt\" into the guild chat - but only when the portal was yours (\"You found a Glacite Mineshaft portal!\" in the last three minutes), not when someone warps you into theirs. For 30 seconds after that, everyone who answers with a + gets a clickable line for you: click it to invite them to your party.")
         @ConfigEditorBoolean
         @ConfigAccordionId(id = 42)
         public boolean vanguardGuildCall = false;
