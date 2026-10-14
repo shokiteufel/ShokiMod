@@ -69,6 +69,19 @@ public final class MineshaftProfit {
 
         if (!shaft.isEmpty()) campfires++;
         ProfitTracker.campfirePlaced();
+        shareCampfire();
+    }
+
+    /** "Campfire Placed! (x, y, z)" in den Partychat - dorthin, wo man gerade steht */
+    private static void shareCampfire() {
+        if (!com.shokiteufel.shokimod.data.ModConfig.INSTANCE.mining.mineshaft.shareCampfire) return;
+        Minecraft client = Minecraft.getInstance();
+        if (client == null || client.player == null || client.getConnection() == null) return;
+
+        net.minecraft.core.BlockPos at = client.player.blockPosition();
+        String text = "Campfire Placed! (" + at.getX() + ", " + at.getY() + ", " + at.getZ() + ")";
+        ShokiMod.LOGGER.info("[Mineshaft] telling the party: {}", text);
+        client.getConnection().sendCommand("pc " + text);
     }
 
     /** Ein Schluessel wurde an einer Leiche verbraucht: zieht von der Bilanz des Schachts ab */

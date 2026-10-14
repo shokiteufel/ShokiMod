@@ -1184,6 +1184,12 @@ public class ModConfig extends Config {
         public boolean vanguardCall = false;
 
         @Expose
+        @ConfigOption(name = "Share Campfire", desc = "When you place a Portable Campfire in a mineshaft, writes \"Campfire Placed! (x, y, z)\" with your position into the party chat, so the others can walk over and use it.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 42)
+        public boolean shareCampfire = false;
+
+        @Expose
         @ConfigOption(name = "Share found corpses", desc = "Writes the spot of a corpse you can really see into the party chat, once per corpse - not a possible spot, but one the mod has seen standing there. Vanguard is never shared.")
         @ConfigEditorDropdown
         @ConfigAccordionId(id = 42)
