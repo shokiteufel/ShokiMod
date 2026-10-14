@@ -40,6 +40,17 @@ public final class MiningHud {
         }
     }
 
+    /** Die Farbe der Leichensorte, wie sie im Spiel steht: Lapis blau, Tungsten grau, Umber gold */
+    private static int corpseColour(String type) {
+        return switch (type == null ? "" : type.toLowerCase(java.util.Locale.ROOT)) {
+            case "lapis" -> 0xFF5555FF;
+            case "tungsten" -> HudColours.GRAY;
+            case "umber" -> HudColours.GOLD;
+            case "vanguard" -> HudColours.WHITE;
+            default -> LABEL_COLOUR;
+        };
+    }
+
     public static HudPanel build() {
         HudPanel panel = new HudPanel();
         ModConfig.MiningHudCategory cfg = ModConfig.INSTANCE.mining.hud;
@@ -96,7 +107,7 @@ public final class MiningHud {
                 // Ohne Schluessel steht die Leiche da wie eine Wand: das gehoert in die Zeile
                 boolean noKey = !done && com.shokiteufel.shokimod.scanner.CorpseKeys.missing(corpse.type());
                 panel.pair(corpse.type() + (noKey ? " (no key)" : ""), looted + "/" + corpse.total(),
-                        LABEL_COLOUR, done ? HudColours.GREEN : HudColours.RED);
+                        corpseColour(corpse.type()), done ? HudColours.GREEN : HudColours.RED);
             }
 
             String keys = com.shokiteufel.shokimod.scanner.CorpseKeys.summary();

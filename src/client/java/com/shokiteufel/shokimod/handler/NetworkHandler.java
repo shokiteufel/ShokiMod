@@ -101,6 +101,8 @@ public class NetworkHandler {
             com.shokiteufel.shokimod.handler.VanguardGuildCall.onChatMessage(unformattedMsg);
             // Was ein Slayer-Boss zu starten kostet, geht in die Bilanz
             com.shokiteufel.shokimod.handler.SlayerSpawnCost.onChatMessage(unformattedMsg);
+            // Ein Schluessel kostet, wenn die Leiche ihre Beute ausschuettet
+            com.shokiteufel.shokimod.handler.CorpseKeyCost.onChatMessage(unformattedMsg);
             // Der Collection-Tracker braucht die Nachricht selbst: die Aufstellung haengt am Mauszeiger
             CollectionTracker.onChatMessage(message, unformattedMsg);
             // Und der Profit-Tracker dieselbe Zeile: was in einen Sack faellt, sieht das Inventar nie
