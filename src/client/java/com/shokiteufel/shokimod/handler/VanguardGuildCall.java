@@ -2,7 +2,7 @@ package com.shokiteufel.shokimod.handler;
 
 import com.shokiteufel.shokimod.ShokiMod;
 import com.shokiteufel.shokimod.data.ModConfig;
-import com.shokiteufel.shokimod.scanner.GameState;
+import com.shokiteufel.shokimod.data.GameState;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -28,7 +28,7 @@ public final class VanguardGuildCall {
 
     /** "Guild > [MVP+] Name [Rang]: +" - Rang und Titel sind optional */
     private static final Pattern PLUS = Pattern.compile(
-            "^Guild > (?:\[[^\]]+\]\s*)?(?<name>[A-Za-z0-9_]{1,16})(?:\s*\[[^\]]+\])?:\s*\+\s*$");
+            "^Guild > (?:\\[[^\\]]+\\]\\s*)?(?<name>[A-Za-z0-9_]{1,16})(?:\\s*\\[[^\\]]+\\])?:\\s*\\+\\s*$");
 
     private static long windowUntil = 0L;
     /** Der Schacht, fuer den schon gerufen wurde */
