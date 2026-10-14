@@ -30,10 +30,10 @@ public final class VanguardGuildCall {
      *
      * Wer bei jemand anderem in den Schacht geholt wird, hat kein Portal gefunden - und soll die
      * Gilde nicht fuer einen Schacht rufen, der ihm nicht gehoert. Der Fund steht im Chat:
-     * "WOW! You found a Glacite Mineshaft portal!". Zwischen Fund und Betreten liegen Sekunden
-     * bis wenige Minuten.
+     * "WOW! You found a Glacite Mineshaft portal!". Zwischen Fund und Betreten liegen wenige Sekunden
+     * (25 Sekunden gelten).
      */
-    private static final long OWN_PORTAL_MILLIS = 180_000L;
+    private static final long OWN_PORTAL_MILLIS = 25_000L;
     private static final Pattern PORTAL_FOUND = Pattern.compile("^WOW! You found a Glacite Mineshaft portal");
     private static long portalFoundAt = 0L;
 
