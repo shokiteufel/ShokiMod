@@ -24,7 +24,18 @@ public final class VanguardGuildCall {
 
     /** So lange nach dem Ruf zaehlen Pluszeichen */
     private static final long WINDOW_MILLIS = 30_000L;
-    private static final String TEXT = "Vanguard + wenn ihr wollt";
+    private static final String TEXT = "Vanguard!!! schreibt \"+\" wenn ihr wollt";
+    /**
+     * So lange nach dem eigenen Portal-Fund gilt ein Vanguard-Schacht als der eigene.
+     *
+     * Wer bei jemand anderem in den Schacht geholt wird, hat kein Portal gefunden - und soll die
+     * Gilde nicht fuer einen Schacht rufen, der ihm nicht gehoert. Der Fund steht im Chat:
+     * "WOW! You found a Glacite Mineshaft portal!". Zwischen Fund und Betreten liegen Sekunden
+     * bis wenige Minuten.
+     */
+    private static final long OWN_PORTAL_MILLIS = 180_000L;
+    private static final Pattern PORTAL_FOUND = Pattern.compile("^WOW! You found a Glacite Mineshaft portal");
+    private static long portalFoundAt = 0L;
 
     /** "Guild > [MVP+] Name [Rang]: +" - Rang und Titel sind optional */
     private static final Pattern PLUS = Pattern.compile(
@@ -43,10 +54,15 @@ public final class VanguardGuildCall {
         if (!ModConfig.INSTANCE.mining.mineshaft.vanguardGuildCall) return;
         String shaft = GameState.Server.id;
         if (shaft == null || shaft.isBlank() || shaft.equals(calledFor)) return;
+        if (System.currentTimeMillis() - portalFoundAt > OWN_PORTAL_MILLIS) {
+            // Nicht das eigene Portal: bei jemand anderem hineingeholt worden
+            return;
+        }
         Minecraft client = Minecraft.getInstance();
         if (client == null || client.getConnection() == null) return;
 
         calledFor = shaft;
+        portalFoundAt = 0L;
         windowUntil = System.currentTimeMillis() + WINDOW_MILLIS;
         invited.clear();
         ShokiMod.LOGGER.info("[Mining] telling the guild: {}", TEXT);
@@ -55,7 +71,12 @@ public final class VanguardGuildCall {
 
     /** Ein Plus im Gildenchat, solange der Ruf frisch ist, bekommt den Einladen-Knopf */
     public static void onChatMessage(String plain) {
-        if (plain == null || System.currentTimeMillis() > windowUntil) return;
+        if (plain == null) return;
+        if (PORTAL_FOUND.matcher(plain.trim()).find()) {
+            portalFoundAt = System.currentTimeMillis();
+            return;
+        }
+        if (System.currentTimeMillis() > windowUntil) return;
         Matcher m = PLUS.matcher(plain.trim());
         if (!m.matches()) return;
 
