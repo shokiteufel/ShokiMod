@@ -56,6 +56,7 @@ public class ShokiMod implements ClientModInitializer {
     private static boolean openFlipProfitNextTick = false;
     private static boolean openSeaCreaturesNextTick = false;
     private static boolean openEffectsNextTick = false;
+    private static boolean openChatRulesNextTick = false;
     private static boolean openProfitItemsNextTick = false;
     private static boolean openDayProfitNextTick = false;
     /** Statt der Jahresliste gleich die Waren dieses Jahres - 0 heisst: wie bisher */
@@ -131,6 +132,10 @@ public class ShokiMod implements ClientModInitializer {
             if (openSeaCreaturesNextTick) {
                 openSeaCreaturesNextTick = false;
                 client.setScreenAndShow(new com.shokiteufel.shokimod.gui.SeaCreatureScreen(null));
+            }
+            if (openChatRulesNextTick) {
+                openChatRulesNextTick = false;
+                client.setScreenAndShow(new com.shokiteufel.shokimod.gui.ChatRuleScreen(null));
             }
             if (openEffectsNextTick) {
                 openEffectsNextTick = false;
@@ -240,6 +245,12 @@ public class ShokiMod implements ClientModInitializer {
                         // Neunzig Zeilen passen in keine Einstellungsliste
                         .then(ClientCommands.literal("seacreatures").executes(context -> {
                             openSeaCreaturesNextTick = true;
+                            return 1;
+                        }))
+                        // /shoki chatrules -> die Chat-Regeln: Woerter und was bei ihnen passiert.
+                        // Nur noch hier, nicht mehr in den Einstellungen
+                        .then(ClientCommands.literal("chatrules").executes(context -> {
+                            openChatRulesNextTick = true;
                             return 1;
                         }))
                         // /shoki effects -> die gemerkten Traenke: Kasten und Alarm je Effekt
