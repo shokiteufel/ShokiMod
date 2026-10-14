@@ -79,6 +79,8 @@ public final class ProfitHud {
         HudPanel panel = new HudPanel();
         ModConfig.ProfitCategory cfg = ModConfig.INSTANCE.profit;
         List<ProfitTracker.Row> rows = ProfitTracker.rows();
+        // Die Start-Kosten eines Slayers haben unten eine eigene Zeile
+        rows.removeIf(r -> ProfitTracker.SPAWN_COINS.equals(r.itemId()));
         List<String> ids = new ArrayList<>();
         boolean clickable = NearbyOverlay.interactive();
 
@@ -121,6 +123,11 @@ public final class ProfitHud {
         panel.pair("Negative:", ItemValue.format(ProfitTracker.negativeTotal()), LABEL_COLOUR,
                 ProfitTracker.negativeTotal() < 0 ? HudColours.RED : VALUE_COLOUR);
         ids.add(null);
+        // Nur, wenn im gezeigten Zeitraum schon ein Boss bezahlt wurde
+        if (ProfitTracker.spawnCost() < 0) {
+            panel.pair("Spawn cost:", ItemValue.format(ProfitTracker.spawnCost()), LABEL_COLOUR, HudColours.RED);
+            ids.add(null);
+        }
         panel.pair("Total:", ItemValue.format(ProfitTracker.total()), LABEL_COLOUR,
                 ProfitTracker.total() < 0 ? HudColours.RED : VALUE_COLOUR);
         ids.add(null);
