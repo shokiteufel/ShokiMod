@@ -99,6 +99,8 @@ public class NetworkHandler {
             com.shokiteufel.shokimod.scanner.CorpseFinder.onChatMessage(unformattedMsg);
             // Ein Plus im Gildenchat nach dem Vanguard-Ruf bekommt einen Einladen-Knopf
             com.shokiteufel.shokimod.handler.VanguardGuildCall.onChatMessage(unformattedMsg);
+            // Was ein Slayer-Boss zu starten kostet, geht in die Bilanz
+            com.shokiteufel.shokimod.handler.SlayerSpawnCost.onChatMessage(unformattedMsg);
             // Der Collection-Tracker braucht die Nachricht selbst: die Aufstellung haengt am Mauszeiger
             CollectionTracker.onChatMessage(message, unformattedMsg);
             // Und der Profit-Tracker dieselbe Zeile: was in einen Sack faellt, sieht das Inventar nie

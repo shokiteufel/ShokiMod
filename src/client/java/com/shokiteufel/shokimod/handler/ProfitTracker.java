@@ -284,7 +284,7 @@ public final class ProfitTracker {
      */
     public static boolean mayBeNegative(String itemId) {
         return isBait(itemId) || "PORTABLE_CAMPFIRE".equals(itemId) || com.shokiteufel.shokimod.scanner.CorpseKeys.isKey(itemId)
-                || CHEST_COINS.equals(itemId) || "DUNGEON_CHEST_KEY".equals(itemId);
+                || CHEST_COINS.equals(itemId) || SPAWN_COINS.equals(itemId) || "DUNGEON_CHEST_KEY".equals(itemId);
     }
 
     /**
@@ -293,6 +293,13 @@ public final class ProfitTracker {
      * Kein Gegenstand, sondern Geld: Ein Stueck ist ein Coin, und die Menge steht im Minus.
      */
     public static final String CHEST_COINS = "SHOKI_CHEST_COINS";
+    /**
+     * Die Coins, die der Start eines Slayer-Bosses gekostet hat: ein Stueck ist ein Coin.
+     *
+     * Steht im Kasten als eigene Zeile "Spawn cost", nicht unter "Negative", und fehlt, solange
+     * im gezeigten Zeitraum nichts bezahlt wurde.
+     */
+    public static final String SPAWN_COINS = "SHOKI_SPAWN_COINS";
 
     /**
      * Eine geoeffnete Belohnungstruhe: Beute dazu, Kosten und Schluessel weg.
@@ -396,6 +403,7 @@ public final class ProfitTracker {
     /** Der Name, wie ihn das Spiel schreibt - sonst aus der Kennung gebildet */
     public static String nameOf(String itemId) {
         if (CHEST_COINS.equals(itemId)) return "Chest cost (coins)";
+        if (SPAWN_COINS.equals(itemId)) return "Spawn cost (coins)";
         Matcher maxed = MAXED_PET.matcher(itemId == null ? "" : itemId);
         if (maxed.matches()) {
             // Ohne die Seltenheit im Namen: Die steht in der Farbe der Zeile, so wie im
@@ -668,7 +676,7 @@ public final class ProfitTracker {
      * waehlt und das Feld leer laesst, sieht weiter den Marktpreis statt einer Null.
      */
     public static double unitPrice(String itemId) {
-        if (CHEST_COINS.equals(itemId)) return 1.0;
+        if (CHEST_COINS.equals(itemId) || SPAWN_COINS.equals(itemId)) return 1.0;
         if (modeOf(itemId) == SellMode.CUSTOM) {
             double own = customPrice(itemId);
             if (own > 0) return own;
@@ -913,10 +921,16 @@ public final class ProfitTracker {
     public static Map<String, Double> negatives() {
         Map<String, Double> out = new LinkedHashMap<>();
         for (Row row : rows()) {
-            if (row.count() >= 0 || row.value() >= 0) continue;
+            if (row.count() >= 0 || row.value() >= 0 || SPAWN_COINS.equals(row.itemId())) continue;
             out.merge(negativeLabel(row), row.value(), Double::sum);
         }
         return out;
+    }
+
+    /** Was der Start von Slayer-Bossen im gezeigten Zeitraum gekostet hat (negativ), oder 0 */
+    public static double spawnCost() {
+        Integer coins = activeCounts().get(SPAWN_COINS);
+        return coins == null || coins >= 0 || !shown(SPAWN_COINS) ? 0 : coins;
     }
 
     /**
@@ -927,7 +941,8 @@ public final class ProfitTracker {
     public static Map<String, Long> negativeCounts() {
         Map<String, Long> out = new LinkedHashMap<>();
         for (Row row : rows()) {
-            if (row.count() >= 0 || row.value() >= 0 || CHEST_COINS.equals(row.itemId())) continue;
+            if (row.count() >= 0 || row.value() >= 0 || CHEST_COINS.equals(row.itemId())
+                    || SPAWN_COINS.equals(row.itemId())) continue;
             out.merge(negativeLabel(row), -row.count(), Long::sum);
         }
         return out;
