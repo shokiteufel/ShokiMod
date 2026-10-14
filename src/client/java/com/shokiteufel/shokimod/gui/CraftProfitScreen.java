@@ -394,6 +394,8 @@ public class CraftProfitScreen extends Screen {
                     left + 560, y, mengeFarbe(proTag), false);
         }
 
+        drawMaterialTooltip(graphics, zeilen, mouseX, mouseY);
+
         if (zeilen.isEmpty()) {
             graphics.centeredText(font, Component.literal(search.isBlank()
                             ? "Nothing pays off right now - try the other trade route"
@@ -404,6 +406,49 @@ public class CraftProfitScreen extends Screen {
             // Mittig zwischen den beiden Pfeilen, auf ihrer Hoehe
             graphics.centeredText(font, Component.literal((page + 1) + " / " + pageCount())
                     .withStyle(ChatFormatting.GRAY), centerX, height - 44, 0xFFAAAAAA);
+        }
+    }
+
+    /**
+     * Zeigt auf die Materialien einer Zeile: Was jedes Teil kostet, einzeln und mal Menge.
+     *
+     * Die Spalte ist abgeschnitten, und eine Summe allein sagt nicht, welches Teil das Rezept
+     * teuer macht - genau das will man vor dem Bauen wissen.
+     */
+    private void drawMaterialTooltip(GuiGraphicsExtractor graphics, List<Row> zeilen, int mouseX, int mouseY) {
+        int left = left();
+        if (mouseX < left + 140 || mouseX > left + 296 || mouseY < listTop - 3) return;
+        int index = (mouseY - listTop + 3) / ROW_HEIGHT;
+        int start = page * perPage();
+        if (index < 0 || index >= perPage() || start + index >= zeilen.size()) return;
+
+        Row row = zeilen.get(start + index);
+        List<String> lines = new java.util.ArrayList<>();
+        lines.add("§6" + row.yield());
+        long sum = 0;
+        for (CraftProfitData.Part p : row.parts()) {
+            if (p.unit() > 0) {
+                long total = p.unit() * p.amount();
+                sum += total;
+                lines.add("§f" + p.amount() + "x " + p.name() + " §7- " + ItemValue.format(p.unit())
+                        + " each = §c" + ItemValue.format(total));
+            } else {
+                lines.add("§f" + p.amount() + "x " + p.name() + " §7- §8no price");
+            }
+        }
+        if (row.parts().size() > 1 && row.complete()) lines.add("§7Total: §c" + ItemValue.format(sum));
+
+        int w = 0;
+        for (String line : lines) w = Math.max(w, font.width(line));
+        int x = mouseX + 10;
+        int y = mouseY + 10;
+        int h = lines.size() * 10;
+        if (x + w + 8 > width) x = Math.max(0, mouseX - w - 14);
+        if (y + h + 6 > height) y = Math.max(0, height - h - 6);
+        graphics.fill(x - 3, y - 3, x + w + 3, y + h + 1, 0xF0100010);
+        graphics.fill(x - 2, y - 2, x + w + 2, y + h, 0xF0200030);
+        for (int i = 0; i < lines.size(); i++) {
+            graphics.text(font, lines.get(i), x, y + i * 10, 0xFFFFFFFF, true);
         }
     }
 
