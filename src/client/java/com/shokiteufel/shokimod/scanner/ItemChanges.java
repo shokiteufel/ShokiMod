@@ -1142,8 +1142,27 @@ public final class ItemChanges {
      */
     private static final long MOVE_MILLIS = 90_000L;
 
+    /**
+     * Was zuletzt als verbraucht abgezogen wurde: {Menge, Zeitpunkt}.
+     *
+     * Kommt die Sack-Meldung ausnahmsweise vor der Zeile "Moved ... to your inventory", ist der
+     * Koeder schon abgezogen, wenn der Umzug gemeldet wird - dann geht die Menge zurueck.
+     */
+    private static final Map<String, long[]> recentlyConsumed = new HashMap<>();
+    /** So kurz darf die Sack-Meldung vor der Moved-Zeile liegen, damit sie noch dazugehoert */
+    private static final long REFUND_MILLIS = 10_000L;
+
     private static void movedOut(String itemId, int amount) {
         long now = System.currentTimeMillis();
+        long[] schon = recentlyConsumed.get(itemId);
+        if (schon != null && now - schon[1] < REFUND_MILLIS && schon[0] > 0) {
+            int zurueck = (int) Math.min(schon[0], amount);
+            schon[0] -= zurueck;
+            amount -= zurueck;
+            com.shokiteufel.shokimod.handler.ProfitTracker.adjust(itemId, zurueck);
+            ShokiMod.LOGGER.info("[Profit] {} x{} was moved, not consumed - given back", itemId, zurueck);
+            if (amount <= 0) return;
+        }
         long[] alt = movedOutAt.get(itemId);
         long menge = alt != null && now - alt[1] < MOVE_MILLIS ? alt[0] + amount : amount;
         movedOutAt.put(itemId, new long[] {menge, now});
@@ -1199,6 +1218,9 @@ public final class ItemChanges {
                 if (geholt[0] <= 0) movedOutAt.remove(entry.getKey());
             }
             if (verbraucht <= 0) continue;
+            long[] vorher = recentlyConsumed.get(entry.getKey());
+            long summe = vorher != null && now - vorher[1] < MOVE_MILLIS ? vorher[0] + verbraucht : verbraucht;
+            recentlyConsumed.put(entry.getKey(), new long[] {summe, now});
             com.shokiteufel.shokimod.handler.ProfitTracker.adjust(entry.getKey(), -verbraucht);
             ShokiMod.LOGGER.info("[Profit] bait used from the sack: {} -{}", entry.getKey(), verbraucht);
         }

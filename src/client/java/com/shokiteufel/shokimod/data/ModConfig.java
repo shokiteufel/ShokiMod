@@ -270,9 +270,6 @@ public class ModConfig extends Config {
         INSTANCE.mobVisuals.openCustomManager = () -> Minecraft.getInstance().execute(() ->
                 Minecraft.getInstance().setScreen(
                         new CustomMobScreen(Minecraft.getInstance().screen, false)));
-        INSTANCE.chat.openChatRules = () -> Minecraft.getInstance().execute(() ->
-                Minecraft.getInstance().setScreen(
-                        new ChatRuleScreen(Minecraft.getInstance().screen)));
         INSTANCE.safari.openMarkerSettings = () -> Minecraft.getInstance().execute(() ->
                 Minecraft.getInstance().setScreen(
                         new MarkerSettingsScreen(Minecraft.getInstance().screen)));
@@ -2799,11 +2796,6 @@ public class ModConfig extends Config {
         /** Beim Spielen entdeckte Gebietsnamen. Ergaenzt den festen Grundstock in KnownAreas */
         @Expose
         public List<String> discoveredAreas = new ArrayList<>();
-
-        @ConfigOption(name = "Chat Rules", desc = "Add words and choose what happens. Sound files go into config/shokimod/sounds.")
-        @ConfigEditorButton(buttonText = "Manage")
-        public transient Runnable openChatRules = () -> {
-        };
 
         @Expose
         @ConfigOption(name = "Alert Volume", desc = "One knob for every alert sound: chat rules, rare loot tiers and the contest warning. A rule's own volume is scaled by this.")
