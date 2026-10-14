@@ -16,7 +16,8 @@
 		"HotspotParticleMixin",
 		"ServerTimeMixin",
 		"PongResponseMixin",
-		"PlayerSizeMixin"
+		"PlayerSizeMixin",
+		"TextFieldFitMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
