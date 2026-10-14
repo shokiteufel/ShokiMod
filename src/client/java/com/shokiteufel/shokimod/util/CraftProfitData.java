@@ -49,8 +49,8 @@ public final class CraftProfitData {
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
     private static final Gson GSON = new Gson();
 
-    /** Eine Zutat: was und wie viel davon */
-    public record Part(String id, String name, int amount) {
+    /** Eine Zutat: was und wie viel davon, dazu der Preis eines Stuecks (0 = ohne Preis) */
+    public record Part(String id, String name, int amount, long unit) {
     }
 
     /**
@@ -249,8 +249,8 @@ public final class CraftProfitData {
             for (int i = 0; i < r.ids().length; i++) {
                 String id = r.ids()[i];
                 int menge = r.counts()[i];
-                teile.add(new Part(id, nameOf(id), menge));
                 long stueck = buyPrice(id, instantBuy);
+                teile.add(new Part(id, nameOf(id), menge, Math.max(0L, stueck)));
                 // Ohne Preis laesst sich die Fusion nicht bewerten. Sie faellt nicht
                 // weg - man will sie ja trotzdem sehen -, aber ihre Zahl ist dann
                 // keine, und das muss dranstehen
@@ -345,7 +345,7 @@ public final class CraftProfitData {
             if (onlyGain && (!vollstaendig || erloes - kosten <= 0)) continue;
 
             out.add(new Row(fuenf, name, 1,
-                    List.of(new Part(eins, teilName, BOOKS_PER_FIVE)),
+                    List.of(new Part(eins, teilName, BOOKS_PER_FIVE, Math.max(0L, stueck))),
                     kosten, erloes, vollstaendig, BOOK, 0));
         }
         return out;
