@@ -342,6 +342,11 @@ public class ModConfig extends Config {
                 com.shokiteufel.shokimod.handler.EffectsTracker::test);
         INSTANCE.chat.petMax.test = () -> Minecraft.getInstance().execute(
                 com.shokiteufel.shokimod.handler.PetMaxAlert::test);
+        INSTANCE.playerSize.reset = () -> {
+            INSTANCE.playerSize.sizeX = 1.0f;
+            INSTANCE.playerSize.sizeY = 1.0f;
+            INSTANCE.playerSize.sizeZ = 1.0f;
+        };
         INSTANCE.fishing.rareCatch.openPicker = () -> Minecraft.getInstance().execute(() ->
                 Minecraft.getInstance().setScreenAndShow(new com.shokiteufel.shokimod.gui.SeaCreatureScreen(
                         Minecraft.getInstance().gui.screen())));
@@ -665,6 +670,10 @@ public class ModConfig extends Config {
     @Expose
     @Category(name = "Mob Visuals", desc = "Your own mobs and how every marker looks.")
     public MobVisualsCategory mobVisuals = new MobVisualsCategory();
+
+    @Expose
+    @Category(name = "Player Size", desc = "Makes your own player bigger, smaller, wider or upside down. Only you see it.")
+    public PlayerSizeCategory playerSize = new PlayerSizeCategory();
 
     @Expose
     @Category(name = "Guild", desc = "Guild events from the ShokiTeufelBot: a banner when one starts, the live ranking in a panel.")
@@ -2055,6 +2064,44 @@ public class ModConfig extends Config {
         @ConfigOption(name = "Test", desc = "Fires the alert once with a Golden Dragon, so you can see and hear what you set.")
         @ConfigEditorButton(buttonText = "Test")
         public transient Runnable test = () -> {
+        };
+    }
+
+    /**
+     * Die Groesse der eigenen Figur - nach Odins "Player Size".
+     *
+     * Gilt nur fuer die eigene Figur und nur auf dem eigenen Bildschirm; was Odin zusaetzlich
+     * fuer dessen Entwickler vom Server holt, gibt es hier nicht.
+     */
+    public static class PlayerSizeCategory {
+
+        @ConfigOption(name = "Player Size", desc = "Changes how your own player looks to you: wider, taller, flat, or upside down with a negative height. Nobody else sees it, and your hitbox and camera stay as they are. Idea from Odin's Player Size - if you run Odin too, switch its Player Size off so the two do not stack.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Enabled", desc = "Applies the three sizes below to your own player.")
+        @ConfigEditorBoolean
+        public boolean enabled = false;
+
+        @Expose
+        @ConfigOption(name = "Size X", desc = "Width. 1.0 is normal.")
+        @ConfigEditorSlider(minValue = -1.0f, maxValue = 3.0f, minStep = 0.1f)
+        public float sizeX = 1.0f;
+
+        @Expose
+        @ConfigOption(name = "Size Y", desc = "Height. 1.0 is normal; below zero turns you upside down.")
+        @ConfigEditorSlider(minValue = -1.0f, maxValue = 3.0f, minStep = 0.1f)
+        public float sizeY = 1.0f;
+
+        @Expose
+        @ConfigOption(name = "Size Z", desc = "Depth. 1.0 is normal.")
+        @ConfigEditorSlider(minValue = -1.0f, maxValue = 3.0f, minStep = 0.1f)
+        public float sizeZ = 1.0f;
+
+        @ConfigOption(name = "Reset", desc = "Sets all three sizes back to 1.0.")
+        @ConfigEditorButton(buttonText = "Reset")
+        public transient Runnable reset = () -> {
         };
     }
 

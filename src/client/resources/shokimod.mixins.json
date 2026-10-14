@@ -15,7 +15,8 @@
 		"FloorDropParticleMixin",
 		"HotspotParticleMixin",
 		"ServerTimeMixin",
-		"PongResponseMixin"
+		"PongResponseMixin",
+		"PlayerSizeMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
