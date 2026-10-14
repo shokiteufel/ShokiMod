@@ -97,6 +97,8 @@ public class NetworkHandler {
             // Eine Leichen-Stelle aus der Party ist ein Marker wert - sie kommt von
             // jemandem, der davorsteht
             com.shokiteufel.shokimod.scanner.CorpseFinder.onChatMessage(unformattedMsg);
+            // Ein Plus im Gildenchat nach dem Vanguard-Ruf bekommt einen Einladen-Knopf
+            com.shokiteufel.shokimod.handler.VanguardGuildCall.onChatMessage(unformattedMsg);
             // Der Collection-Tracker braucht die Nachricht selbst: die Aufstellung haengt am Mauszeiger
             CollectionTracker.onChatMessage(message, unformattedMsg);
             // Und der Profit-Tracker dieselbe Zeile: was in einen Sack faellt, sieht das Inventar nie
