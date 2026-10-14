@@ -1014,7 +1014,7 @@ public final class ItemChanges {
 
         // Nicht nur fuer die Sack-Meldung: Hier kommt die Ware ins Inventar, und genau
         // dort muss sie wieder abgezogen werden
-        movedOutAt.put(ids.get(0), System.currentTimeMillis());
+        movedOut(ids.get(0), amount);
         losses.add(new Loss(ids.get(0), amount, System.currentTimeMillis(), false));
         ShokiMod.LOGGER.info("[Profit] out of the sack, not found: {} x{}", ids.get(0), amount);
         return true;
@@ -1176,10 +1176,23 @@ public final class ItemChanges {
         subtractConsumed(consumed, now);
     }
 
-    /** Wann zuletzt etwas dieser Ware aus einem Sack ins Inventar geholt wurde */
-    private static final Map<String, Long> movedOutAt = new HashMap<>();
-    /** So lange gilt ein Abgang aus dem Sack als Umzug ins Inventar, nicht als Verbrauch */
-    private static final long MOVE_MILLIS = 15_000L;
+    /** Wie viel dieser Ware zuletzt aus einem Sack ins Inventar geholt wurde: {Menge, Zeitpunkt} */
+    private static final Map<String, long[]> movedOutAt = new HashMap<>();
+    /**
+     * So lange gilt ein Abgang aus dem Sack als Umzug ins Inventar, nicht als Verbrauch.
+     *
+     * Die Sack-Meldung ("Removed items") fasst gut dreissig Sekunden zusammen und kommt deshalb
+     * spaet nach der Zeile "Moved ... to your inventory". Mit fuenfzehn Sekunden kam sie oft
+     * zu spaet, und der geholte Koeder stand als verbraucht im Minus.
+     */
+    private static final long MOVE_MILLIS = 90_000L;
+
+    private static void movedOut(String itemId, int amount) {
+        long now = System.currentTimeMillis();
+        long[] alt = movedOutAt.get(itemId);
+        long menge = alt != null && now - alt[1] < MOVE_MILLIS ? alt[0] + amount : amount;
+        movedOutAt.put(itemId, new long[] {menge, now});
+    }
 
     /**
      * Eine Zeile unter "Removed items" - gemerkt wird sie nur bei Koedern.
@@ -1218,14 +1231,21 @@ public final class ItemChanges {
     private static void subtractConsumed(Map<String, Integer> consumed, long now) {
         if (consumed.isEmpty() || !com.shokiteufel.shokimod.handler.ProfitTracker.enabled()) return;
         for (Map.Entry<String, Integer> entry : consumed.entrySet()) {
-            Long geholt = movedOutAt.get(entry.getKey());
-            if (geholt != null && now - geholt < MOVE_MILLIS) {
-                ShokiMod.LOGGER.info("[Profit] {} left the sack, but it was moved - not consumed",
-                        entry.getKey());
-                continue;
+            int verbraucht = entry.getValue();
+            // Nach Menge, nicht nach Zeit: Was geholt wurde, ist nicht verbraucht - aber nur so
+            // viel. Wer nebenher wirklich angelt, hat den Rest verbraucht
+            long[] geholt = movedOutAt.get(entry.getKey());
+            if (geholt != null && now - geholt[1] < MOVE_MILLIS && geholt[0] > 0) {
+                int umgezogen = (int) Math.min(geholt[0], verbraucht);
+                geholt[0] -= umgezogen;
+                verbraucht -= umgezogen;
+                ShokiMod.LOGGER.info("[Profit] {} left the sack, {} of it moved - not consumed",
+                        entry.getKey(), umgezogen);
+                if (geholt[0] <= 0) movedOutAt.remove(entry.getKey());
             }
-            com.shokiteufel.shokimod.handler.ProfitTracker.adjust(entry.getKey(), -entry.getValue());
-            ShokiMod.LOGGER.info("[Profit] bait used from the sack: {} -{}", entry.getKey(), entry.getValue());
+            if (verbraucht <= 0) continue;
+            com.shokiteufel.shokimod.handler.ProfitTracker.adjust(entry.getKey(), -verbraucht);
+            ShokiMod.LOGGER.info("[Profit] bait used from the sack: {} -{}", entry.getKey(), verbraucht);
         }
     }
 
