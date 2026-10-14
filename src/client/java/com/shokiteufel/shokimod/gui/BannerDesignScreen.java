@@ -362,21 +362,38 @@ public class BannerDesignScreen extends Screen {
     private void buildFooter(BannerDesign d, int col1, int col2) {
         int bottom = height - 28;
         Button vorschau = Button.builder(Component.literal("Preview"),
-                        button -> DropBanner.previewWithEffects(d))
-                .bounds(col1, bottom, 80, 20).build();
+                        button -> {
+                            DropBanner.useCatchSample(false);
+                            DropBanner.previewWithEffects(d);
+                        })
+                .bounds(col1, bottom, 70, 20).build();
         vorschau.setTooltip(Tooltip.create(Component.literal(
-                "Plays it once with the flourish and particles. The still preview behind this window runs without them.")));
+                "Plays it once with a drop (3x Ghost Shard), with the flourish and particles. The still preview behind this window runs without them.")));
         addRenderableWidget(vorschau);
 
+        // Der Fang-Alarm im Sandkasten: ein Spieler klein darueber, der Bewohner gross darunter.
+        // Damit stellt man die Groesse des Namens so ein, wie sie beim Angeln wirklich steht
+        Button fang = Button.builder(Component.literal(DropBanner.catchSample() ? "✔ Catch" : "Catch"),
+                        button -> {
+                            DropBanner.useCatchSample(true);
+                            DropBanner.previewWithEffects(d);
+                            rebuild();
+                        })
+                .bounds(col1 + 74, bottom, 70, 20).build();
+        fang.setTooltip(Tooltip.create(Component.literal(
+                "Shows it the way a sea creature alert looks: the player small above, the creature's name big below. "
+                        + "Raise \"Headline size\" on the Text card to make the name bigger. Applies to the still preview too.")));
+        addRenderableWidget(fang);
+
         int tiers = ModConfig.RareLootCategory.TIERS;
-        int each = (COLUMN_WIDTH * 2 + COLUMN_GAP - 84 - 84) / tiers;
+        int each = (COLUMN_WIDTH * 2 + COLUMN_GAP - 148 - 84) / tiers;
         for (int tier = 1; tier <= tiers; tier++) {
             int number = tier;
-            Button use = Button.builder(Component.literal(usesTier(d, tier) ? "✔ T" + tier : "Tier " + tier),
+            Button use = Button.builder(Component.literal(usesTier(d, tier) ? "✔ T" + tier : "T" + tier),
                     button -> {
                         ModConfig.INSTANCE.chat.rareLoot.setDesign(number, d.name);
                         rebuild();
-                    }).bounds(col1 + 84 + (tier - 1) * each, bottom, each - 4, 20).build();
+                    }).bounds(col1 + 148 + (tier - 1) * each, bottom, each - 4, 20).build();
             use.setTooltip(Tooltip.create(Component.literal("Use this design when a drop reaches Tier " + tier)));
             addRenderableWidget(use);
         }
