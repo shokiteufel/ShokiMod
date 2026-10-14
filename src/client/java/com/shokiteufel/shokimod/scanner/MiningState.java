@@ -346,6 +346,9 @@ public final class MiningState {
             if (c.type().equalsIgnoreCase("Vanguard")) vanguard = true;
         }
 
+        // Die Gilde ruft unabhaengig von der Party: ein Vanguard-Schacht ist der Anlass
+        if (vanguard) com.shokiteufel.shokimod.handler.VanguardGuildCall.onVanguardShaft();
+
         // Zwei Gruende, die Party zu rufen, und sie gelten einzeln: genug Lapis, oder ein
         // Vanguard im Schacht. Der zweite hat keine Schwelle - es gibt nur einen
         boolean wegenLapis = threshold > 0 && lapis >= threshold;

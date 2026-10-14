@@ -1184,6 +1184,12 @@ public class ModConfig extends Config {
         public boolean vanguardCall = false;
 
         @Expose
+        @ConfigOption(name = "Call the guild", desc = "When you enter a Vanguard shaft, writes \"Vanguard + wenn ihr wollt\" into the guild chat. For 30 seconds after that, everyone who answers with a + gets a clickable line for you: click it to invite them to your party.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 42)
+        public boolean vanguardGuildCall = false;
+
+        @Expose
         @ConfigOption(name = "Share Campfire", desc = "When you place a Portable Campfire in a mineshaft, writes \"Campfire Placed! (x, y, z)\" with your position into the party chat, so the others can walk over and use it.")
         @ConfigEditorBoolean
         @ConfigAccordionId(id = 42)
