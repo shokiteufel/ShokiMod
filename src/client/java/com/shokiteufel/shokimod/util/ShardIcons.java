@@ -58,7 +58,37 @@ public final class ShardIcons {
     private static final Set<String> loading = ConcurrentHashMap.newKeySet();
     private static final Set<String> missing = ConcurrentHashMap.newKeySet();
 
+    /** Aufgeloeste Umkehrungen: NEU-Name im Inventar auf die Basar-Kennung */
+    private static final Map<String, String> bazaarByInternal = new ConcurrentHashMap<>();
+
     private ShardIcons() {
+    }
+
+    /**
+     * Die Basar-Kennung zu einem Shard aus dem Inventar.
+     *
+     * Im Inventar heisst ein Shard nach seinem Attribut (ATTRIBUTE_SHARD_COCOON_CHANCE;1 ist der
+     * Primordial Shard), der Basar fuehrt ihn nach dem Namen (SHARD_PRIMORDIAL). Ohne diese
+     * Bruecke fand der Kasten fuer einen Shard, der ohne Chatzeile ins Inventar fiel, keinen
+     * Preis. Null, solange die Tabelle noch nicht da ist oder der Shard darin fehlt.
+     */
+    public static String bazaarIdOf(String internalId) {
+        if (internalId == null || !internalId.startsWith("ATTRIBUTE_SHARD_")) return null;
+        String cached = bazaarByInternal.get(internalId);
+        if (cached != null) return cached;
+        INDEX.prefetch();
+
+        String bare = internalId.indexOf(';') > 0 ? internalId.substring(0, internalId.indexOf(';')) : internalId;
+        for (String bazaar : INDEX.keys()) {
+            String internal = INDEX.get(bazaar);
+            if (internal == null) continue;
+            String other = internal.indexOf(';') > 0 ? internal.substring(0, internal.indexOf(';')) : internal;
+            if (other.equals(bare)) {
+                bazaarByInternal.put(internalId, bazaar);
+                return bazaar;
+            }
+        }
+        return null;
     }
 
     /**
