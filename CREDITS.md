@@ -245,6 +245,16 @@ drinsteckt.
   Tab-Liste hat hier Vorrang, weil er nichts verlieren kann — Feesh liest ihn nicht.
 - **Odin** — die Ping-Anzeige wurde gegen seine gehalten, um den eigenen Messfehler zu
   finden.
+- **Odin** (BSD-3-Clause, Odtheking, `OdinFabric`) — die eigene Figur in anderer Größe
+  (`features/impl/render/PlayerSize.kt`, `AvatarRendererMixin`): kurz vor dem Körper das
+  Matrix-Blatt skalieren, bei negativer Höhe um die doppelte Höhe nach oben schieben, damit
+  die umgekippte Figur auf dem Boden bleibt, und der Wertebereich von −1 bis 3. Das ist
+  der Handgriff, und er ist hier nachgebaut (`PlayerSize`, `PlayerSizeMixin`). **Nicht**
+  übernommen ist, was Odin daneben vom Entwickler-Server holt (feste Größen und Namen für
+  einzelne Spieler). Anders ist auch das Erkennen der eigenen Figur: Odin merkt sich das
+  Spielerprofil im Render-Zustand über einen Fabric-Schlüssel, hier genügt die
+  Entitätsnummer. Der Mixin zielt auf `AvatarRenderer.scale(AvatarRenderState, PoseStack)`,
+  das in 26.1, 26.2 und 26.3 dieselbe Signatur hat.
 
 ## Daten von außen
 
