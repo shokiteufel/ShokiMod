@@ -342,6 +342,13 @@ public class ModConfig extends Config {
                 com.shokiteufel.shokimod.handler.EffectsTracker::test);
         INSTANCE.chat.petMax.test = () -> Minecraft.getInstance().execute(
                 com.shokiteufel.shokimod.handler.PetMaxAlert::test);
+        INSTANCE.bugHunt.testSound = () -> Minecraft.getInstance().execute(() ->
+                Minecraft.getInstance().getSoundManager().play(
+                        net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
+                                net.minecraft.sounds.SoundEvents.NOTE_BLOCK_PLING.value(), 1.0f,
+                                com.shokiteufel.shokimod.util.AlertVolume.factor())));
+        INSTANCE.bugHunt.soundSummary = () -> Minecraft.getInstance().execute(
+                com.shokiteufel.shokimod.handler.SoundTracer::summary);
         INSTANCE.playerSize.reset = () -> {
             INSTANCE.playerSize.sizeX = 1.0f;
             INSTANCE.playerSize.sizeY = 1.0f;
@@ -674,6 +681,14 @@ public class ModConfig extends Config {
     @Expose
     @Category(name = "Player Size", desc = "Makes your own player bigger, smaller, wider or upside down. Only you see it.")
     public PlayerSizeCategory playerSize = new PlayerSizeCategory();
+
+    /**
+     * Werkzeuge zum Fehlersuchen. Steht nicht in der Liste: Sichtbar wird der Reiter, wenn im
+     * Suchfeld "bug" steht (siehe ShokiConfigEditor). Nichts davon wird gespeichert.
+     */
+    @Expose
+    @Category(name = "Bug hunt", desc = "Tools for tracking down something odd. Nothing here is saved - every start begins with everything off.")
+    public BugHuntCategory bugHunt = new BugHuntCategory();
 
     @Expose
     @Category(name = "Guild", desc = "Guild events from the ShokiTeufelBot: a banner when one starts, the live ranking in a panel.")
@@ -1411,7 +1426,6 @@ public class ModConfig extends Config {
         @Expose
         @ConfigOption(name = "Pause after", desc = "Seconds without anything collected before the timer pauses. The idle time is taken off again.")
         @ConfigEditorSlider(minValue = 10f, maxValue = 600f, minStep = 5f)
-        @ConfigAccordionId(id = 43)
         public int pauseAfterSeconds = 120;
 
         @Expose
@@ -2106,6 +2120,41 @@ public class ModConfig extends Config {
     }
 
     /**
+     * Fehlersuche: was sich nur im laufenden Spiel klaeren laesst.
+     *
+     * Nichts davon wird gespeichert - ein vergessener Schalter soll nicht beim naechsten Start
+     * weiter ins Log schreiben.
+     */
+    public static class BugHuntCategory {
+
+        @ConfigOption(name = "Bug hunt", desc = "For when something odd happens and nobody knows why. Switch a tracer on, wait for the problem, then send logs/latest.log. Nothing here is saved - every start begins with everything off.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @ConfigOption(name = "Sound tracer", desc = "Writes every sound that matches the filter into the log and says where it came from: the server, or which mod's code played it (with the name of its jar).")
+        @ConfigEditorBoolean
+        public transient boolean soundTracer = false;
+
+        @ConfigOption(name = "Sound filter", desc = "Only sounds whose name contains this text, e.g. pling or note_block. Empty traces every sound - far too many.")
+        @ConfigEditorText
+        public transient String soundFilter = "pling";
+
+        @ConfigOption(name = "Show in chat", desc = "Also prints each traced sound into the chat, at most once a second, so you see it as it happens.")
+        @ConfigEditorBoolean
+        public transient boolean soundChat = true;
+
+        @ConfigOption(name = "Play a pling", desc = "Plays one note block pling from here, to see how the tracer reports a sound this mod plays itself. Switch the tracer on first.")
+        @ConfigEditorButton(buttonText = "Play")
+        public transient Runnable testSound = () -> {
+        };
+
+        @ConfigOption(name = "Summary", desc = "Prints how often each source played a traced sound since the last summary, the most frequent first, and starts counting again.")
+        @ConfigEditorButton(buttonText = "Show")
+        public transient Runnable soundSummary = () -> {
+        };
+    }
+
+    /**
      * Der Bazaar-Handel mit eigenen Auftraegen.
      *
      * Was hier steht, gilt fuer jeden Verkauf und nicht nur fuer ein Fenster - deshalb
@@ -2339,6 +2388,7 @@ public class ModConfig extends Config {
         @ConfigEditorBoolean
         public boolean countCorpseKeys = true;
 
+        @Expose
         @ConfigOption(name = "Hide the sack line",
                 desc = "Takes \"[Sacks] +269 items. (Last 5s.)\" out of the chat. The tracker keeps reading it - what falls into a sack never shows up in your inventory, and that line is the only word about it.")
         @ConfigEditorBoolean

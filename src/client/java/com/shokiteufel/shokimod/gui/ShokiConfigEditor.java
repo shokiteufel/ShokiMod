@@ -11,17 +11,23 @@ import io.github.notenoughupdates.moulconfig.processor.ProcessedCategory;
 
 import java.lang.reflect.Field;
 import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.function.Predicate;
 
 /**
- * Das Einstellungsfenster mit einem Reiter, der nicht in der Liste steht.
+ * Das Einstellungsfenster mit Reitern, die nicht in der Liste stehen.
  *
  * "Mob Visuals" ist vollstaendig vorhanden und aenderbar, taucht links aber nicht
  * auf. Sichtbar wird er erst, wenn im Suchfeld genau das Codewort steht - dann und
- * nur dann gelten alle seine Einstellungen als Suchtreffer.
+ * nur dann gelten alle seine Einstellungen als Suchtreffer. Beim Codewort zaehlt
+ * Gross- und Kleinschreibung.
  *
- * Gross- und Kleinschreibung zaehlt. MoulConfig sucht selbst in Kleinbuchstaben,
- * deshalb wird der Rohtext des Suchfelds gelesen und nicht der Suchbegriff, den die
- * Suchfunktion bekommt.
+ * "Bug hunt" (die Werkzeuge zum Fehlersuchen) ist ebenso verborgen und kommt bei der
+ * Suche nach "bug" - ohne Ruecksicht auf Gross und Klein, denn es ist kein Geheimnis,
+ * nur nichts, was man im Alltag braucht.
+ *
+ * MoulConfig sucht selbst in Kleinbuchstaben, deshalb wird der Rohtext des Suchfelds
+ * gelesen und nicht der Suchbegriff, den die Suchfunktion bekommt.
  */
 public class ShokiConfigEditor extends MoulConfigEditor<ModConfig> {
 
@@ -34,15 +40,23 @@ public class ShokiConfigEditor extends MoulConfigEditor<ModConfig> {
      */
     private static final String SECRET_SHA256 = "a1fff415837736c26b3f69c1c49ef08667ebc0226cbcb3e24295b986b6d12916";
 
-    /** Das Feld in {@link ModConfig}, dessen Reiter verborgen bleibt */
-    private static final String HIDDEN_FIELD = "mobVisuals";
+    /** Das Suchwort der Fehlersuche */
+    private static final String BUG_WORD = "bug";
 
     /**
+     * Ein verborgener Reiter: sein Feld in {@link ModConfig} und die Frage, ob das Suchfeld
+     * ihn gerade freigibt.
+     *
      * MoulConfig fuehrt Kategorien unter {@code Field.toString()}. Derselbe Aufruf
      * hier liefert denselben Schluessel - und wirft, sobald das Feld umbenannt wird.
      * Dann bleibt der Reiter verborgen statt still wieder aufzutauchen.
      */
-    private static final String HIDDEN_ID = hiddenId();
+    private record Hidden(String id, Predicate<String> unlockedBy) {
+    }
+
+    private static final List<Hidden> HIDDEN = List.of(
+            hidden("mobVisuals", typed -> SECRET_SHA256.equals(sha256(typed.trim()))),
+            hidden("bugHunt", typed -> BUG_WORD.equalsIgnoreCase(typed.trim())));
 
     /** Der Rohtext des Suchfelds. Null, wenn MoulConfig ihn nicht mehr so ablegt */
     private final GetSetter<String> searchText;
@@ -51,7 +65,8 @@ public class ShokiConfigEditor extends MoulConfigEditor<ModConfig> {
         super(processor);
         this.searchText = findSearchField();
         setSearchFunction((editor, search) -> {
-            if (isHidden(editor.getOption().getCategory())) return secretTyped();
+            Hidden hidden = hiddenOf(editor.getOption().getCategory());
+            if (hidden != null) return unlocked(hidden);
             return editor.fulfillsSearch(search);
         });
     }
@@ -59,21 +74,31 @@ public class ShokiConfigEditor extends MoulConfigEditor<ModConfig> {
     @Override
     public LinkedHashMap<String, ProcessedCategory> getCurrentlyVisibleCategories() {
         LinkedHashMap<String, ProcessedCategory> visible = super.getCurrentlyVisibleCategories();
-        if (!secretTyped()) visible.entrySet().removeIf(entry -> isHidden(entry.getValue()));
+        visible.entrySet().removeIf(entry -> {
+            Hidden hidden = hiddenOf(entry.getValue());
+            return hidden != null && !unlocked(hidden);
+        });
         return visible;
     }
 
-    /** Der Reiter selbst und jeder Unterreiter darunter - beide haengen am selben Codewort */
-    private static boolean isHidden(ProcessedCategory category) {
-        if (HIDDEN_ID == null || category == null) return false;
-        return HIDDEN_ID.equals(category.getIdentifier()) || HIDDEN_ID.equals(category.getParentCategoryId());
+    /** Zu welchem verborgenen Reiter gehoert das? Der Reiter selbst und jeder Unterreiter darunter */
+    private static Hidden hiddenOf(ProcessedCategory category) {
+        if (category == null) return null;
+        for (Hidden hidden : HIDDEN) {
+            if (hidden.id() == null) continue;
+            if (hidden.id().equals(category.getIdentifier())
+                    || hidden.id().equals(category.getParentCategoryId())) {
+                return hidden;
+            }
+        }
+        return null;
     }
 
-    private boolean secretTyped() {
+    private boolean unlocked(Hidden hidden) {
         if (searchText == null) return false;
         String typed = searchText.get();
         if (typed == null) return false;
-        return SECRET_SHA256.equals(sha256(typed.trim()));
+        return hidden.unlockedBy().test(typed);
     }
 
     private static String sha256(String text) {
@@ -88,12 +113,12 @@ public class ShokiConfigEditor extends MoulConfigEditor<ModConfig> {
         }
     }
 
-    private static String hiddenId() {
+    private static Hidden hidden(String field, Predicate<String> unlockedBy) {
         try {
-            return ModConfig.class.getField(HIDDEN_FIELD).toString();
+            return new Hidden(ModConfig.class.getField(field).toString(), unlockedBy);
         } catch (NoSuchFieldException e) {
-            ShokiMod.LOGGER.warn("Hidden config category '{}' no longer exists.", HIDDEN_FIELD);
-            return null;
+            ShokiMod.LOGGER.warn("Hidden config category '{}' no longer exists.", field);
+            return new Hidden(null, typed -> false);
         }
     }
 

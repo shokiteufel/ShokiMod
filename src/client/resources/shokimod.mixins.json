@@ -17,7 +17,8 @@
 		"ServerTimeMixin",
 		"PongResponseMixin",
 		"PlayerSizeMixin",
-		"TextFieldFitMixin"
+		"TextFieldFitMixin",
+		"SoundManagerMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
