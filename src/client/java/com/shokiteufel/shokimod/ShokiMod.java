@@ -90,6 +90,7 @@ public class ShokiMod implements ClientModInitializer {
         GuildEvents.register();
         CakeReminder.register();
         com.shokiteufel.shokimod.handler.PestReminder.register();
+        com.shokiteufel.shokimod.handler.ShortcutHandler.register();
         com.shokiteufel.shokimod.scanner.MineshaftState.register();
         com.shokiteufel.shokimod.scanner.CorpseFinder.register();
         com.shokiteufel.shokimod.scanner.OreVeins.register();
@@ -251,6 +252,11 @@ public class ShokiMod implements ClientModInitializer {
                         // Nur noch hier, nicht mehr in den Einstellungen
                         .then(ClientCommands.literal("chatrules").executes(context -> {
                             openChatRulesNextTick = true;
+                            return 1;
+                        }))
+                        // /shoki shortcut -> Tasten, die einen Befehl oder Satz abschicken
+                        .then(ClientCommands.literal("shortcut").executes(context -> {
+                            com.shokiteufel.shokimod.handler.ShortcutHandler.requestOpen();
                             return 1;
                         }))
                         // /shoki effects -> die gemerkten Traenke: Kasten und Alarm je Effekt
