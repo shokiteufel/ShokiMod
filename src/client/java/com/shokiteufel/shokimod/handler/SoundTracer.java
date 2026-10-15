@@ -1,10 +1,13 @@
 package com.shokiteufel.shokimod.handler;
 
 import com.shokiteufel.shokimod.ShokiMod;
+import com.shokiteufel.shokimod.data.GameState;
 import com.shokiteufel.shokimod.data.ModConfig;
+import com.shokiteufel.shokimod.mixin.AbstractSoundInstanceAccessor;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.resources.sounds.AbstractSoundInstance;
 import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.network.chat.Component;
 
@@ -53,6 +56,8 @@ public final class SoundTracer {
 
     /** Wie oft welche Quelle einen gefilterten Ton gespielt hat */
     private static final Map<String, Integer> counts = new LinkedHashMap<>();
+    /** Wann dieselbe Quelle zuletzt klang - fuer den Takt */
+    private static final Map<String, Long> lastAt = new LinkedHashMap<>();
     private static long secondStart = 0L;
     private static int loggedThisSecond = 0;
     private static int skippedThisSecond = 0;
@@ -80,11 +85,19 @@ public final class SoundTracer {
         if (!filter.isEmpty() && !id.toLowerCase(Locale.ROOT).contains(filter)) return;
 
         Origin origin = originOfCaller();
+        String made = settingsOf(sound);
+        String instance = String.format(Locale.ROOT, "inst=%08x", System.identityHashCode(sound));
         long now = System.currentTimeMillis();
         boolean log;
         int total;
+        String beat;
         synchronized (counts) {
-            total = counts.merge(id + " <- " + origin.label(), 1, Integer::sum);
+            // Mit Tonhoehe und Lautstaerke im Schluessel: dieselbe Mod mit zwei Einstellungen sind
+            // zwei Quellen, und genau daran unterscheidet man ihre Funktionen
+            String key = id + " <- " + origin.label() + " | " + made;
+            total = counts.merge(key, 1, Integer::sum);
+            Long before = lastAt.put(key, now);
+            beat = before == null ? "first" : String.format(Locale.ROOT, "+%.2fs", (now - before) / 1000.0);
             if (now - secondStart >= 1_000L) {
                 if (skippedThisSecond > 0) {
                     ShokiMod.LOGGER.info("[SoundTrace] ... and {} more in that second", skippedThisSecond);
@@ -101,12 +114,12 @@ public final class SoundTracer {
         if (log) {
             // Die Lautstaerke fehlt mit Absicht: Am Eingang von play ist der Ton noch nicht aufgeloest,
             // und getVolume() hat dann keinen Wert, auf den es zurueckgreifen koennte
-            ShokiMod.LOGGER.info("[SoundTrace] {} source={} <- {}  [{}]", id,
-                    sound.getSource(), origin.label(), origin.trail());
+            ShokiMod.LOGGER.info("[SoundTrace] {} source={} {} {} {} area={} <- {}  [{}]", id,
+                    sound.getSource(), made, instance, beat, GameState.Server.map, origin.label(), origin.trail());
         }
         if (cfg.soundChat && now - lastChat >= CHAT_GAP_MILLIS) {
             lastChat = now;
-            say(id, origin, total);
+            say(id, origin, made, beat, total);
         }
     }
 
@@ -137,14 +150,34 @@ public final class SoundTracer {
         }
     }
 
-    private static void say(String id, Origin origin, int total) {
+    private static void say(String id, Origin origin, String made, String beat, int total) {
         Component line = Component.literal("[ShokiMod] ").withStyle(ChatFormatting.DARK_AQUA)
                 .append(Component.literal(id).withStyle(ChatFormatting.WHITE))
                 .append(Component.literal(" <- ").withStyle(ChatFormatting.GRAY))
                 .append(Component.literal(origin.label()).withStyle(
                         "server".equals(origin.kind()) ? ChatFormatting.GREEN : ChatFormatting.GOLD))
-                .append(Component.literal(" (x" + total + ")").withStyle(ChatFormatting.GRAY));
+                .append(Component.literal(" | " + made + " " + beat + " (x" + total + ")")
+                        .withStyle(ChatFormatting.GRAY));
         tell(Minecraft.getInstance(), line);
+    }
+
+    /**
+     * Wie der Erzeuger den Ton eingestellt hat: Tonhoehe und Lautstaerke.
+     *
+     * Die Instanz-Nummer steht daneben im Log, aber nicht im Schluessel: Eine Mod, die ihren Ton
+     * einmal baut und immer wieder spielt, zeigt immer dieselbe, eine, die bei jedem Mal einen
+     * neuen baut, jedes Mal eine andere - und beide sollen unter einer Quelle zaehlen.
+     */
+    private static String settingsOf(SoundInstance sound) {
+        if (sound instanceof AbstractSoundInstance && sound instanceof AbstractSoundInstanceAccessor accessor) {
+            try {
+                return String.format(Locale.ROOT, "pitch=%.2f vol=%.2f",
+                        accessor.shokimod$pitch(), accessor.shokimod$volume());
+            } catch (RuntimeException | LinkageError e) {
+                // Dann eben ohne die Werte
+            }
+        }
+        return "pitch=? vol=?";
     }
 
     /** Auf den Haupt-Thread: Toene koennen von woanders kommen, der Chat nicht */
