@@ -197,6 +197,35 @@ public final class ItemChanges {
     private static final int HOLD_TICKS = 3;
 
     /**
+     * So viele verschiedene Waren auf einmal sind kein Fund, sondern ein Umbau des Inventars.
+     *
+     * Beute faellt zu ein, zwei, drei Sorten je Augenblick. Wenn auf einen Schlag sechs oder
+     * mehr verschiedene Waren dazukommen, ist das Inventar neu geschrieben worden - nach einem
+     * Loadout-Wechsel, einer Neuuebertragung durch den Server oder einem Umzug zwischen
+     * Inventar und Schnellleiste -, und der Vergleichsstand davor war zu leer. Im Bild vom
+     * 15.10. stand so das ganze Inventar im Kasten: Hyperion, Spring Boots, InfiniLeap und
+     * dazu Hunderte Stueck Material, zusammen ueber eine Milliarde Coins.
+     *
+     * Ein solcher Schwung wird verworfen und ins Log geschrieben. Wirklich Gefallenes geht
+     * dabei nicht verloren, soweit der Chat es meldet: "RARE DROP!" wird unabhaengig davon
+     * nachgetragen (siehe {@code rescueConfirmed}).
+     */
+    private static final int BULK_IDS = 6;
+    /** Hoechstens so viele Ticks wartet ein zu leerer Vergleichsstand noch auf sein Inventar */
+    private static final int REFILL_TICKS = 100;
+    /** In diesen Schritten wird gewartet */
+    private static final int REFILL_STEP = 5;
+    /**
+     * Wie viele verschiedene Waren der letzte gute Vergleichsstand hatte.
+     *
+     * Nach einem Wechsel kommt das Inventar manchmal erst nach der Wartezeit an. Wer dann
+     * den leeren Stand als Vergleich nimmt, zaehlt anschliessend alles, was er besitzt.
+     * Ein Stand mit weniger als der Haelfte der bisherigen Sorten gilt deshalb noch nicht.
+     */
+    private static int baselineIds = 0;
+    private static int refillWaited = 0;
+
+    /**
      * Ist das ein Ruestungs- oder Ausruestungsteil? Je Kennung einmal festgestellt.
      *
      * Nur solche Teile sind es, die ein Loadout-Wechsel ins Inventar legt - und nur sie
@@ -389,6 +418,7 @@ public final class ItemChanges {
             // ist ein Vergleich etwas wert
             settleTicks = SETTLE_TICKS;
             settleAfterWindow = false;
+            refillWaited = 0;
             previousCounts = null;
             windowBaseline = null;
             return;
@@ -417,6 +447,12 @@ public final class ItemChanges {
             settleTicks--;
             if (settleTicks == 0) {
                 Map<String, Integer> current = counts(client);
+                // Ein fast leeres Inventar ist noch unterwegs - nicht als Vergleich nehmen,
+                // sonst steht gleich alles, was man besitzt, als Fund im Kasten
+                if (waitForRefill(current)) {
+                    settleTicks = REFILL_STEP;
+                    return;
+                }
                 // Was in dieser Sekunde ankam, zaehlt nicht - aber es soll nicht
                 // spurlos verschwinden. Genau hier waren die vier Buecher weg, und im
                 // Log stand nichts darueber
@@ -443,6 +479,7 @@ public final class ItemChanges {
                 }
                 swapPending = false;
                 previousCounts = current;
+                noteBaseline(current, true);
                 previousSignature = signature(client);
             }
             return;
@@ -463,6 +500,7 @@ public final class ItemChanges {
         refreshFloorLosses(client, System.currentTimeMillis());
         Map<String, Integer> gains = diff(previousCounts, current);
         previousCounts = current;
+        noteBaseline(current, false);
         // Beute bei offenem Fenster: der Vergleichspunkt des Fensters wandert mit.
         // Sonst stuende dasselbe beim Schliessen noch einmal als "durchs Fenster" da -
         // und waere als schon verbucht vorgemerkt, obwohl es gerade gezaehlt wurde
@@ -491,6 +529,8 @@ public final class ItemChanges {
         Map<String, Integer> gains = new LinkedHashMap<>();
         long now = System.currentTimeMillis();
         boolean afterSwap = now - lastSwapAt < SWAP_WINDOW_MILLIS;
+        // Als ein Schwung gesammelt, damit der Sammelschutz ihn als Ganzes sieht
+        Map<String, Integer> swapFinds = new LinkedHashMap<>();
         for (Map.Entry<String, Integer> entry : after.entrySet()) {
             int delta = entry.getValue() - before.getOrDefault(entry.getKey(), 0);
             if (delta <= 0) continue;
@@ -498,8 +538,7 @@ public final class ItemChanges {
             // Gleich nach einem Loadout-Wechsel kommt durch das Fenster nur Ruestung herein -
             // alles andere ist ein Fund, der in diese Sekunde fiel, und zaehlt
             if (afterSwap && !isGear(entry.getKey())) {
-                ShokiMod.LOGGER.info("[Profit] arrived next to a loadout swap, counted: {}={}", entry.getKey(), delta);
-                held.add(new Held(new LinkedHashMap<>(Map.of(entry.getKey(), delta)), tickCount));
+                swapFinds.put(entry.getKey(), delta);
                 continue;
             }
             gains.put(entry.getKey(), delta);
@@ -518,6 +557,10 @@ public final class ItemChanges {
             if (delta > 0) losses.add(new Loss(entry.getKey(), delta, now, false));
         }
 
+        if (!swapFinds.isEmpty()) {
+            ShokiMod.LOGGER.info("[Profit] arrived next to a loadout swap, counted: {}", swapFinds);
+            held.add(new Held(swapFinds, tickCount));
+        }
         if (!gains.isEmpty()) {
             ShokiMod.LOGGER.info("[Profit] came in through a window, not counted: {}", gains);
         }
@@ -676,7 +719,40 @@ public final class ItemChanges {
                 int uebrig = offset(entry.getKey(), entry.getValue(), OFFSET_MILLIS, now, false);
                 if (uebrig > 0) rest.put(entry.getKey(), uebrig);
             }
+            if (rest.size() >= BULK_IDS) {
+                ShokiMod.LOGGER.warn("[Profit] {} kinds at once are a rebuilt inventory, not loot - dropped: {}"
+                        + " ({})", rest.size(), rest, lastSwapAt == 0L ? "no loadout swap yet"
+                        : "last loadout swap " + (now - lastSwapAt) / 1000L + "s ago");
+                continue;
+            }
             if (!rest.isEmpty()) dispatch(rest, "inventory");
+        }
+    }
+
+    /**
+     * Ist dieser Stand noch zu leer, um als Vergleichsstand zu taugen?
+     *
+     * Dann wird kurz weitergewartet, hoechstens {@link #REFILL_TICKS} Ticks. Danach gilt er
+     * trotzdem: Wer wirklich fast alles verkauft hat, soll nicht ewig warten.
+     */
+    private static boolean waitForRefill(Map<String, Integer> current) {
+        if (baselineIds < BULK_IDS || current.size() * 2 >= baselineIds) return false;
+        if (refillWaited >= REFILL_TICKS) return false;
+        if (refillWaited == 0) {
+            ShokiMod.LOGGER.info("[Profit] the inventory shows {} kinds, it had {} - waiting for it to fill before"
+                    + " taking it as the reference", current.size(), baselineIds);
+        }
+        refillWaited += REFILL_STEP;
+        return true;
+    }
+
+    /** Den Stand als Massstab merken. Ein angenommener Stand setzt ihn neu, ein laufender hebt ihn nur an */
+    private static void noteBaseline(Map<String, Integer> current, boolean accepted) {
+        if (accepted) {
+            baselineIds = current.size();
+            refillWaited = 0;
+        } else if (current.size() > baselineIds) {
+            baselineIds = current.size();
         }
     }
 
@@ -825,6 +901,7 @@ public final class ItemChanges {
             // Der Vergleichsstand bleibt: In der Sekunde danach fallen nur die Ruestungsteile
             // aus der Zaehlung, alles andere zaehlt am Ende der Wartezeit ganz normal
             swapPending = true;
+            refillWaited = 0;
             lastSwapAt = System.currentTimeMillis();
             for (int i = 0; i < held.size(); i++) {
                 held.set(i, new Held(withoutGear(held.get(i).gains()), held.get(i).tick()));
@@ -1429,6 +1506,8 @@ public final class ItemChanges {
         settleTicks = SETTLE_TICKS;
         settleAfterWindow = false;
         windowBaseline = null;
+        baselineIds = 0;
+        refillWaited = 0;
         losses.clear();
         held.clear();
         worn.clear();
