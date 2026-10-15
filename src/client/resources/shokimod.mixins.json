@@ -18,7 +18,8 @@
 		"PongResponseMixin",
 		"PlayerSizeMixin",
 		"TextFieldFitMixin",
-		"SoundManagerMixin"
+		"SoundManagerMixin",
+		"AbstractSoundInstanceAccessor"
 	],
 	"injectors": {
 		"defaultRequire": 1
