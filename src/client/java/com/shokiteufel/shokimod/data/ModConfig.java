@@ -114,6 +114,8 @@ public class ModConfig extends Config {
         // ★超重要: Gsonでデータを読み込むと、transient（保存除外）にしていた「ボタンの処理」が消滅してしまうため、ここで再セットする！
         if (INSTANCE.mobVisuals == null) INSTANCE.mobVisuals = new MobVisualsCategory();
         if (INSTANCE.chat == null) INSTANCE.chat = new ChatRulesCategory();
+        if (INSTANCE.shortcuts == null) INSTANCE.shortcuts = new ArrayList<>();
+        Shortcut.normalize(INSTANCE.shortcuts);
         if (INSTANCE.safari == null) INSTANCE.safari = new SafariCategory();
         // Der Unterreiter kann in einer Datei von vor 1.1.4 als null stehen
         if (INSTANCE.chat.rareLoot == null) INSTANCE.chat.rareLoot = new RareLootCategory();
@@ -638,6 +640,13 @@ public class ModConfig extends Config {
     // die Kaesten der anderen sitzen. Dieselbe Trennung machen SkyHanni und
     // SkyOcean, und aus demselben Grund: Wer etwas sucht, sucht es beim Ort.
     // ==========================================
+
+    /**
+     * Tasten, die Befehle schicken. Kein Reiter in den Einstellungen: Gepflegt wird die Liste im
+     * eigenen Fenster (/shoki shortcut), hier wird sie nur gespeichert.
+     */
+    @Expose
+    public List<Shortcut> shortcuts = new ArrayList<>();
 
     @Expose
     @Category(name = "Mining", desc = "Helpers for the mining islands: commissions, your pickaxe ability and the Sky Mall buff of the day.")
