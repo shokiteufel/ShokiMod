@@ -11,6 +11,7 @@ import com.shokiteufel.shokimod.util.ItemNames;
 import com.shokiteufel.shokimod.util.SkyBlockItems;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.world.entity.EquipmentSlot;
@@ -226,6 +227,28 @@ public final class ItemChanges {
     private static int refillWaited = 0;
 
     /**
+     * Befehle, die ein Menue zum Wechseln von Ruestung oeffnen - ohne eine Zeile im Chat.
+     *
+     * Wer mitten im Dungeon mit /stats seinen Helm tauscht, bekommt ein Menue, in dem ein
+     * Linksklick das Teil wechselt. Anders als beim Loadout ("You equipped ...") meldet der
+     * Server dazu nichts, und das Inventar sieht nur, dass ein Helm hereinkommt und einer
+     * hinausgeht. Deshalb gibt der Befehl selbst das Zeichen.
+     *
+     * Nur der blanke Befehl: "/stats Name" zeigt fremde Werte und wechselt nichts.
+     */
+    private static final Set<String> SWAP_MENUS = Set.of("stats", "wardrobe", "wd", "equipment", "eq");
+    /** So lange nach dem Befehl darf das Menue auf sich warten lassen */
+    private static final long MENU_WAIT_MILLIS = 4_000L;
+    /** So lange nach dem Schliessen des Menues zaehlt nichts mehr */
+    private static final long MENU_QUIET_MILLIS = 2_000L;
+    /** Laenger als das ist ein "offenes" Menue ein Irrtum - die Sperre fiele sonst nie weg */
+    private static final long MENU_MAX_OPEN_MILLIS = 60_000L;
+    private static long menuArmedUntil = 0L;
+    private static boolean menuOpen = false;
+    private static long menuOpenedAt = 0L;
+    private static long quietUntil = 0L;
+
+    /**
      * Ist das ein Ruestungs- oder Ausruestungsteil? Je Kennung einmal festgestellt.
      *
      * Nur solche Teile sind es, die ein Loadout-Wechsel ins Inventar legt - und nur sie
@@ -376,6 +399,33 @@ public final class ItemChanges {
 
     public static void register() {
         ClientTickEvents.END_CLIENT_TICK.register(ItemChanges::tick);
+        ClientSendMessageEvents.COMMAND.register(ItemChanges::onCommand);
+    }
+
+    /** Ein getippter Befehl, ohne den Schraegstrich davor */
+    private static void onCommand(String command) {
+        if (command == null || !FeatureGate.itemChanges() || !GameState.Server.isSkyblock()) return;
+        if (!SWAP_MENUS.contains(command.trim().toLowerCase(Locale.ROOT))) return;
+        startMenuQuiet(System.currentTimeMillis());
+    }
+
+    /**
+     * Ein Menue zum Wechseln steht bevor: Bis es auf- und wieder zugegangen ist und noch zwei
+     * Sekunden danach zaehlt nichts, was ins Inventar kommt.
+     *
+     * Der Preis ist benannt: Ein echter Fund in genau diesen Sekunden fehlt im Kasten - ausser
+     * der Chat meldet ihn, dann wird er nachgetragen.
+     */
+    static void startMenuQuiet(long now) {
+        menuArmedUntil = now + MENU_WAIT_MILLIS;
+        quietUntil = now + MENU_WAIT_MILLIS;
+        ShokiMod.LOGGER.info("[Profit] menu for swapping gear - nothing counts until it is closed and {}s more",
+                MENU_QUIET_MILLIS / 1000L);
+    }
+
+    /** Gilt die Sperre gerade? Solange das Menue offen ist und kurz danach */
+    private static boolean menuQuiet(long now) {
+        return (menuOpen && now - menuOpenedAt < MENU_MAX_OPEN_MILLIS) || now < quietUntil;
     }
 
     /** Steht schon ein Vergleichsstand, oder wird noch gewartet? */
@@ -404,11 +454,22 @@ public final class ItemChanges {
         // lange: was man danach im Fenster anklickt, ist wieder ein Umzug, kein Fund
         boolean lootFlowing = System.currentTimeMillis() < lootUntil;
         if (windowOpen && !lootFlowing) {
+            long jetztOffen = System.currentTimeMillis();
+            if (jetztOffen < menuArmedUntil) {
+                menuArmedUntil = 0L;
+                menuOpen = true;
+                menuOpenedAt = jetztOffen;
+            }
             // Ohne Vergleichsstand gibt es auch nichts zu vergleichen: dann ist das
             // Fenster waehrend eines Wechsels aufgegangen, und das halbe Inventar saehe
             // hinterher aus wie frisch hereingekommen
             if (windowBaseline == null && previousCounts != null) windowBaseline = previousCounts;
             return;
+        }
+
+        if (menuOpen && !windowOpen) {
+            menuOpen = false;
+            quietUntil = System.currentTimeMillis() + MENU_QUIET_MILLIS;
         }
 
         String context = context(client);
@@ -419,6 +480,7 @@ public final class ItemChanges {
             settleTicks = SETTLE_TICKS;
             settleAfterWindow = false;
             refillWaited = 0;
+            menuOpen = false;
             previousCounts = null;
             windowBaseline = null;
             return;
@@ -709,6 +771,11 @@ public final class ItemChanges {
                 continue;
             }
             held.remove(i);
+
+            if (menuQuiet(now)) {
+                ShokiMod.LOGGER.info("[Profit] gear menu - not counted: {}", warte.gains());
+                continue;
+            }
 
             Map<String, Integer> rest = new LinkedHashMap<>();
             for (Map.Entry<String, Integer> entry : warte.gains().entrySet()) {
@@ -1508,6 +1575,9 @@ public final class ItemChanges {
         windowBaseline = null;
         baselineIds = 0;
         refillWaited = 0;
+        menuOpen = false;
+        menuArmedUntil = 0L;
+        quietUntil = 0L;
         losses.clear();
         held.clear();
         worn.clear();
