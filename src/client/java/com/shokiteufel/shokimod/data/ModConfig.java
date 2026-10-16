@@ -378,6 +378,12 @@ public class ModConfig extends Config {
                         new com.shokiteufel.shokimod.gui.ProfitItemScreen(Minecraft.getInstance().gui.screen())));
         INSTANCE.chat.reminder.testCake = () -> Minecraft.getInstance().execute(CakeReminder::test);
         INSTANCE.chat.reminder.testPestTrap = () -> Minecraft.getInstance().execute(PestReminder::test);
+        INSTANCE.chat.reminder.openPestTrapSound = () -> Minecraft.getInstance().execute(() ->
+                Minecraft.getInstance().setScreenAndShow(new SoundPickerScreen(
+                        Minecraft.getInstance().gui.screen(),
+                        () -> INSTANCE.chat.reminder.pestTrapSoundFile,
+                        picked -> INSTANCE.chat.reminder.pestTrapSoundFile = picked,
+                        1.0f)));
         INSTANCE.mining.mineshaft.openShaftRules = () -> Minecraft.getInstance().execute(() ->
                 Minecraft.getInstance().setScreenAndShow(
                         new com.shokiteufel.shokimod.gui.MineshaftRuleScreen(Minecraft.getInstance().gui.screen())));
@@ -3098,9 +3104,17 @@ public class ModConfig extends Config {
         public String pestTrapCommand = "/warp garden";
 
         @Expose
-        @ConfigOption(name = "Trap sound", desc = "A short ping with the warning, at the alert volume.")
+        @ConfigOption(name = "Trap sound", desc = "Plays a sound with the warning, at the alert volume. Off: the warning stays silent.")
         @ConfigEditorBoolean
         public boolean pestTrapSound = true;
+
+        @ConfigOption(name = "Trap sound file", desc = "Your own file from config/shokimod/sounds. Empty (No sound) plays the standard ping.")
+        @ConfigEditorButton(buttonText = "Pick")
+        public transient Runnable openPestTrapSound = () -> {
+        };
+
+        @Expose
+        public String pestTrapSoundFile = "";
 
         @ConfigOption(name = "Test trap warning", desc = "Shows the warning line with three full traps.")
         @ConfigEditorButton(buttonText = "Test")

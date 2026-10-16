@@ -6,6 +6,7 @@ import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.data.ModConfig.ReminderCategory;
 import com.shokiteufel.shokimod.scanner.PestTraps;
 import com.shokiteufel.shokimod.util.AlertVolume;
+import com.shokiteufel.shokimod.util.CustomSoundPlayer;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.ChatFormatting;
@@ -16,6 +17,8 @@ import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.sounds.SoundEvents;
 
+import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -158,9 +161,7 @@ public final class PestReminder {
 
     private static void remind(Minecraft client, int full, boolean afterLeaving) {
         client.player.sendSystemMessage(message(full, PestTraps.fullTraps(), afterLeaving));
-        if (cfg().pestTrapSound) {
-            client.player.playSound(SoundEvents.NOTE_BLOCK_PLING.value(), AlertVolume.factor(), 0.8f);
-        }
+        sound(client);
         ShokiMod.LOGGER.info("[Pests] {} traps full{}", full, afterLeaving ? " (left the garden)" : "");
     }
 
@@ -204,8 +205,31 @@ public final class PestReminder {
         Minecraft client = Minecraft.getInstance();
         if (client.player == null) return;
         client.player.sendSystemMessage(message(3, List.of(1, 2, 3), false));
-        if (cfg().pestTrapSound) {
-            client.player.playSound(SoundEvents.NOTE_BLOCK_PLING.value(), AlertVolume.factor(), 0.8f);
+        sound(client);
+    }
+
+    /**
+     * Der Ton zur Warnung: die gewaehlte Datei, sonst das eingebaute Pling.
+     *
+     * Fehlt die gewaehlte Datei (umbenannt, geloescht), faellt es aufs Pling zurueck - eine
+     * Warnung, die stumm bleibt, ist schlimmer als eine mit dem falschen Ton.
+     */
+    private static void sound(Minecraft client) {
+        if (!cfg().pestTrapSound) return;
+
+        String file = cfg().pestTrapSoundFile;
+        if (file != null && !file.isBlank() && soundExists(file.trim())) {
+            CustomSoundPlayer.play(file.trim(), AlertVolume.factor(), PestReminder.class);
+            return;
+        }
+        client.player.playSound(SoundEvents.NOTE_BLOCK_PLING.value(), AlertVolume.factor(), 0.8f);
+    }
+
+    private static boolean soundExists(String file) {
+        try {
+            return Files.isRegularFile(CustomSoundPlayer.SOUND_DIRECTORY.resolve(file));
+        } catch (InvalidPathException e) {
+            return false;
         }
     }
 }
