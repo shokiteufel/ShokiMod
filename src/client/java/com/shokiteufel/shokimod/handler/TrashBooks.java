@@ -44,8 +44,14 @@ import java.util.regex.Pattern;
  */
 public final class TrashBooks {
 
-    /** Feeshs Farbe: Rot mit etwas mehr als halber Deckkraft */
-    private static final int COLOUR = 0x90FF0000;
+    /**
+     * Knallrot: die Flaeche mit gut zwei Dritteln Deckkraft, dazu ein ganz deckender Rand.
+     *
+     * Feeshs Farbe ist 0x90FF0000 - Rot mit etwas mehr als halber Deckkraft. Auf einem hellen oder bunten Slot
+     * ging das unter; Rueckmeldung: "soll sehr knall rot leuchten". Der Rand traegt die Markierung auch dort.
+     */
+    private static final int COLOUR = 0xB0FF0000;
+    private static final int EDGE = 0xFFFF0000;
     private static final int SCAN_TICKS = 20;
     private static final Pattern COLOUR_CODE = Pattern.compile("§.");
 
@@ -81,12 +87,23 @@ public final class TrashBooks {
      */
     public static String bookName(ItemStack stack) {
         if (stack == null || stack.isEmpty() || !stack.is(Items.ENCHANTED_BOOK)) return null;
-        if (!"Enchanted Book".equals(stack.getHoverName().getString())) return null;
+        if (!isBookTitle(stack.getHoverName().getString())) return null;
         ItemLore lore = stack.get(DataComponents.LORE);
         if (lore == null) return null;
         List<String> lines = new ArrayList<>(lore.lines().size());
         for (Component line : lore.lines()) lines.add(line.getString());
         return nameFromLore(lines);
+    }
+
+    /**
+     * Heisst das Stueck "Enchanted Book"?
+     *
+     * Hypixel schreibt Farbcodes manchmal als Zeichen in den Namen ("§9Enchanted Book"). Ohne sie zu entfernen
+     * stimmte der Vergleich nie - und kein Buch wurde je erkannt, weder zum Markieren noch fuer die Liste.
+     * Feesh entfernt sie vorher.
+     */
+    static boolean isBookTitle(String hoverName) {
+        return "Enchanted Book".equals(clean(hoverName));
     }
 
     /** Die erste Zeile, die etwas sagt - nicht leer und nicht der Hinweis "Combinable in Anvil" */
@@ -219,6 +236,26 @@ public final class TrashBooks {
         }
     }
 
+    /**
+     * Wie viele verzauberte Buecher im eigenen Inventar liegen und wie viele davon gelesen werden konnten.
+     * Das Auswahlfenster zeigt es an: Liegen drei da und keins ist lesbar, liegt es am Lesen, nicht an der Auswahl.
+     *
+     * @return {Buecher, lesbare}
+     */
+    public static int[] inventoryBooks(Minecraft client) {
+        int total = 0;
+        int readable = 0;
+        if (client == null || client.player == null) return new int[]{0, 0};
+        Inventory inventory = client.player.getInventory();
+        for (int i = 0; i < inventory.getContainerSize(); i++) {
+            ItemStack stack = inventory.getItem(i);
+            if (stack.isEmpty() || !stack.is(Items.ENCHANTED_BOOK)) continue;
+            total++;
+            if (bookName(stack) != null) readable++;
+        }
+        return new int[]{total, readable};
+    }
+
     /** Ein Buch, das noch nicht in der Liste steht, kommt hinein - nicht angehakt, ausser es ist Feeshs */
     static void remember(String name) {
         if (name == null) return;
@@ -246,11 +283,14 @@ public final class TrashBooks {
     /** Der Untergrund selbst: nur im eigenen Inventar und nur fuer ein Buch, das markiert sein soll */
     static void paint(GuiGraphicsExtractor graphics, Slot slot, String name) {
         if (name == null || !(slot.container instanceof Inventory) || !wanted(name)) return;
-        graphics.fill(slot.x, slot.y, slot.x + 16, slot.y + 16, COLOUR);
+        int x = slot.x;
+        int y = slot.y;
+        graphics.fill(x, y, x + 16, y + 16, COLOUR);
+        // Der Rand, einen Punkt breit, ganz deckend
+        graphics.fill(x, y, x + 16, y + 1, EDGE);
+        graphics.fill(x, y + 15, x + 16, y + 16, EDGE);
+        graphics.fill(x, y + 1, x + 1, y + 15, EDGE);
+        graphics.fill(x + 15, y + 1, x + 16, y + 15, EDGE);
     }
 
-    /** Fuer die Probe: ohne die Anmeldung am Server zu fragen */
-    static int colour() {
-        return COLOUR;
-    }
 }
