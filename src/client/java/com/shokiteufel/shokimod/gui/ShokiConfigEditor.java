@@ -61,6 +61,9 @@ public class ShokiConfigEditor extends MoulConfigEditor<ModConfig> {
     /** Der Rohtext des Suchfelds. Null, wenn MoulConfig ihn nicht mehr so ablegt */
     private final GetSetter<String> searchText;
 
+    /** Der Reiter, der zuletzt gespeichert wurde - damit nur bei einem Wechsel geschrieben wird */
+    private String lastSaved;
+
     public ShokiConfigEditor(MoulConfigProcessor<ModConfig> processor) {
         super(processor);
         this.searchText = findSearchField();
@@ -69,6 +72,51 @@ public class ShokiConfigEditor extends MoulConfigEditor<ModConfig> {
             if (hidden != null) return unlocked(hidden);
             return editor.fulfillsSearch(search);
         });
+        this.lastSaved = getSelectedCategory();
+    }
+
+    /**
+     * Den Reiter aufschlagen, der beim letzten Mal offen war.
+     *
+     * Verborgene Reiter (Mob Visuals, Bug hunt) kommen nicht zurueck: Sie sind nur mit dem Codewort im Suchfeld
+     * zu sehen, und ohne waere der gemerkte Reiter ein leerer. Ist die Kennung unbekannt (der Reiter wurde
+     * umbenannt oder entfernt), bleibt es beim ersten.
+     */
+    public void restoreLastTab() {
+        String id = ModConfig.INSTANCE.lastTab;
+        if (id != null && !id.isBlank()) {
+            try {
+                ProcessedCategory category = getAllCategories().get(id);
+                if (category != null && hiddenOf(category) == null) setSelectedCategory(category);
+            } catch (RuntimeException e) {
+                ShokiMod.LOGGER.warn("Could not reopen config tab '{}'", id, e);
+            }
+        }
+        lastSaved = getSelectedCategory();
+    }
+
+    /**
+     * Jedes Bild: Hat sich der Reiter geaendert, wird er gemerkt.
+     *
+     * Gemerkt wird beim Wechseln und nicht erst beim Schliessen: Das Fenster hat mehrere Wege zu (Esc, ein Klick
+     * daneben, ModMenu, der HUD-Editor), und ein Weg, der den Merker uebergeht, wuerde den Reiter still vergessen.
+     * Ein Vergleich je Bild kostet nichts; geschrieben wird nur beim Wechsel.
+     */
+    @Override
+    public void render() {
+        super.render();
+        rememberTab();
+    }
+
+    void rememberTab() {
+        String now = getSelectedCategory();
+        if (now == null || now.equals(lastSaved)) return;
+        lastSaved = now;
+        // Ein verborgener Reiter, der gerade ueber das Codewort offen ist, wird nicht gemerkt
+        ProcessedCategory category = getAllCategories().get(now);
+        if (category != null && hiddenOf(category) != null) return;
+        ModConfig.INSTANCE.lastTab = now;
+        ModConfig.INSTANCE.saveNow();
     }
 
     @Override
