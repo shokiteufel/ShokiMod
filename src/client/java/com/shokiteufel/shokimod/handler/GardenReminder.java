@@ -308,7 +308,8 @@ abstract class GardenReminder {
         client.player.playSound(SoundEvents.NOTE_BLOCK_PLING.value(), AlertVolume.factor(), 0.8f);
     }
 
-    private static boolean soundExists(String file) {
+    /** Auch fuer die anderen Erinnerungen: Gibt es die gewaehlte Tondatei noch? */
+    static boolean soundExists(String file) {
         try {
             return Files.isRegularFile(CustomSoundPlayer.SOUND_DIRECTORY.resolve(file));
         } catch (InvalidPathException e) {
