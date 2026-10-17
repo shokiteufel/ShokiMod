@@ -154,6 +154,11 @@ public final class FeatureGate {
         return ModConfig.INSTANCE.fishing.books.enabled;
     }
 
+    /** Die Warnung vor dem Ertrinken liest einmal in der Sekunde die Luft - nur wenn sie an ist */
+    public static boolean outOfAir() {
+        return ModConfig.INSTANCE.fishing.air.enabled;
+    }
+
     /** Die Stummschaltung schaut bei jedem Ton nach - nur wenn mindestens einer der beiden Schalter an ist */
     public static boolean mute() {
         ModConfig.MuteCategory c = ModConfig.INSTANCE.fishing.mute;
@@ -162,7 +167,7 @@ public final class FeatureGate {
 
     public static boolean location() {
         return contest() || safari() || nearbyPanel() || rareLoot() || huntingTracker() || mobMarkers() || chatRules()
-                || cakeReminder() || hotspots() || collectionTracker() || pestTraps() || gardenVisitors() || seaHp() || mute()
+                || cakeReminder() || hotspots() || collectionTracker() || pestTraps() || gardenVisitors() || seaHp() || mute() || outOfAir()
                 || ModConfig.INSTANCE.effects.enabled;
     }
 }

@@ -11,6 +11,7 @@ public class ModConstants {
     public static final String MAP_SAFARI = "Safari";
     public static final String MAP_MOONGLADE_MARSH = "Moonglade Marsh";
     public static final String MAP_JERRYS_WORKSHOP = "Jerry's Workshop";
+    public static final String MAP_TORRHUS_CANYON = "Torrhus Canyon";
 
     // Zeilen der Tab-Liste, aus denen Gebiet und Server kommen
     public static final String TAB_AREA_PREFIX = "Area:";

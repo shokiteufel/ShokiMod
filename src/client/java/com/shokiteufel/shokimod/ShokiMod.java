@@ -95,6 +95,7 @@ public class ShokiMod implements ClientModInitializer {
         com.shokiteufel.shokimod.handler.SeaCreatureHp.register();
         com.shokiteufel.shokimod.handler.TrashBooks.register();
         com.shokiteufel.shokimod.handler.SoundMute.register();
+        com.shokiteufel.shokimod.handler.OutOfAirAlert.register();
         com.shokiteufel.shokimod.handler.ShortcutHandler.register();
         com.shokiteufel.shokimod.scanner.MineshaftState.register();
         com.shokiteufel.shokimod.scanner.CorpseFinder.register();
