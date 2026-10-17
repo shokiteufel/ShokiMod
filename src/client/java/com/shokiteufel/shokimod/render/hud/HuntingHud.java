@@ -6,6 +6,7 @@ import com.shokiteufel.shokimod.util.ItemValue;
 import com.shokiteufel.shokimod.util.ItemValue.PriceMode;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 
 import java.util.List;
 
@@ -34,7 +35,7 @@ public final class HuntingHud {
         // Auch leer bleibt der Kasten stehen: nach einem Reset soll er nicht verschwinden,
         // sondern mit Nullen weiterlaufen, bis der naechste Shard faellt
         ModConfig.HuntingTrackerCategory cfg = ModConfig.INSTANCE.hunting.tracker;
-        panel.title("Hunting Tracker" + (HuntingTracker.isPaused() ? " (paused)" : ""), TITLE_COLOUR);
+        panel.title(titleText(), TITLE_COLOUR);
 
         // Beide Sichtweisen nebeneinander; die gewaehlte bestimmt Profit/h und die Zeilen
         panel.pair("Total (instant):", ItemValue.format(HuntingTracker.total(PriceMode.INSTANT_SELL)),
@@ -60,13 +61,29 @@ public final class HuntingHud {
             }
         }
 
-        // Nur bei offenem Fenster: dort kann man klicken. Die Zeile ist immer die letzte,
-        // darauf verlaesst sich der Klick im NearbyOverlay
-        if (NearbyOverlay.interactive()) {
-            panel.blank();
-            panel.line("[ Reset ]", TIME_COLOUR);
-        }
         return panel;
+    }
+
+    private static final String RESET_LABEL = "§c[Reset]";
+
+    /**
+     * "Hunting Tracker [Reset]" - der Reset-Knopf neben dem Namen, wie bei den anderen Trackern.
+     *
+     * Vorher stand er als eigene Zeile "[ Reset ]" ganz unten. Einen Zeitraum zum Umschalten hat dieser Tracker
+     * nicht, deshalb gibt es hier nichts Unterstrichenes.
+     */
+    private static String titleText() {
+        return "Hunting Tracker  " + RESET_LABEL + (HuntingTracker.isPaused() ? " (paused)" : "");
+    }
+
+    /**
+     * Liegt ein Klick in der Ueberschrift auf dem Reset-Knopf?
+     *
+     * @param localX Abstand vom linken Rand der Schrift, in den Massen des Kastens
+     */
+    public static boolean resetAt(Font font, double localX) {
+        int start = font.width("Hunting Tracker  ");
+        return localX >= start && localX < start + font.width(RESET_LABEL);
     }
 
     /** Millisekunden als h:mm:ss, ohne fuehrende Stunde wenn noch keine voll ist */
