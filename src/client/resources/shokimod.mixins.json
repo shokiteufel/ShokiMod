@@ -18,6 +18,7 @@
 		"PongResponseMixin",
 		"PlayerSizeMixin",
 		"TextFieldFitMixin",
+		"SlotBackgroundMixin",
 		"SoundManagerMixin",
 		"AbstractSoundInstanceAccessor"
 	],

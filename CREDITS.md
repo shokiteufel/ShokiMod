@@ -267,6 +267,14 @@ drinsteckt.
   Sekunden stehen, eine halbe Sekunde ausblenden. Die Voreinstellung „Feesh" (Hintergrund „Like the game's
   title") zeichnet es mit demselben Aufruf wie das Spiel selbst und stimmt Pixel für Pixel mit dessen
   Titel überein. Übernommen ist die Gestalt und der Aufbau der Zeilen, kein Code.
+- **Feesh** (Apache-2.0, `Sleepy-Panda/Feesh`) — die Markierung der Bücher, die man loswerden will
+  (`features/items/background/TrashBooksHighlighter.kt`, `BackgroundHighlighterManager.kt`,
+  `ItemUtils.getEnchantedBookName`): Ein Slot mit einem „Enchanted Book" bekommt einen roten Untergrund
+  (`0x90FF0000`), den Namen des Buches liest Feesh aus der ersten Beschreibungszeile ohne „Combinable in
+  Anvil", gezeichnet wird in `extractSlot` vor dem Aufruf, der das Stück zeichnet (`SlotBackgroundMixin`).
+  Nachgebaut — mit drei Unterschieden: Die Bücher stehen in einem Fenster zum Anhaken (die bisher im
+  Inventar gesehenen und ein Feld für einen neuen Namen) statt in einem Textfeld mit Komma, gemerkt wird nur,
+  was im eigenen Inventar liegt, und markiert wird nur dort, nicht in jedem Fenster.
 - **Odin** — die Ping-Anzeige wurde gegen seine gehalten, um den eigenen Messfehler zu
   finden.
 - **Odin** (BSD-3-Clause, Odtheking, `OdinFabric`) — die eigene Figur in anderer Größe
