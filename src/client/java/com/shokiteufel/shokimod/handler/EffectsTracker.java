@@ -71,9 +71,21 @@ public final class EffectsTracker {
 
     // ------------------------------------------------------------------ Zugriff
 
-    /** Alle gemerkten Effekte, nach Namen */
+    /** Alle gemerkten Effekte, die nicht versteckt sind, nach Namen */
     public static List<EffectEntry> entries() {
-        List<EffectEntry> out = new ArrayList<>(cfg().list.values());
+        return sorted(false);
+    }
+
+    /** Die versteckten Effekte, nach Namen */
+    public static List<EffectEntry> hiddenEntries() {
+        return sorted(true);
+    }
+
+    private static List<EffectEntry> sorted(boolean hidden) {
+        List<EffectEntry> out = new ArrayList<>();
+        for (EffectEntry e : cfg().list.values()) {
+            if (e.hidden == hidden) out.add(e);
+        }
         out.sort(Comparator.comparing((EffectEntry e) -> e.name.toLowerCase(Locale.ROOT)));
         return out;
     }
@@ -87,6 +99,46 @@ public final class EffectsTracker {
         cfg().list.remove(key(entry.name));
         forget(key(entry.name));
         ModConfig.INSTANCE.saveNow();
+    }
+
+    /**
+     * Versteckt einen Effekt: weg aus Liste und Kasten, kein Alarm mehr. Der Eintrag bleibt, damit
+     * /effects ihn nicht noch einmal als neu merkt - Entfernen allein brachte ihn beim naechsten
+     * Oeffnen zurueck.
+     */
+    public static void hide(EffectEntry entry) {
+        hideQuietly(entry);
+        ModConfig.INSTANCE.saveNow();
+    }
+
+    private static void hideQuietly(EffectEntry entry) {
+        entry.hidden = true;
+        entry.hud = false;
+        entry.alert = false;
+        forget(key(entry.name));
+    }
+
+    /** Holt einen versteckten Effekt zurueck. HUD und Alarm bleiben aus, bis man sie wieder anhakt */
+    public static void unhide(EffectEntry entry) {
+        entry.hidden = false;
+        ModConfig.INSTANCE.saveNow();
+    }
+
+    /**
+     * Versteckt alles, was weder im Kasten steht noch Alarm gibt - also alles, was man nie
+     * ausgesucht hat. Gedacht fuer den Fall, dass /effects eine lange Liste auf einmal gemerkt hat.
+     *
+     * @return wie viele versteckt wurden
+     */
+    public static int hideUnused() {
+        int hidden = 0;
+        for (EffectEntry e : cfg().list.values()) {
+            if (e.hidden || e.hud || e.alert) continue;
+            hideQuietly(e);
+            hidden++;
+        }
+        if (hidden > 0) ModConfig.INSTANCE.saveNow();
+        return hidden;
     }
 
     public static void toggleHud(EffectEntry entry) {
@@ -157,11 +209,14 @@ public final class EffectsTracker {
         }
 
         // Zeigt der Filter die God Potion, sind das nicht die gesuchten Effekte
+        List<String> filter = List.of();
         for (Slot slot : screen.getMenu().slots) {
             ItemStack stack = slot.getItem();
             if (stack.isEmpty()) continue;
-            if (clean(stack.getHoverName().getString()).equals("Filter")
-                    && lore(stack).stream().anyMatch(GOD_FILTER::equals)) return;
+            if (clean(stack.getHoverName().getString()).equals("Filter")) {
+                filter = lore(stack);
+                if (filter.stream().anyMatch(GOD_FILTER::equals)) return;
+            }
         }
 
         boolean changed = false;
@@ -178,7 +233,9 @@ public final class EffectsTracker {
                 entry = new EffectEntry();
                 entry.name = name;
                 cfg().list.put(key(name), entry);
-                ShokiMod.LOGGER.info("[Effects] remembered {}", name);
+                // Der Filter steht mit im Log: Fuellt sich die Liste mit Effekten, die man dort nicht
+                // erwartet, sieht man hier, was die Filterzeilen gesagt haben
+                ShokiMod.LOGGER.info("[Effects] remembered {} (filter lines: {})", name, filter);
                 changed = true;
             }
             long end = now + ms;
@@ -281,7 +338,7 @@ public final class EffectsTracker {
         ModConfig.EffectsCategory c = cfg();
         long early = c.alertMinutes * 60_000L;
         for (EffectEntry e : c.list.values()) {
-            if (!e.alert || e.expiry <= 0L) continue;
+            if (e.hidden || !e.alert || e.expiry <= 0L) continue;
             String k = key(e.name);
             long left = e.expiry - now;
 
