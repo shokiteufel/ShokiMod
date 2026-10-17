@@ -3,6 +3,7 @@ package com.shokiteufel.shokimod.handler;
 import com.shokiteufel.shokimod.data.FeatureGate;
 import com.shokiteufel.shokimod.data.GameState;
 import com.shokiteufel.shokimod.data.ModConfig;
+import com.shokiteufel.shokimod.data.ModConfig.BookMark;
 import com.shokiteufel.shokimod.data.ModConfig.TrashBooksCategory;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -26,18 +27,22 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
- * Markiert die verzauberten Buecher im Inventar, die man loswerden will.
+ * Faerbt die verzauberten Buecher im Inventar: rot, was man loswerden will, gruen, was gut ist.
  *
  * <p>Nachgebaut aus Feesh (Apache 2.0, Sleepy-Panda/Feesh, {@code TrashBooksHighlighter}): Beim Angeln
  * fluten Buecher das Inventar, und man will schnell die finden, die weg koennen - zum Wegwerfen oder
  * Verkaufen. Der Slot bekommt einen roten Untergrund, in Feeshs Farbe.
  *
- * <p>Ein Unterschied zu Feesh: Dort tippt man die Namen, durch Komma getrennt, in ein Textfeld. Hier gibt es
- * ein Fenster mit einer Liste der Buecher, die schon im Inventar lagen, zum An- und Abhaken - und ein Feld,
- * in das man einen Namen eintippt, den man noch nicht gesehen hat. Ein Buch ist ein genaues Buch, mit Stufe:
- * "Corruption I" ist nicht "Corruption V".
+ * <p>Unterschiede zu Feesh: Dort tippt man die Namen, durch Komma getrennt, in ein Textfeld, und es gibt nur
+ * Rot. Hier gibt es ein Fenster mit einer Liste der Buecher, die schon im Inventar lagen, und fuer jedes drei
+ * Zustaende: neutral, rot, gruen - mit Gruen hebt man die guten Buecher hervor, damit man sie nicht
+ * versehentlich wegwirft. Ein Feld nimmt einen Namen, den man noch nicht gesehen hat. Ein Buch ist ein genaues
+ * Buch, mit Stufe: "Corruption I" ist nicht "Corruption V".
  *
- * <p>Markiert wird nur, was im eigenen Inventar liegt - und nur, solange ein Fenster mit dem Inventar offen
+ * <p>Ein neu gefundenes Buch ist immer erst neutral - nichts wird fuer einen entschieden. (Feesh hat
+ * "Corruption I" von Haus aus in der Liste; hier nicht.)
+ *
+ * <p>Gefaerbt wird nur, was im eigenen Inventar liegt - und nur, solange ein Fenster mit dem Inventar offen
  * ist (in der Welt gibt es nichts, worauf man einen Untergrund legen koennte). Gemerkt werden nur Buecher aus
  * dem eigenen Inventar, nicht aus jedem Fenster: In den Menues von Basar und Auktionshaus stehen hunderte, und
  * die Liste soll die zeigen, die einem tatsaechlich in die Taschen fallen.
@@ -45,25 +50,25 @@ import java.util.regex.Pattern;
 public final class TrashBooks {
 
     /**
-     * Knallrot: die Flaeche mit gut zwei Dritteln Deckkraft, dazu ein ganz deckender Rand.
+     * Knallrot und knallgruen: die Flaeche mit gut zwei Dritteln Deckkraft, dazu ein ganz deckender Rand.
      *
      * Feeshs Farbe ist 0x90FF0000 - Rot mit etwas mehr als halber Deckkraft. Auf einem hellen oder bunten Slot
      * ging das unter; Rueckmeldung: "soll sehr knall rot leuchten". Der Rand traegt die Markierung auch dort.
      */
-    private static final int COLOUR = 0xB0FF0000;
-    private static final int EDGE = 0xFFFF0000;
+    private static final int RED = 0xB0FF0000;
+    private static final int RED_EDGE = 0xFFFF0000;
+    private static final int GREEN = 0xB000FF00;
+    private static final int GREEN_EDGE = 0xFF00FF00;
     private static final int SCAN_TICKS = 20;
     private static final Pattern COLOUR_CODE = Pattern.compile("§.");
-
-    /** Was ohne eigene Wahl markiert ist: Feeshs Voreinstellung */
-    static final Set<String> DEFAULT = Set.of("Corruption I");
 
     private static int ticks = 0;
     /** Zaehlt jede Aenderung der Liste mit - daran haengt, wann die kleingeschriebene Fassung neu gebaut wird */
     private static int version = 0;
     private static int builtVersion = -1;
-    private static Map<String, Boolean> builtFor = null;
-    private static Set<String> markedLower = Set.of();
+    private static Map<String, BookMark> builtFor = null;
+    private static Set<String> redLower = Set.of();
+    private static Set<String> greenLower = Set.of();
     private static Set<String> knownLower = Set.of();
 
     private TrashBooks() {
@@ -123,37 +128,56 @@ public final class TrashBooks {
 
     // ---- Die Liste ----
 
-    /** Ist dieses Buch angehakt? Ohne eigene Wahl gilt Feeshs Voreinstellung */
-    public static boolean isMarked(String name) {
-        Boolean chosen = cfg().books.get(name);
-        return chosen != null ? chosen : DEFAULT.contains(name);
+    /** Wie ein Buch steht: neutral, rot oder gruen. Ein unbekanntes ist neutral */
+    public static BookMark markOf(String name) {
+        BookMark mark = cfg().marks.get(name);
+        return mark == null ? BookMark.NEUTRAL : mark;
     }
 
-    /** Alle bekannten Namen, nach dem Alphabet - die gesehenen und die aus der Voreinstellung */
+    /** Alle bekannten Namen, nach dem Alphabet */
     public static List<String> known() {
-        Set<String> names = new HashSet<>(cfg().books.keySet());
-        names.addAll(DEFAULT);
-        List<String> out = new ArrayList<>(names);
+        List<String> out = new ArrayList<>(cfg().marks.keySet());
         out.sort(Comparator.comparing((String s) -> s.toLowerCase(Locale.ROOT)).thenComparing(Comparator.naturalOrder()));
         return out;
     }
 
-    public static int markedCount() {
+    /** Wie viele Buecher diese Farbe haben */
+    public static int count(BookMark which) {
         int n = 0;
-        for (String name : known()) {
-            if (isMarked(name)) n++;
+        for (BookMark mark : cfg().marks.values()) {
+            if (mark == which) n++;
         }
         return n;
     }
 
-    public static void toggle(String name) {
-        if (name == null || name.isBlank()) return;
-        cfg().books.put(name, !isMarked(name));
+    /** Ein Buch auf neutral, rot oder gruen stellen */
+    public static void set(String name, BookMark mark) {
+        if (name == null || name.isBlank() || mark == null) return;
+        cfg().marks.put(name, mark);
         changed();
     }
 
     /**
-     * Ein Buch von Hand eintragen - angehakt, denn wer es tippt, will es markiert haben.
+     * Der Knopf "Red" oder "Green": Ist das Buch schon so, wird es wieder neutral, sonst bekommt es diese Farbe.
+     * Ein zweiter Klick nimmt die Farbe also zurueck.
+     */
+    public static void pick(String name, BookMark mark) {
+        set(name, markOf(name) == mark ? BookMark.NEUTRAL : mark);
+    }
+
+    /** Ein Klick auf den Namen: neutral, rot, gruen, wieder neutral */
+    public static void cycle(String name) {
+        BookMark next = switch (markOf(name)) {
+            case NEUTRAL -> BookMark.RED;
+            case RED -> BookMark.GREEN;
+            case GREEN -> BookMark.NEUTRAL;
+        };
+        set(name, next);
+    }
+
+    /**
+     * Ein Buch von Hand eintragen - rot, denn wer einen Namen tippt, will ihn markiert haben. (Gefundene Buecher
+     * sind immer erst neutral; ein getipptes ist eine Entscheidung.) Ist es schon da, aendert sich nichts.
      *
      * @return der Name, unter dem es steht (ein schon bekanntes Buch behaelt seine Schreibweise)
      */
@@ -162,24 +186,26 @@ public final class TrashBooks {
         String name = typed.trim();
         if (name.isEmpty()) return null;
         String existing = existing(name);
-        if (existing != null) name = existing;
-        cfg().books.put(name, true);
+        if (existing != null) {
+            // Ein bekanntes Buch bekommt nur dann Rot, wenn es noch neutral war: eine gruene Wahl soll ein
+            // Tippfehler-Versuch nicht ueberschreiben
+            if (markOf(existing) == BookMark.NEUTRAL) set(existing, BookMark.RED);
+            return existing;
+        }
+        cfg().marks.put(name, BookMark.RED);
         changed();
         return name;
     }
 
-    /** Ein Buch aus der Liste nehmen. Taucht es wieder im Inventar auf, steht es wieder darin - nicht angehakt */
+    /** Ein Buch aus der Liste nehmen. Taucht es wieder im Inventar auf, steht es wieder darin - neutral */
     public static void forget(String name) {
         if (name == null) return;
-        cfg().books.remove(name);
+        cfg().marks.remove(name);
         changed();
     }
 
     private static String existing(String name) {
-        for (String key : cfg().books.keySet()) {
-            if (key.equalsIgnoreCase(name)) return key;
-        }
-        for (String key : DEFAULT) {
+        for (String key : cfg().marks.keySet()) {
             if (key.equalsIgnoreCase(name)) return key;
         }
         return null;
@@ -192,30 +218,32 @@ public final class TrashBooks {
 
     /** Die kleingeschriebenen Mengen neu bauen, wenn sich etwas geaendert hat oder die Config neu geladen wurde */
     private static void sync() {
-        Map<String, Boolean> map = cfg().books;
+        Map<String, BookMark> map = cfg().marks;
         if (builtFor == map && builtVersion == version) return;
-        Set<String> marked = new HashSet<>();
+        Set<String> red = new HashSet<>();
+        Set<String> green = new HashSet<>();
         Set<String> known = new HashSet<>();
-        for (Map.Entry<String, Boolean> e : map.entrySet()) {
-            known.add(e.getKey().toLowerCase(Locale.ROOT));
-            if (Boolean.TRUE.equals(e.getValue())) marked.add(e.getKey().toLowerCase(Locale.ROOT));
-        }
-        for (String name : DEFAULT) {
-            String lower = name.toLowerCase(Locale.ROOT);
+        for (Map.Entry<String, BookMark> e : map.entrySet()) {
+            String lower = e.getKey().toLowerCase(Locale.ROOT);
             known.add(lower);
-            if (!map.containsKey(name)) marked.add(lower);
+            if (e.getValue() == BookMark.RED) red.add(lower);
+            else if (e.getValue() == BookMark.GREEN) green.add(lower);
         }
-        markedLower = marked;
+        redLower = red;
+        greenLower = green;
         knownLower = known;
         builtFor = map;
         builtVersion = version;
     }
 
-    /** Soll ein Buch dieses Namens markiert werden? Gross- und Kleinschreibung ist egal */
-    public static boolean wanted(String name) {
-        if (name == null) return false;
+    /** Welche Farbe soll ein Buch dieses Namens bekommen? Gross- und Kleinschreibung ist egal */
+    public static BookMark wanted(String name) {
+        if (name == null) return BookMark.NEUTRAL;
         sync();
-        return markedLower.contains(name.toLowerCase(Locale.ROOT));
+        String lower = name.toLowerCase(Locale.ROOT);
+        if (redLower.contains(lower)) return BookMark.RED;
+        if (greenLower.contains(lower)) return BookMark.GREEN;
+        return BookMark.NEUTRAL;
     }
 
     // ---- Merken, was im Inventar liegt ----
@@ -256,12 +284,12 @@ public final class TrashBooks {
         return new int[]{total, readable};
     }
 
-    /** Ein Buch, das noch nicht in der Liste steht, kommt hinein - nicht angehakt, ausser es ist Feeshs */
+    /** Ein Buch, das noch nicht in der Liste steht, kommt hinein - immer erst neutral */
     static void remember(String name) {
         if (name == null) return;
         sync();
         if (knownLower.contains(name.toLowerCase(Locale.ROOT))) return;
-        cfg().books.put(name, DEFAULT.contains(name));
+        cfg().marks.put(name, BookMark.NEUTRAL);
         changed();
     }
 
@@ -280,17 +308,21 @@ public final class TrashBooks {
         paint(graphics, slot, bookName(stack));
     }
 
-    /** Der Untergrund selbst: nur im eigenen Inventar und nur fuer ein Buch, das markiert sein soll */
+    /** Der Untergrund selbst: nur im eigenen Inventar und nur fuer ein Buch, das rot oder gruen sein soll */
     static void paint(GuiGraphicsExtractor graphics, Slot slot, String name) {
-        if (name == null || !(slot.container instanceof Inventory) || !wanted(name)) return;
+        if (name == null || !(slot.container instanceof Inventory)) return;
+        BookMark mark = wanted(name);
+        if (mark == BookMark.NEUTRAL) return;
+        int fill = mark == BookMark.RED ? RED : GREEN;
+        int edge = mark == BookMark.RED ? RED_EDGE : GREEN_EDGE;
         int x = slot.x;
         int y = slot.y;
-        graphics.fill(x, y, x + 16, y + 16, COLOUR);
+        graphics.fill(x, y, x + 16, y + 16, fill);
         // Der Rand, einen Punkt breit, ganz deckend
-        graphics.fill(x, y, x + 16, y + 1, EDGE);
-        graphics.fill(x, y + 15, x + 16, y + 16, EDGE);
-        graphics.fill(x, y + 1, x + 1, y + 15, EDGE);
-        graphics.fill(x + 15, y + 1, x + 16, y + 15, EDGE);
+        graphics.fill(x, y, x + 16, y + 1, edge);
+        graphics.fill(x, y + 15, x + 16, y + 16, edge);
+        graphics.fill(x, y + 1, x + 1, y + 15, edge);
+        graphics.fill(x + 15, y + 1, x + 16, y + 15, edge);
     }
 
 }

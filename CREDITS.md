@@ -272,9 +272,11 @@ drinsteckt.
   `ItemUtils.getEnchantedBookName`): Ein Slot mit einem „Enchanted Book" bekommt einen roten Untergrund
   (`0x90FF0000`), den Namen des Buches liest Feesh aus der ersten Beschreibungszeile ohne „Combinable in
   Anvil", gezeichnet wird in `extractSlot` vor dem Aufruf, der das Stück zeichnet (`SlotBackgroundMixin`).
-  Nachgebaut — mit drei Unterschieden: Die Bücher stehen in einem Fenster zum Anhaken (die bisher im
-  Inventar gesehenen und ein Feld für einen neuen Namen) statt in einem Textfeld mit Komma, gemerkt wird nur,
-  was im eigenen Inventar liegt, und markiert wird nur dort, nicht in jedem Fenster.
+  Nachgebaut — mit vier Unterschieden: Die Bücher stehen in einem Fenster (die bisher im Inventar gesehenen
+  und ein Feld für einen neuen Namen) statt in einem Textfeld mit Komma, und jedes hat drei Zustände —
+  neutral, rot, grün —, wobei ein neu gefundenes immer neutral beginnt (Feesh hat nur Rot und „Corruption I"
+  von Haus aus); gemerkt wird nur, was im eigenen Inventar liegt, und gefärbt wird nur dort, nicht in jedem
+  Fenster.
 - **Feesh** (Apache-2.0, `Sleepy-Panda/Feesh`) — die beiden Stummschaltungen
   (`features/sounds/MuteJadeDragonSound.kt`, `MuteReindrakeGifts.kt`, `mixin/SoundEngineMixin.java`):
   Der Mixin in `SoundEngine.play` verschluckt alle Töne `entity.ender_dragon.*` im Moonglade Marsh in den
