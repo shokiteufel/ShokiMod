@@ -151,6 +151,12 @@ public class ModConfig extends Config {
         if (INSTANCE.fishing.tracker.counts == null) INSTANCE.fishing.tracker.counts = new HashMap<>();
         if (INSTANCE.fishing.tracker.areaCounts == null) INSTANCE.fishing.tracker.areaCounts = new HashMap<>();
         if (INSTANCE.chat.reminder == null) INSTANCE.chat.reminder = new ReminderCategory();
+        // Der Regler "Warn at" ging bis 1.15.13 bis vier, im Garden stehen aber nur drei Fallen: Mit vier
+        // kam die Warnung nie
+        if (INSTANCE.chat.reminder.pestTrapAt > 3) {
+            INSTANCE.chat.reminder.pestTrapAt = 3;
+            INSTANCE.saveNow();
+        }
         if (INSTANCE.chat.reminder.cakes == null) INSTANCE.chat.reminder.cakes = new HashMap<>();
         if (INSTANCE.hunting.tracker == null) INSTANCE.hunting.tracker = new HuntingTrackerCategory();
         if (INSTANCE.hunting.tracker.counts == null) INSTANCE.hunting.tracker.counts = new HashMap<>();
@@ -3090,7 +3096,7 @@ public class ModConfig extends Config {
 
         @Expose
         @ConfigOption(name = "Warn at", desc = "How many full traps it takes. One warns at the first, three only once every trap is full.")
-        @ConfigEditorSlider(minValue = 1f, maxValue = 4f, minStep = 1f)
+        @ConfigEditorSlider(minValue = 1f, maxValue = 3f, minStep = 1f)
         public int pestTrapAt = 3;
 
         @Expose
