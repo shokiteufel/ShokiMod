@@ -1,6 +1,7 @@
 package com.shokiteufel.shokimod.gui;
 
 import com.shokiteufel.shokimod.handler.RareCatchAlert;
+import com.shokiteufel.shokimod.handler.SeaCreatureHp;
 import com.shokiteufel.shokimod.util.AlertVolume;
 import com.shokiteufel.shokimod.util.SeaCreatures;
 
@@ -37,6 +38,7 @@ public class SeaCreatureScreen extends Screen {
     private static final int OWN_WIDTH = 58;
     private static final int PARTY_WIDTH = 58;
     private static final int SHARE_WIDTH = 58;
+    private static final int HP_WIDTH = 50;
     private static final int TEST_WIDTH = 34;
     private static final int LIST_TOP = 74;
 
@@ -55,9 +57,10 @@ public class SeaCreatureScreen extends Screen {
     private List<SeaCreatures.Creature> visible() {
         String suche = filter.trim().toLowerCase(Locale.ROOT);
         List<SeaCreatures.Creature> out = new ArrayList<>();
-        for (SeaCreatures.Creature c : SeaCreatures.all()) {
+        for (SeaCreatures.Creature c : SeaCreatures.withHpOnly()) {
             if (!suche.isEmpty() && !c.name().toLowerCase(Locale.ROOT).contains(suche)) continue;
-            if (onlyPicked && !RareCatchAlert.wantsOwn(c) && !RareCatchAlert.partyPicked(c)) continue;
+            if (onlyPicked && !RareCatchAlert.wantsOwn(c) && !RareCatchAlert.partyPicked(c)
+                    && !SeaCreatureHp.wants(c)) continue;
             out.add(c);
         }
         return out;
@@ -82,7 +85,7 @@ public class SeaCreatureScreen extends Screen {
 
         List<SeaCreatures.Creature> liste = visible();
         int gridWidth = SOUND_WIDTH + 4 + NAME_WIDTH + 4 + OWN_WIDTH + 4 + PARTY_WIDTH
-                + 4 + SHARE_WIDTH + 4 + TEST_WIDTH;
+                + 4 + SHARE_WIDTH + 4 + HP_WIDTH + 4 + TEST_WIDTH;
         int left = width / 2 - gridWidth / 2;
 
         EditBox search = new EditBox(font, left + SOUND_WIDTH + 4, 34, NAME_WIDTH, 20,
@@ -107,14 +110,14 @@ public class SeaCreatureScreen extends Screen {
         // Alles an oder alles aus - bei neunzig Zeilen spart das viel Klicken
         addRenderableWidget(Button.builder(Component.literal("All on"), button -> {
             for (SeaCreatures.Creature c : visible()) {
-                if (!RareCatchAlert.wantsOwn(c)) RareCatchAlert.toggleOwn(c);
+                if (!c.hpOnly() && !RareCatchAlert.wantsOwn(c)) RareCatchAlert.toggleOwn(c);
             }
             rebuild();
         }).bounds(left + SOUND_WIDTH + 12 + NAME_WIDTH + OWN_WIDTH, 34, PARTY_WIDTH, 20).build());
 
         addRenderableWidget(Button.builder(Component.literal("Off"), button -> {
             for (SeaCreatures.Creature c : visible()) {
-                if (RareCatchAlert.wantsOwn(c)) RareCatchAlert.toggleOwn(c);
+                if (!c.hpOnly() && RareCatchAlert.wantsOwn(c)) RareCatchAlert.toggleOwn(c);
             }
             rebuild();
         }).bounds(left + SOUND_WIDTH + 16 + NAME_WIDTH + OWN_WIDTH + PARTY_WIDTH, 34, TEST_WIDTH, 20).build());
@@ -123,6 +126,20 @@ public class SeaCreatureScreen extends Screen {
         for (int i = 0; i < rowsPerPage() && start + i < liste.size(); i++) {
             SeaCreatures.Creature c = liste.get(start + i);
             int y = LIST_TOP + i * ROW_HEIGHT;
+            int hpX = left + SOUND_WIDTH + 20 + NAME_WIDTH + OWN_WIDTH + PARTY_WIDTH + SHARE_WIDTH;
+
+            if (c.hpOnly()) {
+                // Die vier, die man nicht faengt: nur die HP-Anzeige kennt sie
+                Button name = Button.builder(hpNameLabel(c), button -> {
+                    SeaCreatureHp.toggle(c);
+                    rebuild();
+                }).bounds(left + SOUND_WIDTH + 4, y, NAME_WIDTH, 20).build();
+                name.setTooltip(Tooltip.create(Component.literal(
+                        "Not caught, only seen - so it only has the HP list. Fought with another creature.")));
+                addRenderableWidget(name);
+                addRenderableWidget(hpButton(c, hpX, y));
+                continue;
+            }
 
             Button sound = Button.builder(soundLabel(c), button -> {
                 if (minecraft != null) {
@@ -168,10 +185,12 @@ public class SeaCreatureScreen extends Screen {
                             + "Off by default: this one talks to other people.")));
             addRenderableWidget(share);
 
+            addRenderableWidget(hpButton(c, hpX, y));
+
             Button test = Button.builder(Component.literal("Test").withStyle(ChatFormatting.GRAY),
                     button -> RareCatchAlert.preview(c))
                     .bounds(left + SOUND_WIDTH + 24 + NAME_WIDTH + OWN_WIDTH + PARTY_WIDTH + SHARE_WIDTH
-                            , y, TEST_WIDTH, 20).build();
+                            + HP_WIDTH, y, TEST_WIDTH, 20).build();
             test.setTooltip(Tooltip.create(Component.literal("Show this one once, as it would appear.")));
             addRenderableWidget(test);
         }
@@ -200,6 +219,30 @@ public class SeaCreatureScreen extends Screen {
 
     private Component nameLabel(SeaCreatures.Creature c) {
         boolean an = RareCatchAlert.wantsOwn(c);
+        return Component.literal((an ? "☑ " : "☐ ") + c.name())
+                .withStyle(style -> style.withColor(an ? c.colour() : 0x777777));
+    }
+
+    /** Die Spalte HP: steht der Bewohner in der Liste der Lebenspunkte? */
+    private Button hpButton(SeaCreatures.Creature c, int x, int y) {
+        Button hp = Button.builder(hpLabel(c), button -> {
+            SeaCreatureHp.toggle(c);
+            rebuild();
+        }).bounds(x, y, HP_WIDTH, 20).build();
+        hp.setTooltip(Tooltip.create(Component.literal(
+                "Whether this one shows in the HP list while it is near you (30 blocks). "
+                        + "The main switch under Fishing > Sea creature HP has to be on as well.")));
+        return hp;
+    }
+
+    private Component hpLabel(SeaCreatures.Creature c) {
+        boolean an = SeaCreatureHp.wants(c);
+        return Component.literal(an ? "HP ☑" : "HP ☐")
+                .withStyle(an ? ChatFormatting.RED : ChatFormatting.DARK_GRAY);
+    }
+
+    private Component hpNameLabel(SeaCreatures.Creature c) {
+        boolean an = SeaCreatureHp.wants(c);
         return Component.literal((an ? "☑ " : "☐ ") + c.name())
                 .withStyle(style -> style.withColor(an ? c.colour() : 0x777777));
     }
@@ -248,8 +291,9 @@ public class SeaCreatureScreen extends Screen {
             if (RareCatchAlert.wantsOwn(c)) gewaehlt++;
         }
         graphics.centeredText(font, Component.literal(
-                        gewaehlt + " of " + SeaCreatures.all().size() + " announce themselves"
-                        + "  ·  Own: your catch  ·  Party: what others report  ·  Share: tell your party")
+                        gewaehlt + " of " + SeaCreatures.all().size() + " announce themselves  ·  "
+                        + SeaCreatureHp.pickedCount() + " in the HP list"
+                        + "  ·  Own: your catch  ·  Party: others' catch  ·  Share: tell your party")
                 .withStyle(ChatFormatting.DARK_GRAY), centerX, 60, 0xFF888888);
 
         if (liste.isEmpty()) {

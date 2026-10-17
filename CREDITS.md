@@ -246,10 +246,20 @@ drinsteckt.
 - **Feesh** (Apache-2.0, `Sleepy-Panda/Feesh`) — die Zeilen zu Deployables
   (`features/overlays/DeployablesTimer.kt`): „Your flare disappeared because you were too far
   away!" und „Your previous … was removed!". Das sind Texte von Hypixel, kein Code. Die Meldung,
-  wenn ein Deployable abläuft (`DeployableReminder`), liest daneben „Your … despawned." — den Weg,
-  den SkyHanni (`Deployable.kt`), Riccio's Fishing Utils und SkyCubed gehen (die Restzeit aus dem
-  Namen des Rüstungsständers über dem Deployable, „Umberella 298s"), geht sie bewusst nicht: Der
-  Ständer verschwindet mit der Sichtweite, und ein fremdes Deployable sieht aus wie das eigene.
+  wenn ein Deployable abläuft (`DeployableReminder`), liest daneben „Your … despawned." Die
+  Warnung davor (`DeployableCountdown`, seit 1.15.19) geht den Weg, den SkyHanni (`Deployable.kt`),
+  Riccio's Fishing Utils und SkyCubed gehen: die Restzeit aus dem Namen des Rüstungsständers über
+  dem Deployable, „Umberella 298s". Sie gilt deshalb für jedes Deployable in Reichweite, auch ein
+  fremdes — der Ständer sagt nicht, wem es gehört.
+- **Feesh** (Apache-2.0, `Sleepy-Panda/Feesh`) — die HP-Anzeige der Meeresbewohner
+  (`features/overlays/SeaCreatureHpTracker.kt`, Fassung 1.13.0, und das Lesen der Namensschilder in
+  `utils/EntityUtils.kt`): die Namensschilder der Rüstungsständer im Umkreis von 30 Blöcken, der
+  Reindrake auch weiter weg, die Zeilen nach niedrigsten Lebenspunkten, die Liste der Bewohner mit
+  der Voreinstellung (achtundzwanzig), die Immune-Anzeige für die ersten fünf Sekunden und Nessies
+  Flucht, der Ton beim Neuzugang (nicht beim Wiederkehren des Reindrake). Nachgebaut, nicht
+  übernommen — und mit drei Unterschieden: Die Symbole links vom Namen und das Herz rechts fehlen,
+  die Reihenfolge lässt sich auch nach Seltenheit wählen, und die Auswahl der Bewohner steht im
+  selben Fenster wie die des Alarms (`/shoki seacreatures`, Spalte HP) statt in einer eigenen Liste.
 - **Odin** — die Ping-Anzeige wurde gegen seine gehalten, um den eigenen Messfehler zu
   finden.
 - **Odin** (BSD-3-Clause, Odtheking, `OdinFabric`) — die eigene Figur in anderer Größe
