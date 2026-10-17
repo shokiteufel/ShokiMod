@@ -164,7 +164,9 @@ public final class NearbyOverlay {
             HudPanel content = panel.build();
             int row = content.rowAt(Minecraft.getInstance().font,
                     SafariHud.originX(panel), SafariHud.originY(panel), panel.scale(), mouseX, mouseY);
-            if (row >= 0 && row == content.rowCount() - 1) {
+            // Der Reset-Knopf sitzt in der Ueberschrift, neben dem Namen
+            double titleX = (mouseX - SafariHud.originX(panel)) / panel.scale() - HudPanel.padding();
+            if (row == 0 && CollectionHud.resetAt(Minecraft.getInstance().font, titleX)) {
                 CollectionTracker.reset();
                 SafariHud.invalidate(panel);
                 return true;
@@ -238,8 +240,9 @@ public final class NearbyOverlay {
             HudPanel content = panel.build();
             int row = content.rowAt(Minecraft.getInstance().font,
                     SafariHud.originX(panel), SafariHud.originY(panel), panel.scale(), mouseX, mouseY);
-            // Die Reset-Zeile ist immer die letzte
-            if (row >= 0 && row == content.rowCount() - 1) {
+            // Der Reset-Knopf sitzt in der Ueberschrift, neben dem Namen
+            double titleX = (mouseX - SafariHud.originX(panel)) / panel.scale() - HudPanel.padding();
+            if (row == 0 && HuntingHud.resetAt(Minecraft.getInstance().font, titleX)) {
                 HuntingTracker.reset();
                 SafariHud.invalidate(panel);
                 return true;
