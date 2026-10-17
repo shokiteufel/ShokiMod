@@ -2188,6 +2188,12 @@ public class ModConfig extends Config {
         public boolean hud = true;
         @Expose
         public boolean alert = true;
+        /**
+         * Versteckt: nicht in der Liste, nicht im Kasten, kein Alarm. Der Eintrag bleibt stehen,
+         * damit /effects ihn nicht als neu merkt und die Liste wieder fuellt.
+         */
+        @Expose
+        public boolean hidden = false;
     }
 
     public static class EffectsCategory {
@@ -2206,7 +2212,7 @@ public class ModConfig extends Config {
         @ConfigEditorBoolean
         public boolean showHud = true;
 
-        @ConfigOption(name = "Pick effects", desc = "Which remembered effects are shown and which ones warn you. Opens with /shoki effects.")
+        @ConfigOption(name = "Pick effects", desc = "Which remembered effects are shown, which ones warn you, and which you hide. Opens with /shoki effects.")
         @ConfigEditorButton(buttonText = "Open")
         public transient Runnable openList = () -> {
         };
