@@ -139,6 +139,11 @@ public final class FeatureGate {
         return ModConfig.INSTANCE.garden.visitors.alert;
     }
 
+    /** Die Meldung, wenn ein Deployable ablaeuft, liest nur den Chat */
+    public static boolean deployables() {
+        return ModConfig.INSTANCE.deployables.enabled;
+    }
+
     public static boolean location() {
         return contest() || safari() || nearbyPanel() || rareLoot() || huntingTracker() || mobMarkers() || chatRules()
                 || cakeReminder() || hotspots() || collectionTracker() || pestTraps() || gardenVisitors()

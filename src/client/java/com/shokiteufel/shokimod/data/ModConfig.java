@@ -15,6 +15,7 @@ import com.shokiteufel.shokimod.gui.SoundPickerScreen;
 import com.shokiteufel.shokimod.gui.CollectionPickerScreen;
 import com.shokiteufel.shokimod.handler.CakeReminder;
 import com.shokiteufel.shokimod.handler.CollectionTracker;
+import com.shokiteufel.shokimod.handler.DeployableReminder;
 import com.shokiteufel.shokimod.handler.GuildEvents;
 import com.shokiteufel.shokimod.handler.HuntingTracker;
 import com.shokiteufel.shokimod.handler.PestReminder;
@@ -230,6 +231,7 @@ public class ModConfig extends Config {
         if (INSTANCE.garden == null) INSTANCE.garden = new GardenCategory();
         if (INSTANCE.garden.traps == null) INSTANCE.garden.traps = new GardenTrapsCategory();
         if (INSTANCE.garden.visitors == null) INSTANCE.garden.visitors = new GardenVisitorsCategory();
+        if (INSTANCE.deployables == null) INSTANCE.deployables = new DeployablesCategory();
         // Die Fallen-Warnung wohnte bis 1.15.14 unter Alerts > Reminder
         boolean gardenChanged = migratePestTraps(INSTANCE.chat.reminder, INSTANCE.garden.traps);
         if (clampGarden(INSTANCE.garden)) gardenChanged = true;
@@ -473,6 +475,13 @@ public class ModConfig extends Config {
                         Minecraft.getInstance().screen,
                         () -> INSTANCE.garden.visitors.soundFile,
                         picked -> INSTANCE.garden.visitors.soundFile = picked,
+                        1.0f)));
+        INSTANCE.deployables.test = () -> Minecraft.getInstance().execute(DeployableReminder::test);
+        INSTANCE.deployables.openSound = () -> Minecraft.getInstance().execute(() ->
+                Minecraft.getInstance().setScreen(new SoundPickerScreen(
+                        Minecraft.getInstance().screen,
+                        () -> INSTANCE.deployables.soundFile,
+                        picked -> INSTANCE.deployables.soundFile = picked,
                         1.0f)));
         INSTANCE.mining.mineshaft.openShaftRules = () -> Minecraft.getInstance().execute(() ->
                 Minecraft.getInstance().setScreen(
@@ -754,6 +763,10 @@ public class ModConfig extends Config {
     @Expose
     @Category(name = "Garden", desc = "Warnings for the garden: full pest traps and visitors waiting in line. The numbers come from the tab list.")
     public GardenCategory garden = new GardenCategory();
+
+    @Expose
+    @Category(name = "Deployables", desc = "Warns when one of your deployables runs out: Power Orb, Flare, Umberella, Lantern, Totem or Black Hole. Read from the line Hypixel writes in chat.")
+    public DeployablesCategory deployables = new DeployablesCategory();
 
     @Expose
     @Category(name = "Hunting", desc = "Shard hunting.")
@@ -1718,6 +1731,82 @@ public class ModConfig extends Config {
         public String soundFile = "";
 
         @ConfigOption(name = "Test visitor warning", desc = "Shows the warning line with a full queue, and the one for after you left.")
+        @ConfigEditorButton(buttonText = "Test")
+        public transient Runnable test = () -> {
+        };
+    }
+
+    /**
+     * Die Deployables: Power Orb, Flare, Umberella, Laterne, Totem of Corruption, Black Hole.
+     *
+     * Gemeldet wird, wenn eines deiner eigenen ablaeuft - gelesen aus der Chatzeile, die Hypixel
+     * dann schreibt (siehe DeployableReminder). Welche Sorten, steht hier.
+     */
+    public static class DeployablesCategory {
+
+        @ConfigOption(name = "Deployables", desc = "Warns when one of your own deployables runs out. It reads the line Hypixel writes in chat (\"Your Plasmaflux Power Orb despawned.\"), so there is nothing else to switch on.\nPick below which kinds you want to hear about.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Deployable alert", desc = "Warns when a deployable of yours runs out. Off: nothing below does anything.")
+        @ConfigEditorBoolean
+        public boolean enabled = false;
+
+        @Expose
+        @ConfigOption(name = "Power Orbs", desc = "Radiant, Mana Flux, Overflux and Plasmaflux.")
+        @ConfigEditorBoolean
+        public boolean powerOrbs = true;
+
+        @Expose
+        @ConfigOption(name = "Flares", desc = "Warning, Alert and SOS Flare. Also when one vanishes because you moved too far away.")
+        @ConfigEditorBoolean
+        public boolean flares = true;
+
+        @Expose
+        @ConfigOption(name = "Umberella", desc = "The one for trophy fishing.")
+        @ConfigEditorBoolean
+        public boolean umberella = true;
+
+        @Expose
+        @ConfigOption(name = "Lanterns", desc = "Dwarven, Mithril, Titanium and Glacite Lantern, and the Will-o'-wisp.")
+        @ConfigEditorBoolean
+        public boolean lanterns = true;
+
+        @Expose
+        @ConfigOption(name = "Totem of Corruption", desc = "The totem from fishing.")
+        @ConfigEditorBoolean
+        public boolean totem = true;
+
+        @Expose
+        @ConfigOption(name = "Black Hole", desc = "The Black Hole.")
+        @ConfigEditorBoolean
+        public boolean blackHole = true;
+
+        @Expose
+        @ConfigOption(name = "Banner", desc = "Large text across the screen.")
+        @ConfigEditorBoolean
+        public boolean banner = true;
+
+        @Expose
+        @ConfigOption(name = "Chat line", desc = "Writes a line into your chat. Hypixel already writes its own red one, so this is off by default.")
+        @ConfigEditorBoolean
+        public boolean chatLine = false;
+
+        @Expose
+        @ConfigOption(name = "Deployable sound", desc = "Plays a sound with the warning, at the alert volume. Off: the warning stays silent.")
+        @ConfigEditorBoolean
+        public boolean sound = true;
+
+        @ConfigOption(name = "Deployable sound file", desc = "Your own file from config/shokimod/sounds. Empty (No sound) plays the standard ping.")
+        @ConfigEditorButton(buttonText = "Pick")
+        public transient Runnable openSound = () -> {
+        };
+
+        @Expose
+        public String soundFile = "";
+
+        @ConfigOption(name = "Test deployable warning", desc = "Shows the warning once so you can see and hear what you set. Ignores the kinds above.")
         @ConfigEditorButton(buttonText = "Test")
         public transient Runnable test = () -> {
         };

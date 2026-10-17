@@ -243,6 +243,13 @@ drinsteckt.
   ankündigt, ist eine Tatsache über Hypixel; der Umgang mit dem Dauer-Segment ist
   derselbe Gedanke, hier je Sorte statt für eine. Der Stand aus dem Essence-Widget der
   Tab-Liste hat hier Vorrang, weil er nichts verlieren kann — Feesh liest ihn nicht.
+- **Feesh** (Apache-2.0, `Sleepy-Panda/Feesh`) — die Zeilen zu Deployables
+  (`features/overlays/DeployablesTimer.kt`): „Your flare disappeared because you were too far
+  away!" und „Your previous … was removed!". Das sind Texte von Hypixel, kein Code. Die Meldung,
+  wenn ein Deployable abläuft (`DeployableReminder`), liest daneben „Your … despawned." — den Weg,
+  den SkyHanni (`Deployable.kt`), Riccio's Fishing Utils und SkyCubed gehen (die Restzeit aus dem
+  Namen des Rüstungsständers über dem Deployable, „Umberella 298s"), geht sie bewusst nicht: Der
+  Ständer verschwindet mit der Sichtweite, und ein fremdes Deployable sieht aus wie das eigene.
 - **Odin** — die Ping-Anzeige wurde gegen seine gehalten, um den eigenen Messfehler zu
   finden.
 - **Odin** (BSD-3-Clause, Odtheking, `OdinFabric`) — die eigene Figur in anderer Größe
