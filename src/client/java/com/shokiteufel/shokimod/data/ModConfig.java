@@ -54,6 +54,15 @@ public class ModConfig extends Config {
             .setPrettyPrinting()
             .create();
 
+    /**
+     * Der Reiter, der im Einstellungsfenster zuletzt offen war - die Kennung, wie MoulConfig sie fuehrt.
+     *
+     * Das Fenster merkt ihn sich beim Wechseln und schlaegt ihn beim naechsten Oeffnen wieder auf. Leer heisst:
+     * noch keiner gemerkt, dann gilt der erste. Verschwindet der Reiter einmal, bleibt es still beim ersten.
+     */
+    @Expose
+    public String lastTab = null;
+
     // ★修正3: 保存先を config/shokimod/shokimod_config.properties に変更
     private static File getConfigFile() {
         // "config/shokimod" というフォルダへのパスを作成
