@@ -3100,6 +3100,11 @@ public class ModConfig extends Config {
         public int pestTrapRepeatMinutes = 10;
 
         @Expose
+        @ConfigOption(name = "Away alert minutes", desc = "Left the garden with traps that were not full yet: warns again after this many minutes, when they should be full by now. Coming back to the garden cancels it. 0: off.")
+        @ConfigEditorSlider(minValue = 0f, maxValue = 240f, minStep = 5f)
+        public int pestTrapAwayMinutes = 60;
+
+        @Expose
         @ConfigOption(name = "Trap command", desc = "Runs when you click [Go] in the warning.")
         @ConfigEditorText
         public String pestTrapCommand = "/warp garden";

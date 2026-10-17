@@ -29,12 +29,18 @@ import java.util.regex.Pattern;
  */
 public final class PestTraps {
 
+    // Gesucht wird im Zeilentext, nicht auf die ganze Zeile: Ein vorangestelltes Zeichen oder eine
+    // Schreibweise in Grossbuchstaben soll die Erkennung nicht kippen
     /** "Pest Traps: 2/3" - wie viele Fallen stehen, und wie viele stehen duerften */
-    private static final Pattern TRAPS = Pattern.compile("^Pest Traps:\\s*(\\d+)\\s*/\\s*(\\d+)$");
+    private static final Pattern TRAPS = Pattern.compile("Pest Traps:\\s*(\\d+)\\s*/\\s*(\\d+)", Pattern.CASE_INSENSITIVE);
     /** "Full Traps: None" oder "Full Traps: #1, #2" */
-    private static final Pattern FULL = Pattern.compile("^Full Traps:\\s*(.+)$");
+    private static final Pattern FULL = Pattern.compile("Full Traps:\\s*(.+)$", Pattern.CASE_INSENSITIVE);
     /** "No Bait: None" oder "No Bait: #3" */
-    private static final Pattern NO_BAIT = Pattern.compile("^No Bait:\\s*(.+)$");
+    private static final Pattern NO_BAIT = Pattern.compile("No Bait:\\s*(.+)$", Pattern.CASE_INSENSITIVE);
+    /** Geschuetzte und schmale Leerzeichen, die String.trim() stehen laesst */
+    private static final Pattern ODD_SPACE = Pattern.compile("[\\u00A0\\u2007\\u202F\\u2009\\u200A]");
+    /** Unsichtbare Zeichen ohne Breite */
+    private static final Pattern INVISIBLE = Pattern.compile("[\\u200B-\\u200D\\u2060\\uFEFF]");
     private static final Pattern NUMBER = Pattern.compile("#(\\d+)");
     /** So lange wird auf das Widget gewartet, bevor der Hinweis ins Log geht */
     private static final long HINT_AFTER_MILLIS = 60_000L;
@@ -46,6 +52,7 @@ public final class PestTraps {
     private static boolean seen = false;
     private static long firstAskedAt = 0L;
     private static boolean hinted = false;
+    private static boolean loggedOdd = false;
 
     private PestTraps() {
     }
@@ -88,11 +95,11 @@ public final class PestTraps {
     public static void processTabList(List<String> lines) {
         boolean found = false;
         for (int i = 0; i < lines.size(); i++) {
-            String line = lines.get(i);
-            if (line == null || line.isEmpty()) continue;
+            String line = tidy(lines.get(i));
+            if (line.isEmpty()) continue;
 
             Matcher traps = TRAPS.matcher(line);
-            if (traps.matches()) {
+            if (traps.find()) {
                 placed = number(traps.group(1));
                 maximum = number(traps.group(2));
                 found = true;
@@ -100,14 +107,14 @@ public final class PestTraps {
             }
 
             Matcher fullLine = FULL.matcher(line);
-            if (fullLine.matches()) {
+            if (fullLine.find()) {
                 collect(fullLine.group(1), full);
                 found = true;
                 continue;
             }
 
             Matcher bait = NO_BAIT.matcher(line);
-            if (bait.matches()) {
+            if (bait.find()) {
                 collect(bait.group(1), withoutBait);
                 found = true;
             }
@@ -118,10 +125,37 @@ public final class PestTraps {
             hinted = false;
             return;
         }
+        logUnreadable(lines);
         // Nichts gefunden: entweder ist der Spieler nicht im Garden, oder das Widget
         // ist aus. Nach einer Minute im Garden ist das zweite die wahrscheinlichere
         // Erklaerung, und die soll nicht im Stillen bleiben
         if (firstAskedAt == 0L) firstAskedAt = System.currentTimeMillis();
+    }
+
+    /** Die Zeile ohne unsichtbare Zeichen und mit gewoehnlichen Leerzeichen */
+    private static String tidy(String line) {
+        if (line == null) return "";
+        String text = INVISIBLE.matcher(line).replaceAll("");
+        return ODD_SPACE.matcher(text).replaceAll(" ").trim();
+    }
+
+    /**
+     * Steht in der Tab-Liste etwas von Fallen, das nicht erkannt wurde, kommt es einmal je Welt
+     * ins Log - samt Zeichencodes. Ohne das bliebe nur zu raten, was Hypixel dort wirklich
+     * schreibt, wenn die Warnung ausbleibt.
+     */
+    private static void logUnreadable(List<String> lines) {
+        if (loggedOdd) return;
+        for (String raw : lines) {
+            if (raw == null || !raw.toLowerCase(java.util.Locale.ROOT).contains("trap")) continue;
+
+            loggedOdd = true;
+            StringBuilder codes = new StringBuilder();
+            raw.codePoints().limit(40).forEach(c -> codes.append(c < 128 ? String.valueOf((char) c)
+                    : "\\u" + String.format("%04X", c)));
+            ShokiMod.LOGGER.info("[Pests] A tab line mentions traps but was not read: \"{}\"", codes);
+            return;
+        }
     }
 
     /** "None" heisst keine; sonst stehen dort die Nummern */
@@ -169,5 +203,6 @@ public final class PestTraps {
         seen = false;
         firstAskedAt = 0L;
         hinted = false;
+        loggedOdd = false;
     }
 }
