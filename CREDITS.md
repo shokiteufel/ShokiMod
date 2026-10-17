@@ -260,6 +260,13 @@ drinsteckt.
   übernommen — und mit drei Unterschieden: Die Symbole links vom Namen und das Herz rechts fehlen,
   die Reihenfolge lässt sich auch nach Seltenheit wählen, und die Auswahl der Bewohner steht im
   selben Fenster wie die des Alarms (`/shoki seacreatures`, Spalte HP) statt in einer eigenen Liste.
+- **Feesh** (Apache-2.0, `Sleepy-Panda/Feesh`) — der Banner bei seltenen Fängen
+  (`utils/CommonUtils.kt` `showTitle`, `constants/SeaCreatures.kt` `getTitle`): Feesh zeigt den Fang als
+  Titel des Spiels — der Name fett in der Farbe der Seltenheit, bei einem Double Hook ein rotes „X2",
+  bei einem Mythic ein flackerndes goldenes „x" davor und dahinter, darunter der Name des Fängers; zwei
+  Sekunden stehen, eine halbe Sekunde ausblenden. Die Voreinstellung „Feesh" (Hintergrund „Like the game's
+  title") zeichnet es mit demselben Aufruf wie das Spiel selbst und stimmt Pixel für Pixel mit dessen
+  Titel überein. Übernommen ist die Gestalt und der Aufbau der Zeilen, kein Code.
 - **Odin** — die Ping-Anzeige wurde gegen seine gehalten, um den eigenen Messfehler zu
   finden.
 - **Odin** (BSD-3-Clause, Odtheking, `OdinFabric`) — die eigene Figur in anderer Größe

@@ -264,6 +264,26 @@ public final class RareCatchAlert {
         return spieler == null || spieler.isEmpty() ? fang : spieler + ": " + fang;
     }
 
+    /**
+     * Die Ueberschrift, wie Feesh sie schreibt: der Name fett, bei einem Double Hook dahinter ein rotes X2,
+     * bei einem Mythic davor und dahinter ein flackerndes goldenes x.
+     *
+     * Die Farbe des Namens kommt vom Banner (die der Seltenheit): Nach jedem Zuruecksetzen gilt sie wieder,
+     * und die Fettschrift muss neu gesetzt werden.
+     */
+    static String feeshTitle(SeaCreatures.Creature creature, boolean doppelt) {
+        String base = "§l" + creature.name() + (doppelt ? " §r§c§lX2" : "");
+        if (!"MYTHIC".equals(creature.rarity())) return base;
+        return "§6§kx§r " + base + "§r §6§kx";
+    }
+
+    /** Wer es gefangen hat: bei einem eigenen Fang der eigene Name */
+    private static String catcher(String spieler) {
+        if (spieler != null && !spieler.isEmpty()) return spieler;
+        Minecraft client = Minecraft.getInstance();
+        return client == null || client.player == null ? "" : client.player.getName().getString();
+    }
+
     private static void announce(SeaCreatures.Creature creature, boolean doppelt, String spieler) {
         // Der Spieler steht hinten in "caught by", nicht noch einmal vorn
         String kopf = (doppelt ? "2x " : "") + creature.name();
@@ -271,9 +291,16 @@ public final class RareCatchAlert {
         String vonWem = spieler.isEmpty() ? "" : " - caught by " + spieler;
 
         if (cfg().banner) {
-            // Der Fangende steht klein und grau darueber, der Bewohner gross darunter
-            DropBanner.show(design(), spieler, (doppelt ? "2x " : "") + creature.name(), unten,
-                    creature.rarity(), creature.colour(), ItemStack.EMPTY, 0d);
+            com.shokiteufel.shokimod.data.BannerDesign look = design();
+            if (look.background == com.shokiteufel.shokimod.data.BannerDesign.Background.TITLE) {
+                // Wie bei Feesh: der Bewohner gross, darunter wer ihn gefangen hat - auch bei einem eigenen Fang
+                DropBanner.show(look, "", feeshTitle(creature, doppelt), catcher(spieler), "",
+                        creature.colour(), ItemStack.EMPTY, 0d);
+            } else {
+                // Der Fangende steht klein und grau darueber, der Bewohner gross darunter
+                DropBanner.show(look, spieler, (doppelt ? "2x " : "") + creature.name(), unten,
+                        creature.rarity(), creature.colour(), ItemStack.EMPTY, 0d);
+            }
         }
         if (cfg().chatLine) {
             Minecraft client = Minecraft.getInstance();

@@ -39,7 +39,13 @@ public class BannerDesign {
         FILL("Coloured fill"),
         SPLIT("Split dark/colour"),
         /** Von der Akzentfarbe ins Dunkle - weich statt als harte Kante */
-        GRADIENT("Fading colour");
+        GRADIENT("Fading colour"),
+        /**
+         * Wie die Titel des Spiels (/title): hinter jeder Zeile ein eigener Streifen in der Abdunklung,
+         * die in den Spieleinstellungen steht, die Schrift mit Schatten, und das Ausblenden dauert eine
+         * halbe Sekunde. Form, Rahmen und Akzent gelten dort nicht.
+         */
+        TITLE("Like the game's title");
 
         public final String label;
 
@@ -520,6 +526,18 @@ public class BannerDesign {
         auftritt.particles = Particles.TOTEM;
         auftritt.particleTicks = 20;
         out.add(auftritt);
+
+        // Der Banner von Feesh: Er ist der Titel des Spiels. Der Name vierfach gross und fett in der Farbe der
+        // Seltenheit, darunter doppelt gross, wer es gefangen hat; in der Mitte, zwei Sekunden voll und eine
+        // halbe Sekunde zum Ausblenden. Die Masse sind die des Spiels (Gui.extractTitle), nicht geschaetzt
+        BannerDesign feesh = preset("Feesh", Anchor.CENTER, Background.TITLE, 0f, Frame.NONE, Accent.NONE,
+                4.0f, 2.0f, TextColour.ACCENT, TextColour.WHITE, TextEffect.SHADOW, "", "", Icon.NONE, Animation.NONE);
+        feesh.headlineBold = true;
+        feesh.showTier = false;
+        feesh.valuePrefix = "";
+        feesh.valueSuffix = "";
+        feesh.durationMillis = 2500;
+        out.add(feesh);
         return out;
     }
 
