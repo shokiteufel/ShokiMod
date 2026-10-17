@@ -284,6 +284,13 @@ drinsteckt.
   Workshop. Nachgebaut — mit drei Unterschieden: Der Mixin meldet „nicht gestartet" statt nichts
   zurückzugeben, die Zone wird einmal in der Sekunde aus der Seitenleiste gelesen statt bei jedem Ton, und
   beide Schalter stehen unter Fishing > Mute.
+- **Feesh** (Apache-2.0, `Sleepy-Panda/Feesh`) — die Warnung vor dem Ertrinken
+  (`features/alerts/OutOfAirAlert.kt`): Einmal in der Sekunde die Luft des Spielers im Verhältnis zum vollen
+  Vorrat, bei 15 Prozent oder weniger eine Meldung — Titel „Out of air soon!", Chatzeile „You are almost out of
+  air!" und der Ertrink-Ton —, nur im Moonglade Marsh und im Torrhus Canyon, einmal, bis die Luft wieder über
+  der Schwelle war. Nachgebaut — mit einem Unterschied: Banner, Chatzeile und Ton lassen sich einzeln
+  abschalten, der Ton lässt sich durch eine eigene Datei ersetzen, und der Banner nimmt ein Design (Voreinstellung
+  „Feesh", das den Titel des Spiels nachzeichnet).
 - **Odin** — die Ping-Anzeige wurde gegen seine gehalten, um den eigenen Messfehler zu
   finden.
 - **Odin** (BSD-3-Clause, Odtheking, `OdinFabric`) — die eigene Figur in anderer Größe

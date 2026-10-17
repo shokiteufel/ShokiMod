@@ -254,6 +254,9 @@ public class ModConfig extends Config {
             INSTANCE.saveNow();
         }
         if (INSTANCE.fishing.mute == null) INSTANCE.fishing.mute = new MuteCategory();
+        if (INSTANCE.fishing.air == null) INSTANCE.fishing.air = new OutOfAirCategory();
+        if (INSTANCE.fishing.air.bannerDesign == null) INSTANCE.fishing.air.bannerDesign = "Feesh";
+        if (INSTANCE.fishing.air.soundFile == null) INSTANCE.fishing.air.soundFile = "";
         if (INSTANCE.chat.reminder == null) INSTANCE.chat.reminder = new ReminderCategory();
         if (INSTANCE.garden == null) INSTANCE.garden = new GardenCategory();
         if (INSTANCE.garden.traps == null) INSTANCE.garden.traps = new GardenTrapsCategory();
@@ -493,6 +496,10 @@ public class ModConfig extends Config {
                 picked -> INSTANCE.fishing.hp.soundFile = picked);
         INSTANCE.fishing.hp.test = () -> Minecraft.getInstance().execute(
                 com.shokiteufel.shokimod.handler.SeaCreatureHp::play);
+        INSTANCE.fishing.air.test = () -> Minecraft.getInstance().execute(
+                com.shokiteufel.shokimod.handler.OutOfAirAlert::test);
+        INSTANCE.fishing.air.openSound = soundPicker(() -> INSTANCE.fishing.air.soundFile,
+                picked -> INSTANCE.fishing.air.soundFile = picked);
         INSTANCE.fishing.books.openPicker = () -> Minecraft.getInstance().execute(() ->
                 Minecraft.getInstance().setScreenAndShow(new com.shokiteufel.shokimod.gui.TrashBooksScreen(
                         Minecraft.getInstance().gui.screen())));
@@ -1671,6 +1678,10 @@ public class ModConfig extends Config {
         @Expose
         @Category(name = "Mute", desc = "Silences two sounds that get in the way while fishing. Ported from Feesh.")
         public MuteCategory mute = new MuteCategory();
+
+        @Expose
+        @Category(name = "Out of air", desc = "Warns when you are about to run out of air while diving. Ported from Feesh.")
+        public OutOfAirCategory air = new OutOfAirCategory();
     }
 
     /**
@@ -2107,6 +2118,57 @@ public class ModConfig extends Config {
         public float hudScale = 1.0f;
         @Expose
         public float hudAlpha = 1.0f;
+    }
+
+    /**
+     * Die Warnung vor dem Ertrinken.
+     *
+     * Aus Feesh (Apache 2.0): "Alert when out of air soon" - ein Titel und ein Ton, wenn die Luft knapp wird, im
+     * Moonglade Marsh und im Torrhus Canyon. Wie dort von Haus aus an; die Schwelle (15 Prozent) ist fest.
+     */
+    public static class OutOfAirCategory {
+
+        @ConfigOption(name = "Out of air", desc = "Shows a title and plays a sound when you are low on air and will start drowning soon. Applicable for Moonglade Marsh and Torrhus Canyon. Ported from Feesh: it warns at 15 percent air, once, until your air has recovered.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Enabled", desc = "Warn when you are low on air. On from the start, as in Feesh.")
+        @ConfigEditorBoolean
+        public boolean enabled = true;
+
+        @Expose
+        @ConfigOption(name = "Banner", desc = "The big title in the middle of the screen.")
+        @ConfigEditorBoolean
+        public boolean banner = true;
+
+        @Expose
+        @ConfigOption(name = "Banner design", desc = "Name of the banner design. Feesh uses the game's own title - that is the design \"Feesh\". Build your own in Alerts > Banner > Sandbox.")
+        @ConfigEditorText
+        public String bannerDesign = "Feesh";
+
+        @Expose
+        @ConfigOption(name = "Chat line", desc = "Writes \"You are almost out of air!\" into your chat, as Feesh does.")
+        @ConfigEditorBoolean
+        public boolean chatLine = true;
+
+        @Expose
+        @ConfigOption(name = "Sound", desc = "Plays a sound with the warning.")
+        @ConfigEditorBoolean
+        public boolean sound = true;
+
+        @ConfigOption(name = "Sound file", desc = "Your own file from config/shokimod/sounds. Leave empty for the drowning sound Feesh plays.")
+        @ConfigEditorButton(buttonText = "Pick")
+        public transient Runnable openSound = () -> {
+        };
+
+        @Expose
+        public String soundFile = "";
+
+        @ConfigOption(name = "Test", desc = "Shows the warning once, so you can see and hear what you set.")
+        @ConfigEditorButton(buttonText = "Test")
+        public transient Runnable test = () -> {
+        };
     }
 
     /**
