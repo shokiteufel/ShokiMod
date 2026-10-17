@@ -234,6 +234,11 @@ public class ModConfig extends Config {
         if (INSTANCE.fishing.tracker.mobs == null) INSTANCE.fishing.tracker.mobs = new HashMap<>();
         if (INSTANCE.fishing.tracker.counts == null) INSTANCE.fishing.tracker.counts = new HashMap<>();
         if (INSTANCE.fishing.tracker.areaCounts == null) INSTANCE.fishing.tracker.areaCounts = new HashMap<>();
+        if (INSTANCE.fishing.hp == null) INSTANCE.fishing.hp = new SeaHpCategory();
+        if (INSTANCE.fishing.hp.picks == null) INSTANCE.fishing.hp.picks = new HashMap<>();
+        if (INSTANCE.fishing.hp.sort == null) INSTANCE.fishing.hp.sort = SeaHpSort.LOWEST_HP;
+        if (INSTANCE.fishing.hp.soundFile == null) INSTANCE.fishing.hp.soundFile = "";
+        INSTANCE.fishing.hp.maxRows = Math.max(1, Math.min(20, INSTANCE.fishing.hp.maxRows));
         if (INSTANCE.chat.reminder == null) INSTANCE.chat.reminder = new ReminderCategory();
         if (INSTANCE.garden == null) INSTANCE.garden = new GardenCategory();
         if (INSTANCE.garden.traps == null) INSTANCE.garden.traps = new GardenTrapsCategory();
@@ -467,6 +472,12 @@ public class ModConfig extends Config {
                         Minecraft.getInstance().gui.screen())));
         INSTANCE.fishing.tracker.resetTracker = () -> Minecraft.getInstance().execute(
                 com.shokiteufel.shokimod.handler.SeaCreatureTracker::reset);
+        // Die HP-Anzeige nimmt dasselbe Auswahlfenster wie der Alarm: eine Spalte mehr
+        INSTANCE.fishing.hp.openPicker = INSTANCE.fishing.rareCatch.openPicker;
+        INSTANCE.fishing.hp.openSound = soundPicker(() -> INSTANCE.fishing.hp.soundFile,
+                picked -> INSTANCE.fishing.hp.soundFile = picked);
+        INSTANCE.fishing.hp.test = () -> Minecraft.getInstance().execute(
+                com.shokiteufel.shokimod.handler.SeaCreatureHp::play);
         INSTANCE.chat.testAlertVolume = () -> Minecraft.getInstance().execute(AlertVolume::test);
         INSTANCE.hunting.tracker.resetTracker = () -> Minecraft.getInstance().execute(HuntingTracker::reset);
         INSTANCE.guild.events.testBanner = () -> Minecraft.getInstance().execute(GuildEvents::testBanner);
@@ -1630,6 +1641,10 @@ public class ModConfig extends Config {
         @Expose
         @Category(name = "Sea creature tracker", desc = "Counts your catches, Double Hooks and Blood Shots - as Feesh does.")
         public SeaTrackerCategory tracker = new SeaTrackerCategory();
+
+        @Expose
+        @Category(name = "Sea creature HP", desc = "Shows the HP of the sea creatures near you in a list. Ported from Feesh.")
+        public SeaHpCategory hp = new SeaHpCategory();
     }
 
     /**
@@ -2062,6 +2077,87 @@ public class ModConfig extends Config {
         public float hudX = 0.02f;
         @Expose
         public float hudY = 0.55f;
+        @Expose
+        public float hudScale = 1.0f;
+        @Expose
+        public float hudAlpha = 1.0f;
+    }
+
+    /** Wie die Liste der Bewohner mit HP geordnet ist */
+    public enum SeaHpSort {
+        LOWEST_HP("Lowest HP first"),
+        HIGHEST_RARITY("Highest rarity first");
+
+        private final String label;
+
+        SeaHpSort(String label) {
+            this.label = label;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
+    }
+
+    /**
+     * Die HP der Meeresbewohner in der Naehe.
+     *
+     * Aus Feesh (Apache 2.0): eine Liste mit Name und Lebenspunkten, solange man in der Loot-Teilung
+     * steht. Welche Bewohner darin vorkommen, steht in /shoki seacreatures.
+     */
+    public static class SeaHpCategory {
+
+        @ConfigOption(name = "Sea creature HP", desc = "Shows the HP of the sea creatures around you - the ones you share the loot with, within 30 blocks. Like Feesh, but without the icons left of the name and the heart behind the HP. Which creatures show up is picked in /shoki seacreatures, column HP.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Enabled", desc = "Show the list. Off means nothing is read.")
+        @ConfigEditorBoolean
+        public boolean enabled = false;
+
+        @Expose
+        @ConfigOption(name = "Rows", desc = "The most rows the list shows, to keep it from growing across the screen. Of the creatures nearby the first ones in the order below stay.")
+        @ConfigEditorSlider(minValue = 1f, maxValue = 20f, minStep = 1f)
+        public int maxRows = 7;
+
+        @Expose
+        @ConfigOption(name = "Order", desc = "Lowest HP first: the one that dies first stands on top, as in Feesh. Highest rarity first: Mythic creatures on top, those of the same rarity by lowest HP.")
+        @ConfigEditorDropdown
+        public SeaHpSort sort = SeaHpSort.LOWEST_HP;
+
+        @ConfigOption(name = "Pick creatures", desc = "Which creatures show up in the list: the HP column of the creature list. Feesh's picks are on from the start. Opens with /shoki seacreatures.")
+        @ConfigEditorButton(buttonText = "Open")
+        public transient Runnable openPicker = () -> {
+        };
+
+        /** Wer in der Liste steht. Ohne Eintrag gilt Feeshs Voreinstellung (siehe SeaCreatureHp) */
+        @Expose
+        public Map<String, Boolean> picks = new HashMap<>();
+
+        @Expose
+        @ConfigOption(name = "Sound", desc = "Plays a sound when a new creature joins the list - not when a Reindrake only comes back into view, as in Feesh.")
+        @ConfigEditorBoolean
+        public boolean sound = false;
+
+        @ConfigOption(name = "Sound file", desc = "Your own file from config/shokimod/sounds. Leave empty for the experience orb sound Feesh plays.")
+        @ConfigEditorButton(buttonText = "Pick")
+        public transient Runnable openSound = () -> {
+        };
+
+        @Expose
+        public String soundFile = "";
+
+        @ConfigOption(name = "Test", desc = "Plays the sound once.")
+        @ConfigEditorButton(buttonText = "Test")
+        public transient Runnable test = () -> {
+        };
+
+        @Expose
+        public float hudX = 0.72f;
+        @Expose
+        public float hudY = 0.30f;
         @Expose
         public float hudScale = 1.0f;
         @Expose

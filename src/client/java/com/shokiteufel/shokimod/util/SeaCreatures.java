@@ -22,7 +22,15 @@ public final class SeaCreatures {
      * @param rare ob er zu den seltenen zaehlt - nur die melden sich von selbst
      */
     public record Creature(String name, String rarity, int colour, boolean rare, Pattern pattern) {
+
+        /** Kommt nur in der HP-Anzeige vor: wird nicht gefangen, hat also keinen Satz */
+        public boolean hpOnly() {
+            return pattern == NEVER;
+        }
     }
+
+    /** Ein Satz, der nie passt - fuer die, die man nicht faengt */
+    private static final Pattern NEVER = Pattern.compile("(?!)");
 
     private static Creature neu(String name, String rarity, int colour, boolean rare, String regex) {
         return new Creature(name, rarity, colour, rare, Pattern.compile(regex));
@@ -217,6 +225,51 @@ public final class SeaCreatures {
     /** Alle, in der Reihenfolge der Liste */
     public static List<Creature> all() {
         return ALL;
+    }
+
+    /**
+     * Vier, die man nicht faengt, sondern nur sieht: Die Gefolgsleute des Lord Jawbus, das Laser-Totem
+     * des Wiki Tiki, Flipflopper und Seashine. Feesh fuehrt sie in seiner HP-Anzeige, und so stehen sie
+     * hier auch - in der Liste der Anzeige, nicht im Alarm und nicht im Zaehler.
+     *
+     * Die Seltenheit ist hier angenommen, nicht abgelesen: Sie entscheidet nur die Reihenfolge, wenn
+     * nach Seltenheit geordnet wird, und die vier stehen damit unter den Bossen.
+     */
+    private static final List<Creature> HP_ONLY = List.of(
+            new Creature("Jawbus Follower", "EPIC", 0xFF5555, false, NEVER),
+            new Creature("Wiki Tiki Laser Totem", "EPIC", 0xFF5555, false, NEVER),
+            new Creature("Flipflopper", "RARE", 0x55FFFF, false, NEVER),
+            new Creature("Seashine", "RARE", 0x55FFFF, false, NEVER));
+
+    private static final List<Creature> WITH_HP_ONLY;
+
+    static {
+        List<Creature> both = new ArrayList<>(ALL);
+        both.addAll(HP_ONLY);
+        WITH_HP_ONLY = List.copyOf(both);
+    }
+
+    /** Alle und die vier, die nur in der HP-Anzeige stehen - was das Auswahlfenster zeigt */
+    public static List<Creature> withHpOnly() {
+        return WITH_HP_ONLY;
+    }
+
+    /** Wie selten: 0 gewoehnlich bis 5 mythisch. Unbekannte zaehlen als gewoehnlich */
+    public static int rarityRank(String name) {
+        if (name == null) return 0;
+        for (Creature c : WITH_HP_ONLY) {
+            if (c.name().equalsIgnoreCase(name)) {
+                return switch (c.rarity()) {
+                    case "UNCOMMON" -> 1;
+                    case "RARE" -> 2;
+                    case "EPIC" -> 3;
+                    case "LEGENDARY" -> 4;
+                    case "MYTHIC" -> 5;
+                    default -> 0;
+                };
+            }
+        }
+        return 0;
     }
 
     /** Nur die seltenen - die, bei denen sich ein Alarm lohnt */

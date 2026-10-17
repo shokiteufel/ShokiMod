@@ -144,9 +144,14 @@ public final class FeatureGate {
         return ModConfig.INSTANCE.deployables.enabled || ModConfig.INSTANCE.deployables.umberellaAlert.alert;
     }
 
+    /** Die HP-Anzeige der Meeresbewohner liest die Namensschilder in der Naehe - nur wenn sie an ist */
+    public static boolean seaHp() {
+        return ModConfig.INSTANCE.fishing.hp.enabled;
+    }
+
     public static boolean location() {
         return contest() || safari() || nearbyPanel() || rareLoot() || huntingTracker() || mobMarkers() || chatRules()
-                || cakeReminder() || hotspots() || collectionTracker() || pestTraps() || gardenVisitors()
+                || cakeReminder() || hotspots() || collectionTracker() || pestTraps() || gardenVisitors() || seaHp()
                 || ModConfig.INSTANCE.effects.enabled;
     }
 }
