@@ -19,7 +19,7 @@ public final class SafariHud {
 
     /** Ein Kasten auf dem Bildschirm. Traegt seine eigene Lage und Groesse in der Config */
     public enum Panel {
-        PROGRESS, MISSING, CONTEST, NEARBY, HUNTING, GUILD, COLLECTION, PROFIT, MINING, PET, PERFORMANCE, SEATRACKER, EFFECTS;
+        PROGRESS, MISSING, CONTEST, NEARBY, HUNTING, GUILD, COLLECTION, PROFIT, MINING, PET, PERFORMANCE, SEATRACKER, EFFECTS, SEAHP;
 
         public boolean visible() {
             ModConfig.SafariCategory c = ModConfig.INSTANCE.safari;
@@ -39,6 +39,10 @@ public final class SafariHud {
                         && com.shokiteufel.shokimod.handler.SeaCreatureTracker.shownNow();
                 case EFFECTS -> ModConfig.INSTANCE.effects.enabled && ModConfig.INSTANCE.effects.showHud
                         && EffectsHud.hasRows();
+                // Nur wenn gerade einer in der Naehe steht - im HUD-Editor immer, sonst liesse er sich nicht setzen
+                case SEAHP -> ModConfig.INSTANCE.fishing.hp.enabled
+                        && (com.shokiteufel.shokimod.handler.SeaCreatureHp.hasRows()
+                        || Minecraft.getInstance().gui.screen() instanceof com.shokiteufel.shokimod.gui.HudEditorScreen);
             };
         }
 
@@ -70,6 +74,7 @@ public final class SafariHud {
                 case PERFORMANCE -> "Performance";
                 case SEATRACKER -> "Sea creature";
                 case EFFECTS -> "Effects";
+                case SEAHP -> "Sea creature HP";
             };
         }
 
@@ -116,6 +121,7 @@ public final class SafariHud {
                 case PERFORMANCE -> ModConfig.INSTANCE.hud.performance.hudX;
                 case SEATRACKER -> ModConfig.INSTANCE.fishing.tracker.hudX;
                 case EFFECTS -> ModConfig.INSTANCE.effects.hudX;
+                case SEAHP -> ModConfig.INSTANCE.fishing.hp.hudX;
             };
         }
 
@@ -135,6 +141,7 @@ public final class SafariHud {
                 case PERFORMANCE -> ModConfig.INSTANCE.hud.performance.hudY;
                 case SEATRACKER -> ModConfig.INSTANCE.fishing.tracker.hudY;
                 case EFFECTS -> ModConfig.INSTANCE.effects.hudY;
+                case SEAHP -> ModConfig.INSTANCE.fishing.hp.hudY;
             };
         }
 
@@ -154,6 +161,7 @@ public final class SafariHud {
                 case PERFORMANCE -> ModConfig.INSTANCE.hud.performance.hudScale;
                 case SEATRACKER -> ModConfig.INSTANCE.fishing.tracker.hudScale;
                 case EFFECTS -> ModConfig.INSTANCE.effects.hudScale;
+                case SEAHP -> ModConfig.INSTANCE.fishing.hp.hudScale;
             };
         }
 
@@ -212,6 +220,10 @@ public final class SafariHud {
                     ModConfig.INSTANCE.effects.hudX = x;
                     ModConfig.INSTANCE.effects.hudY = y;
                 }
+                case SEAHP -> {
+                    ModConfig.INSTANCE.fishing.hp.hudX = x;
+                    ModConfig.INSTANCE.fishing.hp.hudY = y;
+                }
             }
         }
 
@@ -232,6 +244,7 @@ public final class SafariHud {
                 case PERFORMANCE -> ModConfig.INSTANCE.hud.performance.hudOpacity;
                 case SEATRACKER -> ModConfig.INSTANCE.fishing.tracker.hudAlpha;
                 case EFFECTS -> ModConfig.INSTANCE.effects.hudAlpha;
+                case SEAHP -> ModConfig.INSTANCE.fishing.hp.hudAlpha;
             };
         }
 
@@ -254,6 +267,7 @@ public final class SafariHud {
                 case PERFORMANCE -> ModConfig.INSTANCE.hud.performance.hudOpacity = clamped;
                 case SEATRACKER -> ModConfig.INSTANCE.fishing.tracker.hudAlpha = clamped;
                 case EFFECTS -> ModConfig.INSTANCE.effects.hudAlpha = clamped;
+                case SEAHP -> ModConfig.INSTANCE.fishing.hp.hudAlpha = clamped;
             }
         }
 
@@ -274,6 +288,7 @@ public final class SafariHud {
                 case PERFORMANCE -> ModConfig.INSTANCE.hud.performance.hudScale = clamped;
                 case SEATRACKER -> ModConfig.INSTANCE.fishing.tracker.hudScale = clamped;
                 case EFFECTS -> ModConfig.INSTANCE.effects.hudScale = clamped;
+                case SEAHP -> ModConfig.INSTANCE.fishing.hp.hudScale = clamped;
             }
         }
 
@@ -313,6 +328,7 @@ public final class SafariHud {
                 case PERFORMANCE -> PerformanceHud.build();
                 case SEATRACKER -> SeaTrackerHud.build();
                 case EFFECTS -> EffectsHud.build();
+                case SEAHP -> SeaHpHud.build();
             };
         }
     }
