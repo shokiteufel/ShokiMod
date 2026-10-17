@@ -88,6 +88,8 @@ public class NetworkHandler {
             com.shokiteufel.shokimod.handler.MineshaftProfit.onChatMessage(unformattedMsg);
             com.shokiteufel.shokimod.scanner.ItemChanges.onChatMessage(unformattedMsg);
             com.shokiteufel.shokimod.handler.EffectsTracker.onChatMessage(unformattedMsg);
+            // "Your Plasmaflux Power Orb despawned." - die Meldung, wenn ein Deployable ablaeuft
+            com.shokiteufel.shokimod.handler.DeployableReminder.onChatMessage(unformattedMsg);
             // Der Wechsel per Autopet ist die einzige Meldung ueber das aktive Pet,
             // die ohne offenes Menue kommt
             com.shokiteufel.shokimod.scanner.PetState.onChatMessage(unformattedMsg);
