@@ -1,5 +1,6 @@
 package com.shokiteufel.shokimod.gui;
 
+import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.handler.TrashBooks;
 
 import net.minecraft.ChatFormatting;
@@ -164,6 +165,17 @@ public class TrashBooksScreen extends Screen {
 
         graphics.centeredText(font, Component.literal("Trash books").withStyle(ChatFormatting.GOLD),
                 centerX, 14, 0xFFFFAA00);
+        // Eine stille Funktion sieht aus wie eine kaputte: Hier steht, woran es liegt
+        if (!ModConfig.INSTANCE.fishing.books.enabled) {
+            graphics.centeredText(font, Component.literal("Switched off - turn it on under Fishing > Trash books > Enabled")
+                    .withStyle(ChatFormatting.RED), centerX, 24, 0xFFFF5555);
+        } else {
+            int[] books = TrashBooks.inventoryBooks(Minecraft.getInstance());
+            graphics.centeredText(font, Component.literal("In your inventory: " + books[0] + " enchanted book"
+                            + (books[0] == 1 ? "" : "s") + ", " + books[1] + " readable")
+                    .withStyle(books[0] > books[1] ? ChatFormatting.RED : ChatFormatting.DARK_GRAY),
+                    centerX, 24, books[0] > books[1] ? 0xFFFF5555 : 0xFF888888);
+        }
         graphics.centeredText(font, Component.literal(
                         TrashBooks.markedCount() + " of " + TrashBooks.known().size()
                                 + " marked  ·  only slots of your own inventory get the red background")
