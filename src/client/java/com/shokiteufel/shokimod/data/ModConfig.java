@@ -157,6 +157,14 @@ public class ModConfig extends Config {
         return changed;
     }
 
+    /** Der Knopf "Pick" einer Tondatei: oeffnet die Auswahl und schreibt die Wahl zurueck */
+    private static Runnable soundPicker(java.util.function.Supplier<String> get,
+                                        java.util.function.Consumer<String> set) {
+        return () -> Minecraft.getInstance().execute(() ->
+                Minecraft.getInstance().setScreenAndShow(new SoundPickerScreen(
+                        Minecraft.getInstance().gui.screen(), get, set, 1.0f)));
+    }
+
     /** Die Datei einlesen - null, wenn sie fehlt, leer oder kaputt ist */
     private static ModConfig read(File file) {
         try (FileReader reader = new FileReader(file, java.nio.charset.StandardCharsets.UTF_8)) {
@@ -232,6 +240,15 @@ public class ModConfig extends Config {
         if (INSTANCE.garden.traps == null) INSTANCE.garden.traps = new GardenTrapsCategory();
         if (INSTANCE.garden.visitors == null) INSTANCE.garden.visitors = new GardenVisitorsCategory();
         if (INSTANCE.deployables == null) INSTANCE.deployables = new DeployablesCategory();
+        if (INSTANCE.deployables.umberellaAlert == null) INSTANCE.deployables.umberellaAlert = new UmberellaCategory();
+        if (INSTANCE.deployables.endings == null) INSTANCE.deployables.endings = new DeployableEndingsCategory();
+        // Bis 1.15.17 war die Umberella ein Haken im Hauptreiter: wer den Alarm an hatte und sie nicht
+        // abgewaehlt hatte, behaelt ihn jetzt in ihrem eigenen Reiter
+        if (INSTANCE.deployables.umberella != null) {
+            INSTANCE.deployables.umberellaAlert.alert = INSTANCE.deployables.enabled && INSTANCE.deployables.umberella;
+            INSTANCE.deployables.umberella = null;
+            INSTANCE.saveNow();
+        }
         // Die Fallen-Warnung wohnte bis 1.15.14 unter Alerts > Reminder
         boolean gardenChanged = migratePestTraps(INSTANCE.chat.reminder, INSTANCE.garden.traps);
         if (clampGarden(INSTANCE.garden)) gardenChanged = true;
@@ -477,12 +494,16 @@ public class ModConfig extends Config {
                         picked -> INSTANCE.garden.visitors.soundFile = picked,
                         1.0f)));
         INSTANCE.deployables.test = () -> Minecraft.getInstance().execute(DeployableReminder::test);
-        INSTANCE.deployables.openSound = () -> Minecraft.getInstance().execute(() ->
-                Minecraft.getInstance().setScreenAndShow(new SoundPickerScreen(
-                        Minecraft.getInstance().gui.screen(),
-                        () -> INSTANCE.deployables.soundFile,
-                        picked -> INSTANCE.deployables.soundFile = picked,
-                        1.0f)));
+        INSTANCE.deployables.openSound = soundPicker(() -> INSTANCE.deployables.soundFile,
+                picked -> INSTANCE.deployables.soundFile = picked);
+        INSTANCE.deployables.umberellaAlert.test = () -> Minecraft.getInstance().execute(DeployableReminder::testUmberella);
+        INSTANCE.deployables.umberellaAlert.openSound = soundPicker(
+                () -> INSTANCE.deployables.umberellaAlert.soundFile,
+                picked -> INSTANCE.deployables.umberellaAlert.soundFile = picked);
+        INSTANCE.deployables.endings.test = () -> Minecraft.getInstance().execute(DeployableReminder::testEndings);
+        INSTANCE.deployables.endings.openSound = soundPicker(
+                () -> INSTANCE.deployables.endings.soundFile,
+                picked -> INSTANCE.deployables.endings.soundFile = picked);
         INSTANCE.mining.mineshaft.openShaftRules = () -> Minecraft.getInstance().execute(() ->
                 Minecraft.getInstance().setScreenAndShow(
                         new com.shokiteufel.shokimod.gui.MineshaftRuleScreen(Minecraft.getInstance().gui.screen())));
@@ -1744,7 +1765,7 @@ public class ModConfig extends Config {
      */
     public static class DeployablesCategory {
 
-        @ConfigOption(name = "Deployables", desc = "Warns when one of your own deployables runs out. It reads the line Hypixel writes in chat (\"Your Plasmaflux Power Orb despawned.\"), so there is nothing else to switch on.\nPick below which kinds you want to hear about.")
+        @ConfigOption(name = "Deployables", desc = "Warns when one of your own deployables runs out. It reads the line Hypixel writes in chat (\"Your Plasmaflux Power Orb despawned.\"), so there is nothing else to switch on.\nPick below which kinds you want to hear about. The Umberella (trophy fishing only) and the other ways a deployable can end have their own tabs.")
         @ConfigEditorInfoText
         public transient String about = "";
 
@@ -1762,11 +1783,6 @@ public class ModConfig extends Config {
         @ConfigOption(name = "Flares", desc = "Warning, Alert and SOS Flare. Also when one vanishes because you moved too far away.")
         @ConfigEditorBoolean
         public boolean flares = true;
-
-        @Expose
-        @ConfigOption(name = "Umberella", desc = "The one for trophy fishing.")
-        @ConfigEditorBoolean
-        public boolean umberella = true;
 
         @Expose
         @ConfigOption(name = "Lanterns", desc = "Dwarven, Mithril, Titanium and Glacite Lantern, and the Will-o'-wisp.")
@@ -1794,6 +1810,11 @@ public class ModConfig extends Config {
         public boolean chatLine = false;
 
         @Expose
+        @ConfigOption(name = "Hide Hypixel's line", desc = "Hides the red \"... despawned.\" line Hypixel writes when one of these runs out. Works with the alert switched off, too. Off by default.")
+        @ConfigEditorBoolean
+        public boolean hideLine = false;
+
+        @Expose
         @ConfigOption(name = "Deployable sound", desc = "Plays a sound with the warning, at the alert volume. Off: the warning stays silent.")
         @ConfigEditorBoolean
         public boolean sound = true;
@@ -1807,6 +1828,122 @@ public class ModConfig extends Config {
         public String soundFile = "";
 
         @ConfigOption(name = "Test deployable warning", desc = "Shows the warning once so you can see and hear what you set. Ignores the kinds above.")
+        @ConfigEditorButton(buttonText = "Test")
+        public transient Runnable test = () -> {
+        };
+
+        @Expose
+        @Category(name = "Umberella", desc = "The Umberella is only for trophy fishing, so it has its own settings: its own switch, banner and sound.")
+        public UmberellaCategory umberellaAlert = new UmberellaCategory();
+
+        @Expose
+        @Category(name = "Other endings", desc = "The other ways a deployable can end: replaced by a new one, or a flare left behind. Changing the map never alerts.")
+        public DeployableEndingsCategory endings = new DeployableEndingsCategory();
+
+        /**
+         * Bis 1.15.17 stand die Umberella als Haken im Hauptreiter. Der Wert wird einmal in den eigenen
+         * Reiter uebernommen (siehe load) und steht danach auf null - dann wird er nicht mehr geschrieben.
+         */
+        @Expose
+        public Boolean umberella = null;
+    }
+
+    /** Die Umberella: nur fuer Trophy Fishing, darum ein eigener Reiter */
+    public static class UmberellaCategory {
+
+        @ConfigOption(name = "Umberella", desc = "Warns when your Umberella runs out. It is only used for trophy fishing, so it is kept apart from the other deployables: its own switch, and it does not need the Deployable alert in the main tab.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Umberella alert", desc = "Warns when your Umberella runs out.")
+        @ConfigEditorBoolean
+        public boolean alert = false;
+
+        @Expose
+        @ConfigOption(name = "Banner", desc = "Large text across the screen.")
+        @ConfigEditorBoolean
+        public boolean banner = true;
+
+        @Expose
+        @ConfigOption(name = "Chat line", desc = "Writes a line into your chat. Hypixel already writes its own red one, so this is off by default.")
+        @ConfigEditorBoolean
+        public boolean chatLine = false;
+
+        @Expose
+        @ConfigOption(name = "Hide Hypixel's line", desc = "Hides the red \"Your Umberella despawned.\" line. Works with the alert switched off, too. Off by default.")
+        @ConfigEditorBoolean
+        public boolean hideLine = false;
+
+        @Expose
+        @ConfigOption(name = "Umberella sound", desc = "Plays a sound with the warning, at the alert volume. Off: the warning stays silent.")
+        @ConfigEditorBoolean
+        public boolean sound = true;
+
+        @ConfigOption(name = "Umberella sound file", desc = "Your own file from config/shokimod/sounds. Empty (No sound) plays the standard ping.")
+        @ConfigEditorButton(buttonText = "Pick")
+        public transient Runnable openSound = () -> {
+        };
+
+        @Expose
+        public String soundFile = "";
+
+        @ConfigOption(name = "Test Umberella warning", desc = "Shows the warning once so you can see and hear what you set.")
+        @ConfigEditorButton(buttonText = "Test")
+        public transient Runnable test = () -> {
+        };
+    }
+
+    /**
+     * Die anderen Enden eines Deployables: durch ein neues ersetzt, oder der Flare blieb zurueck.
+     *
+     * Beim Wechsel der Karte gibt es nie eine Meldung - dann bleibt alles zurueck, was man aufgestellt hat.
+     */
+    public static class DeployableEndingsCategory {
+
+        @ConfigOption(name = "Other endings", desc = "A deployable can end in two other ways: you put a new one down (\"Your previous ... was removed!\"), or a flare is left behind (\"Your flare disappeared because you were too far away!\"). Each has its own switch here. Changing the map never alerts, because everything you put down is gone then.\nThese alerts follow the kinds in the main tab.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Flare too far away", desc = "Warns when a flare vanishes because you moved too far from it.")
+        @ConfigEditorBoolean
+        public boolean farAwayAlert = true;
+
+        @Expose
+        @ConfigOption(name = "Replaced by a new one", desc = "Warns when a deployable is removed because you put a new one down. Off by default - you did that yourself.")
+        @ConfigEditorBoolean
+        public boolean replacedAlert = false;
+
+        @Expose
+        @ConfigOption(name = "Banner", desc = "Large text across the screen.")
+        @ConfigEditorBoolean
+        public boolean banner = true;
+
+        @Expose
+        @ConfigOption(name = "Chat line", desc = "Writes a line into your chat. Hypixel already writes its own one, so this is off by default.")
+        @ConfigEditorBoolean
+        public boolean chatLine = false;
+
+        @Expose
+        @ConfigOption(name = "Hide Hypixel's lines", desc = "Hides both lines (\"Your previous ... was removed!\" and \"Your flare disappeared ...\"). Works with the alerts switched off, too. Off by default.")
+        @ConfigEditorBoolean
+        public boolean hideLines = false;
+
+        @Expose
+        @ConfigOption(name = "Endings sound", desc = "Plays a sound with the warning, at the alert volume. Off: the warning stays silent.")
+        @ConfigEditorBoolean
+        public boolean sound = true;
+
+        @ConfigOption(name = "Endings sound file", desc = "Your own file from config/shokimod/sounds. Empty (No sound) plays the standard ping.")
+        @ConfigEditorButton(buttonText = "Pick")
+        public transient Runnable openSound = () -> {
+        };
+
+        @Expose
+        public String soundFile = "";
+
+        @ConfigOption(name = "Test flare warning", desc = "Shows the warning once with a flare that was too far away, so you can see and hear what you set.")
         @ConfigEditorButton(buttonText = "Test")
         public transient Runnable test = () -> {
         };
