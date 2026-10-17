@@ -42,6 +42,7 @@ public class NetworkHandler {
             // Der erste Essence-Stand im neuen Profil ist der Anfang, kein Fund
             com.shokiteufel.shokimod.scanner.EssenceState.reset();
             PestReminder.reset();
+            VisitorReminder.reset();
             HotspotTracker.reset();
             com.shokiteufel.shokimod.scanner.PetState.reset();
             com.shokiteufel.shokimod.scanner.PerformanceState.reset();
