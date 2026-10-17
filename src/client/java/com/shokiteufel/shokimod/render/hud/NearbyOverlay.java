@@ -176,18 +176,16 @@ public final class NearbyOverlay {
             HudPanel content = panel.build();
             int row = content.rowAt(Minecraft.getInstance().font,
                     SafariHud.originX(panel), SafariHud.originY(panel), panel.scale(), mouseX, mouseY);
-            // Die Ueberschrift wechselt den Zeitraum: Lauf, Tag, alles
+            // In der Ueberschrift: dahinter der Reset-Knopf (nur im laufenden Lauf), sonst wechselt ein
+            // Klick den Zeitraum - Lauf, Tag, alles
             if (row == 0) {
+                double titleX = (mouseX - SafariHud.originX(panel)) / panel.scale() - HudPanel.padding();
+                if (ProfitHud.resetAt(Minecraft.getInstance().font, titleX)) {
+                    com.shokiteufel.shokimod.handler.ProfitTracker.askReset();
+                    return true;
+                }
                 com.shokiteufel.shokimod.handler.ProfitTracker.cycleView();
                 SafariHud.invalidate(panel);
-                return true;
-            }
-
-            // Die Reset-Zeile ist die letzte - und es gibt sie nur im laufenden Lauf
-            if (row >= 0 && row == content.rowCount() - 1
-                    && com.shokiteufel.shokimod.handler.ProfitTracker.view()
-                    == com.shokiteufel.shokimod.data.ModConfig.ProfitView.SESSION) {
-                com.shokiteufel.shokimod.handler.ProfitTracker.askReset();
                 return true;
             }
 
