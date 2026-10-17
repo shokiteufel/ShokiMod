@@ -1,6 +1,7 @@
 package com.shokiteufel.shokimod.gui;
 
 import com.shokiteufel.shokimod.data.ModConfig;
+import com.shokiteufel.shokimod.data.ModConfig.BookMark;
 import com.shokiteufel.shokimod.handler.TrashBooks;
 
 import net.minecraft.ChatFormatting;
@@ -26,8 +27,10 @@ import java.util.Locale;
 public class TrashBooksScreen extends Screen {
 
     private static final int ROW_HEIGHT = 22;
-    private static final int NAME_WIDTH = 200;
-    private static final int FORGET_WIDTH = 60;
+    private static final int NAME_WIDTH = 176;
+    private static final int RED_WIDTH = 42;
+    private static final int GREEN_WIDTH = 50;
+    private static final int FORGET_WIDTH = 56;
     private static final int LIST_TOP = 74;
 
     private final Screen parent;
@@ -46,7 +49,7 @@ public class TrashBooksScreen extends Screen {
         List<String> out = new ArrayList<>();
         for (String name : TrashBooks.known()) {
             if (!suche.isEmpty() && !name.toLowerCase(Locale.ROOT).contains(suche)) continue;
-            if (onlyMarked && !TrashBooks.isMarked(name)) continue;
+            if (onlyMarked && TrashBooks.markOf(name) == BookMark.NEUTRAL) continue;
             out.add(name);
         }
         return out;
@@ -72,7 +75,7 @@ public class TrashBooksScreen extends Screen {
         page = Math.clamp(page, 0, pageCount() - 1);
 
         List<String> liste = visible();
-        int gridWidth = NAME_WIDTH + 4 + FORGET_WIDTH;
+        int gridWidth = NAME_WIDTH + 4 + RED_WIDTH + 4 + GREEN_WIDTH + 4 + FORGET_WIDTH;
         int left = width / 2 - gridWidth / 2;
 
         EditBox search = new EditBox(font, left, 34, NAME_WIDTH, 20, Component.literal("Search"));
@@ -91,33 +94,55 @@ public class TrashBooksScreen extends Screen {
                     onlyMarked = !onlyMarked;
                     page = 0;
                     rebuild();
-                }).bounds(left + NAME_WIDTH + 4, 34, FORGET_WIDTH, 20).build());
+                }).bounds(left + NAME_WIDTH + 4, 34, RED_WIDTH + 4 + GREEN_WIDTH, 20).build());
 
         int start = page * rowsPerPage();
         for (int i = 0; i < rowsPerPage() && start + i < liste.size(); i++) {
             String name = liste.get(start + i);
             int y = LIST_TOP + i * ROW_HEIGHT;
-            boolean an = TrashBooks.isMarked(name);
+            BookMark mark = TrashBooks.markOf(name);
 
-            Button toggle = Button.builder(
-                    Component.literal((an ? "☑ " : "☐ ") + name)
-                            .withStyle(an ? ChatFormatting.RED : ChatFormatting.GRAY),
+            // Der Name zeigt, wie das Buch steht, und ein Klick darauf geht weiter: neutral, rot, gruen
+            Button state = Button.builder(
+                    Component.literal((mark == BookMark.NEUTRAL ? "☐ " : "☑ ") + name)
+                            .withStyle(mark == BookMark.RED ? ChatFormatting.RED
+                                    : mark == BookMark.GREEN ? ChatFormatting.GREEN : ChatFormatting.GRAY),
                     button -> {
-                        TrashBooks.toggle(name);
+                        TrashBooks.cycle(name);
                         rebuild();
                     }).bounds(left, y, NAME_WIDTH, 20).build();
-            toggle.setTooltip(Tooltip.create(Component.literal(an
-                    ? "Marked: this book gets a red background in your inventory."
-                    : "Not marked.")));
-            addRenderableWidget(toggle);
+            state.setTooltip(Tooltip.create(Component.literal(switch (mark) {
+                case RED -> "Red: a book to get rid of. Click for green.";
+                case GREEN -> "Green: a good book, highlighted. Click for neutral.";
+                default -> "Neutral: left alone. Click for red.";
+            })));
+            addRenderableWidget(state);
+
+            Button red = Button.builder(Component.literal("Red")
+                            .withStyle(mark == BookMark.RED ? ChatFormatting.RED : ChatFormatting.DARK_GRAY),
+                    button -> {
+                        TrashBooks.pick(name, BookMark.RED);
+                        rebuild();
+                    }).bounds(left + NAME_WIDTH + 4, y, RED_WIDTH, 20).build();
+            red.setTooltip(Tooltip.create(Component.literal("Red background in your inventory: a book to get rid of.")));
+            addRenderableWidget(red);
+
+            Button green = Button.builder(Component.literal("Green")
+                            .withStyle(mark == BookMark.GREEN ? ChatFormatting.GREEN : ChatFormatting.DARK_GRAY),
+                    button -> {
+                        TrashBooks.pick(name, BookMark.GREEN);
+                        rebuild();
+                    }).bounds(left + NAME_WIDTH + 4 + RED_WIDTH + 4, y, GREEN_WIDTH, 20).build();
+            green.setTooltip(Tooltip.create(Component.literal("Green background in your inventory: a good book, easy to spot.")));
+            addRenderableWidget(green);
 
             Button forget = Button.builder(Component.literal("Forget").withStyle(ChatFormatting.DARK_GRAY),
                     button -> {
                         TrashBooks.forget(name);
                         rebuild();
-                    }).bounds(left + NAME_WIDTH + 4, y, FORGET_WIDTH, 20).build();
+                    }).bounds(left + NAME_WIDTH + 4 + RED_WIDTH + 4 + GREEN_WIDTH + 4, y, FORGET_WIDTH, 20).build();
             forget.setTooltip(Tooltip.create(Component.literal(
-                    "Takes it off the list. It comes back, unmarked, when it shows up in your inventory again.")));
+                    "Takes it off the list. It comes back, neutral, when it shows up in your inventory again.")));
             addRenderableWidget(forget);
         }
 
@@ -134,7 +159,7 @@ public class TrashBooksScreen extends Screen {
         }
 
         // Ein Buch von Hand eintragen: genau wie im Spiel, mit Stufe
-        EditBox add = new EditBox(font, left, height - 28, NAME_WIDTH - 64, 20, Component.literal("Add a book"));
+        EditBox add = new EditBox(font, left, height - 28, gridWidth - 128, 20, Component.literal("Add a book"));
         add.setValue(typed);
         add.setHint(Component.literal("Add a book, e.g. Frail VI").withStyle(ChatFormatting.DARK_GRAY));
         add.setMaxLength(60);
@@ -147,7 +172,7 @@ public class TrashBooksScreen extends Screen {
                 filter = "";
                 rebuild();
             }
-        }).bounds(left + NAME_WIDTH - 60, height - 28, 60, 20).build());
+        }).bounds(left + gridWidth - 124, height - 28, 60, 20).build());
 
         addRenderableWidget(Button.builder(Component.literal("Done"), button -> onClose())
                 .bounds(left + gridWidth - 60, height - 28, 60, 20).build());
@@ -177,8 +202,8 @@ public class TrashBooksScreen extends Screen {
                     centerX, 24, books[0] > books[1] ? 0xFFFF5555 : 0xFF888888);
         }
         graphics.centeredText(font, Component.literal(
-                        TrashBooks.markedCount() + " of " + TrashBooks.known().size()
-                                + " marked  ·  only slots of your own inventory get the red background")
+                        TrashBooks.count(BookMark.RED) + " red, " + TrashBooks.count(BookMark.GREEN) + " green of "
+                                + TrashBooks.known().size() + " books  ·  only slots of your own inventory are coloured")
                 .withStyle(ChatFormatting.DARK_GRAY), centerX, 60, 0xFF888888);
 
         if (visible().isEmpty()) {

@@ -241,7 +241,18 @@ public class ModConfig extends Config {
         if (INSTANCE.fishing.hp.soundFile == null) INSTANCE.fishing.hp.soundFile = "";
         INSTANCE.fishing.hp.maxRows = Math.max(1, Math.min(20, INSTANCE.fishing.hp.maxRows));
         if (INSTANCE.fishing.books == null) INSTANCE.fishing.books = new TrashBooksCategory();
-        if (INSTANCE.fishing.books.books == null) INSTANCE.fishing.books.books = new HashMap<>();
+        if (INSTANCE.fishing.books.marks == null) INSTANCE.fishing.books.marks = new HashMap<>();
+        INSTANCE.fishing.books.marks.replaceAll((name, mark) -> mark == null ? BookMark.NEUTRAL : mark);
+        // Bis 1.16.6 stand dort nur "angehakt oder nicht": angehakt wird rot, der Rest bleibt neutral
+        if (INSTANCE.fishing.books.books != null) {
+            for (Map.Entry<String, Boolean> entry : INSTANCE.fishing.books.books.entrySet()) {
+                if (entry.getKey() == null) continue;
+                INSTANCE.fishing.books.marks.putIfAbsent(entry.getKey(),
+                        Boolean.TRUE.equals(entry.getValue()) ? BookMark.RED : BookMark.NEUTRAL);
+            }
+            INSTANCE.fishing.books.books = null;
+            INSTANCE.saveNow();
+        }
         if (INSTANCE.fishing.mute == null) INSTANCE.fishing.mute = new MuteCategory();
         if (INSTANCE.chat.reminder == null) INSTANCE.chat.reminder = new ReminderCategory();
         if (INSTANCE.garden == null) INSTANCE.garden = new GardenCategory();
@@ -2120,15 +2131,34 @@ public class ModConfig extends Config {
         public boolean reindrakeGifts = false;
     }
 
+    /** Wie ein Buch gefaerbt wird: gar nicht, rot (loswerden) oder gruen (gut, hervorheben) */
+    public enum BookMark {
+        NEUTRAL("Neutral"),
+        RED("Red"),
+        GREEN("Green");
+
+        private final String label;
+
+        BookMark(String label) {
+            this.label = label;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
+    }
+
     /**
      * Die Buecher, die beim Angeln das Inventar fluten.
      *
      * Aus Feesh (Apache 2.0): Slots mit Buechern, die man loswerden will, bekommen einen roten Untergrund.
-     * Feesh nimmt dafuer ein Textfeld mit Namen; hier ist es eine Liste zum Anhaken.
+     * Feesh nimmt dafuer ein Textfeld mit Namen; hier ist es eine Liste mit drei Zustaenden je Buch: neutral,
+     * rot, gruen - mit Gruen hebt man die guten hervor.
      */
     public static class TrashBooksCategory {
 
-        @ConfigOption(name = "Trash books", desc = "Marks the enchanted books in your inventory that flood it while you fish, so you quickly find the ones to throw away or sell. Like Feesh, but you tick the books from a list instead of typing their names. Only the slots of your own inventory get the red background, while a window with your inventory is open.")
+        @ConfigOption(name = "Trash books", desc = "Colours the enchanted books in your inventory that flood it while you fish: red for the ones you want to get rid of, green for the good ones you want to spot at a glance. Like Feesh, but you pick the colour per book from a list instead of typing names. A newly found book is always neutral first. Only the slots of your own inventory are coloured, while a window with your inventory is open.")
         @ConfigEditorInfoText
         public transient String about = "";
 
@@ -2137,17 +2167,24 @@ public class ModConfig extends Config {
         @ConfigEditorBoolean
         public boolean enabled = false;
 
-        @ConfigOption(name = "Pick books", desc = "The books that were in your inventory, to tick or untick - and a field to type one that has not shown up yet. A book is a book with its level: Corruption I is not Corruption V. Corruption I is ticked from the start, as in Feesh.")
+        @ConfigOption(name = "Pick books", desc = "The books that were in your inventory, each with Red and Green buttons - and a field to type one that has not shown up yet. A book is a book with its level: Corruption I is not Corruption V. Every book starts neutral.")
         @ConfigEditorButton(buttonText = "Open")
         public transient Runnable openPicker = () -> {
         };
 
         /**
-         * Name -> angehakt. Ein Buch kommt hinein, wenn es zum ersten Mal im Inventar liegt (dann nicht
-         * angehakt); ohne Eintrag gilt Feeshs Voreinstellung: "Corruption I" ja, alles andere nein.
+         * Name -> Farbe. Ein Buch kommt hinein, wenn es zum ersten Mal im Inventar liegt - immer neutral;
+         * ohne Eintrag ist es auch neutral.
          */
         @Expose
-        public Map<String, Boolean> books = new HashMap<>();
+        public Map<String, BookMark> marks = new HashMap<>();
+
+        /**
+         * Bis 1.16.6: Name -> angehakt. Wird beim Laden in {@link #marks} uebernommen (angehakt wird rot, der
+         * Rest neutral) und faellt dann aus der Datei, denn ein leeres Feld wird nicht geschrieben.
+         */
+        @Expose
+        public Map<String, Boolean> books = null;
     }
 
     /** Wie die Liste der Bewohner mit HP geordnet ist */
