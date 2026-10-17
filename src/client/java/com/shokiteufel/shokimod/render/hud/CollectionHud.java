@@ -8,6 +8,7 @@ import com.shokiteufel.shokimod.util.CollectionData;
 import com.shokiteufel.shokimod.util.ItemValue;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 
 import java.util.List;
 
@@ -31,7 +32,7 @@ public final class CollectionHud {
     public static HudPanel build() {
         CollectionTrackerCategory cfg = ModConfig.INSTANCE.collections.tracker;
         HudPanel panel = new HudPanel();
-        panel.title("Collections" + (CollectionTracker.isPaused() ? " (paused)" : ""), TITLE_COLOUR);
+        panel.title(titleText(), TITLE_COLOUR);
 
         List<Row> rows = CollectionTracker.rows();
         if (rows.isEmpty()) {
@@ -84,12 +85,29 @@ public final class CollectionHud {
             panel.line("+" + (rows.size() - limit) + " more", MUTED);
         }
 
-        // Nur bei offenem Fenster: dort kann man klicken. Immer die letzte Zeile
-        if (NearbyOverlay.interactive()) {
-            panel.blank();
-            panel.line("[ Reset ]", TIME_COLOUR);
-        }
         return panel;
+    }
+
+    private static final String RESET_LABEL = "§c[Reset]";
+
+    /**
+     * "Collections [Reset]" - der Reset-Knopf neben dem Namen, wie bei den anderen Trackern.
+     *
+     * Vorher stand er als eigene Zeile "[ Reset ]" ganz unten. Einen Zeitraum zum Umschalten hat dieser Tracker
+     * nicht, deshalb gibt es hier nichts Unterstrichenes.
+     */
+    private static String titleText() {
+        return "Collections  " + RESET_LABEL + (CollectionTracker.isPaused() ? " (paused)" : "");
+    }
+
+    /**
+     * Liegt ein Klick in der Ueberschrift auf dem Reset-Knopf?
+     *
+     * @param localX Abstand vom linken Rand der Schrift, in den Massen des Kastens
+     */
+    public static boolean resetAt(Font font, double localX) {
+        int start = font.width("Collections  ");
+        return localX >= start && localX < start + font.width(RESET_LABEL);
     }
 
     /**
