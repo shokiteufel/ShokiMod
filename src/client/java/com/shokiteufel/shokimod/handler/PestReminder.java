@@ -61,6 +61,16 @@ public final class PestReminder {
     private static boolean leftWarned = false;
     private static boolean widgetWarned = false;
 
+    /**
+     * Der Garten wurde mit nicht vollen Fallen verlassen: seit wann, und wie viele waren voll.
+     * Null heisst: kein Wecker gestellt. Ueberlebt den Weltwechsel - der Garten zu verlassen
+     * ist ja einer.
+     */
+    private static long awayAt = 0L;
+    private static int awayFull = 0;
+    /** War beim letzten Blick der Garten das Ziel? Daran erkennt man den Moment des Gehens */
+    private static boolean wasInGarden = false;
+
     private PestReminder() {
     }
 
@@ -104,8 +114,14 @@ public final class PestReminder {
                 leftWarned = true;
                 remind(client, lastFull, true);
             }
+            armAway(now, threshold);
+            checkAway(client, now);
             return;
         }
+
+        // Wieder im Garden: Hier gibt es echte Zahlen, der Wecker ist nicht mehr noetig
+        awayAt = 0L;
+        wasInGarden = true;
 
         PestTraps.hintIfMissing();
         hintInChat(client);
@@ -133,12 +149,55 @@ public final class PestReminder {
         remind(client, full, false);
     }
 
-    /** Ist der Spieler im Garden? Nur dort schickt Hypixel die Fallen-Zeilen */
+    /**
+     * Ist der Spieler im Garden? Nur dort schickt Hypixel die Fallen-Zeilen.
+     *
+     * Zwei Wege, und einer genuegt: der Gebietsname aus der Tab-Liste, oder die Fallen-Zeilen
+     * selbst. Letztere gibt es nirgends sonst - wer sie sieht, steht im Garden, auch wenn die
+     * "Area:"-Zeile in seiner Tab-Liste fehlt oder anders heisst.
+     */
     private static boolean inGarden() {
+        if (PestTraps.available()) return true;
         String area = GameState.Server.map;
         if (area == null) return false;
         String lower = area.toLowerCase(Locale.ROOT);
         return lower.equals("garden") || lower.equals("the garden");
+    }
+
+    /**
+     * Beim Verlassen des Gartens: Waren die Fallen noch nicht voll, wird ein Wecker gestellt.
+     * Nach Ablauf der eingestellten Zeit sind sie es voraussichtlich - und von draussen sieht man
+     * das nicht.
+     */
+    private static void armAway(long now, int threshold) {
+        if (!wasInGarden) return;
+        wasInGarden = false;
+
+        long minutes = cfg().pestTrapAwayMinutes;
+        // Ohne gelesene Zahl oder ohne gestellte Fallen gibt es nichts, was voll werden koennte
+        if (minutes <= 0 || lastSeenAt <= 0 || lastPlaced <= 0 || lastFull >= threshold) return;
+
+        awayAt = now;
+        awayFull = lastFull;
+        ShokiMod.LOGGER.info("[Pests] Left the garden with {} of {} traps full - warning again in {} min",
+                lastFull, lastPlaced, minutes);
+    }
+
+    /** Ist die Zeit seit dem Verlassen um, kommt die Warnung - einmal */
+    private static void checkAway(Minecraft client, long now) {
+        if (awayAt <= 0) return;
+
+        long minutes = cfg().pestTrapAwayMinutes;
+        if (minutes <= 0) {
+            awayAt = 0L;
+            return;
+        }
+        if (now - awayAt < minutes * 60_000L) return;
+
+        awayAt = 0L;
+        client.player.sendSystemMessage(awayMessage(minutes, awayFull, lastPlaced));
+        sound(client);
+        ShokiMod.LOGGER.info("[Pests] Away alert after {} min", minutes);
     }
 
     /**
@@ -189,6 +248,26 @@ public final class PestReminder {
                                 new HoverEvent.ShowText(Component.literal(hover.toString())))))
                 .append(Component.literal(" "));
 
+        return line.append(goButton());
+    }
+
+    /** Die Zeile nach der Rueckkehr-Frist: Die Fallen sind voraussichtlich voll */
+    static Component awayMessage(long minutes, int full, int placed) {
+        String hover = "When you left: " + full + " of " + placed + " traps full"
+                + "\nThe garden does not report while you are away - go and look";
+        String text = "You left the garden " + minutes + (minutes == 1 ? " minute" : " minutes")
+                + " ago - the pest traps are probably full by now";
+
+        return Component.literal("[ShokiMod] ").withStyle(ChatFormatting.DARK_AQUA)
+                .append(Component.literal(text).withStyle(ChatFormatting.GOLD)
+                        .withStyle(style -> style.withHoverEvent(
+                                new HoverEvent.ShowText(Component.literal(hover)))))
+                .append(Component.literal(" "))
+                .append(goButton());
+    }
+
+    /** [Go]: fuehrt den eingestellten Befehl aus, falls einer eingestellt ist */
+    private static MutableComponent goButton() {
         String command = cfg().pestTrapCommand == null ? "" : cfg().pestTrapCommand.trim();
         MutableComponent click = Component.literal("[Go]").withStyle(ChatFormatting.GREEN, ChatFormatting.BOLD);
         if (!command.isEmpty()) {
@@ -197,7 +276,7 @@ public final class PestReminder {
                     .withClickEvent(new ClickEvent.RunCommand(run))
                     .withHoverEvent(new HoverEvent.ShowText(Component.literal("Click to run " + run))));
         }
-        return line.append(click);
+        return click;
     }
 
     /** Knopf in den Einstellungen: die Zeile mit einem Beispiel */
@@ -205,6 +284,7 @@ public final class PestReminder {
         Minecraft client = Minecraft.getInstance();
         if (client.player == null) return;
         client.player.sendSystemMessage(message(3, List.of(1, 2, 3), false));
+        client.player.sendSystemMessage(awayMessage(Math.max(1, cfg().pestTrapAwayMinutes), 1, 3));
         sound(client);
     }
 
