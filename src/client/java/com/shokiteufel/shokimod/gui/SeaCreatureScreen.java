@@ -35,10 +35,11 @@ public class SeaCreatureScreen extends Screen {
     private static final int ROW_HEIGHT = 22;
     private static final int SOUND_WIDTH = 20;
     private static final int NAME_WIDTH = 150;
-    private static final int OWN_WIDTH = 58;
-    private static final int PARTY_WIDTH = 58;
-    private static final int SHARE_WIDTH = 58;
-    private static final int HP_WIDTH = 50;
+    // Schmal genug, dass die Zeile auch bei der Oberflaeche "2" in einem Fenster von 854 Punkten Breite passt
+    private static final int OWN_WIDTH = 50;
+    private static final int PARTY_WIDTH = 50;
+    private static final int SHARE_WIDTH = 50;
+    private static final int HP_WIDTH = 44;
     private static final int TEST_WIDTH = 34;
     private static final int LIST_TOP = 74;
 
@@ -290,10 +291,13 @@ public class SeaCreatureScreen extends Screen {
         for (SeaCreatures.Creature c : SeaCreatures.all()) {
             if (RareCatchAlert.wantsOwn(c)) gewaehlt++;
         }
+        // Zwei kurze Zeilen statt einer langen: Bei der Oberflaeche "2" ist das Fenster nur 427 Punkte breit
+        graphics.centeredText(font, Component.literal(
+                        "Own: your catch  ·  Party: others' catch  ·  Share: tell your party  ·  HP: the HP list")
+                .withStyle(ChatFormatting.DARK_GRAY), centerX, 24, 0xFF888888);
         graphics.centeredText(font, Component.literal(
                         gewaehlt + " of " + SeaCreatures.all().size() + " announce themselves  ·  "
-                        + SeaCreatureHp.pickedCount() + " in the HP list"
-                        + "  ·  Own: your catch  ·  Party: others' catch  ·  Share: tell your party")
+                        + SeaCreatureHp.pickedCount() + " in the HP list")
                 .withStyle(ChatFormatting.DARK_GRAY), centerX, 60, 0xFF888888);
 
         if (liste.isEmpty()) {
