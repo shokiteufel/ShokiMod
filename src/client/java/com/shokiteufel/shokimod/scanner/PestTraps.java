@@ -37,10 +37,6 @@ public final class PestTraps {
     private static final Pattern FULL = Pattern.compile("Full Traps:\\s*(.+)$", Pattern.CASE_INSENSITIVE);
     /** "No Bait: None" oder "No Bait: #3" */
     private static final Pattern NO_BAIT = Pattern.compile("No Bait:\\s*(.+)$", Pattern.CASE_INSENSITIVE);
-    /** Geschuetzte und schmale Leerzeichen, die String.trim() stehen laesst */
-    private static final Pattern ODD_SPACE = Pattern.compile("[\\u00A0\\u2007\\u202F\\u2009\\u200A]");
-    /** Unsichtbare Zeichen ohne Breite */
-    private static final Pattern INVISIBLE = Pattern.compile("[\\u200B-\\u200D\\u2060\\uFEFF]");
     private static final Pattern NUMBER = Pattern.compile("#(\\d+)");
     /** So lange wird auf das Widget gewartet, bevor der Hinweis ins Log geht */
     private static final long HINT_AFTER_MILLIS = 60_000L;
@@ -95,7 +91,7 @@ public final class PestTraps {
     public static void processTabList(List<String> lines) {
         boolean found = false;
         for (int i = 0; i < lines.size(); i++) {
-            String line = tidy(lines.get(i));
+            String line = TabText.tidy(lines.get(i));
             if (line.isEmpty()) continue;
 
             Matcher traps = TRAPS.matcher(line);
@@ -132,13 +128,6 @@ public final class PestTraps {
         if (firstAskedAt == 0L) firstAskedAt = System.currentTimeMillis();
     }
 
-    /** Die Zeile ohne unsichtbare Zeichen und mit gewoehnlichen Leerzeichen */
-    private static String tidy(String line) {
-        if (line == null) return "";
-        String text = INVISIBLE.matcher(line).replaceAll("");
-        return ODD_SPACE.matcher(text).replaceAll(" ").trim();
-    }
-
     /**
      * Steht in der Tab-Liste etwas von Fallen, das nicht erkannt wurde, kommt es einmal je Welt
      * ins Log - samt Zeichencodes. Ohne das bliebe nur zu raten, was Hypixel dort wirklich
@@ -150,10 +139,7 @@ public final class PestTraps {
             if (raw == null || !raw.toLowerCase(java.util.Locale.ROOT).contains("trap")) continue;
 
             loggedOdd = true;
-            StringBuilder codes = new StringBuilder();
-            raw.codePoints().limit(40).forEach(c -> codes.append(c < 128 ? String.valueOf((char) c)
-                    : "\\u" + String.format("%04X", c)));
-            ShokiMod.LOGGER.info("[Pests] A tab line mentions traps but was not read: \"{}\"", codes);
+            ShokiMod.LOGGER.info("[Pests] A tab line mentions traps but was not read: \"{}\"", TabText.codes(raw));
             return;
         }
     }
