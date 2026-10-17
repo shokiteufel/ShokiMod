@@ -4,58 +4,86 @@ import com.shokiteufel.shokimod.ShokiMod;
 import com.shokiteufel.shokimod.data.FeatureGate;
 import com.shokiteufel.shokimod.data.GameState;
 import com.shokiteufel.shokimod.data.ModConfig;
+import com.shokiteufel.shokimod.data.ModConfig.DeployableEndingsCategory;
 import com.shokiteufel.shokimod.data.ModConfig.DeployablesCategory;
+import com.shokiteufel.shokimod.data.ModConfig.UmberellaCategory;
 import com.shokiteufel.shokimod.render.AlertBanner;
 import com.shokiteufel.shokimod.util.AlertVolume;
 import com.shokiteufel.shokimod.util.CustomSoundPlayer;
 
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Meldet, wenn eines deiner Deployables ablaeuft: Power Orb, Flare, Umberella, Laterne, Totem of
+ * Meldet, wenn eines deiner Deployables verschwindet: Power Orb, Flare, Umberella, Laterne, Totem of
  * Corruption oder Black Hole.
  *
- * <p>Gelesen wird die Zeile, die Hypixel selbst in den Chat schreibt - "Your Plasmaflux Power Orb
- * despawned." oder "Your Umberella despawned.". Sie kommt nur fuer das eigene Deployable. Ein
- * fremder Orb in der Naehe, der ablaeuft, steht dort nicht, und den muss man auch nicht ersetzen.
+ * <p>Gelesen werden die Zeilen, die Hypixel selbst in den Chat schreibt - "Your Plasmaflux Power Orb
+ * despawned." oder "Your Umberella despawned." (abgelaufen), "Your previous X was removed!" (durch ein
+ * neues ersetzt) und "Your flare disappeared because you were too far away!" (zu weit weg). Sie kommen
+ * nur fuer das eigene Deployable. Ein fremder Orb in der Naehe, der ablaeuft, steht dort nicht, und den
+ * muss man auch nicht ersetzen.
  *
- * <p><b>Wie andere Mods es machen.</b> SkyHanni (Deployable.kt), Riccio's Fishing Utils und
- * SkyCubed lesen den Namen des Ruestungsstaenders ueber dem Deployable ("Umberella 298s",
- * "Plasmaflux 28s") und rechnen die Restzeit selbst aus. Das taugt fuer eine Anzeige der Restzeit,
- * aber fuer "ist abgelaufen" ist es der Umweg: Der Staender ist nur da, solange er gerendert
- * wird - wer weitergelaufen ist, verliert ihn, und ein fremdes Deployable in Reichweite sieht
- * genauso aus wie das eigene (SkyHanni fragt deshalb nach der Entfernung). Die Chatzeile nennt den
- * Zeitpunkt, an dem das eigene Deployable wirklich verschwindet, und sonst nichts.
+ * <p><b>Wie andere Mods es machen.</b> SkyHanni (Deployable.kt), Riccio's Fishing Utils und SkyCubed
+ * lesen den Namen des Ruestungsstaenders ueber dem Deployable ("Umberella 298s", "Plasmaflux 28s") und
+ * rechnen die Restzeit selbst. Das taugt fuer eine Anzeige der Restzeit, aber fuer "ist abgelaufen" ist es
+ * der Umweg: Der Staender ist nur da, solange er gerendert wird - wer weitergelaufen ist, verliert ihn,
+ * und ein fremdes Deployable in Reichweite sieht genauso aus wie das eigene (SkyHanni fragt deshalb nach
+ * der Entfernung). Die Chatzeile nennt den Zeitpunkt, an dem das eigene Deployable wirklich verschwindet,
+ * und sonst nichts. Die beiden Zeilen "previous ... removed" und "too far away" kennt auch Feesh
+ * (DeployablesTimer.kt, Apache 2.0); beides sind Texte von Hypixel.
  *
- * <p>Zwei weitere Zeilen kennt Feesh (DeployablesTimer.kt, Apache 2.0), beide Texte von Hypixel:
- * "Your flare disappeared because you were too far away!" - der Flare ist weg, bevor er ablief,
- * das wird hier wie ein Ablauf gemeldet - und "Your previous X was removed!". Die zweite kommt, wenn
- * man ein neues Deployable setzt und das alte dadurch verschwindet; das ist gewollt und bekommt
- * keine Meldung.
+ * <p><b>Kein Alarm beim Kartenwechsel.</b> Wer die Insel wechselt, laesst alles zurueck, was er
+ * aufgestellt hat - und Hypixel schreibt dazu seine Zeilen. Das ist kein Ablauf. Ob die Zeile vor oder
+ * nach dem Wechsel kommt, weiss man nicht, deshalb gilt beides: Kommt sie kurz nach einem Wechsel, wird
+ * sie nicht gemeldet; und jede Meldung wartet ein paar Sekunden und verfaellt, wenn in dieser Zeit die
+ * Welt wechselt. Ein Wechsel ist, wenn sich das Welt-Objekt des Clients aendert - jede Insel, jede
+ * Lobby, jeder Serverwechsel erzeugt ein neues.
  *
- * <p>Welche Sorten gemeldet werden, steht in den Einstellungen. Ein Name, den keine Sorte kennt,
- * wird nicht gemeldet, aber einmal im Log genannt - so faellt auf, wenn Hypixel ein neues
- * Deployable bringt.
+ * <p><b>Die Sorten.</b> Welche man hoeren will, steht in den Einstellungen. Die Umberella ist nur fuer
+ * Trophy Fishing und hat deshalb einen eigenen Reiter mit eigenem Schalter, Ton und Banner. Ein Name,
+ * den keine Sorte kennt, wird nicht gemeldet, aber einmal im Log genannt - so faellt auf, wenn Hypixel
+ * ein neues Deployable bringt.
+ *
+ * <p><b>Ausblenden.</b> Hypixels eigene Zeilen lassen sich verstecken (je Reiter einzeln, aus). Das
+ * geht auch bei ausgeschaltetem Alarm, und die Meldung sieht die Zeile vorher.
  */
 public final class DeployableReminder {
 
     /** "Your Plasmaflux Power Orb despawned." - ohne Farbcodes */
     private static final Pattern DESPAWNED = Pattern.compile("^Your (.+) despawned\\.$");
+    private static final Pattern REPLACED = Pattern.compile("^Your previous (.+) was removed!$");
     private static final Pattern FLARE_TOO_FAR = Pattern.compile(
             "^Your flare disappeared because you were too far away!$");
     private static final int UNKNOWN_LIMIT = 50;
     private static final long BANNER_MILLIS = 4000L;
+    /** So lange nach einem Wechsel der Welt kommt keine Meldung */
+    static final long QUIET_MILLIS = 10_000L;
+    /** So lange wartet eine Meldung, ob gleich die Welt wechselt */
+    static final long DELAY_MILLIS = 3_000L;
 
     private static final Set<String> unknownLogged = new HashSet<>();
+    private static final List<Pending> pending = new ArrayList<>();
+
+    /** Das Welt-Objekt vom letzten Tick - ein anderes heisst: Kartenwechsel */
+    private static Object lastLevel;
+    private static long changedAt = 0L;
+
+    /** Fuer die Zeile, die zweimal durchlaeuft: einmal fuers Melden, einmal fuers Ausblenden */
+    private static String lastText;
+    private static Hit lastHit;
 
     /** Die Sorten, aus denen man waehlt. Die Farbe ist die des Banners */
     public enum Kind {
@@ -73,25 +101,41 @@ public final class DeployableReminder {
         }
     }
 
-    /** Was eine Chatzeile gemeldet hat: welche Sorte, unter welchem Namen, und ob es zu weit weg war */
-    record Hit(Kind kind, String name, boolean tooFar) {
+    /** Wie es verschwunden ist */
+    enum Ending {
+        /** Die Zeit ist um */
+        RAN_OUT,
+        /** Ein neues wurde aufgestellt */
+        REPLACED,
+        /** Der Flare blieb zurueck */
+        TOO_FAR
+    }
+
+    /** Was eine Chatzeile gemeldet hat: welche Sorte, unter welchem Namen, und wie es verschwand */
+    record Hit(Kind kind, String name, Ending ending) {
+    }
+
+    /** Wie gemeldet wird: die Schalter des Reiters, der zur Meldung gehoert */
+    record Style(boolean banner, boolean chatLine, boolean sound, String soundFile) {
+    }
+
+    private record Pending(Hit hit, Style style, long fireAt) {
     }
 
     private DeployableReminder() {
+    }
+
+    public static void register() {
+        ClientTickEvents.END_CLIENT_TICK.register(DeployableReminder::tick);
     }
 
     private static DeployablesCategory cfg() {
         return ModConfig.INSTANCE.deployables;
     }
 
-    /** Eine Chatzeile, ohne Farbcodes */
-    public static void onChatMessage(String message) {
-        if (!FeatureGate.deployables() || !GameState.Server.isSkyblock()) return;
-
-        Hit hit = read(message);
-        if (hit == null || !wanted(hit.kind())) return;
-        fire(hit);
-    }
+    // ==========================================
+    // Zeilen lesen
+    // ==========================================
 
     /**
      * Was die Zeile meldet - oder null, wenn sie mit Deployables nichts zu tun hat oder den Namen
@@ -101,20 +145,34 @@ public final class DeployableReminder {
         String text = message == null ? "" : message.trim();
         if (text.isEmpty()) return null;
 
-        if (FLARE_TOO_FAR.matcher(text).matches()) return new Hit(Kind.FLARE, "Flare", true);
+        if (FLARE_TOO_FAR.matcher(text).matches()) return new Hit(Kind.FLARE, "Flare", Ending.TOO_FAR);
 
+        Ending ending = Ending.RAN_OUT;
         Matcher m = DESPAWNED.matcher(text);
-        if (!m.matches()) return null;
+        if (!m.matches()) {
+            m = REPLACED.matcher(text);
+            if (!m.matches()) return null;
+            ending = Ending.REPLACED;
+        }
 
         String name = m.group(1).trim();
         Kind kind = kindOf(name);
         if (kind == null) {
             if (unknownLogged.size() < UNKNOWN_LIMIT && unknownLogged.add(name)) {
-                ShokiMod.LOGGER.info("[Deployables] \"{}\" despawned - no kind knows that name, so it is not reported", name);
+                ShokiMod.LOGGER.info("[Deployables] \"{}\" ({}) - no kind knows that name, so it is not reported", name, ending);
             }
             return null;
         }
-        return new Hit(kind, name, false);
+        return new Hit(kind, name, ending);
+    }
+
+    private static Hit readCached(String message) {
+        if (message == null) return null;
+        if (!message.equals(lastText)) {
+            lastText = message;
+            lastHit = read(message);
+        }
+        return lastHit;
     }
 
     /** Die Sorte zu einem Namen wie "Plasmaflux Power Orb", "Glacite Lantern" oder "Umberella" */
@@ -129,38 +187,165 @@ public final class DeployableReminder {
         return null;
     }
 
-    /** Hat man diese Sorte in den Einstellungen angehakt? */
-    static boolean wanted(Kind kind) {
+    // ==========================================
+    // Wer gemeldet wird, und wie
+    // ==========================================
+
+    /**
+     * Will man von dieser Sorte hoeren? Die Umberella entscheidet ihr eigener Reiter, alle anderen der
+     * Hauptschalter und der Haken der Sorte.
+     */
+    static boolean kindOn(Kind kind) {
         DeployablesCategory c = cfg();
         return switch (kind) {
-            case POWER_ORB -> c.powerOrbs;
-            case FLARE -> c.flares;
-            case UMBERELLA -> c.umberella;
-            case LANTERN -> c.lanterns;
-            case TOTEM -> c.totem;
-            case BLACK_HOLE -> c.blackHole;
+            case UMBERELLA -> c.umberellaAlert.alert;
+            case POWER_ORB -> c.enabled && c.powerOrbs;
+            case FLARE -> c.enabled && c.flares;
+            case LANTERN -> c.enabled && c.lanterns;
+            case TOTEM -> c.enabled && c.totem;
+            case BLACK_HOLE -> c.enabled && c.blackHole;
         };
     }
 
-    private static void fire(Hit hit) {
+    static Style mainStyle() {
         DeployablesCategory c = cfg();
-        String headline = hit.tooFar() ? "Flare vanished" : "Deployable ran out";
-        String where = hit.tooFar() ? "you were too far away" : "place a new one";
-        if (c.banner) AlertBanner.show(headline, hit.name(), where, hit.kind().rgb, BANNER_MILLIS);
+        return new Style(c.banner, c.chatLine, c.sound, c.soundFile);
+    }
+
+    static Style umberellaStyle() {
+        UmberellaCategory u = cfg().umberellaAlert;
+        return new Style(u.banner, u.chatLine, u.sound, u.soundFile);
+    }
+
+    static Style endingsStyle() {
+        DeployableEndingsCategory e = cfg().endings;
+        return new Style(e.banner, e.chatLine, e.sound, e.soundFile);
+    }
+
+    /** Wie diese Zeile gemeldet wird - oder null, wenn sie keine Meldung bekommt */
+    static Style styleFor(Hit hit) {
+        if (!kindOn(hit.kind())) return null;
+
+        DeployableEndingsCategory e = cfg().endings;
+        return switch (hit.ending()) {
+            case RAN_OUT -> hit.kind() == Kind.UMBERELLA ? umberellaStyle() : mainStyle();
+            case REPLACED -> e.replacedAlert ? endingsStyle() : null;
+            case TOO_FAR -> e.farAwayAlert ? endingsStyle() : null;
+        };
+    }
+
+    // ==========================================
+    // Chat, Kartenwechsel, Tick
+    // ==========================================
+
+    /** Eine Chatzeile, ohne Farbcodes */
+    public static void onChatMessage(String message) {
+        onChatMessage(message, System.currentTimeMillis());
+    }
+
+    static void onChatMessage(String message, long now) {
+        if (!FeatureGate.deployables() || !GameState.Server.isSkyblock()) return;
+
+        Hit hit = readCached(message);
+        if (hit == null) return;
+        Style style = styleFor(hit);
+        if (style == null) return;
+
+        if (now - changedAt < QUIET_MILLIS) {
+            ShokiMod.LOGGER.info("[Deployables] {} ({}) right after a map change - no alert", hit.name(), hit.ending());
+            return;
+        }
+        pending.add(new Pending(hit, style, now + DELAY_MILLIS));
+    }
+
+    /**
+     * Soll Hypixels eigene Zeile verschwinden? Je Reiter ein Schalter, alle aus. Das gilt auch bei
+     * ausgeschaltetem Alarm - wer nur die rote Zeile los sein will, braucht ihn nicht.
+     */
+    public static boolean hides(String message) {
+        DeployablesCategory c = cfg();
+        if (!c.hideLine && !c.umberellaAlert.hideLine && !c.endings.hideLines) return false;
+        if (!GameState.Server.isSkyblock()) return false;
+
+        Hit hit = readCached(message);
+        if (hit == null) return false;
+        return switch (hit.ending()) {
+            case RAN_OUT -> hit.kind() == Kind.UMBERELLA ? c.umberellaAlert.hideLine : c.hideLine;
+            case REPLACED, TOO_FAR -> c.endings.hideLines;
+        };
+    }
+
+    /** Merkt sich den Wechsel der Welt und verwirft, was noch wartet */
+    static void track(Object level, long now) {
+        if (level == lastLevel) return;
+        lastLevel = level;
+        changedAt = now;
+        if (!pending.isEmpty()) {
+            ShokiMod.LOGGER.info("[Deployables] map change - {} waiting alert(s) dropped", pending.size());
+            pending.clear();
+        }
+    }
+
+    /** Bringt die Meldungen, deren Wartezeit um ist */
+    static void due(long now) {
+        if (pending.isEmpty()) return;
+        for (Iterator<Pending> it = pending.iterator(); it.hasNext(); ) {
+            Pending p = it.next();
+            if (now < p.fireAt()) continue;
+            it.remove();
+            fire(p.hit(), p.style());
+        }
+    }
+
+    private static void tick(Minecraft client) {
+        long now = System.currentTimeMillis();
+        track(client.level, now);
+        due(now);
+    }
+
+    /** Fuer die Probe: wie viele Meldungen warten gerade */
+    static int waiting() {
+        return pending.size();
+    }
+
+    // ==========================================
+    // Meldung
+    // ==========================================
+
+    private static void fire(Hit hit, Style style) {
+        String headline;
+        String where;
+        String chatText;
+        switch (hit.ending()) {
+            case REPLACED -> {
+                headline = "Deployable replaced";
+                where = "a new one took its place";
+                chatText = " was replaced by a new one.";
+            }
+            case TOO_FAR -> {
+                headline = "Flare vanished";
+                where = "you were too far away";
+                chatText = " vanished - you were too far away.";
+            }
+            default -> {
+                headline = "Deployable ran out";
+                where = "place a new one";
+                chatText = " ran out.";
+            }
+        }
+        if (style.banner()) AlertBanner.show(headline, hit.name(), where, hit.kind().rgb, BANNER_MILLIS);
 
         // Chat und Ton brauchen eine Welt
         Minecraft client = Minecraft.getInstance();
         if (client == null || client.player == null) return;
-        if (c.chatLine) {
+        if (style.chatLine()) {
             client.player.sendSystemMessage(Component.literal("[ShokiMod] ")
                     .withStyle(ChatFormatting.DARK_AQUA)
                     .append(Component.literal(hit.name()).withStyle(ChatFormatting.WHITE))
-                    .append(Component.literal(hit.tooFar()
-                            ? " vanished - you were too far away."
-                            : " ran out.").withStyle(ChatFormatting.YELLOW)));
+                    .append(Component.literal(chatText).withStyle(ChatFormatting.YELLOW)));
         }
-        sound(client);
-        ShokiMod.LOGGER.info("[Deployables] {} {}", hit.name(), hit.tooFar() ? "vanished (too far away)" : "ran out");
+        sound(client, style);
+        ShokiMod.LOGGER.info("[Deployables] {} - {}", hit.name(), hit.ending());
     }
 
     /**
@@ -169,11 +354,10 @@ public final class DeployableReminder {
      * Fehlt die gewaehlte Datei (umbenannt, geloescht), faellt es aufs Pling zurueck - eine Meldung,
      * die stumm bleibt, ist schlimmer als eine mit dem falschen Ton.
      */
-    private static void sound(Minecraft client) {
-        DeployablesCategory c = cfg();
-        if (!c.sound) return;
+    private static void sound(Minecraft client, Style style) {
+        if (!style.sound()) return;
 
-        String file = c.soundFile;
+        String file = style.soundFile();
         if (file != null && !file.isBlank() && GardenReminder.soundExists(file.trim())) {
             CustomSoundPlayer.play(file.trim(), AlertVolume.factor(), DeployableReminder.class);
             return;
@@ -183,6 +367,16 @@ public final class DeployableReminder {
 
     /** Knopf in den Einstellungen: einmal vorfuehren, mit einem Plasmaflux Power Orb */
     public static void test() {
-        fire(new Hit(Kind.POWER_ORB, "Plasmaflux Power Orb", false));
+        fire(new Hit(Kind.POWER_ORB, "Plasmaflux Power Orb", Ending.RAN_OUT), mainStyle());
+    }
+
+    /** Knopf im Reiter Umberella */
+    public static void testUmberella() {
+        fire(new Hit(Kind.UMBERELLA, "Umberella", Ending.RAN_OUT), umberellaStyle());
+    }
+
+    /** Knopf im Reiter Other endings: ein Flare, der zu weit weg war */
+    public static void testEndings() {
+        fire(new Hit(Kind.FLARE, "Flare", Ending.TOO_FAR), endingsStyle());
     }
 }

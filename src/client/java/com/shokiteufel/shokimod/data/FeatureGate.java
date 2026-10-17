@@ -139,9 +139,9 @@ public final class FeatureGate {
         return ModConfig.INSTANCE.garden.visitors.alert;
     }
 
-    /** Die Meldung, wenn ein Deployable ablaeuft, liest nur den Chat */
+    /** Die Meldung, wenn ein Deployable verschwindet, liest nur den Chat. Die Umberella hat ihren eigenen Schalter */
     public static boolean deployables() {
-        return ModConfig.INSTANCE.deployables.enabled;
+        return ModConfig.INSTANCE.deployables.enabled || ModConfig.INSTANCE.deployables.umberellaAlert.alert;
     }
 
     public static boolean location() {

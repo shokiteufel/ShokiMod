@@ -113,6 +113,8 @@ public class NetworkHandler {
 
             // Ein "false" blendet die Originalzeile aus
             boolean zeigen = ChatRuleHandler.handleMessage(message, msg, unformattedMsg);
+            // Hypixels Zeilen zu den Deployables lassen sich ausblenden - die Meldung hat sie schon gesehen
+            if (zeigen && com.shokiteufel.shokimod.handler.DeployableReminder.hides(unformattedMsg)) zeigen = false;
 
             // Die Sammelzeile der Saecke zuletzt - erst muss jeder sie gelesen haben.
             //
