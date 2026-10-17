@@ -131,12 +131,17 @@ public final class FeatureGate {
 
     /** Die Erinnerung an volle Pest-Fallen liest die Tab-Liste mit */
     public static boolean pestTraps() {
-        return ModConfig.INSTANCE.chat.reminder.pestTrapAlert;
+        return ModConfig.INSTANCE.garden.traps.alert;
+    }
+
+    /** Die Erinnerung an wartende Besucher liest die Tab-Liste mit */
+    public static boolean gardenVisitors() {
+        return ModConfig.INSTANCE.garden.visitors.alert;
     }
 
     public static boolean location() {
         return contest() || safari() || nearbyPanel() || rareLoot() || huntingTracker() || mobMarkers() || chatRules()
-                || cakeReminder() || hotspots() || collectionTracker() || pestTraps()
+                || cakeReminder() || hotspots() || collectionTracker() || pestTraps() || gardenVisitors()
                 || ModConfig.INSTANCE.effects.enabled;
     }
 }

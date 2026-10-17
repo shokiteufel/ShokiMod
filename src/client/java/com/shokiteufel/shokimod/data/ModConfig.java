@@ -20,6 +20,7 @@ import com.shokiteufel.shokimod.handler.HuntingTracker;
 import com.shokiteufel.shokimod.handler.PestReminder;
 import com.shokiteufel.shokimod.handler.ProfitTracker;
 import com.shokiteufel.shokimod.handler.RareLootHandler;
+import com.shokiteufel.shokimod.handler.VisitorReminder;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.annotations.Expose;
@@ -78,6 +79,80 @@ public class ModConfig extends Config {
             c.dyeShareGuild = c.shareGuild;
         }
         c.dyeChannelsMigrated = true;
+    }
+
+    /**
+     * Bis 1.15.14 wohnte die Fallen-Warnung unter Alerts > Reminder. Wer dort etwas eingestellt hatte,
+     * behaelt es: Die alten Werte wandern einmal nach Garden > Traps und werden dort geleert - ein
+     * leeres Feld wird nicht gespeichert, ein zweiter Lauf findet also nichts mehr.
+     *
+     * "Away alert minutes" war ein Regler; jetzt ist es ein Schalter mit festen 60 Minuten. Wer den
+     * Regler auf 0 hatte, hat den Schalter aus, jeder andere Wert heisst: an.
+     *
+     * @return ob etwas uebernommen wurde (dann ist zu speichern)
+     */
+    static boolean migratePestTraps(ReminderCategory old, GardenTrapsCategory traps) {
+        if (old == null || traps == null) return false;
+        boolean moved = false;
+        if (old.pestTrapAlert != null) {
+            traps.alert = old.pestTrapAlert;
+            old.pestTrapAlert = null;
+            moved = true;
+        }
+        if (old.pestTrapAt != null) {
+            traps.warnAt = old.pestTrapAt;
+            old.pestTrapAt = null;
+            moved = true;
+        }
+        if (old.pestTrapRepeatMinutes != null) {
+            traps.repeatMinutes = old.pestTrapRepeatMinutes;
+            old.pestTrapRepeatMinutes = null;
+            moved = true;
+        }
+        if (old.pestTrapAwayMinutes != null) {
+            traps.alertOutside = old.pestTrapAwayMinutes > 0;
+            old.pestTrapAwayMinutes = null;
+            moved = true;
+        }
+        if (old.pestTrapCommand != null) {
+            traps.command = old.pestTrapCommand;
+            old.pestTrapCommand = null;
+            moved = true;
+        }
+        if (old.pestTrapSound != null) {
+            traps.sound = old.pestTrapSound;
+            old.pestTrapSound = null;
+            moved = true;
+        }
+        if (old.pestTrapSoundFile != null) {
+            traps.soundFile = old.pestTrapSoundFile;
+            old.pestTrapSoundFile = null;
+            moved = true;
+        }
+        return moved;
+    }
+
+    /**
+     * "Warn at" kann nicht mehr verlangen, als es gibt: drei Fallen stehen im Garten, sechs Besucher
+     * passen in die Schlange. Bis 1.15.14 liess sich der Regler fuer die Fallen auf vier ziehen - mit
+     * vier kam die Warnung nie.
+     *
+     * @return ob ein Wert zurechtgerueckt wurde (dann ist zu speichern)
+     */
+    static boolean clampGarden(GardenCategory garden) {
+        if (garden == null) return false;
+        boolean changed = false;
+        int traps = Math.max(1, Math.min(3, garden.traps.warnAt));
+        if (traps != garden.traps.warnAt) {
+            garden.traps.warnAt = traps;
+            changed = true;
+        }
+        int visitors = Math.max(1, Math.min(6, garden.visitors.warnAt));
+        if (visitors != garden.visitors.warnAt) {
+            garden.visitors.warnAt = visitors;
+            changed = true;
+        }
+        return changed;
     }
 
     /** Die Datei einlesen - null, wenn sie fehlt, leer oder kaputt ist */
@@ -151,12 +226,13 @@ public class ModConfig extends Config {
         if (INSTANCE.fishing.tracker.counts == null) INSTANCE.fishing.tracker.counts = new HashMap<>();
         if (INSTANCE.fishing.tracker.areaCounts == null) INSTANCE.fishing.tracker.areaCounts = new HashMap<>();
         if (INSTANCE.chat.reminder == null) INSTANCE.chat.reminder = new ReminderCategory();
-        // Der Regler "Warn at" ging bis 1.15.13 bis vier, im Garden stehen aber nur drei Fallen: Mit vier
-        // kam die Warnung nie
-        if (INSTANCE.chat.reminder.pestTrapAt > 3) {
-            INSTANCE.chat.reminder.pestTrapAt = 3;
-            INSTANCE.saveNow();
-        }
+        if (INSTANCE.garden == null) INSTANCE.garden = new GardenCategory();
+        if (INSTANCE.garden.traps == null) INSTANCE.garden.traps = new GardenTrapsCategory();
+        if (INSTANCE.garden.visitors == null) INSTANCE.garden.visitors = new GardenVisitorsCategory();
+        // Die Fallen-Warnung wohnte bis 1.15.14 unter Alerts > Reminder
+        boolean gardenChanged = migratePestTraps(INSTANCE.chat.reminder, INSTANCE.garden.traps);
+        if (clampGarden(INSTANCE.garden)) gardenChanged = true;
+        if (gardenChanged) INSTANCE.saveNow();
         if (INSTANCE.chat.reminder.cakes == null) INSTANCE.chat.reminder.cakes = new HashMap<>();
         if (INSTANCE.hunting.tracker == null) INSTANCE.hunting.tracker = new HuntingTrackerCategory();
         if (INSTANCE.hunting.tracker.counts == null) INSTANCE.hunting.tracker.counts = new HashMap<>();
@@ -383,12 +459,19 @@ public class ModConfig extends Config {
                 Minecraft.getInstance().setScreenAndShow(
                         new com.shokiteufel.shokimod.gui.ProfitItemScreen(Minecraft.getInstance().gui.screen())));
         INSTANCE.chat.reminder.testCake = () -> Minecraft.getInstance().execute(CakeReminder::test);
-        INSTANCE.chat.reminder.testPestTrap = () -> Minecraft.getInstance().execute(PestReminder::test);
-        INSTANCE.chat.reminder.openPestTrapSound = () -> Minecraft.getInstance().execute(() ->
+        INSTANCE.garden.traps.test = () -> Minecraft.getInstance().execute(PestReminder::test);
+        INSTANCE.garden.traps.openSound = () -> Minecraft.getInstance().execute(() ->
                 Minecraft.getInstance().setScreenAndShow(new SoundPickerScreen(
                         Minecraft.getInstance().gui.screen(),
-                        () -> INSTANCE.chat.reminder.pestTrapSoundFile,
-                        picked -> INSTANCE.chat.reminder.pestTrapSoundFile = picked,
+                        () -> INSTANCE.garden.traps.soundFile,
+                        picked -> INSTANCE.garden.traps.soundFile = picked,
+                        1.0f)));
+        INSTANCE.garden.visitors.test = () -> Minecraft.getInstance().execute(VisitorReminder::test);
+        INSTANCE.garden.visitors.openSound = () -> Minecraft.getInstance().execute(() ->
+                Minecraft.getInstance().setScreenAndShow(new SoundPickerScreen(
+                        Minecraft.getInstance().gui.screen(),
+                        () -> INSTANCE.garden.visitors.soundFile,
+                        picked -> INSTANCE.garden.visitors.soundFile = picked,
                         1.0f)));
         INSTANCE.mining.mineshaft.openShaftRules = () -> Minecraft.getInstance().execute(() ->
                 Minecraft.getInstance().setScreenAndShow(
@@ -666,6 +749,10 @@ public class ModConfig extends Config {
     @Expose
     @Category(name = "Fishing", desc = "Fishing helpers.")
     public FishingCategory fishing = new FishingCategory();
+
+    @Expose
+    @Category(name = "Garden", desc = "Warnings for the garden: full pest traps and visitors waiting in line. The numbers come from the tab list.")
+    public GardenCategory garden = new GardenCategory();
 
     @Expose
     @Category(name = "Hunting", desc = "Shard hunting.")
@@ -1509,6 +1596,130 @@ public class ModConfig extends Config {
         @Expose
         @Category(name = "Sea creature tracker", desc = "Counts your catches, Double Hooks and Blood Shots - as Feesh does.")
         public SeaTrackerCategory tracker = new SeaTrackerCategory();
+    }
+
+    /**
+     * Der Garten: Warnungen, die aus der Tab-Liste kommen - volle Pest-Fallen und wartende Besucher.
+     *
+     * Beide gehorchen derselben Regel (siehe GardenReminder): im Garden sobald der Stand reicht,
+     * beim Verlassen einmal, und - wenn "Alert outside of Garden" an ist - eine Stunde nach dem
+     * Gehen, wenn der Stand beim Gehen noch nicht reichte.
+     */
+    public static class GardenCategory {
+
+        @ConfigOption(name = "Garden", desc = "Everything about the garden lives in the sub tabs on the left.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @Category(name = "Traps", desc = "Warns once the pest traps in your garden are full. A full trap catches nothing more.")
+        public GardenTrapsCategory traps = new GardenTrapsCategory();
+
+        @Expose
+        @Category(name = "Visitors", desc = "Warns once the visitors in your garden are queued up. With a full queue no new visitor arrives.")
+        public GardenVisitorsCategory visitors = new GardenVisitorsCategory();
+    }
+
+    /** Die Pest-Fallen: gelesen aus dem Widget der Tab-Liste */
+    public static class GardenTrapsCategory {
+
+        @ConfigOption(name = "Pest traps", desc = "Warns once the pest traps in your garden are full. A full trap catches nothing more.\nThe state is read from the tab list - switch on Hypixel's Pest Traps widget, otherwise there is nothing to read.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Full trap alert", desc = "Warns in chat when enough traps are full.")
+        @ConfigEditorBoolean
+        public boolean alert = false;
+
+        @Expose
+        @ConfigOption(name = "Warn at", desc = "How many full traps it takes. One warns at the first, three only once every trap is full.")
+        @ConfigEditorSlider(minValue = 1f, maxValue = 3f, minStep = 1f)
+        public int warnAt = 3;
+
+        @Expose
+        @ConfigOption(name = "Repeat minutes", desc = "How often the warning repeats while the traps stay full. 0: only once until you empty them.")
+        @ConfigEditorSlider(minValue = 0f, maxValue = 60f, minStep = 1f)
+        public int repeatMinutes = 10;
+
+        @Expose
+        @ConfigOption(name = "Alert outside of Garden", desc = "Left the garden with traps that were not full yet: warns again after 60 minutes, when they should be full by now. Coming back to the garden cancels it.")
+        @ConfigEditorBoolean
+        public boolean alertOutside = true;
+
+        @Expose
+        @ConfigOption(name = "Trap command", desc = "Runs when you click [Go] in the warning.")
+        @ConfigEditorText
+        public String command = "/warp garden";
+
+        @Expose
+        @ConfigOption(name = "Trap sound", desc = "Plays a sound with the warning, at the alert volume. Off: the warning stays silent.")
+        @ConfigEditorBoolean
+        public boolean sound = true;
+
+        @ConfigOption(name = "Trap sound file", desc = "Your own file from config/shokimod/sounds. Empty (No sound) plays the standard ping.")
+        @ConfigEditorButton(buttonText = "Pick")
+        public transient Runnable openSound = () -> {
+        };
+
+        @Expose
+        public String soundFile = "";
+
+        @ConfigOption(name = "Test trap warning", desc = "Shows the warning line with three full traps, and the one for after you left.")
+        @ConfigEditorButton(buttonText = "Test")
+        public transient Runnable test = () -> {
+        };
+    }
+
+    /** Die Besucher: gelesen aus dem Widget der Tab-Liste */
+    public static class GardenVisitorsCategory {
+
+        @ConfigOption(name = "Visitors", desc = "Warns once the visitors in your garden are queued up. With a full queue no new visitor arrives.\nThe state is read from the tab list - switch on Hypixel's Visitors widget, otherwise there is nothing to read.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Full visitors alert", desc = "Warns in chat when enough visitors are waiting.")
+        @ConfigEditorBoolean
+        public boolean alert = false;
+
+        @Expose
+        @ConfigOption(name = "Warn at", desc = "How many visitors it takes. One warns at the first, six only once the queue is full. \"Queue Full!\" in the tab list always counts.")
+        @ConfigEditorSlider(minValue = 1f, maxValue = 6f, minStep = 1f)
+        public int warnAt = 6;
+
+        @Expose
+        @ConfigOption(name = "Repeat minutes", desc = "How often the warning repeats while the visitors stay queued. 0: only once until you have served them.")
+        @ConfigEditorSlider(minValue = 0f, maxValue = 60f, minStep = 1f)
+        public int repeatMinutes = 10;
+
+        @Expose
+        @ConfigOption(name = "Alert outside of Garden", desc = "Left the garden before the queue was full: warns again after 60 minutes, when it should be by now. Coming back to the garden cancels it.")
+        @ConfigEditorBoolean
+        public boolean alertOutside = true;
+
+        @Expose
+        @ConfigOption(name = "Visitor command", desc = "Runs when you click [Go] in the warning.")
+        @ConfigEditorText
+        public String command = "/warp garden";
+
+        @Expose
+        @ConfigOption(name = "Visitor sound", desc = "Plays a sound with the warning, at the alert volume. Off: the warning stays silent.")
+        @ConfigEditorBoolean
+        public boolean sound = true;
+
+        @ConfigOption(name = "Visitor sound file", desc = "Your own file from config/shokimod/sounds. Empty (No sound) plays the standard ping.")
+        @ConfigEditorButton(buttonText = "Pick")
+        public transient Runnable openSound = () -> {
+        };
+
+        @Expose
+        public String soundFile = "";
+
+        @ConfigOption(name = "Test visitor warning", desc = "Shows the warning line with a full queue, and the one for after you left.")
+        @ConfigEditorButton(buttonText = "Test")
+        public transient Runnable test = () -> {
+        };
     }
 
     /**
@@ -3085,52 +3296,24 @@ public class ModConfig extends Config {
         public transient Runnable clearCakes = () -> {
         };
 
-        @ConfigOption(name = "Pest traps", desc = "Warns once the pest traps in your garden are full. A full trap catches nothing more.\nThe state is read from the tab list - switch on Hypixel's Pest Traps widget, otherwise there is nothing to read.")
-        @ConfigEditorInfoText
-        public transient String pestAbout = "";
-
+        // Bis 1.15.14 stand hier auch die Warnung vor vollen Pest-Fallen. Sie wohnt jetzt unter
+        // Garden > Traps; diese Felder gibt es nur noch, damit alte Dateien gelesen werden koennen
+        // (siehe migratePestTraps). Sind sie uebernommen, stehen sie auf null und werden nicht mehr
+        // geschrieben
         @Expose
-        @ConfigOption(name = "Full trap alert", desc = "Warns in chat when enough traps are full.")
-        @ConfigEditorBoolean
-        public boolean pestTrapAlert = false;
-
+        public Boolean pestTrapAlert = null;
         @Expose
-        @ConfigOption(name = "Warn at", desc = "How many full traps it takes. One warns at the first, three only once every trap is full.")
-        @ConfigEditorSlider(minValue = 1f, maxValue = 3f, minStep = 1f)
-        public int pestTrapAt = 3;
-
+        public Integer pestTrapAt = null;
         @Expose
-        @ConfigOption(name = "Repeat minutes", desc = "How often the warning repeats while the traps stay full. 0: only once until you empty them.")
-        @ConfigEditorSlider(minValue = 0f, maxValue = 60f, minStep = 1f)
-        public int pestTrapRepeatMinutes = 10;
-
+        public Integer pestTrapRepeatMinutes = null;
         @Expose
-        @ConfigOption(name = "Away alert minutes", desc = "Left the garden with traps that were not full yet: warns again after this many minutes, when they should be full by now. Coming back to the garden cancels it. 0: off.")
-        @ConfigEditorSlider(minValue = 0f, maxValue = 240f, minStep = 5f)
-        public int pestTrapAwayMinutes = 60;
-
+        public Integer pestTrapAwayMinutes = null;
         @Expose
-        @ConfigOption(name = "Trap command", desc = "Runs when you click [Go] in the warning.")
-        @ConfigEditorText
-        public String pestTrapCommand = "/warp garden";
-
+        public String pestTrapCommand = null;
         @Expose
-        @ConfigOption(name = "Trap sound", desc = "Plays a sound with the warning, at the alert volume. Off: the warning stays silent.")
-        @ConfigEditorBoolean
-        public boolean pestTrapSound = true;
-
-        @ConfigOption(name = "Trap sound file", desc = "Your own file from config/shokimod/sounds. Empty (No sound) plays the standard ping.")
-        @ConfigEditorButton(buttonText = "Pick")
-        public transient Runnable openPestTrapSound = () -> {
-        };
-
+        public Boolean pestTrapSound = null;
         @Expose
-        public String pestTrapSoundFile = "";
-
-        @ConfigOption(name = "Test trap warning", desc = "Shows the warning line with three full traps.")
-        @ConfigEditorButton(buttonText = "Test")
-        public transient Runnable testPestTrap = () -> {
-        };
+        public String pestTrapSoundFile = null;
 
         /** Kuchen und wann er gegessen wurde (Millisekunden) */
         @Expose
