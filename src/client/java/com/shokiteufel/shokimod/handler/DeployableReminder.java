@@ -18,10 +18,12 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
 
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -44,6 +46,11 @@ import java.util.regex.Pattern;
  * der Entfernung). Die Chatzeile nennt den Zeitpunkt, an dem das eigene Deployable wirklich verschwindet,
  * und sonst nichts. Die beiden Zeilen "previous ... removed" und "too far away" kennt auch Feesh
  * (DeployablesTimer.kt, Apache 2.0); beides sind Texte von Hypixel.
+ *
+ * <p><b>Die Warnung vorher.</b> Die Chatzeile kommt erst, wenn das Deployable weg ist. Die Warnung davor
+ * (standardmaessig zehn Sekunden) braucht die Restzeit, und die liest {@link DeployableCountdown} von den
+ * Staendern in der Welt. Hat sie gewarnt, bleibt die Zeile "despawned" ohne eigene Meldung; sie springt nur
+ * ein, wenn es keine Warnung gab - das Deployable war nicht in Reichweite, oder die Warnung ist aus (0).
  *
  * <p><b>Kein Alarm beim Kartenwechsel.</b> Wer die Insel wechselt, laesst alles zurueck, was er
  * aufgestellt hat - und Hypixel schreibt dazu seine Zeilen. Das ist kein Ablauf. Ob die Zeile vor oder
@@ -74,7 +81,13 @@ public final class DeployableReminder {
     /** So lange wartet eine Meldung, ob gleich die Welt wechselt */
     static final long DELAY_MILLIS = 3_000L;
 
+    /** So lange nach einer Warnung vorher bleibt die Zeile "despawned" der Sorte stumm */
+    static final long DEDUPE_MILLIS = 75_000L;
+    /** So lange kann dieselbe Sorte nicht zweimal vorher warnen (zwei Orbs, die zugleich auslaufen) */
+    static final long EARLY_COOLDOWN_MILLIS = 15_000L;
+
     private static final Set<String> unknownLogged = new HashSet<>();
+    private static final Map<Kind, Long> warnedAt = new EnumMap<>(Kind.class);
     private static final List<Pending> pending = new ArrayList<>();
 
     /** Das Welt-Objekt vom letzten Tick - ein anderes heisst: Kartenwechsel */
@@ -103,6 +116,8 @@ public final class DeployableReminder {
 
     /** Wie es verschwunden ist */
     enum Ending {
+        /** Die Zeit laeuft gleich ab - die Warnung vorher, aus dem Staender gelesen */
+        SOON,
         /** Die Zeit ist um */
         RAN_OUT,
         /** Ein neues wurde aufgestellt */
@@ -111,8 +126,11 @@ public final class DeployableReminder {
         TOO_FAR
     }
 
-    /** Was eine Chatzeile gemeldet hat: welche Sorte, unter welchem Namen, und wie es verschwand */
-    record Hit(Kind kind, String name, Ending ending) {
+    /**
+     * Was gemeldet wird: welche Sorte, unter welchem Namen, wie es verschwindet oder verschwand, und -
+     * bei der Warnung vorher - wie viele Sekunden noch bleiben.
+     */
+    record Hit(Kind kind, String name, Ending ending, int seconds) {
     }
 
     /** Wie gemeldet wird: die Schalter des Reiters, der zur Meldung gehoert */
@@ -145,7 +163,7 @@ public final class DeployableReminder {
         String text = message == null ? "" : message.trim();
         if (text.isEmpty()) return null;
 
-        if (FLARE_TOO_FAR.matcher(text).matches()) return new Hit(Kind.FLARE, "Flare", Ending.TOO_FAR);
+        if (FLARE_TOO_FAR.matcher(text).matches()) return new Hit(Kind.FLARE, "Flare", Ending.TOO_FAR, 0);
 
         Ending ending = Ending.RAN_OUT;
         Matcher m = DESPAWNED.matcher(text);
@@ -163,7 +181,7 @@ public final class DeployableReminder {
             }
             return null;
         }
-        return new Hit(kind, name, ending);
+        return new Hit(kind, name, ending, 0);
     }
 
     private static Hit readCached(String message) {
@@ -228,7 +246,7 @@ public final class DeployableReminder {
 
         DeployableEndingsCategory e = cfg().endings;
         return switch (hit.ending()) {
-            case RAN_OUT -> hit.kind() == Kind.UMBERELLA ? umberellaStyle() : mainStyle();
+            case SOON, RAN_OUT -> hit.kind() == Kind.UMBERELLA ? umberellaStyle() : mainStyle();
             case REPLACED -> e.replacedAlert ? endingsStyle() : null;
             case TOO_FAR -> e.farAwayAlert ? endingsStyle() : null;
         };
@@ -251,6 +269,10 @@ public final class DeployableReminder {
         Style style = styleFor(hit);
         if (style == null) return;
 
+        if (hit.ending() == Ending.RAN_OUT && warnedRecently(hit.kind(), now)) {
+            ShokiMod.LOGGER.info("[Deployables] {} ran out - already warned, no second alert", hit.name());
+            return;
+        }
         if (now - changedAt < QUIET_MILLIS) {
             ShokiMod.LOGGER.info("[Deployables] {} ({}) right after a map change - no alert", hit.name(), hit.ending());
             return;
@@ -270,7 +292,7 @@ public final class DeployableReminder {
         Hit hit = readCached(message);
         if (hit == null) return false;
         return switch (hit.ending()) {
-            case RAN_OUT -> hit.kind() == Kind.UMBERELLA ? c.umberellaAlert.hideLine : c.hideLine;
+            case SOON, RAN_OUT -> hit.kind() == Kind.UMBERELLA ? c.umberellaAlert.hideLine : c.hideLine;
             case REPLACED, TOO_FAR -> c.endings.hideLines;
         };
     }
@@ -280,6 +302,8 @@ public final class DeployableReminder {
         if (level == lastLevel) return;
         lastLevel = level;
         changedAt = now;
+        warnedAt.clear();
+        DeployableCountdown.reset();
         if (!pending.isEmpty()) {
             ShokiMod.LOGGER.info("[Deployables] map change - {} waiting alert(s) dropped", pending.size());
             pending.clear();
@@ -301,6 +325,26 @@ public final class DeployableReminder {
         long now = System.currentTimeMillis();
         track(client.level, now);
         due(now);
+        DeployableCountdown.tick(client, now);
+    }
+
+    /** Die Warnung vorher: gelesen aus dem Staender, kommt sofort und braucht keine Wartezeit */
+    static boolean early(Kind kind, String name, int seconds, long now) {
+        Long last = warnedAt.get(kind);
+        if (last != null && now - last < EARLY_COOLDOWN_MILLIS) return false;
+
+        Hit hit = new Hit(kind, name, Ending.SOON, seconds);
+        Style style = styleFor(hit);
+        if (style == null) return false;
+
+        warnedAt.put(kind, now);
+        fire(hit, style);
+        return true;
+    }
+
+    private static boolean warnedRecently(Kind kind, long now) {
+        Long last = warnedAt.get(kind);
+        return last != null && now - last < DEDUPE_MILLIS;
     }
 
     /** Fuer die Probe: wie viele Meldungen warten gerade */
@@ -317,6 +361,11 @@ public final class DeployableReminder {
         String where;
         String chatText;
         switch (hit.ending()) {
+            case SOON -> {
+                headline = "Deployable ending";
+                where = hit.seconds() + " s left";
+                chatText = " ends in " + hit.seconds() + " s.";
+            }
             case REPLACED -> {
                 headline = "Deployable replaced";
                 where = "a new one took its place";
@@ -367,16 +416,16 @@ public final class DeployableReminder {
 
     /** Knopf in den Einstellungen: einmal vorfuehren, mit einem Plasmaflux Power Orb */
     public static void test() {
-        fire(new Hit(Kind.POWER_ORB, "Plasmaflux Power Orb", Ending.RAN_OUT), mainStyle());
+        fire(new Hit(Kind.POWER_ORB, "Plasmaflux Power Orb", Ending.SOON, Math.max(1, cfg().warnSeconds)), mainStyle());
     }
 
     /** Knopf im Reiter Umberella */
     public static void testUmberella() {
-        fire(new Hit(Kind.UMBERELLA, "Umberella", Ending.RAN_OUT), umberellaStyle());
+        fire(new Hit(Kind.UMBERELLA, "Umberella", Ending.SOON, Math.max(1, cfg().umberellaAlert.warnSeconds)), umberellaStyle());
     }
 
     /** Knopf im Reiter Other endings: ein Flare, der zu weit weg war */
     public static void testEndings() {
-        fire(new Hit(Kind.FLARE, "Flare", Ending.TOO_FAR), endingsStyle());
+        fire(new Hit(Kind.FLARE, "Flare", Ending.TOO_FAR, 0), endingsStyle());
     }
 }
