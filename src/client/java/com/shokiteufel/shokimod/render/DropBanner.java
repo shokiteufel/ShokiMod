@@ -17,6 +17,7 @@ import com.shokiteufel.shokimod.util.ItemIcons;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.Locale;
@@ -36,6 +37,8 @@ import java.util.Locale;
 public final class DropBanner {
 
     private static final long FADE_MILLIS = 900L;
+    /** Die Ausblendung der Titel des Spiels: zehn Ticks */
+    private static final long TITLE_FADE_MILLIS = 500L;
     private static final long SLIDE_MILLIS = 250L;
     private static final long POP_MILLIS = 220L;
     private static final long SWEEP_MILLIS = 350L;
@@ -309,6 +312,7 @@ public final class DropBanner {
         int width = g.guiWidth();
         int height = g.guiHeight();
         BannerDesign d = banner.design;
+        if (d.background == Background.TITLE) return renderTitle(g, banner, age, offsetY);
         int colour = parseColour(d.colour, banner.tint);
         float scale = clamp(d.scale, 0.3f, 4.0f);
         Shape shape = d.shape == null ? Shape.RECTANGLE : d.shape;
@@ -584,6 +588,82 @@ public final class DropBanner {
                     0xAAAAAA, TextEffect.PLAIN, alpha, colour);
         }
         return boxH;
+    }
+
+    /**
+     * Ein Banner wie die Titel des Spiels (/title) - so zeigt Feesh seine Funde.
+     *
+     * Gezeichnet wird mit dem Aufruf, den das Spiel fuer seine eigenen Titel nimmt
+     * ({@code textWithBackdrop}): hinter jeder Zeile ein dunkler Streifen in der Abdunklung, die man in
+     * den Barrierefreiheits-Einstellungen waehlt, die Schrift mit Schatten. Dazu die Masse des Spiels
+     * (Gui.extractTitle): die Mitte des Bildschirms, die obere Zeile ab zehn Schriftpunkten darueber, die
+     * untere ab fuenf darunter - beide in der Schriftgroesse der Zeile -, und nach 2 Sekunden eine halbe
+     * Sekunde linear zum Ausblenden. Vierfach und doppelt gross sind die Vorgaben des Spiels; das Design
+     * darf sie aendern.
+     *
+     * Die untere Zeile ist der Wert, und fehlt er, die kleine graue Zeile (wer es gefangen hat). Die
+     * Stufe, Form, Rahmen, Akzent, Bild und Animation des Designs gibt es hier nicht: das Spiel kennt sie
+     * bei seinen Titeln auch nicht.
+     *
+     * @return die Hoehe, die der Banner belegt - fuer die, die darunter stehen
+     */
+    private static int renderTitle(GuiGraphicsExtractor g, Shown banner, long age, int offsetY) {
+        BannerDesign d = banner.design;
+        Font font = Minecraft.getInstance().font;
+        int colour = parseColour(d.colour, banner.tint);
+        float scale = clamp(d.scale, 0.3f, 4.0f);
+
+        long fadeStart = banner.displayMillis - TITLE_FADE_MILLIS;
+        float alpha = age > fadeStart ? 1.0f - (age - fadeStart) / (float) TITLE_FADE_MILLIS : 1.0f;
+        int a = Math.clamp((int) (alpha * 255), 0, 255);
+        if (a <= 0) return 0;
+
+        String head = style(d.headlineBold, d.headlineItalic, d.headlineUnderline, d.headlineStrike)
+                + d.prefix + banner.headline + d.suffix;
+        String sub = "";
+        if (d.showValue) {
+            String valueStyle = style(d.valueBold, d.valueItalic, d.valueUnderline, d.valueStrike);
+            if (!banner.worth.isEmpty()) sub = valueStyle + d.valuePrefix + banner.worth + d.valueSuffix;
+            else if (!banner.byline.isEmpty()) sub = valueStyle + banner.byline;
+        }
+        float hs = clamp(d.headlineSize, 0.5f, 6.0f) * scale;
+        float vs = clamp(d.valueSize, 0.5f, 6.0f) * scale;
+
+        int cx;
+        int cy;
+        if (d.anchor == Anchor.FREE) {
+            cx = (int) (g.guiWidth() * clamp(d.x, 0f, 1f));
+            cy = (int) (g.guiHeight() * clamp(d.y, 0f, 1f));
+        } else {
+            cx = g.guiWidth() / 2;
+            cy = g.guiHeight() / 2;
+        }
+        cy += offsetY;
+
+        // Weiss mit der Deckkraft: Die Farbe des Namens steckt im Text selbst, so wie beim Titel des Spiels
+        int white = (a << 24) | 0xFFFFFF;
+        g.pose().pushMatrix();
+        g.pose().translate(cx, cy);
+
+        g.pose().pushMatrix();
+        g.pose().scale(hs, hs);
+        int headRgb = textColour(d.headlineColour, colour);
+        Component headText = Component.literal(head).withStyle(st -> st.withColor(headRgb));
+        int headWidth = font.width(headText);
+        g.textWithBackdrop(font, headText, -headWidth / 2, -10, headWidth, white);
+        g.pose().popMatrix();
+
+        if (!sub.isEmpty()) {
+            g.pose().pushMatrix();
+            g.pose().scale(vs, vs);
+            int valueRgb = textColour(d.valueColour, colour);
+            Component subText = Component.literal(sub).withStyle(st -> st.withColor(valueRgb));
+            int subWidth = font.width(subText);
+            g.textWithBackdrop(font, subText, -subWidth / 2, 5, subWidth, white);
+            g.pose().popMatrix();
+        }
+        g.pose().popMatrix();
+        return (int) (12 * hs + Math.max(4 * hs, sub.isEmpty() ? 0f : 16 * vs));
     }
 
     /**
