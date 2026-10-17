@@ -1800,6 +1800,11 @@ public class ModConfig extends Config {
         public boolean blackHole = true;
 
         @Expose
+        @ConfigOption(name = "Warn before it ends", desc = "How many seconds before a deployable ends the warning comes. It reads the countdown above the deployable, so it warns about the ones you stand in the range of - yours or someone else's - and only while you can see them. 0: no early warning, only after it ran out, from Hypixel's chat line.")
+        @ConfigEditorSlider(minValue = 0f, maxValue = 60f, minStep = 1f)
+        public int warnSeconds = 10;
+
+        @Expose
         @ConfigOption(name = "Banner", desc = "Large text across the screen.")
         @ConfigEditorBoolean
         public boolean banner = true;
@@ -1859,6 +1864,11 @@ public class ModConfig extends Config {
         @ConfigOption(name = "Umberella alert", desc = "Warns when your Umberella runs out.")
         @ConfigEditorBoolean
         public boolean alert = false;
+
+        @Expose
+        @ConfigOption(name = "Warn before it ends", desc = "How many seconds before the Umberella ends the warning comes. It reads the countdown above it, so it only works while you can see it. 0: no early warning, only after it ran out, from Hypixel's chat line.")
+        @ConfigEditorSlider(minValue = 0f, maxValue = 60f, minStep = 1f)
+        public int warnSeconds = 10;
 
         @Expose
         @ConfigOption(name = "Banner", desc = "Large text across the screen.")
