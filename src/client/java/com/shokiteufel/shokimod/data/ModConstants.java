@@ -10,6 +10,7 @@ public class ModConstants {
     public static final String GAME_TYPE_SKYBLOCK = "SKYBLOCK";
     public static final String MAP_SAFARI = "Safari";
     public static final String MAP_MOONGLADE_MARSH = "Moonglade Marsh";
+    public static final String MAP_JERRYS_WORKSHOP = "Jerry's Workshop";
 
     // Zeilen der Tab-Liste, aus denen Gebiet und Server kommen
     public static final String TAB_AREA_PREFIX = "Area:";

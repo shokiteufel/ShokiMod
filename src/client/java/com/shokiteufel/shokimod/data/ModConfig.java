@@ -242,6 +242,7 @@ public class ModConfig extends Config {
         INSTANCE.fishing.hp.maxRows = Math.max(1, Math.min(20, INSTANCE.fishing.hp.maxRows));
         if (INSTANCE.fishing.books == null) INSTANCE.fishing.books = new TrashBooksCategory();
         if (INSTANCE.fishing.books.books == null) INSTANCE.fishing.books.books = new HashMap<>();
+        if (INSTANCE.fishing.mute == null) INSTANCE.fishing.mute = new MuteCategory();
         if (INSTANCE.chat.reminder == null) INSTANCE.chat.reminder = new ReminderCategory();
         if (INSTANCE.garden == null) INSTANCE.garden = new GardenCategory();
         if (INSTANCE.garden.traps == null) INSTANCE.garden.traps = new GardenTrapsCategory();
@@ -1655,6 +1656,10 @@ public class ModConfig extends Config {
         @Expose
         @Category(name = "Trash books", desc = "Marks the enchanted books in your inventory that you want to get rid of. Ported from Feesh.")
         public TrashBooksCategory books = new TrashBooksCategory();
+
+        @Expose
+        @Category(name = "Mute", desc = "Silences two sounds that get in the way while fishing. Ported from Feesh.")
+        public MuteCategory mute = new MuteCategory();
     }
 
     /**
@@ -2091,6 +2096,28 @@ public class ModConfig extends Config {
         public float hudScale = 1.0f;
         @Expose
         public float hudAlpha = 1.0f;
+    }
+
+    /**
+     * Zwei Toene stumm schalten: der Jade Dragon in seiner Hoehle und die Geschenke des Reindrake.
+     *
+     * Aus Feesh (Apache 2.0): dort heissen die Schalter "Mute Jade Dragon" und "Mute Reindrake gifts", beide aus.
+     */
+    public static class MuteCategory {
+
+        @ConfigOption(name = "Mute", desc = "Silences two sounds that get in the way while fishing. Ported from Feesh. If you use the Sound Controller mod, it may override these settings.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Mute Jade Dragon", desc = "Mutes the Jade Dragon's sounds ('entity.ender_dragon.*') while you are in its cave: the Dragon's Lair and the Murkwater Depths in the Moonglade Marsh. If you use the Sound Controller mod, this setting might be overridden by it!")
+        @ConfigEditorBoolean
+        public boolean jadeDragon = false;
+
+        @Expose
+        @ConfigOption(name = "Mute Reindrake gifts", desc = "Mutes the loud 'item.totem.use' sound while you pick up gifts from a Reindrake in Jerry's Workshop. A real Totem of Undying stays audible. If you use the Sound Controller mod, this setting might be overridden by it!")
+        @ConfigEditorBoolean
+        public boolean reindrakeGifts = false;
     }
 
     /**

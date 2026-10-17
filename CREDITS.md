@@ -275,6 +275,13 @@ drinsteckt.
   Nachgebaut — mit drei Unterschieden: Die Bücher stehen in einem Fenster zum Anhaken (die bisher im
   Inventar gesehenen und ein Feld für einen neuen Namen) statt in einem Textfeld mit Komma, gemerkt wird nur,
   was im eigenen Inventar liegt, und markiert wird nur dort, nicht in jedem Fenster.
+- **Feesh** (Apache-2.0, `Sleepy-Panda/Feesh`) — die beiden Stummschaltungen
+  (`features/sounds/MuteJadeDragonSound.kt`, `MuteReindrakeGifts.kt`, `mixin/SoundEngineMixin.java`):
+  Der Mixin in `SoundEngine.play` verschluckt alle Töne `entity.ender_dragon.*` im Moonglade Marsh in den
+  Zonen „Dragon's Lair" und „Murkwater Depths" und den Ton `item.totem.use` mit der Lautstärke 0,5 in Jerry's
+  Workshop. Nachgebaut — mit drei Unterschieden: Der Mixin meldet „nicht gestartet" statt nichts
+  zurückzugeben, die Zone wird einmal in der Sekunde aus der Seitenleiste gelesen statt bei jedem Ton, und
+  beide Schalter stehen unter Fishing > Mute.
 - **Odin** — die Ping-Anzeige wurde gegen seine gehalten, um den eigenen Messfehler zu
   finden.
 - **Odin** (BSD-3-Clause, Odtheking, `OdinFabric`) — die eigene Figur in anderer Größe

@@ -19,6 +19,7 @@
 		"PlayerSizeMixin",
 		"TextFieldFitMixin",
 		"SlotBackgroundMixin",
+		"SoundMuteMixin",
 		"SoundManagerMixin",
 		"AbstractSoundInstanceAccessor"
 	],
