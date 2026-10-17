@@ -84,11 +84,9 @@ public final class ProfitHud {
         List<String> ids = new ArrayList<>();
         boolean clickable = NearbyOverlay.interactive();
 
-        // Der Zeitraum steht in der Ueberschrift, weil er alles darunter bestimmt - und
-        // in Klammern, weil man ihn anklicken kann. Dieselbe Schreibweise wie beim
-        // Reset-Knopf darunter, damit man den Zusammenhang sieht, ohne ihn zu suchen
-        panel.title("Profit Tracker [ " + ProfitTracker.view() + " ]"
-                + (ProfitTracker.isPaused() ? " (paused)" : ""), TITLE_COLOUR);
+        // Der Zeitraum steht in der Ueberschrift, weil er alles darunter bestimmt, unterstrichen,
+        // weil man ihn anklicken kann - und dahinter der Reset-Knopf, wie beim Sea-Creature-Tracker
+        panel.title(titleText(), TITLE_COLOUR);
         ids.add(null);
         panel.blank();
         ids.add(null);
@@ -144,18 +142,33 @@ public final class ProfitHud {
             ids.add(null);
         }
 
-        // Nur bei offenem Fenster, und nur im laufenden Lauf: Tag und Gesamtstand laufen
-        // von selbst weiter, ein Knopf, der sie leert, gehoert nicht in den Kasten. Die
-        // Zeile ist immer die letzte, darauf verlaesst sich der Klick im NearbyOverlay
-        if (clickable && ProfitTracker.view() == ModConfig.ProfitView.SESSION) {
-            panel.blank();
-            ids.add(null);
-            panel.line("[ Reset ]", TIME_COLOUR);
-            ids.add(null);
-        }
-
         rowIds = ids;
         return panel;
+    }
+
+    private static final String RESET_LABEL = "§c[Reset]";
+
+    /**
+     * "Profit Tracker Session [Reset]" - der Zeitraum unterstrichen, dahinter der Reset-Knopf.
+     *
+     * Den Knopf gibt es nur im laufenden Lauf: Tag und Gesamtstand laufen von selbst weiter, ein Knopf,
+     * der sie leert, gehoert nicht in den Kasten. Vorher stand er als eigene Zeile "[ Reset ]" ganz unten.
+     */
+    private static String titleText() {
+        boolean session = ProfitTracker.view() == ModConfig.ProfitView.SESSION;
+        return "Profit Tracker §n" + ProfitTracker.view() + "§r" + (session ? "  " + RESET_LABEL : "")
+                + (ProfitTracker.isPaused() ? " (paused)" : "");
+    }
+
+    /**
+     * Liegt ein Klick in der Ueberschrift auf dem Reset-Knopf?
+     *
+     * @param localX Abstand vom linken Rand der Schrift, in den Massen des Kastens
+     */
+    public static boolean resetAt(Font font, double localX) {
+        if (ProfitTracker.view() != ModConfig.ProfitView.SESSION) return false;
+        int start = font.width("Profit Tracker " + ProfitTracker.view() + "  ");
+        return localX >= start && localX < start + font.width(RESET_LABEL);
     }
 
     /** Die drei Knoepfe stehen nur da, wo man sie auch druecken kann */
