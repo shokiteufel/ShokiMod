@@ -240,6 +240,8 @@ public class ModConfig extends Config {
         if (INSTANCE.fishing.hp.sort == null) INSTANCE.fishing.hp.sort = SeaHpSort.LOWEST_HP;
         if (INSTANCE.fishing.hp.soundFile == null) INSTANCE.fishing.hp.soundFile = "";
         INSTANCE.fishing.hp.maxRows = Math.max(1, Math.min(20, INSTANCE.fishing.hp.maxRows));
+        if (INSTANCE.fishing.books == null) INSTANCE.fishing.books = new TrashBooksCategory();
+        if (INSTANCE.fishing.books.books == null) INSTANCE.fishing.books.books = new HashMap<>();
         if (INSTANCE.chat.reminder == null) INSTANCE.chat.reminder = new ReminderCategory();
         if (INSTANCE.garden == null) INSTANCE.garden = new GardenCategory();
         if (INSTANCE.garden.traps == null) INSTANCE.garden.traps = new GardenTrapsCategory();
@@ -479,6 +481,9 @@ public class ModConfig extends Config {
                 picked -> INSTANCE.fishing.hp.soundFile = picked);
         INSTANCE.fishing.hp.test = () -> Minecraft.getInstance().execute(
                 com.shokiteufel.shokimod.handler.SeaCreatureHp::play);
+        INSTANCE.fishing.books.openPicker = () -> Minecraft.getInstance().execute(() ->
+                Minecraft.getInstance().setScreenAndShow(new com.shokiteufel.shokimod.gui.TrashBooksScreen(
+                        Minecraft.getInstance().gui.screen())));
         INSTANCE.chat.testAlertVolume = () -> Minecraft.getInstance().execute(AlertVolume::test);
         INSTANCE.hunting.tracker.resetTracker = () -> Minecraft.getInstance().execute(HuntingTracker::reset);
         INSTANCE.guild.events.testBanner = () -> Minecraft.getInstance().execute(GuildEvents::testBanner);
@@ -1646,6 +1651,10 @@ public class ModConfig extends Config {
         @Expose
         @Category(name = "Sea creature HP", desc = "Shows the HP of the sea creatures near you in a list. Ported from Feesh.")
         public SeaHpCategory hp = new SeaHpCategory();
+
+        @Expose
+        @Category(name = "Trash books", desc = "Marks the enchanted books in your inventory that you want to get rid of. Ported from Feesh.")
+        public TrashBooksCategory books = new TrashBooksCategory();
     }
 
     /**
@@ -2082,6 +2091,36 @@ public class ModConfig extends Config {
         public float hudScale = 1.0f;
         @Expose
         public float hudAlpha = 1.0f;
+    }
+
+    /**
+     * Die Buecher, die beim Angeln das Inventar fluten.
+     *
+     * Aus Feesh (Apache 2.0): Slots mit Buechern, die man loswerden will, bekommen einen roten Untergrund.
+     * Feesh nimmt dafuer ein Textfeld mit Namen; hier ist es eine Liste zum Anhaken.
+     */
+    public static class TrashBooksCategory {
+
+        @ConfigOption(name = "Trash books", desc = "Marks the enchanted books in your inventory that flood it while you fish, so you quickly find the ones to throw away or sell. Like Feesh, but you tick the books from a list instead of typing their names. Only the slots of your own inventory get the red background, while a window with your inventory is open.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Enabled", desc = "Mark the books. Off means nothing is read and nothing is drawn.")
+        @ConfigEditorBoolean
+        public boolean enabled = false;
+
+        @ConfigOption(name = "Pick books", desc = "The books that were in your inventory, to tick or untick - and a field to type one that has not shown up yet. A book is a book with its level: Corruption I is not Corruption V. Corruption I is ticked from the start, as in Feesh.")
+        @ConfigEditorButton(buttonText = "Open")
+        public transient Runnable openPicker = () -> {
+        };
+
+        /**
+         * Name -> angehakt. Ein Buch kommt hinein, wenn es zum ersten Mal im Inventar liegt (dann nicht
+         * angehakt); ohne Eintrag gilt Feeshs Voreinstellung: "Corruption I" ja, alles andere nein.
+         */
+        @Expose
+        public Map<String, Boolean> books = new HashMap<>();
     }
 
     /** Wie die Liste der Bewohner mit HP geordnet ist */

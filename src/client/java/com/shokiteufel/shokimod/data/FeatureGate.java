@@ -149,6 +149,11 @@ public final class FeatureGate {
         return ModConfig.INSTANCE.fishing.hp.enabled;
     }
 
+    /** Die Buecher-Markierung liest das Inventar und zeichnet in den Fenstern - nur wenn sie an ist */
+    public static boolean trashBooks() {
+        return ModConfig.INSTANCE.fishing.books.enabled;
+    }
+
     public static boolean location() {
         return contest() || safari() || nearbyPanel() || rareLoot() || huntingTracker() || mobMarkers() || chatRules()
                 || cakeReminder() || hotspots() || collectionTracker() || pestTraps() || gardenVisitors() || seaHp()
