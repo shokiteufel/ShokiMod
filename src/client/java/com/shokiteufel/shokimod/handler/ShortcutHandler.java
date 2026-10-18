@@ -126,7 +126,8 @@ public final class ShortcutHandler {
         else connection.sendChat(text);
     }
 
-    private static boolean isDown(int key) {
+    /** Ist die Taste jetzt unten? Auch fuer die Hotspot-Taste */
+    static boolean isDown(int key) {
         try {
             if (!resolved) resolve();
             if (isDownKey != null) return (boolean) isDownKey.invoke(null, key);
