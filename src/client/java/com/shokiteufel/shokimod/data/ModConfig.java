@@ -62,6 +62,16 @@ public class ModConfig extends Config {
     @Expose
     public String lastTab = null;
 
+    /**
+     * Der Text im Suchfeld des Einstellungsfensters, wie er beim Schliessen stand.
+     *
+     * Er kommt beim naechsten Oeffnen zurueck, samt gefilterter Liste - und mit ihm die verborgenen Reiter, die das
+     * Suchfeld freigibt. Leer oder fehlend heisst: kein Suchtext. Er steht im Klartext in der Datei: Wer das Codewort
+     * eines verborgenen Reiters eintippt und das Fenster schliesst, hat es danach auch dort stehen.
+     */
+    @Expose
+    public String lastSearch = null;
+
     // ★修正3: 保存先を config/shokimod/shokimod_config.properties に変更
     private static File getConfigFile() {
         // "config/shokimod" というフォルダへのパスを作成

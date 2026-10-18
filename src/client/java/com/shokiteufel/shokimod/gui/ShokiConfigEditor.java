@@ -61,8 +61,16 @@ public class ShokiConfigEditor extends MoulConfigEditor<ModConfig> {
     /** Der Rohtext des Suchfelds. Null, wenn MoulConfig ihn nicht mehr so ablegt */
     private final GetSetter<String> searchText;
 
+    /** So lange muss der Suchtext unveraendert stehen, bevor er auf die Platte geschrieben wird */
+    private static final long SEARCH_SAVE_DELAY_MS = 600L;
+
     /** Der Reiter, der zuletzt gespeichert wurde - damit nur bei einem Wechsel geschrieben wird */
     private String lastSaved;
+
+    /** Der Suchtext, der zuletzt gespeichert wurde, der, der gerade tippend wartet, und seit wann */
+    private String savedSearch = "";
+    private String waitingSearch = "";
+    private long waitingSince = 0L;
 
     public ShokiConfigEditor(MoulConfigProcessor<ModConfig> processor) {
         super(processor);
@@ -73,21 +81,47 @@ public class ShokiConfigEditor extends MoulConfigEditor<ModConfig> {
             return editor.fulfillsSearch(search);
         });
         this.lastSaved = getSelectedCategory();
+        this.savedSearch = typed();
+        this.waitingSearch = savedSearch;
     }
 
     /**
-     * Den Reiter aufschlagen, der beim letzten Mal offen war.
+     * Das Fenster so aufschlagen, wie es beim letzten Mal war: erst der Suchtext, dann der Reiter.
      *
-     * Verborgene Reiter (Mob Visuals, Bug hunt) kommen nicht zurueck: Sie sind nur mit dem Codewort im Suchfeld
-     * zu sehen, und ohne waere der gemerkte Reiter ein leerer. Ist die Kennung unbekannt (der Reiter wurde
-     * umbenannt oder entfernt), bleibt es beim ersten.
+     * Die Reihenfolge zaehlt. Die verborgenen Reiter (Mob Visuals, Bug hunt) sind nur zu sehen, solange das
+     * Suchfeld ihr Wort enthaelt - der Text muss also im Feld stehen, bevor der Reiter gewaehlt wird. Ein
+     * verborgener Reiter kommt nur zurueck, wenn er dann auch offen ist; sonst waere der gemerkte ein leerer.
+     * Ist die Kennung unbekannt (der Reiter wurde umbenannt oder entfernt), bleibt es beim ersten.
      */
-    public void restoreLastTab() {
+    public void restoreLast() {
+        restoreSearch();
+        restoreTab();
+    }
+
+    private void restoreSearch() {
+        String text = ModConfig.INSTANCE.lastSearch;
+        if (searchText != null && text != null && !text.isEmpty()) {
+            try {
+                // Erst der Rohtext, den auch die verborgenen Reiter lesen, dann die Suche, die die Liste filtert
+                searchText.set(text);
+                search(text);
+            } catch (RuntimeException e) {
+                ShokiMod.LOGGER.warn("Could not restore the config search '{}'", text, e);
+            }
+        }
+        savedSearch = typed();
+        waitingSearch = savedSearch;
+    }
+
+    private void restoreTab() {
         String id = ModConfig.INSTANCE.lastTab;
         if (id != null && !id.isBlank()) {
             try {
                 ProcessedCategory category = getAllCategories().get(id);
-                if (category != null && hiddenOf(category) == null) setSelectedCategory(category);
+                if (category != null) {
+                    Hidden hidden = hiddenOf(category);
+                    if (hidden == null || unlocked(hidden)) setSelectedCategory(category);
+                }
             } catch (RuntimeException e) {
                 ShokiMod.LOGGER.warn("Could not reopen config tab '{}'", id, e);
             }
@@ -106,17 +140,55 @@ public class ShokiConfigEditor extends MoulConfigEditor<ModConfig> {
     public void render() {
         super.render();
         rememberTab();
+        rememberSearch();
     }
 
     void rememberTab() {
         String now = getSelectedCategory();
         if (now == null || now.equals(lastSaved)) return;
         lastSaved = now;
-        // Ein verborgener Reiter, der gerade ueber das Codewort offen ist, wird nicht gemerkt
-        ProcessedCategory category = getAllCategories().get(now);
-        if (category != null && hiddenOf(category) != null) return;
+        // Auch ein verborgener Reiter wird gemerkt: Er ist nur offen, solange das Suchfeld sein Wort enthaelt, und
+        // das wird mitgemerkt. Fehlt das Wort beim naechsten Mal, kommt er nicht zurueck (siehe restoreTab)
         ModConfig.INSTANCE.lastTab = now;
+        ModConfig.INSTANCE.lastSearch = typed();
+        savedSearch = typed();
+        waitingSearch = savedSearch;
         ModConfig.INSTANCE.saveNow();
+    }
+
+    /**
+     * Jedes Bild: Hat sich der Suchtext geaendert, wird er gemerkt.
+     *
+     * Im Speicher gleich - dann findet ihn ein Fenster, das sofort wieder aufgemacht wird -, auf die Platte erst,
+     * wenn er eine Weile unveraendert steht. Sonst wuerde jeder Buchstabe die ganze Einstellungsdatei neu schreiben.
+     * Ein Wechsel des Reiters schreibt ihn ohnehin mit (rememberTab).
+     */
+    void rememberSearch() {
+        if (searchText == null) return;
+        String now = typed();
+        if (now.equals(savedSearch)) {
+            // Auch ein Tippen, das wieder auf den gespeicherten Text zurueckfuehrt, zaehlt
+            waitingSearch = now;
+            ModConfig.INSTANCE.lastSearch = now;
+            return;
+        }
+        long time = System.currentTimeMillis();
+        if (!now.equals(waitingSearch)) {
+            waitingSearch = now;
+            waitingSince = time;
+            ModConfig.INSTANCE.lastSearch = now;
+        }
+        if (time - waitingSince >= SEARCH_SAVE_DELAY_MS) {
+            savedSearch = now;
+            ModConfig.INSTANCE.saveNow();
+        }
+    }
+
+    /** Der Rohtext des Suchfelds, nie null */
+    private String typed() {
+        if (searchText == null) return "";
+        String typed = searchText.get();
+        return typed == null ? "" : typed;
     }
 
     @Override

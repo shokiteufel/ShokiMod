@@ -24,7 +24,7 @@ public class ModMenuIntegration implements ModMenuApi {
                 driver.processConfig(ModConfig.INSTANCE);
 
                 ShokiConfigEditor editor = new ShokiConfigEditor(processor);
-                editor.restoreLastTab();
+                editor.restoreLast();
                 GuiElementComponent editorComponent = new GuiElementComponent(editor);
                 GuiContext guiContext = new GuiContext(editorComponent);
 
