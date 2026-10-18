@@ -439,8 +439,8 @@ public class ShokiMod implements ClientModInitializer {
             driver.processConfig(ModConfig.INSTANCE);
 
             ShokiConfigEditor editor = new ShokiConfigEditor(processor);
-            // Erst der Reiter vom letzten Mal, dann - falls gewuenscht - die Suche, die ihn uebertrumpft
-            editor.restoreLastTab();
+            // Erst Suche und Reiter vom letzten Mal, dann - falls gewuenscht - die Suche, die sie uebertrumpft
+            editor.restoreLast();
             editor.preset(suche);
             GuiElementComponent editorComponent = new GuiElementComponent(editor);
             GuiContext guiContext = new GuiContext(editorComponent);
