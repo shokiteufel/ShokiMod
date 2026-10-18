@@ -310,6 +310,13 @@ public class BannerDesign {
     @Expose public String valueSuffix = ")";
     @Expose public boolean showValue = true;
     @Expose public boolean showTier = true;
+    /**
+     * Wer es gefangen hat, steht ueber dem Namen statt darunter.
+     *
+     * Nur beim Titel-Aussehen (Background.TITLE) von Belang: Dort steht der Fangende von Haus aus in der unteren
+     * Zeile, wie bei den Titeln des Spiels. Alle anderen Aussehen zeigen ihn ohnehin klein darueber.
+     */
+    @Expose public boolean nameAbove = false;
 
     @Expose public Icon icon = Icon.NONE;
     @Expose public float iconScale = 2.0f;
@@ -371,6 +378,7 @@ public class BannerDesign {
         d.valueSuffix = valueSuffix;
         d.showValue = showValue;
         d.showTier = showTier;
+        d.nameAbove = nameAbove;
         d.icon = icon;
         d.iconScale = iconScale;
         d.animation = animation;

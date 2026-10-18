@@ -256,6 +256,14 @@ public class BannerDesignScreen extends Screen {
         y2 += ROW;
         toggle(col2, y2, "Show tier", () -> d.showTier, v -> d.showTier = v);
         y2 += ROW;
+        // Nur beim Titel-Aussehen: Alle anderen zeigen den Fangenden ohnehin klein ueber dem Namen. Eine Wahl
+        // ohne Wirkung stuende hier nur im Weg
+        if (d.background == BannerDesign.Background.TITLE) {
+            toggle(col2, y2, "Name above", () -> d.nameAbove, v -> d.nameAbove = v,
+                    "Puts the player who caught it above the creature's name instead of below. "
+                            + "Only the game-title look puts it below; every other look shows it above anyway.");
+            y2 += ROW;
+        }
         Button position = Button.builder(Component.literal("Position: HUD editor"), button -> {
             if (minecraft != null) minecraft.setScreenAndShow(new HudEditorScreen(this, true));
         }).bounds(col2, y2, COLUMN_WIDTH, 20).build();

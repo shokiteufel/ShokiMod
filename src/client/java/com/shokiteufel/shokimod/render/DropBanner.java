@@ -601,9 +601,10 @@ public final class DropBanner {
      * Sekunde linear zum Ausblenden. Vierfach und doppelt gross sind die Vorgaben des Spiels; das Design
      * darf sie aendern.
      *
-     * Die untere Zeile ist der Wert, und fehlt er, die kleine graue Zeile (wer es gefangen hat). Die
-     * Stufe, Form, Rahmen, Akzent, Bild und Animation des Designs gibt es hier nicht: das Spiel kennt sie
-     * bei seinen Titeln auch nicht.
+     * Die untere Zeile ist der Wert, und fehlt er, wer es gefangen hat. Wer das Design so einstellt
+     * ({@link BannerDesign#nameAbove}), bekommt den Fangenden stattdessen ueber dem Namen, in derselben Schrift
+     * und mit demselben Abstand wie sonst darunter; der Wert bleibt dann unten. Die Stufe, Form, Rahmen, Akzent,
+     * Bild und Animation des Designs gibt es hier nicht: das Spiel kennt sie bei seinen Titeln auch nicht.
      *
      * @return die Hoehe, die der Banner belegt - fuer die, die darunter stehen
      */
@@ -620,11 +621,19 @@ public final class DropBanner {
 
         String head = style(d.headlineBold, d.headlineItalic, d.headlineUnderline, d.headlineStrike)
                 + d.prefix + banner.headline + d.suffix;
-        String sub = "";
-        if (d.showValue) {
-            String valueStyle = style(d.valueBold, d.valueItalic, d.valueUnderline, d.valueStrike);
-            if (!banner.worth.isEmpty()) sub = valueStyle + d.valuePrefix + banner.worth + d.valueSuffix;
-            else if (!banner.byline.isEmpty()) sub = valueStyle + banner.byline;
+        String valueStyle = style(d.valueBold, d.valueItalic, d.valueUnderline, d.valueStrike);
+        // Der Fangende traegt dieselben Klammern wie der Wert: Im Spiel kam er bisher als Wert herein und sah so aus
+        String nameLine = banner.byline.isEmpty() ? "" : valueStyle + d.valuePrefix + banner.byline + d.valueSuffix;
+        String worthLine = d.showValue && !banner.worth.isEmpty()
+                ? valueStyle + d.valuePrefix + banner.worth + d.valueSuffix
+                : "";
+        String sub;
+        String above = "";
+        if (d.nameAbove) {
+            above = nameLine;
+            sub = worthLine;
+        } else {
+            sub = !worthLine.isEmpty() ? worthLine : d.showValue ? nameLine : "";
         }
         float hs = clamp(d.headlineSize, 0.5f, 6.0f) * scale;
         float vs = clamp(d.valueSize, 0.5f, 6.0f) * scale;
@@ -662,8 +671,24 @@ public final class DropBanner {
             g.textWithBackdrop(font, subText, -subWidth / 2, 5, subWidth, white);
             g.pose().popMatrix();
         }
+
+        // Der Fangende darueber: Zwischen der Unterkante seiner Zeile und der Oberkante des Namens liegt derselbe
+        // sichtbare Abstand wie unten zwischen Name und Zeile - fuenf Punkte der kleinen Schrift plus zwei der
+        // grossen (die Buchstaben des Namens sind acht Punkte hoch, nicht neun, und enden zwei Punkte ueber der Mitte)
+        float aboveGap = 5f * vs + 2f * hs;
+        if (!above.isEmpty()) {
+            g.pose().pushMatrix();
+            g.pose().scale(vs, vs);
+            int nameRgb = textColour(d.valueColour, colour);
+            Component aboveText = Component.literal(above).withStyle(st -> st.withColor(nameRgb));
+            int aboveWidth = font.width(aboveText);
+            int aboveY = Math.round((-10f * hs - aboveGap - 9f * vs) / vs);
+            g.textWithBackdrop(font, aboveText, -aboveWidth / 2, aboveY, aboveWidth, white);
+            g.pose().popMatrix();
+        }
         g.pose().popMatrix();
-        return (int) (12 * hs + Math.max(4 * hs, sub.isEmpty() ? 0f : 16 * vs));
+        int extra = above.isEmpty() ? 0 : (int) (9f * vs + aboveGap);
+        return (int) (12 * hs + Math.max(4 * hs, sub.isEmpty() ? 0f : 16 * vs)) + extra;
     }
 
     /**
