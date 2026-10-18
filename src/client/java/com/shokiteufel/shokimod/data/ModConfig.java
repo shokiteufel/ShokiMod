@@ -2489,6 +2489,19 @@ public class ModConfig extends Config {
         @ConfigEditorBoolean
         public boolean shareSound = true;
 
+        @Expose
+        @ConfigOption(name = "Share key", desc = "Press this key to share the hotspot near you to PARTY chat - the same as clicking [Share to PARTY chat], without opening the chat. You must be within 10 blocks of a hotspot; no fishing rod needed. Works with or without Share Hotspot above. Keyboard keys only. No key is set from the start.")
+        @ConfigEditorKeybind(defaultKey = -1)
+        public int shareKey = -1;
+
+        /**
+         * Ist eine Tastaturtaste gewaehlt? MoulConfig fuehrt "keine" als -1 (GLFW_KEY_UNKNOWN) und die Maustasten als
+         * 0 bis 7 ("Button 1" ...); die Tastaturtasten beginnen bei 32, der Leertaste. Maustasten fragt die Taste nicht ab.
+         */
+        public boolean hasShareKey() {
+            return shareKey >= 32;
+        }
+
         @ConfigOption(name = "Share test", desc = "Shows the share offer once with your own position. The two buttons in the test line do nothing.")
         @ConfigEditorButton(buttonText = "Test")
         public transient Runnable shareTest = () -> {
