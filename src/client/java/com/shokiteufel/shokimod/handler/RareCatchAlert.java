@@ -293,8 +293,10 @@ public final class RareCatchAlert {
         if (cfg().banner) {
             com.shokiteufel.shokimod.data.BannerDesign look = design();
             if (look.background == com.shokiteufel.shokimod.data.BannerDesign.Background.TITLE) {
-                // Wie bei Feesh: der Bewohner gross, darunter wer ihn gefangen hat - auch bei einem eigenen Fang
-                DropBanner.show(look, "", feeshTitle(creature, doppelt), catcher(spieler), "",
+                // Wie bei Feesh: der Bewohner gross, darunter wer ihn gefangen hat - auch bei einem eigenen Fang.
+                // Der Fangende kommt als der Fangende herein und nicht als Wert: So kann das Design ihn auch
+                // ueber den Namen stellen (nameAbove)
+                DropBanner.show(look, catcher(spieler), feeshTitle(creature, doppelt), "", "",
                         creature.colour(), ItemStack.EMPTY, 0d);
             } else {
                 // Der Fangende steht klein und grau darueber, der Bewohner gross darunter
