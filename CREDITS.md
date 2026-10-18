@@ -291,6 +291,17 @@ drinsteckt.
   der Schwelle war. Nachgebaut — mit einem Unterschied: Banner, Chatzeile und Ton lassen sich einzeln
   abschalten, der Ton lässt sich durch eine eigene Datei ersetzen, und der Banner nimmt ein Design (Voreinstellung
   „Feesh", das den Titel des Spiels nachzeichnet).
+- **Feesh** (Apache-2.0, `Sleepy-Panda/Feesh`) — der Vorschlag, einen gefundenen Hotspot zu teilen
+  (`features/chat/HotspotFoundMessage.kt`, `utils/HotspotUtils.kt`): Alle zehn Ticks der nächste Rüstungsständer
+  namens „HOTSPOT" in zehn Blöcken (mit einer Angel in der Hotbar, in einer der acht Welten mit Hotspots), der
+  Bonus vom Ständer knapp darunter (gleiches X und Z, bis ein Block tiefer, gleicher Neigungswinkel); jeder
+  Hotspot einmal, gemerkt werden die letzten zwei. Im Chat „You found <Bonus> Hotspot." und darunter
+  „[Share to PARTY chat] or [Share to ALL chat]"; ein Klick schickt „x: …, y: …, z: … | <Bonus> Hotspot at <Zone>"
+  an `/pchat`, an `/achat` mit einer zufälligen Kennung dahinter. Nachgebaut — mit drei Unterschieden: Der
+  Ton lässt sich einzeln abschalten, die Einstellungen haben einen Testknopf, dessen Zeile nicht anklickbar
+  ist, und Feeshs Vergessen eines Hotspots, wenn sein Ständer in der Nähe verschwindet, entfällt (ein neuer
+  Hotspot ist ein neuer Ständer mit neuer Kennung, gemerkt werden ohnehin nur die letzten zwei). Feeshs
+  Tastenkürzel und das selbsttätige Teilen sind nicht übernommen.
 - **Odin** — die Ping-Anzeige wurde gegen seine gehalten, um den eigenen Messfehler zu
   finden.
 - **Odin** (BSD-3-Clause, Odtheking, `OdinFabric`) — die eigene Figur in anderer Größe

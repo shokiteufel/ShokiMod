@@ -509,6 +509,8 @@ public class ModConfig extends Config {
                 com.shokiteufel.shokimod.handler.OutOfAirAlert::test);
         INSTANCE.fishing.air.openSound = soundPicker(() -> INSTANCE.fishing.air.soundFile,
                 picked -> INSTANCE.fishing.air.soundFile = picked);
+        INSTANCE.fishing.hotspot.shareTest = () -> Minecraft.getInstance().execute(
+                com.shokiteufel.shokimod.handler.HotspotShare::test);
         INSTANCE.fishing.books.openPicker = () -> Minecraft.getInstance().execute(() ->
                 Minecraft.getInstance().setScreenAndShow(new com.shokiteufel.shokimod.gui.TrashBooksScreen(
                         Minecraft.getInstance().gui.screen())));
@@ -2466,6 +2468,21 @@ public class ModConfig extends Config {
         @ConfigOption(name = "Warning sound", desc = "A low note with the despawn warning, at the alert volume.")
         @ConfigEditorBoolean
         public boolean warningSound = true;
+
+        @Expose
+        @ConfigOption(name = "Offer sharing the found hotspots on click", desc = "Shows a clickable chat message that offers sharing the Hotspot location and its perk to ALL chat or PARTY chat. You need to be close to the hotspot in order to trigger it. Ported from Feesh: it needs a fishing rod in your hotbar, works in every world with hotspots, and offers each hotspot once. It does not need Enabled above.")
+        @ConfigEditorBoolean
+        public boolean offerShare = true;
+
+        @Expose
+        @ConfigOption(name = "Share offer sound", desc = "A short pling with the share offer, at the alert volume.")
+        @ConfigEditorBoolean
+        public boolean shareSound = true;
+
+        @ConfigOption(name = "Test share offer", desc = "Shows the share offer once with your own position. The two buttons in the test line do nothing.")
+        @ConfigEditorButton(buttonText = "Test")
+        public transient Runnable shareTest = () -> {
+        };
     }
 
     public static class GuildCategory {
