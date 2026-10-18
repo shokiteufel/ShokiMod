@@ -300,8 +300,10 @@ drinsteckt.
   an `/pchat`, an `/achat` mit einer zufälligen Kennung dahinter. Nachgebaut — mit drei Unterschieden: Der
   Ton lässt sich einzeln abschalten, die Einstellungen haben einen Testknopf, dessen Zeile nicht anklickbar
   ist, und Feeshs Vergessen eines Hotspots, wenn sein Ständer in der Nähe verschwindet, entfällt (ein neuer
-  Hotspot ist ein neuer Ständer mit neuer Kennung, gemerkt werden ohnehin nur die letzten zwei). Feeshs
-  Tastenkürzel und das selbsttätige Teilen sind nicht übernommen.
+  Hotspot ist ein neuer Ständer mit neuer Kennung, gemerkt werden ohnehin nur die letzten zwei). Dazu Feeshs
+  Taste „Share hotspot", die den nächsten Hotspot in zehn Blöcken ohne Chat an die Gruppe schickt (`sendMessageWithNearestHotspot`):
+  übernommen nur für die Gruppe, ohne Angel-Pflicht, mit einer Hinweiszeile, wenn keiner in Reichweite ist. Nicht
+  übernommen: Feeshs Taste für alle und das selbsttätige Teilen.
 - **Odin** — die Ping-Anzeige wurde gegen seine gehalten, um den eigenen Messfehler zu
   finden.
 - **Odin** (BSD-3-Clause, Odtheking, `OdinFabric`) — die eigene Figur in anderer Größe

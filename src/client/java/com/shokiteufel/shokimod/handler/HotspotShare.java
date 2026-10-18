@@ -41,6 +41,10 @@ import java.util.regex.Pattern;
  * <p>Jeder Hotspot wird einmal angeboten. Gemerkt werden die letzten zwei, damit es beim Hin- und Herlaufen zwischen
  * zwei nahen Hotspots nicht immer wieder kommt.
  *
+ * <p>Dazu eine Taste (Feeshs "Share hotspot"): Sie schickt den naechsten Hotspot in zehn Bloecken an die Gruppe, als
+ * haette man auf "[Share to PARTY chat]" geklickt - ohne den Chat zu oeffnen. Sie braucht keine Angel und keinen
+ * vorherigen Vorschlag; gilt immer der Hotspot, der jetzt am naechsten ist.
+ *
  * <p>Gefunden wird er wie bei Feesh: Ein Ruestungsstaender mit dem Namen "HOTSPOT", und der Bonus steht auf dem
  * Staender knapp darunter (gleiches X und Z, bis zu einem Block tiefer, gleicher Neigungswinkel). Das ist ein anderer
  * Weg als der der Hotspot-Kreise ({@link HotspotTracker}), der den Bonus-Staender sucht - der Vorschlag laeuft
@@ -66,6 +70,11 @@ public final class HotspotShare {
     private static Object lastLevel = null;
     private static int ticks = 0;
 
+    /** Zwischen zwei Sendungen der Taste liegt mindestens so viel Pause - sie ist eine Abkuerzung, kein Dauerfeuer */
+    private static final long KEY_GAP_MILLIS = 400L;
+    private static boolean keyWasDown = false;
+    private static long lastKeySent = 0L;
+
     private HotspotShare() {
     }
 
@@ -86,8 +95,19 @@ public final class HotspotShare {
             foundIds.clear();
             lastClosest = null;
         }
-        if (client.player == null || !GameState.Server.isSkyblock() || !applies(GameState.Server.map)) return;
-        if (!hasRod(client.player)) return;
+        if (client.player == null || !GameState.Server.isSkyblock()) {
+            // Auch ausserhalb zaehlt der Stand der Taste weiter, damit eine gehaltene Taste beim Betreten nicht als Druck zaehlt
+            keyWasDown = shareKey() > 0 && ShortcutHandler.isDown(shareKey());
+            return;
+        }
+        boolean keyPressed = pressedNow(client);
+        if (!applies(GameState.Server.map)) {
+            if (keyPressed) chat(client, "There are no hotspots in this area.");
+            return;
+        }
+        if (keyPressed) shareToParty(client);
+
+        if (!ModConfig.INSTANCE.fishing.hotspot.offerShare || !hasRod(client.player)) return;
 
         if (++ticks < SCAN_TICKS) return;
         ticks = 0;
@@ -97,6 +117,78 @@ public final class HotspotShare {
         } catch (RuntimeException e) {
             ShokiMod.LOGGER.warn("[HotspotShare] scan failed: {}", e.toString());
         }
+    }
+
+    // ---- Die Taste ----
+
+    /** Die gewaehlte Taste, ein GLFW-Code; 0 heisst: keine (auch eine Maustaste zaehlt hier als keine) */
+    private static int shareKey() {
+        ModConfig.HotspotCategory c = ModConfig.INSTANCE.fishing.hotspot;
+        return c.hasShareKey() ? c.shareKey : 0;
+    }
+
+    /**
+     * Der Augenblick, in dem die Taste unten ankommt: jetzt unten, im Tick davor nicht, und es darf gesendet werden.
+     * Der Stand der Taste wird in jedem Fall weitergefuehrt - auch bei offenem Fenster -, damit eine noch gehaltene
+     * Taste beim Schliessen nicht als neuer Druck zaehlt.
+     */
+    static boolean pressed(boolean down, boolean canFire) {
+        boolean fire = down && !keyWasDown && canFire;
+        keyWasDown = down;
+        return fire;
+    }
+
+    /** Wurde die Taste in diesem Tick gedrueckt? Nur wenn das Spiel die Maus haelt und im Vordergrund ist */
+    private static boolean pressedNow(Minecraft client) {
+        int key = shareKey();
+        if (key <= 0) {
+            keyWasDown = false;
+            return false;
+        }
+        boolean canFire = client.mouseHandler.isMouseGrabbed() && client.isWindowActive();
+        return pressed(ShortcutHandler.isDown(key), canFire);
+    }
+
+    /** Fuer die Probe: den Stand der Taste vergessen */
+    static void resetKeyForTest() {
+        keyWasDown = false;
+        lastKeySent = 0L;
+    }
+
+    /** Der Befehl, der an die Gruppe geht: "pchat" und die Zeile, ohne Kennung und ohne den Schraegstrich */
+    static String partyCommand(Found found, String zone) {
+        return "pchat " + shareMessage(found.x(), found.y(), found.z(), found.perk(), zone, false);
+    }
+
+    /** Den naechsten Hotspot an die Gruppe schicken - wie ein Klick auf "[Share to PARTY chat]" */
+    private static void shareToParty(Minecraft client) {
+        long time = System.currentTimeMillis();
+        if (time - lastKeySent < KEY_GAP_MILLIS) return;
+        try {
+            Found found = findClosest(client);
+            if (found == null) {
+                chat(client, "No Hotspot found nearby, move closer to be in " + (int) RANGE + " blocks range!");
+                return;
+            }
+            if (client.getConnection() == null) return;
+            lastKeySent = time;
+            client.getConnection().sendCommand(partyCommand(found, zone(client)));
+        } catch (RuntimeException e) {
+            ShokiMod.LOGGER.warn("[HotspotShare] share key failed: {}", e.toString());
+        }
+    }
+
+    private static void chat(Minecraft client, String text) {
+        if (client.player == null) return;
+        client.player.sendSystemMessage(Component.literal("[ShokiMod] ").withStyle(ChatFormatting.DARK_AQUA)
+                .append(Component.literal(text).withStyle(ChatFormatting.WHITE)));
+    }
+
+    /** Die Zone aus der Seitenleiste; im Backwater Bayou null, denn es hat nur eine */
+    private static String zone(Minecraft client) {
+        return "Backwater Bayou".equals(GameState.Server.map)
+                ? null
+                : SoundMute.zoneOf(ScoreboardUtils.getSidebarLines(client));
     }
 
     /** Eine Angel in der Hotbar - nur dann ist man zum Angeln da und nicht nur auf der Durchreise */
@@ -255,9 +347,7 @@ public final class HotspotShare {
 
     private static void announce(Minecraft client, Found found, boolean live) {
         if (client.player == null) return;
-        String zone = "Backwater Bayou".equals(GameState.Server.map)
-                ? null // Der Bayou hat nur eine Zone, die muss nicht dastehen
-                : SoundMute.zoneOf(ScoreboardUtils.getSidebarLines(client));
+        String zone = zone(client);
         String party = shareMessage(found.x(), found.y(), found.z(), found.perk(), zone, false);
         String all = shareMessage(found.x(), found.y(), found.z(), found.perk(), zone, true);
         for (Component line : offer(found.perk(), party, all, live)) client.player.sendSystemMessage(line);

@@ -159,9 +159,10 @@ public final class FeatureGate {
         return ModConfig.INSTANCE.fishing.air.enabled;
     }
 
-    /** Der Teilen-Vorschlag sucht alle halbe Sekunde den naechsten Hotspot - nur wenn er an ist */
+    /** Der Teilen-Vorschlag sucht alle halbe Sekunde den naechsten Hotspot, die Taste fragt jeden Tick - nur wenn eines an ist */
     public static boolean hotspotShare() {
-        return ModConfig.INSTANCE.fishing.hotspot.offerShare;
+        ModConfig.HotspotCategory c = ModConfig.INSTANCE.fishing.hotspot;
+        return c.offerShare || c.hasShareKey();
     }
 
     /** Die Stummschaltung schaut bei jedem Ton nach - nur wenn mindestens einer der beiden Schalter an ist */
