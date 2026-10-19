@@ -2412,7 +2412,7 @@ public class ModConfig extends Config {
         public boolean banner = true;
 
         @Expose
-        @ConfigOption(name = "Banner design", desc = "Name of the banner design. Build one in Alerts > Banner > Sandbox. Empty uses the default.")
+        @ConfigOption(name = "Banner design", desc = "Name of the banner design. Build one in Alerts > Banner > Sandbox. Empty uses \"Sea creature\": the game-title look with the player above the creature.")
         @ConfigEditorText
         public String bannerDesign = "";
 

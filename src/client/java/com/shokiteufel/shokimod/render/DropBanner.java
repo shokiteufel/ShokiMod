@@ -637,6 +637,10 @@ public final class DropBanner {
         }
         float hs = clamp(d.headlineSize, 0.5f, 6.0f) * scale;
         float vs = clamp(d.valueSize, 0.5f, 6.0f) * scale;
+        // Der Fangende darueber: Zwischen der Unterkante seiner Zeile und der Oberkante des Namens liegt derselbe
+        // sichtbare Abstand wie unten zwischen Name und Zeile - fuenf Punkte der kleinen Schrift plus zwei der
+        // grossen (die Buchstaben des Namens sind acht Punkte hoch, nicht neun, und enden zwei Punkte ueber der Mitte)
+        float aboveGap = 5f * vs + 2f * hs;
 
         int cx;
         int cy;
@@ -648,6 +652,15 @@ public final class DropBanner {
             cy = g.guiHeight() / 2;
         }
         cy += offsetY;
+
+        // Auf dem Bildschirm halten: Steht der Block hoch oder tief, schiebt ihn das ein Stueck zurueck, statt
+        // die Zeile ueber dem Namen oder die unter ihm abzuschneiden. In einem kleinen Fenster ist die Lage nach
+        // einem Anteil der Hoehe, die Schrift aber hat feste Groesse - ohne das ragte der Fangende oben hinaus
+        float topExtent = 10f * hs + (above.isEmpty() ? 0f : aboveGap + 9f * vs);
+        float bottomExtent = sub.isEmpty() ? 0f : 14f * vs;
+        float lowest = topExtent + 2f;
+        float highest = g.guiHeight() - bottomExtent - 2f;
+        if (lowest <= highest) cy = Math.round(Math.clamp((float) cy, lowest, highest));
 
         // Weiss mit der Deckkraft: Die Farbe des Namens steckt im Text selbst, so wie beim Titel des Spiels
         int white = (a << 24) | 0xFFFFFF;
@@ -672,10 +685,6 @@ public final class DropBanner {
             g.pose().popMatrix();
         }
 
-        // Der Fangende darueber: Zwischen der Unterkante seiner Zeile und der Oberkante des Namens liegt derselbe
-        // sichtbare Abstand wie unten zwischen Name und Zeile - fuenf Punkte der kleinen Schrift plus zwei der
-        // grossen (die Buchstaben des Namens sind acht Punkte hoch, nicht neun, und enden zwei Punkte ueber der Mitte)
-        float aboveGap = 5f * vs + 2f * hs;
         if (!above.isEmpty()) {
             g.pose().pushMatrix();
             g.pose().scale(vs, vs);
