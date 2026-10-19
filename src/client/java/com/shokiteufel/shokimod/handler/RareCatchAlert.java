@@ -228,10 +228,11 @@ public final class RareCatchAlert {
      * Das Aussehen der Einblendung.
      *
      * Wer eines benennt, bekommt es. Ohne Angabe aber nicht die allgemeine Vorlage,
-     * sondern die schlichte: Beim Angeln taucht alle paar Minuten etwas auf, und dann
-     * will man lesen, was da ist, statt einer Kiste beim Oeffnen zuzusehen. Ein eigenes
-     * Design mit diesem Namen geht der Vorlage vor - so laesst es sich im Sandkasten
-     * umbauen, ohne dass hier etwas zu aendern waere.
+     * sondern die fuers Angeln gebaute ("Sea creature", der Titel mit dem Fangenden
+     * darueber): Beim Angeln taucht alle paar Minuten etwas auf, und dann will man lesen,
+     * was da ist, statt einer Kiste beim Oeffnen zuzusehen. Ein eigenes Design mit diesem
+     * Namen geht der Vorlage vor - so laesst es sich im Sandkasten umbauen, ohne dass hier
+     * etwas zu aendern waere.
      */
     private static com.shokiteufel.shokimod.data.BannerDesign design() {
         String name = cfg().bannerDesign;
@@ -240,11 +241,11 @@ public final class RareCatchAlert {
         }
         com.shokiteufel.shokimod.data.BannerDesign eigenes =
                 ModConfig.INSTANCE.chat.banner.design(
-                        com.shokiteufel.shokimod.data.BannerDesign.PLAIN_CATCH);
+                        com.shokiteufel.shokimod.data.BannerDesign.SEA_CREATURE);
         if (eigenes != null) return eigenes;
         for (com.shokiteufel.shokimod.data.BannerDesign vorlage
                 : com.shokiteufel.shokimod.data.BannerDesign.presets()) {
-            if (com.shokiteufel.shokimod.data.BannerDesign.PLAIN_CATCH.equals(vorlage.name)) {
+            if (com.shokiteufel.shokimod.data.BannerDesign.SEA_CREATURE.equals(vorlage.name)) {
                 return vorlage;
             }
         }
