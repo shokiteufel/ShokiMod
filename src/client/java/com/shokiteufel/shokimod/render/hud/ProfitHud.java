@@ -118,21 +118,24 @@ public final class ProfitHud {
         ids.add(null);
         // Was bisher abgezogen wurde; die Aufschluesselung steht im Tooltip (NearbyOverlay)
         negativeRow = ids.size();
-        panel.pair("Negative:", ItemValue.format(ProfitTracker.negativeTotal()), LABEL_COLOUR,
-                ProfitTracker.negativeTotal() < 0 ? HudColours.RED : VALUE_COLOUR);
+        // Je einmal gerechnet und dann nur noch gelesen: Jede Summe geht sonst durch alle Zeilen
+        double negative = ProfitTracker.negativeTotal();
+        panel.pair("Negative:", ItemValue.format(negative), LABEL_COLOUR,
+                negative < 0 ? HudColours.RED : VALUE_COLOUR);
         ids.add(null);
         // Nur, wenn im gezeigten Zeitraum schon ein Boss bezahlt wurde
         if (ProfitTracker.spawnCost() < 0) {
             panel.pair("Spawn cost:", ItemValue.format(ProfitTracker.spawnCost()), LABEL_COLOUR, HudColours.RED);
             ids.add(null);
         }
-        panel.pair("Total:", ItemValue.format(ProfitTracker.total()), LABEL_COLOUR,
-                ProfitTracker.total() < 0 ? HudColours.RED : VALUE_COLOUR);
+        double total = ProfitTracker.total();
+        panel.pair("Total:", ItemValue.format(total), LABEL_COLOUR,
+                total < 0 ? HudColours.RED : VALUE_COLOUR);
         ids.add(null);
         // Beide Zeilen einzeln: Wer nur wissen will, wie lange er schon dran ist,
         // braucht die Coins je Stunde nicht daneben
         if (cfg.timerEnabled && cfg.showPerHour) {
-            panel.pair("Profit/h:", ItemValue.format(ProfitTracker.perHour()), LABEL_COLOUR, VALUE_COLOUR);
+            panel.pair("Profit/h:", ItemValue.format(ProfitTracker.perHour(total)), LABEL_COLOUR, VALUE_COLOUR);
             ids.add(null);
         }
         if (cfg.timerEnabled && cfg.showTime) {

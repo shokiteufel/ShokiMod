@@ -238,6 +238,7 @@ public final class ProfitTracker {
     public static void setMode(String itemId, SellMode mode) {
         if (mode == null) cfg().modes.remove(itemId);
         else cfg().modes.put(itemId, mode);
+        invalidateRows();
         ModConfig.INSTANCE.saveNow();
     }
 
@@ -374,6 +375,7 @@ public final class ProfitTracker {
             if (neu > 0 || (neu < 0 && mayBeNegative(itemId))) zaehler.put(itemId, neu);
             else zaehler.remove(itemId);
         }
+        invalidateRows();
         ModConfig.INSTANCE.saveNow();
         ShokiMod.LOGGER.info("[Profit] {} {} by hand -> {}", delta > 0 ? "+" + delta : delta,
                 itemId, Math.max(0, updated));
@@ -387,6 +389,7 @@ public final class ProfitTracker {
         } else {
             if (!cfg().hidden.remove(itemId)) cfg().hidden.add(itemId);
         }
+        invalidateRows();
         ModConfig.INSTANCE.saveNow();
     }
 
@@ -667,6 +670,7 @@ public final class ProfitTracker {
         if (itemId == null) return;
         if (coins > 0) cfg().customPrices.put(itemId, coins);
         else cfg().customPrices.remove(itemId);
+        invalidateRows();
     }
 
     /**
@@ -765,11 +769,51 @@ public final class ProfitTracker {
     public static void cycleView() {
         ModConfig.ProfitView[] alle = ModConfig.ProfitView.values();
         cfg().view = alle[(view().ordinal() + 1) % alle.length];
+        invalidateRows();
         ModConfig.INSTANCE.saveNow();
     }
 
-    /** Alle sichtbaren Zeilen, wertvollste zuerst */
+    /**
+     * Die zuletzt berechneten Zeilen, kurz gemerkt.
+     *
+     * Der Kasten wird viermal je Sekunde neu gebaut und fragt dafuer mehrfach nach den Zeilen - und jede Frage
+     * ging durch alle gezaehlten Waren, mit Preis, Name und Sortierung je Ware. Im Gesamtstand sind das nicht
+     * zwanzig, sondern oft Tausende: alles, was je ins Inventar kam. Das kostete bei jedem Bau Millisekunden auf
+     * dem Zeichenfaden und zeigte sich als Ruckeln, sobald der Kasten auf "Total" stand.
+     *
+     * Eine Sekunde ist genug: Neue Funde und Preise kommen von selbst nicht schneller an, und jede Aenderung von
+     * Hand (Auswahl, Verkaufsart, eigener Preis, Hochrechnen, Nachbessern, Reset) leert den Merker sofort.
+     */
+    private static volatile List<Row> rowsMemo = null;
+    private static volatile long rowsMemoAt = 0L;
+    private static volatile ModConfig.ProfitView rowsMemoView = null;
+    private static final long ROWS_MEMO_MILLIS = 1_000L;
+
+    /** Nach einer Aenderung von Hand stimmen die gemerkten Zeilen nicht mehr */
+    public static void invalidateRows() {
+        rowsMemo = null;
+    }
+
+    /** Alle sichtbaren Zeilen, wertvollste zuerst. Eine Kopie: Wer sie kuerzt oder sortiert, aendert den Merker nicht */
     public static List<Row> rows() {
+        long now = System.currentTimeMillis();
+        ModConfig.ProfitView view = view();
+        List<Row> memo = rowsMemo;
+        if (memo != null && rowsMemoView == view && now - rowsMemoAt < ROWS_MEMO_MILLIS) {
+            return new ArrayList<>(memo);
+        }
+        List<Row> fresh = computeRows();
+        rowsMemoView = view;
+        rowsMemoAt = now;
+        rowsMemo = fresh;
+        return new ArrayList<>(fresh);
+    }
+
+    private static List<Row> computeRows() {
+        // Die Auswahl einmal als Menge: shown() sucht in einer Liste, und das bei jeder Ware - bei Tausenden
+        // Waren und Hunderten ausgeblendeten waeren das Hunderttausende Vergleiche je Berechnung
+        boolean pickedOnly = cfg().selection == ModConfig.ProfitSelection.PICKED;
+        java.util.Set<String> listed = new java.util.HashSet<>(pickedOnly ? cfg().picked : cfg().hidden);
         Map<String, Long> mengen = new LinkedHashMap<>();
         for (Map.Entry<String, Integer> entry : activeCounts().entrySet()) {
             String itemId = entry.getKey();
@@ -784,7 +828,8 @@ public final class ProfitTracker {
         for (Map.Entry<String, Long> entry : mengen.entrySet()) {
             String itemId = entry.getKey();
             long count = entry.getValue();
-            if (count == 0 || (count < 0 && !mayBeNegative(itemId)) || !shown(itemId)) continue;
+            if (count == 0 || (count < 0 && !mayBeNegative(itemId))) continue;
+            if (pickedOnly != listed.contains(itemId)) continue;
 
             double unit = unitPrice(itemId);
             out.add(new Row(itemId, nameOf(itemId), count, unit > 0 ? unit * count : 0,
@@ -893,6 +938,7 @@ public final class ProfitTracker {
         if (targetId == null || targetId.isBlank() || targetId.equals(itemId)) {
             cfg().countAs.remove(itemId);
             inheritedMemo.clear();
+            invalidateRows();
             ModConfig.INSTANCE.saveNow();
             return 1;
         }
@@ -902,6 +948,7 @@ public final class ProfitTracker {
 
         cfg().countAs.put(itemId, targetId);
         inheritedMemo.clear();
+        invalidateRows();
         ModConfig.INSTANCE.saveNow();
         ShokiMod.LOGGER.info("[Profit] {} counts as {} ({} to one)", itemId, targetId, teiler);
         return teiler;
@@ -969,9 +1016,14 @@ public final class ProfitTracker {
     }
 
     public static double perHour() {
+        return perHour(total());
+    }
+
+    /** Dasselbe mit einer schon berechneten Summe - der Kasten hat sie ohnehin in der Hand */
+    public static double perHour(double total) {
         long uptime = uptimeMillis();
         if (uptime < 1_000L) return 0;
-        return total() / (uptime / 3_600_000d);
+        return total / (uptime / 3_600_000d);
     }
 
     /**
@@ -1526,6 +1578,7 @@ public final class ProfitTracker {
             if (amount > 0) zaehler.put(itemId, amount);
             else zaehler.remove(itemId);
         }
+        invalidateRows();
         ModConfig.INSTANCE.saveNow();
         ShokiMod.LOGGER.info("[Profit] {} set to {} in all three", itemId, amount);
     }
@@ -1685,6 +1738,7 @@ public final class ProfitTracker {
         cfg().counts.remove(itemId);
         cfg().dayCounts.remove(itemId);
         cfg().totalCounts.remove(itemId);
+        invalidateRows();
         ModConfig.INSTANCE.saveNow();
         ShokiMod.LOGGER.info("[Profit] {} removed by hand", itemId);
     }
@@ -1717,6 +1771,7 @@ public final class ProfitTracker {
         unconfirmedMillis = 0L;
         paused = true;
         dirty = false;
+        invalidateRows();
         ModConfig.INSTANCE.saveNow();
         ShokiMod.LOGGER.info("[Profit] {} reset", view());
     }
