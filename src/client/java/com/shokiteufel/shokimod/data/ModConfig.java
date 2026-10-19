@@ -1354,6 +1354,12 @@ public class ModConfig extends Config {
         @ConfigAccordionId(id = 41)
         public boolean veinAfterLapis = false;
 
+        @Expose
+        @ConfigOption(name = "Skip known crystals", desc = "The crystal shafts hold a big crystal that looks like a vein but cannot be mined. The ones the mod knows are never marked: Jasper C so far. Your own ignored veins stay in any case.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 41)
+        public boolean ignoreKnownCrystals = true;
+
 
         @Expose
         @ConfigOption(name = "Line thickness", desc = "How thick the line to the nearest vein is drawn.")

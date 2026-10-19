@@ -106,11 +106,34 @@ public final class OreVeins {
         return MineshaftState.type() + "_" + MineshaftState.variant();
     }
 
+    /**
+     * Die Kristalle, die die Mod schon kennt: je Bauplan und Ausfuehrung ein Kasten, wie bei den eigenen
+     * ignorierten Adern ("minX,minY,minZ,maxX,maxY,maxZ").
+     *
+     * Der Kristall der Kristall-Ausfuehrung steht in jedem Schacht dieses Bauplans an derselben Stelle (die
+     * Bauplaene sind feste Welten, wie bei den Leichen). Wer ihn einmal ignoriert hat, hat ihn damit fuer sich
+     * weg - fuer alle anderen soll er von Anfang an weg sein.
+     *
+     * Jasper C: ShokiTeufel hat ihn am 19.10.2026 ignoriert; die Meldung nannte den obersten Block, (-121, 20, -175),
+     * und 182 Bloecke. Der Kasten ist daraus geschaetzt, grosszuegig nach unten und zur Seite, denn ein Haufen am
+     * Rand der Suchweite wird in Stuecken gefunden, und auch deren oberster Block muss darin liegen. Eine genauere
+     * Zahl kommt mit der naechsten Meldung "Ignoring the ... vein", die den Kasten jetzt mit nennt.
+     */
+    private static final java.util.Map<String, List<String>> KNOWN_CRYSTALS = java.util.Map.of(
+            "JASP_C", List.of("-127,8,-181,-115,20,-169"));
+
     /** Was in den Kaesten der ignorierten Adern liegt, fliegt heraus */
     private static List<Vein> withoutIgnored(List<Vein> found, ModConfig.MineshaftCategory cfg) {
         if (found.isEmpty() || !MineshaftState.inMineshaft()) return found;
-        List<String> ignored = cfg.ignoredVeins.get(layoutKey());
-        if (ignored == null || ignored.isEmpty()) return found;
+        // Eigene Kaesten und, solange nicht abgeschaltet, die bekannten Kristalle dieses Bauplans
+        List<String> ignored = new ArrayList<>();
+        List<String> own = cfg.ignoredVeins.get(layoutKey());
+        if (own != null) ignored.addAll(own);
+        if (cfg.ignoreKnownCrystals) {
+            List<String> known = KNOWN_CRYSTALS.get(layoutKey());
+            if (known != null) ignored.addAll(known);
+        }
+        if (ignored.isEmpty()) return found;
 
         List<int[]> boxes = new ArrayList<>(ignored.size());
         for (String text : ignored) {
@@ -160,10 +183,12 @@ public final class OreVeins {
                 .computeIfAbsent(layoutKey(), k -> new ArrayList<>()).add(text);
         ModConfig.INSTANCE.saveNow();
         veins = withoutIgnored(veins, ModConfig.INSTANCE.mining.mineshaft);
+        com.shokiteufel.shokimod.ShokiMod.LOGGER.info("[Veins] ignored {} vein ({} blocks) in {}, anchor {}, box {}",
+                vein.kind(), vein.size(), layoutKey(), vein.anchor().toShortString(), text);
         return "Ignoring the " + vein.kind() + " vein (" + vein.size() + " blocks) at "
                 + vein.anchor().getX() + " " + vein.anchor().getY() + " " + vein.anchor().getZ()
                 + " in " + MineshaftState.readable(MineshaftState.type()) + " " + MineshaftState.variant()
-                + " from now on.";
+                + " from now on. Box " + text + ".";
     }
 
     /** Alle ignorierten Adern dieses Bauplans wieder zulassen */
