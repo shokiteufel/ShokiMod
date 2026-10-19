@@ -234,7 +234,7 @@ public final class RareCatchAlert {
      * Namen geht der Vorlage vor - so laesst es sich im Sandkasten umbauen, ohne dass hier
      * etwas zu aendern waere.
      */
-    private static com.shokiteufel.shokimod.data.BannerDesign design() {
+    public static com.shokiteufel.shokimod.data.BannerDesign design() {
         String name = cfg().bannerDesign;
         if (name != null && !name.isBlank()) {
             return ModConfig.INSTANCE.chat.banner.designOrDefault(name);

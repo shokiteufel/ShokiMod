@@ -2479,6 +2479,11 @@ public class ModConfig extends Config {
         public boolean warningSound = true;
 
         @Expose
+        @ConfigOption(name = "Warning banner", desc = "Name of the banner design for the despawn warning. Pick it in Alerts > Banner > Sandbox, where a design can be ticked for each alert.")
+        @ConfigEditorText
+        public String warningDesign = "Classic band";
+
+        @Expose
         @ConfigOption(name = "Share Hotspot", desc = "Shows a clickable chat message that offers sharing the Hotspot location and its perk to ALL chat or PARTY chat. You need a fishing rod in your hotbar and must be close to the hotspot to trigger it. Works in every world with hotspots, offers each hotspot once, and does not need Enabled above. Ported from Feesh.")
         @ConfigEditorBoolean
         public boolean offerShare = true;

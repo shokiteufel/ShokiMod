@@ -1,6 +1,7 @@
 package com.shokiteufel.shokimod.gui;
 
 import com.shokiteufel.shokimod.data.BannerDesign;
+import com.shokiteufel.shokimod.data.BannerUses;
 import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.render.DropBanner;
 import net.minecraft.ChatFormatting;
@@ -23,7 +24,7 @@ import java.util.function.Supplier;
  * Der Banner-Sandbox: ein Design auswaehlen oder anlegen und jede Eigenschaft drehen.
  *
  * Links die Liste der Designs - die Vorlagen und alles, was man selbst gebaut hat.
- * Rechts die Eigenschaften, auf vier Karteikarten verteilt: Aufbau, Form, Schrift,
+ * In der Mitte die Eigenschaften, auf vier Karteikarten verteilt: Aufbau, Form, Schrift,
  * Bewegung. Frueher standen alle Regler in zwei langen Spalten untereinander; mit
  * Formen, Schnitten und dem grossen Auftritt waeren daraus vierzig geworden, und wer
  * die Schriftgroesse suchte, scrollte an Kistenarten vorbei. Die Karten trennen, was
@@ -60,7 +61,15 @@ public class BannerDesignScreen extends Screen {
     private static final int LIST_LEFT = 8;
     private static final int LIST_WIDTH = 150;
     private static final int LIST_TOP = 30;
-    private static final int COLUMN_WIDTH = 196;
+    /**
+     * Die Breite einer Spalte. Wie breit sie hoechstens und mindestens ist, und wie viel Platz die Liste rechts
+     * braucht - die Spalten geben nach, wenn das Fenster schmaler ist, damit die Liste noch hineinpasst.
+     */
+    private static final int MAX_COLUMN = 196;
+    private static final int MIN_COLUMN = 140;
+    private static final int USE_WIDTH = 124;
+    private static final int USE_GAP = 10;
+    private int columnWidth = MAX_COLUMN;
     private static final int COLUMN_GAP = 8;
     /** Wie breit der Beschriftungsstreifen links in einer Zeile ist */
     private static final int LABEL_WIDTH = 90;
@@ -120,11 +129,14 @@ public class BannerDesignScreen extends Screen {
     @Override
     protected void init() {
         BannerDesign d = design();
+        int fixed = LIST_LEFT + LIST_WIDTH + 16 + COLUMN_GAP + USE_GAP + USE_WIDTH + 6;
+        columnWidth = Math.clamp((width - fixed) / 2, MIN_COLUMN, MAX_COLUMN);
         int col1 = LIST_LEFT + LIST_WIDTH + 16;
-        int col2 = col1 + COLUMN_WIDTH + COLUMN_GAP;
+        int col2 = col1 + columnWidth + COLUMN_GAP;
 
         buildList(d);
         buildTabs(col1);
+        buildUses(d, col2 + columnWidth + USE_GAP);
 
         int y1 = LIST_TOP + 26;
         int y2 = y1;
@@ -148,9 +160,12 @@ public class BannerDesignScreen extends Screen {
         for (int i = 0; i < rowsPerPage && start + i < designs().size(); i++) {
             int index = start + i;
             BannerDesign entry = designs().get(index);
-            String tiers = HudEditorScreen.tiersUsing(entry.name);
-            String rowText = (index == selected ? "▶ " : "") + entry.name
-                    + (tiers.isEmpty() ? "" : "  [" + tiers.replace("Tier ", "T") + "]");
+            String tags = BannerUses.tags(entry.name);
+            String rowText = (index == selected ? "▶ " : "") + entry.name + (tags.isEmpty() ? "" : "  [" + tags + "]");
+            // Passt es nicht in die Zeile, wird hinten gekuerzt - die ganze Liste steht rechts
+            if (font.width(rowText) > LIST_WIDTH - 12) {
+                rowText = font.plainSubstrByWidth(rowText, LIST_WIDTH - 12 - font.width("…")) + "…";
+            }
             Button row = Button.builder(Component.literal(rowText), button -> {
                 selected = index;
                 rebuild();
@@ -216,7 +231,7 @@ public class BannerDesignScreen extends Screen {
 
     private void buildTabs(int col1) {
         Tab[] tabs = Tab.values();
-        int total = COLUMN_WIDTH * 2 + COLUMN_GAP;
+        int total = columnWidth * 2 + COLUMN_GAP;
         int each = (total - (tabs.length - 1) * 2) / tabs.length;
         for (int i = 0; i < tabs.length; i++) {
             Tab t = tabs[i];
@@ -234,7 +249,13 @@ public class BannerDesignScreen extends Screen {
     // ---- Die vier Karten ----
 
     private void buildLayout(BannerDesign d, int col1, int col2, int y1, int y2) {
-        EditBox name = box(col1, y1, "Name", d.name, 40, value -> d.name = value.isBlank() ? d.name : value);
+        EditBox name = box(col1, y1, "Name", d.name, 40, value -> {
+            if (value.isBlank()) return;
+            // Die Meldungen, die dieses Design ziehen, ziehen es auch unter dem neuen Namen
+            String old = d.name;
+            d.name = value;
+            BannerUses.rename(old, value);
+        });
         y1 += ROW;
         cycle(col1, y1, "Anchor", BannerDesign.Anchor.values(), () -> d.anchor, v -> d.anchor = v, a -> a.label,
                 "Where the banner hangs. Only Free follows the X/Y from the HUD editor.");
@@ -266,7 +287,7 @@ public class BannerDesignScreen extends Screen {
         }
         Button position = Button.builder(Component.literal("Position: HUD editor"), button -> {
             if (minecraft != null) minecraft.setScreenAndShow(new HudEditorScreen(this, true));
-        }).bounds(col2, y2, COLUMN_WIDTH, 20).build();
+        }).bounds(col2, y2, columnWidth, 20).build();
         position.setTooltip(Tooltip.create(Component.literal("Drag this banner into place. Only the Free anchor follows X/Y.")));
         addRenderableWidget(position);
 
@@ -393,24 +414,46 @@ public class BannerDesignScreen extends Screen {
                         + "Raise \"Headline size\" on the Text card to make the name bigger. Applies to the still preview too.")));
         addRenderableWidget(fang);
 
-        int tiers = ModConfig.RareLootCategory.TIERS;
-        int each = (COLUMN_WIDTH * 2 + COLUMN_GAP - 148 - 84) / tiers;
-        for (int tier = 1; tier <= tiers; tier++) {
-            int number = tier;
-            Button use = Button.builder(Component.literal(usesTier(d, tier) ? "✔ T" + tier : "T" + tier),
-                    button -> {
-                        ModConfig.INSTANCE.chat.rareLoot.setDesign(number, d.name);
-                        rebuild();
-                    }).bounds(col1 + 148 + (tier - 1) * each, bottom, each - 4, 20).build();
-            use.setTooltip(Tooltip.create(Component.literal("Use this design when a drop reaches Tier " + tier)));
-            addRenderableWidget(use);
-        }
         addRenderableWidget(Button.builder(Component.literal("Done"), button -> onClose())
-                .bounds(col2 + COLUMN_WIDTH - 80, bottom, 80, 20).build());
+                .bounds(col2 + columnWidth - 80, bottom, 80, 20).build());
     }
 
-    private static boolean usesTier(BannerDesign d, int tier) {
-        return d.name.equalsIgnoreCase(ModConfig.INSTANCE.chat.rareLoot.designFor(tier));
+    // ---- Die Liste rechts: fuer welche Meldungen dieses Design gilt ----
+
+    /**
+     * Eine Zeile je Meldung mit Banner, mit Haken, wenn sie das gewaehlte Design zieht.
+     *
+     * Ein Klick auf eine Zeile ohne Haken nimmt dieses Design fuer die Meldung. Ein Klick auf eine mit Haken
+     * nimmt es ihr wieder weg: Sie faellt auf die eigene Vorgabe zurueck - eine Meldung hat immer genau ein
+     * Design, ein Haken ohne Ersatz gaebe es nicht. Die vier Stufen des Fundalarms standen frueher als T1 bis
+     * T4 unten im Fenster; sie sind jetzt Zeilen dieser Liste.
+     */
+    private void buildUses(BannerDesign d, int x) {
+        labels.add(new Label(x, LIST_TOP + 6, "Use for"));
+        int y = LIST_TOP + 22;
+        for (BannerUses.Use use : BannerUses.all()) {
+            boolean on = use.uses(d.name);
+            // Mit Haken gruen, ohne weiss: Grau saehe aus wie ein Knopf, der nicht geht
+            Component text = on ? Component.literal("✔ " + use.label()).withStyle(ChatFormatting.GREEN)
+                    : Component.literal(use.label());
+            Button button = Button.builder(text,
+                            b -> {
+                                use.toggle(d.name);
+                                rebuild();
+                            })
+                    .bounds(x, y, USE_WIDTH, 16).build();
+            String tip;
+            if (!on) {
+                tip = "Use this design for: " + use.hint();
+            } else if (use.isDefault(d.name)) {
+                tip = use.hint() + " - uses this design. It is also the alert's own default.";
+            } else {
+                tip = use.hint() + " - uses this design. Click to go back to the alert's own default.";
+            }
+            button.setTooltip(Tooltip.create(Component.literal(tip)));
+            addRenderableWidget(button);
+            y += 18;
+        }
     }
 
     /**
@@ -506,7 +549,7 @@ public class BannerDesignScreen extends Screen {
     // ---- Widget-Bauer ----
 
     private EditBox box(int x, int y, String label, String value, int maxLength, Consumer<String> apply) {
-        EditBox field = new EditBox(font, x + LABEL_WIDTH, y, COLUMN_WIDTH - LABEL_WIDTH, 20, Component.literal(label));
+        EditBox field = new EditBox(font, x + LABEL_WIDTH, y, columnWidth - LABEL_WIDTH, 20, Component.literal(label));
         field.setMaxLength(maxLength);
         field.setValue(value == null ? "" : value);
         field.setHint(Component.literal(label).withStyle(ChatFormatting.DARK_GRAY));
@@ -529,7 +572,7 @@ public class BannerDesignScreen extends Screen {
             set.accept(values[next]);
             b.setMessage(Component.literal(label + ": " + text.apply(values[next])));
             DropBanner.preview(design());
-        }).bounds(x, y, COLUMN_WIDTH, 20).build();
+        }).bounds(x, y, columnWidth, 20).build();
         button.setTooltip(Tooltip.create(Component.literal(
                 tip == null ? "Click to step through the options" : tip)));
         addRenderableWidget(button);
@@ -545,7 +588,7 @@ public class BannerDesignScreen extends Screen {
             set.accept(next);
             b.setMessage(toggleText(label, next));
             DropBanner.preview(design());
-        }).bounds(x, y, COLUMN_WIDTH, 20).build();
+        }).bounds(x, y, columnWidth, 20).build();
         if (tip != null) button.setTooltip(Tooltip.create(Component.literal(tip)));
         addRenderableWidget(button);
     }
@@ -569,7 +612,7 @@ public class BannerDesignScreen extends Screen {
                           BooleanSupplier strike, Consumer<Boolean> setStrike) {
         labels.add(new Label(x, y + 6, label + " style"));
         int left = x + LABEL_WIDTH;
-        int each = (COLUMN_WIDTH - LABEL_WIDTH - 6) / 4;
+        int each = (columnWidth - LABEL_WIDTH - 6) / 4;
         styleButton(left, y, each, "B", "Bold", bold, setBold);
         styleButton(left + each + 2, y, each, "I", "Italic", italic, setItalic);
         styleButton(left + (each + 2) * 2, y, each, "U", "Underline", underline, setUnderline);
@@ -594,7 +637,7 @@ public class BannerDesignScreen extends Screen {
 
     private void slider(int x, int y, String label, float min, float max, Supplier<Float> get, Consumer<Float> set,
                         String format, float displayFactor) {
-        addRenderableWidget(new ValueSlider(x, y, COLUMN_WIDTH, label, min, max, get, set, format, displayFactor));
+        addRenderableWidget(new ValueSlider(x, y, columnWidth, label, min, max, get, set, format, displayFactor));
     }
 
     private class ValueSlider extends AbstractSliderButton {
@@ -653,7 +696,7 @@ public class BannerDesignScreen extends Screen {
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         // Ein dunkler Grund hinter Liste und Reglern, damit die Schrift lesbar bleibt
-        int panelRight = LIST_LEFT + LIST_WIDTH + 16 + COLUMN_WIDTH * 2 + COLUMN_GAP + 8;
+        int panelRight = LIST_LEFT + LIST_WIDTH + 16 + columnWidth * 2 + COLUMN_GAP + USE_GAP + USE_WIDTH + 8;
         graphics.fill(0, 0, Math.min(width, panelRight), height, 0xB0101010);
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
         graphics.text(font, this.title.getString(), LIST_LEFT, 10, 0xFFFFFFFF, true);
