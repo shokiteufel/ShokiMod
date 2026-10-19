@@ -112,8 +112,21 @@ public final class ItemChanges {
      */
     private static final Pattern KILL_REWARD = Pattern.compile(
             "^You received [\\d,]+x? .+ for killing (?:an?|the) .+!$", Pattern.CASE_INSENSITIVE);
-    /** So lange nach einer solchen Zeile zaehlt auch, was bei offenem Fenster ankommt */
+    /** So lange nach einer solchen Zeile zaehlt auch, was bei offenem Fenster ankommt - aber nur Beute ohne Chatzeile */
     private static final long LOOT_MILLIS = 5_000L;
+    /**
+     * Beute, die der Server wortlos austeilt: Sie hat keine eigene Chatzeile und liegt einfach im Inventar.
+     *
+     * Nur sie zaehlt, solange ein Fenster offen ist und Beute fliesst. Die Ausnahme ist fuer die Buecher der
+     * Garden-Schaedlinge da (Fallen leeren, Fenster offen); alles andere, was in dieser Zeit durch ein Fenster
+     * ankommt, hat der Spieler selbst geholt - aus einem Sack, einer Truhe, dem Basar -, und das ist kein Fund.
+     * Wer seine Fallen leert, hat die Beutezeilen aber dauernd, und mit ihnen war jedes Fenster eine Ausnahme: Im
+     * Log vom 19.10. um 17:47:08 stand so ein Glossy Gemstone aus dem Basar-Fenster im Kasten (2 Mio. Coins,
+     * Alarm Stufe 1).
+     *
+     * Eine Ware dazu: Anfang ihrer Kennung hier eintragen.
+     */
+    private static final String[] WORDLESS_LOOT = {"ENCHANTMENT_ULTIMATE_SUNSET_"};
 
     /**
      * "You Supercrafted Blessed Bait x256!" - gebaut, nicht gefunden.
@@ -566,8 +579,45 @@ public final class ItemChanges {
         // Beute bei offenem Fenster: der Vergleichspunkt des Fensters wandert mit.
         // Sonst stuende dasselbe beim Schliessen noch einmal als "durchs Fenster" da -
         // und waere als schon verbucht vorgemerkt, obwohl es gerade gezaehlt wurde
-        if (windowOpen) windowBaseline = current;
+        if (windowOpen) {
+            // Und gezaehlt wird dabei nur die wortlose Beute: Was der Spieler selbst durchs Fenster holt,
+            // zaehlt auch dann nicht, wenn nebenbei Beute fliesst
+            gains = wordlessLootOnly(gains, System.currentTimeMillis());
+            windowBaseline = current;
+        }
         if (!gains.isEmpty()) held.add(new Held(gains, tickCount));
+    }
+
+    /** Ist das Beute, die der Server ohne Chatzeile austeilt? */
+    static boolean wordlessLoot(String itemId) {
+        if (itemId == null) return false;
+        for (String prefix : WORDLESS_LOOT) {
+            if (itemId.startsWith(prefix)) return true;
+        }
+        return false;
+    }
+
+    /**
+     * Von den Zugaengen eines offenen Fensters bleibt nur die wortlose Beute uebrig.
+     *
+     * Der Rest kam durchs Fenster und wird wie ein Fenster-Zugang behandelt: nicht gezaehlt, und gegen die
+     * Sack-Meldung vorgemerkt, die der Einlagerung sonst als Fund folgte (dasselbe wie in noteWindow).
+     */
+    static Map<String, Integer> wordlessLootOnly(Map<String, Integer> gains, long now) {
+        if (gains.isEmpty()) return gains;
+
+        Map<String, Integer> kept = new LinkedHashMap<>();
+        Map<String, Integer> moved = new LinkedHashMap<>();
+        for (Map.Entry<String, Integer> entry : gains.entrySet()) {
+            (wordlessLoot(entry.getKey()) ? kept : moved).put(entry.getKey(), entry.getValue());
+        }
+        if (moved.isEmpty()) return gains;
+
+        for (Map.Entry<String, Integer> entry : moved.entrySet()) {
+            losses.add(new Loss(entry.getKey(), entry.getValue(), now, true));
+        }
+        ShokiMod.LOGGER.info("[Profit] came in through a window while loot was flowing, not counted: {}", moved);
+        return kept;
     }
 
     /**
