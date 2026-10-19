@@ -451,8 +451,10 @@ public class BannerDesign {
     }
 
     /** Die Vorlagen, in der alten Reihenfolge - Namen bleiben, damit alte Einstellungen passen */
-    /** Die Vorlage, die der Fang-Alarm nimmt, solange niemand etwas anderes waehlt */
+    /** Die schlichte Fang-Vorlage: bis 1.16.14 die Vorgabe des Fang-Alarms, jetzt eine Vorlage unter vielen */
     public static final String PLAIN_CATCH = "Plain catch";
+    /** Die Vorlage, die der Fang-Alarm nimmt, solange niemand etwas anderes waehlt */
+    public static final String SEA_CREATURE = "Sea creature";
 
     public static List<BannerDesign> presets() {
         List<BannerDesign> out = new ArrayList<>(25);
@@ -546,6 +548,28 @@ public class BannerDesign {
         feesh.valueSuffix = "";
         feesh.durationMillis = 2500;
         out.add(feesh);
+
+        // Der Fang-Banner, den ShokiTeufel am 19.10.2026 gebaut und als Code geteilt hat: das Aussehen von Feesh (der
+        // Titel des Spiels), der Fangende grau und fett ueber dem Namen, hoeher auf dem Bildschirm und mit Drachenatem.
+        // Uebernommen sind seine Werte, nicht meine Vorstellung davon. Er ist die Vorgabe des Fang-Alarms
+        BannerDesign meer = preset(SEA_CREATURE, Anchor.FREE, Background.TITLE, 0.25797874f, Frame.NONE, Accent.DIVIDER,
+                4.0425534f, 1.9242021f, TextColour.ACCENT, TextColour.GREY, TextEffect.SHADOW, "", "", Icon.NONE,
+                Animation.NONE);
+        meer.x = 0.5f;
+        meer.y = 0.3f;
+        meer.scale = 0.9965426f;
+        meer.padding = 10;
+        meer.cornerRadius = 9;
+        meer.valueBold = true;
+        meer.valuePrefix = "";
+        meer.valueSuffix = "";
+        meer.showTier = false;
+        meer.nameAbove = true;
+        meer.iconScale = 1.9800532f;
+        meer.durationMillis = 2500;
+        meer.particles = Particles.DRAGON;
+        meer.particleTicks = 12;
+        out.add(meer);
         return out;
     }
 
