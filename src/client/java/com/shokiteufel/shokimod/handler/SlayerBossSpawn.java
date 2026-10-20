@@ -20,7 +20,8 @@ import java.util.List;
  * nutzt sie nur, um sie auszublenden. Dieselbe Zeile lesen SkyHanni und Skyblocker, um den Boss-Kampf
  * zu erkennen.
  *
- * Gemeldet wird einmal, wenn die Zeile erscheint. Damit nichts doppelt kommt:
+ * Gemeldet wird einmal, wenn die Zeile erscheint - nur dass der Boss da ist, nicht welcher: Man weiss,
+ * welchen Slayer man gerufen hat. Damit nichts doppelt kommt:
  * - Was beim ersten Lesen schon da ist (Welt betreten, Schalter eingeschaltet), ist nur die Ausgangslage.
  * - Eine kurze Luecke in der Seitenleiste (sie wird Zeile fuer Zeile neu gebaut) zaehlt nicht als Ende;
  *   erst wenn die Zeile eine Sekunde fehlt, gilt der naechste Boss wieder als neu.
@@ -29,7 +30,6 @@ import java.util.List;
 public final class SlayerBossSpawn {
 
     private static final String BOSS_LINE = "Slay the boss!";
-    private static final String HEADER = "Slayer Quest";
     /** Alle fuenf Ticks lesen reicht: Das Banner kommt hoechstens eine Viertelsekunde nach der Zeile */
     private static final int READ_EVERY_TICKS = 5;
     /** So viele Lesungen ohne die Zeile, bis der naechste Boss wieder neu ist: eine Sekunde */
@@ -75,7 +75,7 @@ public final class SlayerBossSpawn {
         if (present) {
             if (armed) {
                 armed = false;
-                announce(bossName(lines, at));
+                announce();
             }
             absentReads = 0;
         } else if (++absentReads >= ABSENT_READS) {
@@ -91,21 +91,14 @@ public final class SlayerBossSpawn {
         return -1;
     }
 
-    /** Der Name des Bosses: die Zeile darueber im Kasten ("Voidgloom Seraph III"), oder leer */
-    static String bossName(List<String> lines, int bossLine) {
-        if (bossLine <= 0) return "";
-        String above = ScoreboardUtils.stripColor(lines.get(bossLine - 1)).trim();
-        return above.equals(HEADER) ? "" : above;
-    }
-
-    private static void announce(String boss) {
+    private static void announce() {
         DropBanner.show(ModConfig.INSTANCE.chat.banner.designOrDefault(ModConfig.INSTANCE.slayer.spawnBannerDesign),
-                "Slayer boss spawned!", boss, "", COLOUR, ItemStack.EMPTY);
-        ShokiMod.LOGGER.info("[Slayer] boss spawned: '{}' - banner shown", boss);
+                "Slayer boss spawned!", "", "", COLOUR, ItemStack.EMPTY);
+        ShokiMod.LOGGER.info("[Slayer] boss spawned - banner shown");
     }
 
-    /** Der Testknopf: einmal mit einem Beispiel, im eingestellten Design */
+    /** Der Testknopf: einmal, im eingestellten Design */
     public static void test() {
-        announce("Voidgloom Seraph III");
+        announce();
     }
 }
