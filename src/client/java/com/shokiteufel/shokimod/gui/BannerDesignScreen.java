@@ -93,6 +93,8 @@ public class BannerDesignScreen extends Screen {
     private final Screen parent;
     private int selected = 0;
     private int listPage = 0;
+    /** Die Seite der Liste "Use for", wenn nicht alle Meldungen auf einmal passen */
+    private int usePage = 0;
     /**
      * Die offene Karte bleibt ueber das Fenster hinaus stehen.
      *
@@ -429,9 +431,20 @@ public class BannerDesignScreen extends Screen {
      * T4 unten im Fenster; sie sind jetzt Zeilen dieser Liste.
      */
     private void buildUses(BannerDesign d, int x) {
-        labels.add(new Label(x, LIST_TOP + 6, "Use for"));
-        int y = LIST_TOP + 22;
-        for (BannerUses.Use use : BannerUses.all()) {
+        List<BannerUses.Use> all = BannerUses.all();
+        int top = LIST_TOP + 22;
+        // Die Fusszeile (Preview, Done) liegt rechts nicht im Weg: Die Liste endet etwas darueber
+        int fit = Math.max(3, (height - 34 - top) / 18);
+        boolean paged = all.size() > fit;
+        // Mit mehreren Seiten braucht die Blaetterzeile einen Platz
+        int perPage = paged ? fit - 1 : all.size();
+        int pages = Math.max(1, (all.size() + perPage - 1) / perPage);
+        usePage = Math.clamp(usePage, 0, pages - 1);
+
+        labels.add(new Label(x, LIST_TOP + 6, pages > 1 ? "Use for  " + (usePage + 1) + "/" + pages : "Use for"));
+        int y = top;
+        for (int i = usePage * perPage; i < Math.min(all.size(), (usePage + 1) * perPage); i++) {
+            BannerUses.Use use = all.get(i);
             boolean on = use.uses(d.name);
             // Mit Haken gruen, ohne weiss: Grau saehe aus wie ein Knopf, der nicht geht
             Component text = on ? Component.literal("✔ " + use.label()).withStyle(ChatFormatting.GREEN)
@@ -453,6 +466,17 @@ public class BannerDesignScreen extends Screen {
             button.setTooltip(Tooltip.create(Component.literal(tip)));
             addRenderableWidget(button);
             y += 18;
+        }
+        if (pages > 1) {
+            int half = (USE_WIDTH - 4) / 2;
+            addRenderableWidget(Button.builder(Component.literal("◀"), b -> {
+                usePage = Math.floorMod(usePage - 1, pages);
+                rebuild();
+            }).bounds(x, y, half, 16).build());
+            addRenderableWidget(Button.builder(Component.literal("▶"), b -> {
+                usePage = Math.floorMod(usePage + 1, pages);
+                rebuild();
+            }).bounds(x + half + 4, y, half, 16).build());
         }
     }
 

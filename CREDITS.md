@@ -78,7 +78,7 @@ Die gesamte Safari-Seite geht auf crittermod zurück.
 | Fortschritts-Anzeige | Nachbau des CritterHud (`ProgressHud`) |
 | Nest-Zähler | Nachbau des NestTracker |
 | Wände und Rockmite Mounds | Koordinaten und Erkennungsregel (`SafariExtras`) |
-| Vollbild-Einblendung | Aufbau des FullScreenAlert (`AlertBanner`) |
+| Vollbild-Einblendung | Aufbau des FullScreenAlert (Vorlage „Alert band“ in `BannerDesign`, früher `AlertBanner`) |
 | Kasten-Layout | Der Panel-Aufbau beider Anzeigen (`HudPanel`) |
 | Biom-Farben | Reihenfolge und Farben (`SafariBiome`) |
 | Shiny-Erkennung | Die Prüfung hinter dem Präfix (`SparklingTarget`) |

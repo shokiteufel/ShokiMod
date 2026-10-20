@@ -3,9 +3,10 @@ package com.shokiteufel.shokimod.scanner;
 import com.shokiteufel.shokimod.data.GameState;
 import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.ShokiMod;
-import com.shokiteufel.shokimod.render.AlertBanner;
+import com.shokiteufel.shokimod.render.DropBanner;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
+import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -135,7 +136,6 @@ public final class MiningState {
      * Sekunden nachrueckt. Dasselbe macht der Contest-Zaehler.
      */
     private static final int READY_ALERT_COLOUR = 0x55FFFF;
-    private static final long READY_ALERT_MILLIS = 2500L;
     /**
      * Der Banner kommt eine halbe Sekunde nach der Bereitschaft.
      *
@@ -425,8 +425,8 @@ public final class MiningState {
 
         readyAnnounced = true;
         String name = ability();
-        AlertBanner.show("Mining Ability Ready!!!", name.isBlank() ? "" : name, "",
-                READY_ALERT_COLOUR, READY_ALERT_MILLIS);
+        DropBanner.show(ModConfig.INSTANCE.chat.banner.designOrDefault(ModConfig.INSTANCE.mining.hud.readyBannerDesign),
+                "Mining Ability Ready!!!", name.isBlank() ? "" : name, "", READY_ALERT_COLOUR, ItemStack.EMPTY);
     }
 
     /** Die Restzeit, laufend gerechnet: "26s", "1m 20s" oder "Ready" */

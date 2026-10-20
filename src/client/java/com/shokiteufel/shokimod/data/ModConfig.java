@@ -1505,9 +1505,13 @@ public class ModConfig extends Config {
         public CorpseFilter corpses = CorpseFilter.OFF;
 
         @Expose
-        @ConfigOption(name = "Ready alert", desc = "Shows a banner the moment the pickaxe ability comes off cooldown, so you do not have to watch the panel.")
+        @ConfigOption(name = "Ready alert", desc = "Shows a banner the moment the pickaxe ability comes off cooldown, so you do not have to watch the panel. Its design is picked in Alerts > Banner > Sandbox.")
         @ConfigEditorBoolean
         public boolean readyAlert = false;
+
+        /** Das Design des Banners "Mining Ability Ready" - gewaehlt im Sandkasten (Liste "Use for") */
+        @Expose
+        public String readyBannerDesign = BannerDesign.ALERT_BAND;
 
         /** Bis 1.7.5 stand die Wahl hier - siehe MineshaftCategory.corpseCall */
         @Expose
@@ -1882,9 +1886,13 @@ public class ModConfig extends Config {
         public int warnSeconds = 10;
 
         @Expose
-        @ConfigOption(name = "Banner", desc = "Large text across the screen.")
+        @ConfigOption(name = "Banner", desc = "Large text across the screen. Its design is picked in Alerts > Banner > Sandbox.")
         @ConfigEditorBoolean
         public boolean banner = true;
+
+        /** Das Design des Banners - gewaehlt wird es im Sandkasten (Liste "Use for"), nicht hier */
+        @Expose
+        public String bannerDesign = BannerDesign.ALERT_BAND;
 
         @Expose
         @ConfigOption(name = "Chat line", desc = "Writes a line into your chat. Hypixel already writes its own red one, so this is off by default.")
@@ -1948,9 +1956,13 @@ public class ModConfig extends Config {
         public int warnSeconds = 10;
 
         @Expose
-        @ConfigOption(name = "Banner", desc = "Large text across the screen.")
+        @ConfigOption(name = "Banner", desc = "Large text across the screen. Its design is picked in Alerts > Banner > Sandbox.")
         @ConfigEditorBoolean
         public boolean banner = true;
+
+        /** Das Design des Banners - gewaehlt wird es im Sandkasten (Liste "Use for"), nicht hier */
+        @Expose
+        public String bannerDesign = BannerDesign.ALERT_BAND;
 
         @Expose
         @ConfigOption(name = "Chat line", desc = "Writes a line into your chat. Hypixel already writes its own red one, so this is off by default.")
@@ -2003,9 +2015,13 @@ public class ModConfig extends Config {
         public boolean replacedAlert = false;
 
         @Expose
-        @ConfigOption(name = "Banner", desc = "Large text across the screen.")
+        @ConfigOption(name = "Banner", desc = "Large text across the screen. Its design is picked in Alerts > Banner > Sandbox.")
         @ConfigEditorBoolean
         public boolean banner = true;
+
+        /** Das Design des Banners - gewaehlt wird es im Sandkasten (Liste "Use for"), nicht hier */
+        @Expose
+        public String bannerDesign = BannerDesign.ALERT_BAND;
 
         @Expose
         @ConfigOption(name = "Chat line", desc = "Writes a line into your chat. Hypixel already writes its own one, so this is off by default.")
@@ -2795,9 +2811,13 @@ public class ModConfig extends Config {
         public int repeatSeconds = 60;
 
         @Expose
-        @ConfigOption(name = "Banner", desc = "Large text across the screen.")
+        @ConfigOption(name = "Banner", desc = "Large text across the screen. Its design is picked in Alerts > Banner > Sandbox.")
         @ConfigEditorBoolean
         public boolean banner = true;
+
+        /** Das Design des Banners - gewaehlt wird es im Sandkasten (Liste "Use for"), nicht hier */
+        @Expose
+        public String bannerDesign = BannerDesign.ALERT_BAND;
 
         @Expose
         @ConfigOption(name = "Chat line", desc = "Writes the warning into your chat.")
@@ -3654,7 +3674,7 @@ public class ModConfig extends Config {
         public static class SafariSecretCategory {
 
             @Expose
-            @ConfigOption(name = "Shiny alert", desc = "Full-screen banner and party call when a Sparkling critter shows up.")
+            @ConfigOption(name = "Shiny alert", desc = "Full-screen banner and party call when a Sparkling critter shows up. The banner's design is picked in Alerts > Banner > Sandbox.")
             @ConfigEditorBoolean
             public boolean shinyAlert = true;
 
@@ -3662,6 +3682,10 @@ public class ModConfig extends Config {
             @ConfigOption(name = "Shiny colour", desc = "Hex like FFD700 for the SHINY banner.")
             @ConfigEditorText
             public String shinyColour = "FFD700";
+
+            /** Das Design des SHINY-Banners - gewaehlt im Sandkasten (Liste "Use for") */
+            @Expose
+            public String shinyBannerDesign = BannerDesign.ALERT_BAND_LONG;
 
             @Expose
             @ConfigOption(name = "Hideyho finder", desc = "Glow and a line to the nearest Hideyho, like a Your Mobs entry with Highlight and Line - without having to add one.")
@@ -3690,6 +3714,10 @@ public class ModConfig extends Config {
 
         @Expose
         public List<ChatRule> chatRules = new ArrayList<>();
+
+        /** Das Design der Banner aller Chatregeln - gewaehlt im Sandkasten (Liste "Use for") */
+        @Expose
+        public String announcementDesign = BannerDesign.ALERT_BAND;
 
         /** Beim Spielen entdeckte Gebietsnamen. Ergaenzt den festen Grundstock in KnownAreas */
         @Expose

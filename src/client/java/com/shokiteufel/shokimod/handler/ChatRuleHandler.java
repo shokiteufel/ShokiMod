@@ -3,7 +3,7 @@ package com.shokiteufel.shokimod.handler;
 import com.shokiteufel.shokimod.data.ChatRule;
 import com.shokiteufel.shokimod.data.GameState;
 import com.shokiteufel.shokimod.data.ModConfig;
-import com.shokiteufel.shokimod.render.AlertBanner;
+import com.shokiteufel.shokimod.render.DropBanner;
 import com.shokiteufel.shokimod.render.ShokiModToast;
 import com.shokiteufel.shokimod.util.AlertVolume;
 import com.shokiteufel.shokimod.util.CustomSoundPlayer;
@@ -77,8 +77,10 @@ public final class ChatRuleHandler {
         }
 
         if (!rule.announcement.isBlank()) {
-            AlertBanner.show(ChatRule.applyGroups(rule.announcement, matcher),
-                    "", "", 0xFFFFFF, rule.announcementMillis);
+            // Die Dauer stellt man je Regel ein und sie geht vor; das Aussehen ist eines fuer alle Regeln
+            DropBanner.show(ModConfig.INSTANCE.chat.banner.designOrDefault(ModConfig.INSTANCE.chat.announcementDesign),
+                    "", ChatRule.applyGroups(rule.announcement, matcher), "", "", 0xFFFFFF, ItemStack.EMPTY, 0d,
+                    rule.announcementMillis);
         }
 
         if (!rule.toast.isBlank()) {
