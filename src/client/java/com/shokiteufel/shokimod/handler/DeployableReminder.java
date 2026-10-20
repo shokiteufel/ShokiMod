@@ -7,7 +7,7 @@ import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.data.ModConfig.DeployableEndingsCategory;
 import com.shokiteufel.shokimod.data.ModConfig.DeployablesCategory;
 import com.shokiteufel.shokimod.data.ModConfig.UmberellaCategory;
-import com.shokiteufel.shokimod.render.AlertBanner;
+import com.shokiteufel.shokimod.render.DropBanner;
 import com.shokiteufel.shokimod.util.AlertVolume;
 import com.shokiteufel.shokimod.util.CustomSoundPlayer;
 
@@ -16,6 +16,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
+import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -75,7 +76,6 @@ public final class DeployableReminder {
     private static final Pattern FLARE_TOO_FAR = Pattern.compile(
             "^Your flare disappeared because you were too far away!$");
     private static final int UNKNOWN_LIMIT = 50;
-    private static final long BANNER_MILLIS = 4000L;
     /** So lange nach einem Wechsel der Welt kommt keine Meldung */
     static final long QUIET_MILLIS = 10_000L;
     /** So lange wartet eine Meldung, ob gleich die Welt wechselt */
@@ -134,7 +134,7 @@ public final class DeployableReminder {
     }
 
     /** Wie gemeldet wird: die Schalter des Reiters, der zur Meldung gehoert */
-    record Style(boolean banner, boolean chatLine, boolean sound, String soundFile) {
+    record Style(boolean banner, boolean chatLine, boolean sound, String soundFile, String design) {
     }
 
     private record Pending(Hit hit, Style style, long fireAt) {
@@ -227,17 +227,17 @@ public final class DeployableReminder {
 
     static Style mainStyle() {
         DeployablesCategory c = cfg();
-        return new Style(c.banner, c.chatLine, c.sound, c.soundFile);
+        return new Style(c.banner, c.chatLine, c.sound, c.soundFile, c.bannerDesign);
     }
 
     static Style umberellaStyle() {
         UmberellaCategory u = cfg().umberellaAlert;
-        return new Style(u.banner, u.chatLine, u.sound, u.soundFile);
+        return new Style(u.banner, u.chatLine, u.sound, u.soundFile, u.bannerDesign);
     }
 
     static Style endingsStyle() {
         DeployableEndingsCategory e = cfg().endings;
-        return new Style(e.banner, e.chatLine, e.sound, e.soundFile);
+        return new Style(e.banner, e.chatLine, e.sound, e.soundFile, e.bannerDesign);
     }
 
     /** Wie diese Zeile gemeldet wird - oder null, wenn sie keine Meldung bekommt */
@@ -382,7 +382,10 @@ public final class DeployableReminder {
                 chatText = " ran out.";
             }
         }
-        if (style.banner()) AlertBanner.show(headline, hit.name(), where, hit.kind().rgb, BANNER_MILLIS);
+        if (style.banner()) {
+            DropBanner.show(ModConfig.INSTANCE.chat.banner.designOrDefault(style.design()),
+                    headline, hit.name(), where, hit.kind().rgb, ItemStack.EMPTY);
+        }
 
         // Chat und Ton brauchen eine Welt
         Minecraft client = Minecraft.getInstance();

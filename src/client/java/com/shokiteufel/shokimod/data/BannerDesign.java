@@ -455,6 +455,13 @@ public class BannerDesign {
     public static final String PLAIN_CATCH = "Plain catch";
     /** Die Vorlage, die der Fang-Alarm nimmt, solange niemand etwas anderes waehlt */
     public static final String SEA_CREATURE = "Sea creature";
+    /**
+     * Die Vorlage fuer alles, was frueher ein einfaches Band quer ueber den Bildschirm war (Deployables, Effekte,
+     * Chatregeln, Faehigkeit bereit): dasselbe Band, ohne Klammern um die zweite Zeile, vier Sekunden.
+     */
+    public static final String ALERT_BAND = "Alert band";
+    /** Dasselbe sieben Sekunden lang - so lange stand der SHINY-Banner schon immer */
+    public static final String ALERT_BAND_LONG = "Alert band long";
 
     public static List<BannerDesign> presets() {
         List<BannerDesign> out = new ArrayList<>(25);
@@ -570,6 +577,20 @@ public class BannerDesign {
         meer.particles = Particles.DRAGON;
         meer.particleTicks = 12;
         out.add(meer);
+
+        // Das alte Band, das mit dem Banner-Wechsel (1.16.20) zu einem Design wurde: Alle Meldungen, die bis dahin
+        // ein festes Band zeigten, nehmen es von Haus aus und lassen sich im Sandkasten umstellen
+        BannerDesign alarm = preset(ALERT_BAND, Anchor.BAND, Background.BOX, 0.55f, Frame.NONE, Accent.EDGES,
+                3.0f, 1.6f, TextColour.ACCENT, TextColour.WHITE, TextEffect.SHADOW, "", "", Icon.NONE,
+                Animation.NONE);
+        alarm.valuePrefix = "";
+        alarm.valueSuffix = "";
+        alarm.durationMillis = 4000;
+        out.add(alarm);
+        BannerDesign lang = alarm.copy();
+        lang.name = ALERT_BAND_LONG;
+        lang.durationMillis = 7000;
+        out.add(lang);
         return out;
     }
 
