@@ -527,6 +527,8 @@ public class ModConfig extends Config {
         INSTANCE.chat.testAlertVolume = () -> Minecraft.getInstance().execute(AlertVolume::test);
         INSTANCE.hunting.tracker.resetTracker = () -> Minecraft.getInstance().execute(HuntingTracker::reset);
         INSTANCE.guild.events.testBanner = () -> Minecraft.getInstance().execute(GuildEvents::testBanner);
+        INSTANCE.slayer.test = () -> Minecraft.getInstance().execute(
+                com.shokiteufel.shokimod.handler.SlayerBossSpawn::test);
         INSTANCE.collections.tracker.resetTracker = () -> Minecraft.getInstance().execute(CollectionTracker::reset);
         INSTANCE.collections.tracker.openPicker = () -> Minecraft.getInstance().execute(() ->
                 Minecraft.getInstance().setScreenAndShow(new CollectionPickerScreen(Minecraft.getInstance().gui.screen())));
@@ -850,7 +852,7 @@ public class ModConfig extends Config {
     public HuntingCategory hunting = new HuntingCategory();
 
     @Expose
-    @Category(name = "Slayer", desc = "Slayer quests: your own boss among the bosses of other players.")
+    @Category(name = "Slayer", desc = "Slayer quests: your own boss among the bosses of other players, and a banner when it spawns.")
     public SlayerCategory slayer = new SlayerCategory();
 
     @Expose
@@ -3267,6 +3269,20 @@ public class ModConfig extends Config {
         @ConfigOption(name = "Highlight colour", desc = "Hex like FF5555 for the glow around your boss.")
         @ConfigEditorText
         public String highlightColour = "FF5555";
+
+        @Expose
+        @ConfigOption(name = "Boss spawn banner", desc = "Shows a banner the moment your Slayer boss appears, so you know to stop killing and turn to it. It reads the line 'Slay the boss!' in the sidebar. The design is picked in Alerts > Banner > Sandbox. Works in SkyBlock only.")
+        @ConfigEditorBoolean
+        public boolean spawnBanner = false;
+
+        /** Das Design des Spawn-Banners - gewaehlt im Sandkasten (Liste "Use for") */
+        @Expose
+        public String spawnBannerDesign = BannerDesign.ALERT_BAND;
+
+        @ConfigOption(name = "Test", desc = "Shows the spawn banner once with an example boss, in the design you picked.")
+        @ConfigEditorButton(buttonText = "Test")
+        public transient Runnable test = () -> {
+        };
 
         public int highlightColourRGB() {
             try {
