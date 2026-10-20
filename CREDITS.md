@@ -107,6 +107,7 @@ Die gesamte Safari-Seite geht auf crittermod zurück.
 | Dye-Drop-Zeile | Das Muster, an dem Hypixels Meldung abzulesen ist |
 | Preis-Rückfall | hysky.de als Tiefstpreis-Quelle |
 | Floor Drops | Mittelbar — GanKura hatte es von dort |
+| Eigener Slayer-Boss | Woran man ihn erkennt: die Zeile „Spawned by: <Name>“ unter dem Boss, und die Namensschilder des Bosses als Gegenprobe (`SlayerBossTarget`, `EntityHighlightManager`) |
 
 ### SkyOcean (SkyOcean License v1 — Quelltext MIT, meowdding)
 
@@ -201,7 +202,11 @@ drinsteckt.
   Abgelesen, nicht übernommen: Die Umsetzung hier nutzt die Gizmos der Spielversion,
   und die Steigung der Deckkraft ist flacher, weil eine Ader mehr als einen Block füllt.
   Die AGPL wäre mit der LGPL **nicht** vereinbar, deshalb ist hier bewusst nie Code
-  übernommen worden, nur Tatsachen abgelesen.
+  übernommen worden, nur Tatsachen abgelesen. Auch der eigene Slayer-Boss ist so entstanden:
+  Aus `Mob`, `MobFilter` und `MobUtils` stammt, dass Hypixel den Mob und seine Namensschilder
+  nacheinander anlegt und der Besitzer in der Zeile „Spawned by: <Name>“ steht, zwei Kennungen
+  hinter dem ersten Namensschild. Hier wird bis vier Kennungen zurück gesucht, weil nicht geprüft
+  ist, ob es immer genau zwei sind, und danach in der Nähe. Kein Code übernommen.
 - **Feesh** (Apache-2.0, `Sleepy-Panda/Feesh`) — dort wird ein Pet, das die Hoechststufe
   erreicht, in den Tracker gelegt: Die Zeile "Your … leveled up to level 100!" wird
   gelesen, und nur 100 und 200 zaehlen. Auch die Schreibweise der Kennung ist von dort
