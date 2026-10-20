@@ -852,7 +852,7 @@ public class ModConfig extends Config {
     public HuntingCategory hunting = new HuntingCategory();
 
     @Expose
-    @Category(name = "Slayer", desc = "Slayer quests: your own boss among the bosses of other players, and a banner when it spawns.")
+    @Category(name = "Slayer", desc = "Slayer quests: your own boss among the bosses of other players, the minibosses, and a banner when your boss spawns.")
     public SlayerCategory slayer = new SlayerCategory();
 
     @Expose
@@ -3271,6 +3271,16 @@ public class ModConfig extends Config {
         public String highlightColour = "FF5555";
 
         @Expose
+        @ConfigOption(name = "Highlight minibosses", desc = "Outlines the Slayer minibosses that turn up while you collect kills - Revenant Sycophant and Champion, Tarantula Vermin and Beast, Pack Enforcer, Voidling Devotee, Flare Demon and the like. They belong to nobody, so this marks every one in sight. Works in SkyBlock only.")
+        @ConfigEditorBoolean
+        public boolean highlightMinibosses = false;
+
+        @Expose
+        @ConfigOption(name = "Miniboss colour", desc = "Hex like 55FFFF for the glow around minibosses.")
+        @ConfigEditorText
+        public String minibossColour = "55FFFF";
+
+        @Expose
         @ConfigOption(name = "Boss spawn banner", desc = "Shows a banner the moment your Slayer boss appears, so you know to stop killing and turn to it. It only says that the boss is here, not which one. It reads the line 'Slay the boss!' in the sidebar. The design is picked in Alerts > Banner > Sandbox. Works in SkyBlock only.")
         @ConfigEditorBoolean
         public boolean spawnBanner = false;
@@ -3290,6 +3300,19 @@ public class ModConfig extends Config {
             } catch (RuntimeException e) {
                 return 0xFF5555;
             }
+        }
+
+        public int minibossColourRGB() {
+            try {
+                return Integer.parseInt(minibossColour.trim().replace("#", ""), 16) & 0xFFFFFF;
+            } catch (RuntimeException e) {
+                return 0x55FFFF;
+            }
+        }
+
+        /** Soll irgendein Mob dieses Reiters markiert werden? */
+        public boolean anyMarker() {
+            return highlightOwnBoss || highlightMinibosses;
         }
     }
 
