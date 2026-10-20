@@ -18,10 +18,10 @@ public final class FeatureGate {
     private FeatureGate() {
     }
 
-    /** Soll noch irgendein Mob markiert werden - eigener Eintrag, seltenes Exemplar oder der eigene Slayer-Boss? */
+    /** Soll noch irgendein Mob markiert werden - eigener Eintrag, seltenes Exemplar oder etwas aus dem Slayer-Reiter? */
     public static boolean mobMarkers() {
-        // Der eigene Slayer-Boss hat einen eigenen Reiter und haengt nicht am Hauptschalter der Mobs
-        if (ModConfig.INSTANCE.slayer.highlightOwnBoss) return true;
+        // Der Slayer-Reiter hat seine eigenen Schalter und haengt nicht am Hauptschalter der Mobs
+        if (ModConfig.INSTANCE.slayer.anyMarker()) return true;
         if (!ModConfig.INSTANCE.mobVisuals.masterEnabled) return false;
         if (ModConfig.INSTANCE.mobVisuals.safari.hideyhoFinder) return true;
         List<CustomMob> targets = ModConfig.INSTANCE.mobVisuals.customTargets;

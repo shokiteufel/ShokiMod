@@ -7,6 +7,7 @@ import com.shokiteufel.shokimod.data.HideyhoTarget;
 import com.shokiteufel.shokimod.data.MobVisual;
 import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.data.SlayerBossTarget;
+import com.shokiteufel.shokimod.data.SlayerMinibossTarget;
 import com.shokiteufel.shokimod.data.SparklingTarget;
 import com.shokiteufel.shokimod.util.CustomMobDebug;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -113,6 +114,8 @@ public class EntityHighlightManager {
      */
     private static final Set<Long> slayerLogged = new HashSet<>();
     private static final int SLAYER_LOGGED_MAX = 64;
+    /** Dasselbe fuer die Minibosse: je Namensschild und Mob einmal */
+    private static final Set<Long> minibossLogged = new HashSet<>();
 
     public static void register() {
         ClientTickEvents.END_CLIENT_TICK.register(EntityHighlightManager::updateHighlights);
@@ -191,10 +194,12 @@ public class EntityHighlightManager {
         boolean scanSparkling = SparklingTarget.INSTANCE.anyEnabled();
         boolean scanHideyho = HideyhoTarget.enabled();
         // Der eigene Slayer-Boss: nur in SkyBlock und nur mit dem Schalter. Der eigene Name einmal je Tick
-        boolean scanSlayer = SlayerBossTarget.enabled() && GameState.Server.isSkyblock();
+        boolean skyblock = GameState.Server.isSkyblock();
+        boolean scanSlayer = SlayerBossTarget.enabled() && skyblock;
+        boolean scanMiniboss = SlayerMinibossTarget.enabled() && skyblock;
         String ownName = scanSlayer && client.getUser() != null ? client.getUser().getName() : null;
 
-        if (!scanCustom && !scanSparkling && !scanHideyho && !scanSlayer) return;
+        if (!scanCustom && !scanSparkling && !scanHideyho && !scanSlayer && !scanMiniboss) return;
 
         if (scanCustomType) {
             for (Entity entity : client.level.entitiesForRendering()) {
@@ -234,6 +239,10 @@ public class EntityHighlightManager {
             // Der eigene Slayer-Boss: die Zeile "Spawned by: <ich>" steht auf einem Armor Stand neben ihm
             if (scanSlayer && entity instanceof ArmorStand && SlayerBossTarget.isOwn(nameStr, ownName)) {
                 markOwnSlayerBoss(client, entity);
+            }
+            // Die Slayer-Minibosse: das Namensschild nennt sie, der Mob steht daneben - er gehoert niemandem
+            if (scanMiniboss && entity instanceof ArmorStand && SlayerMinibossTarget.matches(nameStr)) {
+                markSlayerMiniboss(client, entity);
             }
 
             // Sparkling(レア個体)。接頭辞と、その後ろの種名の両方で判定する
@@ -324,6 +333,25 @@ public class EntityHighlightManager {
         }
         if (body == null || !tagged) return;
         registerHighlight(body, SlayerBossTarget.INSTANCE);
+    }
+
+    /**
+     * Umreisst den Slayer-Miniboss, zu dem dieses Namensschild gehoert.
+     *
+     * Der Mob wird wie beim eigenen Boss gesucht: der kurz vor dem Schild angelegte, sonst der naechste.
+     * Eine Gegenprobe wie das Slayer-Namensschild gibt es hier nicht - das Schild ist das Zeichen selbst.
+     */
+    private static void markSlayerMiniboss(Minecraft client, Entity tag) {
+        Entity body = slayerBody(client, tag);
+        int bodyId = body == null ? -1 : body.getId();
+        if (minibossLogged.size() >= SLAYER_LOGGED_MAX) minibossLogged.clear();
+        if (minibossLogged.add(tag.getId() * 4_000_000_007L + (bodyId + 1L))) {
+            com.shokiteufel.shokimod.ShokiMod.LOGGER.info("[Slayer] miniboss name tag #{} at {} {} {}: mob {}",
+                    tag.getId(), (int) tag.getX(), (int) tag.getY(), (int) tag.getZ(),
+                    body == null ? "none found - not highlighted"
+                            : body.getType().getDescriptionId() + " #" + bodyId + " - highlighted");
+        }
+        if (body != null) registerHighlight(body, SlayerMinibossTarget.INSTANCE);
     }
 
     /** Der Mob zu einer Zeile "Spawned by": der kurz davor angelegte, sonst der naechste in der Naehe */
