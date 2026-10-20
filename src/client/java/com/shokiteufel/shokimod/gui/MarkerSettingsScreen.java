@@ -1,7 +1,6 @@
 package com.shokiteufel.shokimod.gui;
 
 import com.shokiteufel.shokimod.data.ModConfig;
-import com.shokiteufel.shokimod.render.AlertBanner;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;

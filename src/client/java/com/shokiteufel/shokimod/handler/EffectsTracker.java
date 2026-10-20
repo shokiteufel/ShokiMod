@@ -4,7 +4,7 @@ import com.shokiteufel.shokimod.ShokiMod;
 import com.shokiteufel.shokimod.data.GameState;
 import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.data.ModConfig.EffectEntry;
-import com.shokiteufel.shokimod.render.AlertBanner;
+import com.shokiteufel.shokimod.render.DropBanner;
 import com.shokiteufel.shokimod.scanner.TabListScanner;
 import com.shokiteufel.shokimod.util.AlertVolume;
 import com.shokiteufel.shokimod.util.CustomSoundPlayer;
@@ -382,7 +382,10 @@ public final class EffectsTracker {
 
     private static void fire(EffectEntry entry, String headline, String detail, int rgb, String chatText) {
         ModConfig.EffectsCategory c = cfg();
-        if (c.banner) AlertBanner.show(headline, entry.name, detail, rgb, 4000L);
+        if (c.banner) {
+            DropBanner.show(ModConfig.INSTANCE.chat.banner.designOrDefault(c.bannerDesign),
+                    headline, entry.name, detail, rgb, ItemStack.EMPTY);
+        }
         if (c.chatLine) {
             Minecraft client = Minecraft.getInstance();
             if (client != null && client.player != null) {

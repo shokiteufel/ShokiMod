@@ -11,6 +11,7 @@ import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.core.BlockPos;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.item.ItemStack;
 
 import java.nio.file.Files;
 import java.util.HashSet;
@@ -22,7 +23,7 @@ import java.util.UUID;
  * Einblendung fuer seltene Critter - und der Ruf an die Party.
  *
  * Hypixel nennt die seltene Variante "Sparkling <Art>"; angezeigt wird "SHINY!".
- * Gezeichnet wird ueber AlertBanner, das sich auch die Chatregeln teilen.
+ * Gezeichnet wird ueber DropBanner, mit dem Design, das im Sandkasten fuer den Critter gewaehlt ist.
  *
  * Wer einen Shiny sieht, ruft die Party: ein fester Satz geht per /pc hinaus. Und
  * wer diesen Satz im Chat liest - von wem auch immer - hoert einen Ton. Der Satz
@@ -33,7 +34,6 @@ import java.util.UUID;
 public final class ShinyAlert {
 
     private static final String HEADLINE = "SHINY!";
-    private static final long DISPLAY_MILLIS = 7000L;
 
     /** Der Ruf. Fest, damit jede Mod in der Party denselben Satz erkennt */
     public static final String CALL = "OMG!! WHO IS THAT SHINY?!";
@@ -60,9 +60,9 @@ public final class ShinyAlert {
         if (!announced.add(nameTag.getUUID())) return;
 
         BlockPos pos = body != null ? body.blockPosition() : nameTag.blockPosition();
-        AlertBanner.show(HEADLINE, plainName,
-                pos.getX() + " " + pos.getY() + " " + pos.getZ(),
-                DropBanner.parseColour(visuals.safari.shinyColour, 0xFFD700), DISPLAY_MILLIS);
+        DropBanner.show(ModConfig.INSTANCE.chat.banner.designOrDefault(visuals.safari.shinyBannerDesign),
+                HEADLINE, plainName, pos.getX() + " " + pos.getY() + " " + pos.getZ(),
+                DropBanner.parseColour(visuals.safari.shinyColour, 0xFFD700), ItemStack.EMPTY);
 
         if (cfg.shinyCallParty) callParty();
     }

@@ -108,6 +108,43 @@ public final class BannerUses {
                 name -> ModConfig.INSTANCE.guild.events.bannerDesign = name,
                 "Classic band",
                 () -> resolved(ModConfig.INSTANCE.guild.events.bannerDesign)));
+
+        // Die Meldungen, die bis 1.16.19 ein festes Band zeigten
+        out.add(new Use("Deployables", "Dep", "Warnings about power orbs, flares, lanterns, totems and black holes",
+                () -> ModConfig.INSTANCE.deployables.bannerDesign,
+                name -> ModConfig.INSTANCE.deployables.bannerDesign = name,
+                BannerDesign.ALERT_BAND,
+                () -> resolved(ModConfig.INSTANCE.deployables.bannerDesign)));
+        out.add(new Use("Umberella", "Umb", "The Umberella warnings",
+                () -> ModConfig.INSTANCE.deployables.umberellaAlert.bannerDesign,
+                name -> ModConfig.INSTANCE.deployables.umberellaAlert.bannerDesign = name,
+                BannerDesign.ALERT_BAND,
+                () -> resolved(ModConfig.INSTANCE.deployables.umberellaAlert.bannerDesign)));
+        out.add(new Use("Deployable replaced", "Repl", "A deployable removed because you put a new one down",
+                () -> ModConfig.INSTANCE.deployables.endings.bannerDesign,
+                name -> ModConfig.INSTANCE.deployables.endings.bannerDesign = name,
+                BannerDesign.ALERT_BAND,
+                () -> resolved(ModConfig.INSTANCE.deployables.endings.bannerDesign)));
+        out.add(new Use("Effects", "Eff", "Effect warnings: about to end, ran out, still off",
+                () -> ModConfig.INSTANCE.effects.bannerDesign,
+                name -> ModConfig.INSTANCE.effects.bannerDesign = name,
+                BannerDesign.ALERT_BAND,
+                () -> resolved(ModConfig.INSTANCE.effects.bannerDesign)));
+        out.add(new Use("Chat rules", "Chat", "The banners of your chat rules",
+                () -> ModConfig.INSTANCE.chat.announcementDesign,
+                name -> ModConfig.INSTANCE.chat.announcementDesign = name,
+                BannerDesign.ALERT_BAND,
+                () -> resolved(ModConfig.INSTANCE.chat.announcementDesign)));
+        out.add(new Use("Shiny critter", "Shiny", "A Sparkling critter shows up in the Safari",
+                () -> ModConfig.INSTANCE.mobVisuals.safari.shinyBannerDesign,
+                name -> ModConfig.INSTANCE.mobVisuals.safari.shinyBannerDesign = name,
+                BannerDesign.ALERT_BAND_LONG,
+                () -> resolved(ModConfig.INSTANCE.mobVisuals.safari.shinyBannerDesign)));
+        out.add(new Use("Mining ability", "Ability", "The pickaxe ability is ready again",
+                () -> ModConfig.INSTANCE.mining.hud.readyBannerDesign,
+                name -> ModConfig.INSTANCE.mining.hud.readyBannerDesign = name,
+                BannerDesign.ALERT_BAND,
+                () -> resolved(ModConfig.INSTANCE.mining.hud.readyBannerDesign)));
         return out;
     }
 

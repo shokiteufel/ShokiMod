@@ -29,7 +29,7 @@ import java.util.Locale;
  * hat, was dahinter liegt, wie die Schrift aussieht und wie es hereinkommt. Die
  * frueheren zwanzig Stile sind Vorlagen desselben Modells, kein eigener Code mehr.
  *
- * Getrennt vom {@link AlertBanner}, der fuer SHINY-Critter und Chatregeln bleibt.
+ * Alle Banner des Mods laufen hierueber: Jede Meldung hat ein Design, gewaehlt im Sandkasten (BannerUses).
  * Kein Timer: nur ein Zeitstempel, aus dem beim Zeichnen Deckkraft, Lage und
  * Animationsfortschritt folgen. Das Design wird beim Zeichnen gelesen - wer im
  * Sandbox oder Editor dreht, sieht es sofort.
@@ -136,6 +136,16 @@ public final class DropBanner {
     /** Dasselbe mit einer kleinen grauen Zeile ueber der Ueberschrift */
     public static void show(BannerDesign chosen, String bylineText, String headlineText, String worthText,
                             String tierText, int rgb, ItemStack iconStack, double value) {
+        show(chosen, bylineText, headlineText, worthText, tierText, rgb, iconStack, value, 0L);
+    }
+
+    /**
+     * Dasselbe mit eigener Anzeigedauer in Millisekunden. Null oder weniger heisst: die des Designs.
+     *
+     * Fuer die Chatregeln: Dort stellt man die Dauer je Regel ein, und die geht vor.
+     */
+    public static void show(BannerDesign chosen, String bylineText, String headlineText, String worthText,
+                            String tierText, int rgb, ItemStack iconStack, double value, long millis) {
         Shown s = new Shown();
         s.byline = bylineText == null ? "" : bylineText;
         s.design = chosen == null ? BannerDesign.presets().get(0) : chosen;
@@ -144,7 +154,7 @@ public final class DropBanner {
         s.tierLabel = tierText == null ? "" : tierText;
         s.tint = rgb & 0xFFFFFF;
         s.icon = iconStack;
-        s.displayMillis = Math.max(s.design.durationMillis, FADE_MILLIS + 300L);
+        s.displayMillis = Math.max(millis > 0 ? millis : s.design.durationMillis, FADE_MILLIS + 300L);
         // Eine Kiste, die aufspringt, braucht ihre Zeit. Bliebe die uebliche Dauer
         // stehen, waere sie ausgeblendet, bevor der Wert erscheint
         if (s.design.animation == Animation.CHEST) {

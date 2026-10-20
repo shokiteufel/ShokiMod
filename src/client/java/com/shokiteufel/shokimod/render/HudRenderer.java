@@ -12,8 +12,7 @@ public class HudRenderer {
 
     public static void render(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
         // Die Einblendung läuft auch außerhalb von SkyBlock, damit der Testknopf
-        // im Einstellungsfenster überall etwas zeigt
-        AlertBanner.render(graphics);
+        // im Einstellungsfenster überall etwas zeigt.
         // Der Sandbox zeichnet die Vorschau selbst, ueber seinem Fenster - hier wuerde sie darunter liegen
         if (!(Minecraft.getInstance().screen instanceof BannerDesignScreen)) DropBanner.render(graphics);
 
