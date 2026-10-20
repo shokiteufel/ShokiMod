@@ -3271,7 +3271,7 @@ public class ModConfig extends Config {
         public String highlightColour = "FF5555";
 
         @Expose
-        @ConfigOption(name = "Boss spawn banner", desc = "Shows a banner the moment your Slayer boss appears, so you know to stop killing and turn to it. It reads the line 'Slay the boss!' in the sidebar. The design is picked in Alerts > Banner > Sandbox. Works in SkyBlock only.")
+        @ConfigOption(name = "Boss spawn banner", desc = "Shows a banner the moment your Slayer boss appears, so you know to stop killing and turn to it. It only says that the boss is here, not which one. It reads the line 'Slay the boss!' in the sidebar. The design is picked in Alerts > Banner > Sandbox. Works in SkyBlock only.")
         @ConfigEditorBoolean
         public boolean spawnBanner = false;
 
@@ -3279,7 +3279,7 @@ public class ModConfig extends Config {
         @Expose
         public String spawnBannerDesign = BannerDesign.ALERT_BAND;
 
-        @ConfigOption(name = "Test", desc = "Shows the spawn banner once with an example boss, in the design you picked.")
+        @ConfigOption(name = "Test", desc = "Shows the spawn banner once, in the design you picked.")
         @ConfigEditorButton(buttonText = "Test")
         public transient Runnable test = () -> {
         };
