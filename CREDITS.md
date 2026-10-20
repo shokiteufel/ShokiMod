@@ -108,6 +108,7 @@ Die gesamte Safari-Seite geht auf crittermod zurück.
 | Preis-Rückfall | hysky.de als Tiefstpreis-Quelle |
 | Floor Drops | Mittelbar — GanKura hatte es von dort |
 | Eigener Slayer-Boss | Woran man ihn erkennt: die Zeile „Spawned by: <Name>“ unter dem Boss, und die Namensschilder des Bosses als Gegenprobe (`SlayerBossTarget`, `EntityHighlightManager`) |
+| Slayer-Boss erschienen | Woran man es sieht: die Zeile „Slay the boss!“ im Kasten „Slayer Quest“ der Seitenleiste (`SlayerBossSpawn`) |
 
 ### SkyOcean (SkyOcean License v1 — Quelltext MIT, meowdding)
 
@@ -206,7 +207,10 @@ drinsteckt.
   Aus `Mob`, `MobFilter` und `MobUtils` stammt, dass Hypixel den Mob und seine Namensschilder
   nacheinander anlegt und der Besitzer in der Zeile „Spawned by: <Name>“ steht, zwei Kennungen
   hinter dem ersten Namensschild. Hier wird bis vier Kennungen zurück gesucht, weil nicht geprüft
-  ist, ob es immer genau zwei sind, und danach in der Nähe. Kein Code übernommen.
+  ist, ob es immer genau zwei sind, und danach in der Nähe. Kein Code übernommen. Dazu stammt aus
+  `SlayerApi` die Zeile „Slay the boss!“ in der Seitenleiste als Zeichen, dass der eigene Boss da
+  ist. Partikel nutzt SkyHanni dafür nicht, nur um die Spawn-Effekte auszublenden
+  (`HideSlayerSpawnParticles`); hier gilt allein die Seitenleiste.
 - **Feesh** (Apache-2.0, `Sleepy-Panda/Feesh`) — dort wird ein Pet, das die Hoechststufe
   erreicht, in den Tracker gelegt: Die Zeile "Your … leveled up to level 100!" wird
   gelesen, und nur 100 und 200 zaehlen. Auch die Schreibweise der Kennung ist von dort

@@ -167,6 +167,11 @@ public final class FeatureGate {
         return c.offerShare || c.hasShareKey();
     }
 
+    /** Das Banner beim Boss-Spawn liest alle fuenf Ticks die Seitenleiste - nur wenn es an ist */
+    public static boolean slayerSpawn() {
+        return ModConfig.INSTANCE.slayer.spawnBanner;
+    }
+
     /** Die Stummschaltung schaut bei jedem Ton nach - nur wenn mindestens einer der beiden Schalter an ist */
     public static boolean mute() {
         ModConfig.MuteCategory c = ModConfig.INSTANCE.fishing.mute;
@@ -176,6 +181,6 @@ public final class FeatureGate {
     public static boolean location() {
         return contest() || safari() || nearbyPanel() || rareLoot() || huntingTracker() || mobMarkers() || chatRules()
                 || cakeReminder() || hotspots() || collectionTracker() || pestTraps() || gardenVisitors() || seaHp() || mute() || outOfAir() || hotspotShare()
-                || ModConfig.INSTANCE.effects.enabled;
+                || slayerSpawn() || ModConfig.INSTANCE.effects.enabled;
     }
 }
