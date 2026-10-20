@@ -145,6 +145,11 @@ public final class BannerUses {
                 name -> ModConfig.INSTANCE.mining.hud.readyBannerDesign = name,
                 BannerDesign.ALERT_BAND,
                 () -> resolved(ModConfig.INSTANCE.mining.hud.readyBannerDesign)));
+        out.add(new Use("Slayer boss", "Slayer", "Your Slayer boss has spawned",
+                () -> ModConfig.INSTANCE.slayer.spawnBannerDesign,
+                name -> ModConfig.INSTANCE.slayer.spawnBannerDesign = name,
+                BannerDesign.ALERT_BAND,
+                () -> resolved(ModConfig.INSTANCE.slayer.spawnBannerDesign)));
         return out;
     }
 
