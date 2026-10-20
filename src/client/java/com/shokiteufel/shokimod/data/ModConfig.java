@@ -850,6 +850,10 @@ public class ModConfig extends Config {
     public HuntingCategory hunting = new HuntingCategory();
 
     @Expose
+    @Category(name = "Slayer", desc = "Slayer quests: your own boss among the bosses of other players.")
+    public SlayerCategory slayer = new SlayerCategory();
+
+    @Expose
     @Category(name = "Safari", desc = "Markers for the Critter Safari.")
     public SafariCategory safari = new SafariCategory();
 
@@ -3240,6 +3244,37 @@ public class ModConfig extends Config {
         public float hudScale = 1.0f;
         @Expose
         public float hudAlpha = 1.0f;
+    }
+
+    /**
+     * Slayer: der eigene Boss unter den Bossen der anderen.
+     *
+     * Hypixel haengt unter jeden Slayer-Boss die Zeile "Spawned by: <Name>". Wessen Name dort steht,
+     * dem gehoert der Boss - siehe SlayerBossTarget.
+     */
+    public static class SlayerCategory {
+
+        @ConfigOption(name = "Slayer", desc = "Helpers for your Slayer quests. In a crowded spot, other players' bosses stand next to yours - this marks the one that is yours.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Highlight own Slayerboss", desc = "Outlines the Slayer boss you spawned yourself with a glow, so you can tell it from the bosses other players brought. It is found by the line 'Spawned by: <your name>' that Hypixel puts under every boss. Works in SkyBlock only.")
+        @ConfigEditorBoolean
+        public boolean highlightOwnBoss = false;
+
+        @Expose
+        @ConfigOption(name = "Highlight colour", desc = "Hex like FF5555 for the glow around your boss.")
+        @ConfigEditorText
+        public String highlightColour = "FF5555";
+
+        public int highlightColourRGB() {
+            try {
+                return Integer.parseInt(highlightColour.trim().replace("#", ""), 16) & 0xFFFFFF;
+            } catch (RuntimeException e) {
+                return 0xFF5555;
+            }
+        }
     }
 
     public static class HuntingCategory {
