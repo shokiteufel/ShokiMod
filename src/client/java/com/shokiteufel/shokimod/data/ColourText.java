@@ -51,6 +51,11 @@ public final class ColourText {
         return ChromaColour.specialToChromaRGB(text) & 0xFFFFFF;
     }
 
+    /** Sechs Hexstellen, wie sie ein Banner-Design speichert */
+    public static String toHex(int rgb) {
+        return String.format("%06X", rgb & 0xFFFFFF);
+    }
+
     /** Der Text fuer den Waehler, ohne Tempo und voll deckend */
     @SuppressWarnings("deprecation")
     public static String ofRgb(int rgb) {
