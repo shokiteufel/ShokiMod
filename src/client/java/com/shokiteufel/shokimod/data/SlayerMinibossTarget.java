@@ -8,7 +8,7 @@ package com.shokiteufel.shokimod.data;
  * gehoeren keinem Spieler, also gilt das fuer alle, die in Sicht sind. SkyHanni und Skyblocker fuehren
  * dieselben Namen.
  *
- * Gezeigt wird bisher nur der Umriss.
+ * Gezeigt wird der Umriss und, wenn man will, eine Linie zum naechsten Miniboss.
  */
 public final class SlayerMinibossTarget implements MobVisual {
 
@@ -30,8 +30,14 @@ public final class SlayerMinibossTarget implements MobVisual {
     private SlayerMinibossTarget() {
     }
 
+    /** Sollen die Minibosse umrissen werden? */
     public static boolean enabled() {
         return ModConfig.INSTANCE.slayer.highlightMinibosses;
+    }
+
+    /** Muss ueberhaupt nach ihnen gesucht werden - fuer den Umriss oder die Linie? */
+    public static boolean scanning() {
+        return ModConfig.INSTANCE.slayer.highlightMinibosses || ModConfig.INSTANCE.slayer.lineToMinibosses;
     }
 
     /** Traegt das Namensschild den Namen eines Slayer-Minibosses? Level und Leben davor und dahinter stoeren nicht */
@@ -61,7 +67,7 @@ public final class SlayerMinibossTarget implements MobVisual {
 
     @Override
     public boolean tracer() {
-        return false;
+        return ModConfig.INSTANCE.slayer.lineToMinibosses;
     }
 
     @Override

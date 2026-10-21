@@ -195,8 +195,8 @@ public class EntityHighlightManager {
         boolean scanHideyho = HideyhoTarget.enabled();
         // Der eigene Slayer-Boss: nur in SkyBlock und nur mit dem Schalter. Der eigene Name einmal je Tick
         boolean skyblock = GameState.Server.isSkyblock();
-        boolean scanSlayer = SlayerBossTarget.enabled() && skyblock;
-        boolean scanMiniboss = SlayerMinibossTarget.enabled() && skyblock;
+        boolean scanSlayer = SlayerBossTarget.scanning() && skyblock;
+        boolean scanMiniboss = SlayerMinibossTarget.scanning() && skyblock;
         String ownName = scanSlayer && client.getUser() != null ? client.getUser().getName() : null;
 
         if (!scanCustom && !scanSparkling && !scanHideyho && !scanSlayer && !scanMiniboss) return;
@@ -332,7 +332,9 @@ public class EntityHighlightManager {
                     tagged ? "found - highlighted" : "missing - not highlighted");
         }
         if (body == null || !tagged) return;
-        registerHighlight(body, SlayerBossTarget.INSTANCE);
+        if (SlayerBossTarget.INSTANCE.highlight()) registerHighlight(body, SlayerBossTarget.INSTANCE);
+        // Je Art nur die naechste Linie: bei einem eigenen Boss ist das er selbst
+        registerTracer(body, SlayerBossTarget.INSTANCE);
     }
 
     /**
@@ -340,6 +342,7 @@ public class EntityHighlightManager {
      *
      * Der Mob wird wie beim eigenen Boss gesucht: der kurz vor dem Schild angelegte, sonst der naechste.
      * Eine Gegenprobe wie das Slayer-Namensschild gibt es hier nicht - das Schild ist das Zeichen selbst.
+     * Umriss und Linie sind getrennt zu schalten; gesucht wird, wenn eines von beiden an ist.
      */
     private static void markSlayerMiniboss(Minecraft client, Entity tag) {
         Entity body = slayerBody(client, tag);
@@ -351,7 +354,10 @@ public class EntityHighlightManager {
                     body == null ? "none found - not highlighted"
                             : body.getType().getDescriptionId() + " #" + bodyId + " - highlighted");
         }
-        if (body != null) registerHighlight(body, SlayerMinibossTarget.INSTANCE);
+        if (body == null) return;
+        if (SlayerMinibossTarget.INSTANCE.highlight()) registerHighlight(body, SlayerMinibossTarget.INSTANCE);
+        // Je Art nur die naechste Linie: sonst fuellt ein Rudel von Minibossen den Bildschirm
+        registerTracer(body, SlayerMinibossTarget.INSTANCE);
     }
 
     /** Der Mob zu einer Zeile "Spawned by": der kurz davor angelegte, sonst der naechste in der Naehe */

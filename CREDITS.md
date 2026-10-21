@@ -213,7 +213,9 @@ drinsteckt.
   ist. Partikel nutzt SkyHanni dafür nicht, nur um die Spawn-Effekte auszublenden
   (`HideSlayerSpawnParticles`); hier gilt allein die Seitenleiste. Die Namen der Slayer-Minibosse
   (`SlayerMiniBossType`) stammen ebenfalls von dort und stimmen mit denen in Skyblockers
-  `SlayerType` überein; Erkennung und Umriss sind eigener Code.
+  `SlayerType` überein; Erkennung und Umriss sind eigener Code. SkyHanni zeichnet außerdem eine Linie
+  zum Miniboss (`SlayerMiniBossFeatures`); die Idee ist dieselbe, die Umsetzung (nur die nächste Linie
+  je Art, über die Linien der Mob-Markierung) ist eigen.
 - **Feesh** (Apache-2.0, `Sleepy-Panda/Feesh`) — dort wird ein Pet, das die Hoechststufe
   erreicht, in den Tracker gelegt: Die Zeile "Your … leveled up to level 100!" wird
   gelesen, und nur 100 und 200 zaehlen. Auch die Schreibweise der Kennung ist von dort
