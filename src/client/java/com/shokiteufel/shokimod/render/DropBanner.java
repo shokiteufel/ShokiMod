@@ -968,17 +968,9 @@ public final class DropBanner {
         g.fill(right - thick, top, right, bottom, colour);
     }
 
-    /** "FFD700" oder "#ffd700" - leer oder unlesbar heisst: Farbe der Stufe */
+    /** "FFD700", "#ffd700" oder der Text des Farbwaehlers - leer oder unlesbar heisst: Farbe der Stufe */
     public static int parseColour(String text, int fallback) {
-        if (text == null) return fallback;
-        String hex = text.trim();
-        if (hex.startsWith("#")) hex = hex.substring(1);
-        if (hex.length() != 6) return fallback;
-        try {
-            return Integer.parseInt(hex.toUpperCase(Locale.ROOT), 16);
-        } catch (NumberFormatException e) {
-            return fallback;
-        }
+        return com.shokiteufel.shokimod.data.ColourText.rgb(text, fallback);
     }
 
     private static float clamp(float value, float min, float max) {

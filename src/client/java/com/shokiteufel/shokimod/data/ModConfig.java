@@ -304,7 +304,11 @@ public class ModConfig extends Config {
         if (visuals.legacyShinyAlert != null) { visuals.safari.shinyAlert = visuals.legacyShinyAlert; visuals.legacyShinyAlert = null; }
         if (visuals.legacyShinyColour != null) { visuals.safari.shinyColour = visuals.legacyShinyColour; visuals.legacyShinyColour = null; }
         if (visuals.legacyHideyhoFinder != null) { visuals.safari.hideyhoFinder = visuals.legacyHideyhoFinder; visuals.legacyHideyhoFinder = null; }
-        if (visuals.safari.shinyColour == null) visuals.safari.shinyColour = "FFD700";
+        // Der Farbwaehler zeigt nur sein eigenes Format; aeltere Dateien haben sechs Hexstellen
+        visuals.safari.shinyColour = ColourText.forPicker(visuals.safari.shinyColour, 0xFFD700);
+        if (INSTANCE.slayer == null) INSTANCE.slayer = new SlayerCategory();
+        INSTANCE.slayer.highlightColour = ColourText.forPicker(INSTANCE.slayer.highlightColour, 0xFF5555);
+        INSTANCE.slayer.minibossColour = ColourText.forPicker(INSTANCE.slayer.minibossColour, 0x55FFFF);
         // Wunsch der Tester: der Shiny-Alarm soll bei allen an sein - einmal setzen, danach zaehlt die eigene Wahl
         if (!visuals.safari.defaultOnApplied) {
             visuals.safari.defaultOnApplied = true;
@@ -3265,9 +3269,9 @@ public class ModConfig extends Config {
         public boolean highlightOwnBoss = false;
 
         @Expose
-        @ConfigOption(name = "Highlight colour", desc = "Hex like FF5555 for the glow around your boss.")
-        @ConfigEditorText
-        public String highlightColour = "FF5555";
+        @ConfigOption(name = "Highlight colour", desc = "Colour of the glow and the line for your boss. Click the colour to pick one. The opacity slider changes nothing here.")
+        @ConfigEditorColour
+        public String highlightColour = ColourText.ofRgb(0xFF5555);
 
         @Expose
         @ConfigOption(name = "Line to own Slayerboss", desc = "Draws a line from your crosshair to your own Slayer boss, in the colour set above, so you find it in a crowd. Works in SkyBlock only.")
@@ -3280,9 +3284,9 @@ public class ModConfig extends Config {
         public boolean highlightMinibosses = false;
 
         @Expose
-        @ConfigOption(name = "Miniboss colour", desc = "Hex like 55FFFF for the glow around minibosses.")
-        @ConfigEditorText
-        public String minibossColour = "55FFFF";
+        @ConfigOption(name = "Miniboss colour", desc = "Colour of the glow and the line for minibosses. Click the colour to pick one. The opacity slider changes nothing here.")
+        @ConfigEditorColour
+        public String minibossColour = ColourText.ofRgb(0x55FFFF);
 
         @Expose
         @ConfigOption(name = "Line to minibosses", desc = "Draws a line from your crosshair to the nearest Slayer miniboss, in its colour. Only the nearest one, so a pack of them does not fill the screen. Works in SkyBlock only.")
@@ -3304,19 +3308,11 @@ public class ModConfig extends Config {
         };
 
         public int highlightColourRGB() {
-            try {
-                return Integer.parseInt(highlightColour.trim().replace("#", ""), 16) & 0xFFFFFF;
-            } catch (RuntimeException e) {
-                return 0xFF5555;
-            }
+            return ColourText.rgb(highlightColour, 0xFF5555);
         }
 
         public int minibossColourRGB() {
-            try {
-                return Integer.parseInt(minibossColour.trim().replace("#", ""), 16) & 0xFFFFFF;
-            } catch (RuntimeException e) {
-                return 0x55FFFF;
-            }
+            return ColourText.rgb(minibossColour, 0x55FFFF);
         }
 
         /** Soll irgendein Mob dieses Reiters markiert werden? */
@@ -3763,9 +3759,9 @@ public class ModConfig extends Config {
             public boolean shinyAlert = true;
 
             @Expose
-            @ConfigOption(name = "Shiny colour", desc = "Hex like FFD700 for the SHINY banner.")
-            @ConfigEditorText
-            public String shinyColour = "FFD700";
+            @ConfigOption(name = "Shiny colour", desc = "Colour of the SHINY banner. Click the colour to pick one. The opacity slider changes nothing here.")
+            @ConfigEditorColour
+            public String shinyColour = ColourText.ofRgb(0xFFD700);
 
             /** Das Design des SHINY-Banners - gewaehlt im Sandkasten (Liste "Use for") */
             @Expose
