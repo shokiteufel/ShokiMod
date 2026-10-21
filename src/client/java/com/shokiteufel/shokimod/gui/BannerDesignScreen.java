@@ -2,6 +2,7 @@ package com.shokiteufel.shokimod.gui;
 
 import com.shokiteufel.shokimod.data.BannerDesign;
 import com.shokiteufel.shokimod.data.BannerUses;
+import com.shokiteufel.shokimod.data.ColourText;
 import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.render.DropBanner;
 import net.minecraft.ChatFormatting;
@@ -315,9 +316,47 @@ public class BannerDesignScreen extends Screen {
         cycle(col2, y2, "Accent", BannerDesign.Accent.values(), () -> d.accent, v -> d.accent = v, a -> a.label,
                 "A single line, bar or dot in the accent colour.");
         y2 += ROW;
-        EditBox colour = box(col2, y2, "Colour hex", d.colour, 7, value -> d.colour = value.trim());
-        colour.setTooltip(Tooltip.create(Component.literal(
-                "Six hex digits like FFD700. Empty: green, gold, purple or cyan by tier.")));
+        buildColourRow(d, col2, y2);
+    }
+
+    /**
+     * Die Farbe des Designs: ein Farbfeld statt eines Hexwerts. Ein Klick oeffnet das Fenster mit dem Farbrad; das
+     * Kreuz daneben nimmt die eigene Farbe wieder weg, dann gilt die der Stufe (gruen, gold, lila oder tuerkis).
+     */
+    private void buildColourRow(BannerDesign d, int x, int y) {
+        labels.add(new Label(x, y + 6, "Colour"));
+        boolean own = d.colour != null && !d.colour.isBlank();
+        int fieldX = x + LABEL_WIDTH;
+        int fieldWidth = columnWidth - LABEL_WIDTH;
+        int clearWidth = 20;
+        int mainWidth = own ? fieldWidth - clearWidth - 2 : fieldWidth;
+
+        Runnable open = () -> {
+            if (minecraft == null) return;
+            // Ohne eigene Farbe faengt das Rad bei Gruen an
+            int start = ColourText.rgb(d.colour, 0x55FF55);
+            minecraft.setScreen(ColourPopup.create(this, start, picked -> d.colour = ColourText.toHex(picked)));
+        };
+        String tip = "Click to pick the colour. Without one, the banner takes green, gold, purple or cyan by tier.";
+        if (own) {
+            ColorSwatchButton swatch = new ColorSwatchButton(fieldX, y, mainWidth, 20,
+                    () -> ColourText.rgb(d.colour, 0x55FF55), () -> 255, open);
+            swatch.setTooltip(Tooltip.create(Component.literal(tip)));
+            addRenderableWidget(swatch);
+
+            Button clear = Button.builder(Component.literal("x"), b -> {
+                d.colour = "";
+                DropBanner.preview(design());
+                rebuild();
+            }).bounds(fieldX + mainWidth + 2, y, clearWidth, 20).build();
+            clear.setTooltip(Tooltip.create(Component.literal("Take the colour away: the banner goes back to the tier colour.")));
+            addRenderableWidget(clear);
+        } else {
+            Button tier = Button.builder(Component.literal("Tier colour").withStyle(ChatFormatting.GRAY), b -> open.run())
+                    .bounds(fieldX, y, mainWidth, 20).build();
+            tier.setTooltip(Tooltip.create(Component.literal(tip)));
+            addRenderableWidget(tier);
+        }
     }
 
     private void buildText(BannerDesign d, int col1, int col2, int y1, int y2) {
