@@ -8,7 +8,7 @@ package com.shokiteufel.shokimod.data;
  * im selben Gebiet jagen. Dieselbe Zeile lesen SkyHanni und Skyblocker, um den eigenen Boss zu
  * erkennen.
  *
- * Gezeigt wird nur der Umriss. Linie, Kasten und Namensschild gehoeren nicht dazu.
+ * Gezeigt wird der Umriss und, wenn man will, eine Linie zum Boss. Kasten und Namensschild gehoeren nicht dazu.
  */
 public final class SlayerBossTarget implements MobVisual {
 
@@ -19,8 +19,14 @@ public final class SlayerBossTarget implements MobVisual {
     private SlayerBossTarget() {
     }
 
+    /** Soll der Boss umrissen werden? */
     public static boolean enabled() {
         return ModConfig.INSTANCE.slayer.highlightOwnBoss;
+    }
+
+    /** Muss ueberhaupt nach ihm gesucht werden - fuer den Umriss oder die Linie? */
+    public static boolean scanning() {
+        return ModConfig.INSTANCE.slayer.highlightOwnBoss || ModConfig.INSTANCE.slayer.lineToBoss;
     }
 
     /**
@@ -70,7 +76,7 @@ public final class SlayerBossTarget implements MobVisual {
 
     @Override
     public boolean tracer() {
-        return false;
+        return ModConfig.INSTANCE.slayer.lineToBoss;
     }
 
     @Override
