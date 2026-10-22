@@ -276,6 +276,26 @@ public final class ItemChanges {
     private static boolean swapPending = false;
     /** So lange nach einem Wechsel gilt ein Zugang durch das Fenster noch als Teil davon */
     private static final long SWAP_WINDOW_MILLIS = 8_000L;
+    /**
+     * Wie weit die Meldung "You equipped ..." vor dem Aufgehen eines Fensters liegen darf, damit es noch das
+     * Fenster des Wechsels ist: Fenster und Meldung kommen in verschiedenen Ticks an.
+     */
+    private static final long SWAP_LEAD_MILLIS = 500L;
+    /** Wann das Fenster aufging, dessen Zugaenge beim Schliessen verglichen werden */
+    private static long windowOpenedAt = 0L;
+
+    /**
+     * Gehoert ein Fenster zum Loadout-Wechsel?
+     *
+     * Nur wenn die Meldung kam, waehrend es offen war (oder gerade davor), und nicht laenger her ist als das
+     * Zeitfenster des Wechsels. Ein Fenster, das erst danach aufging, ist ein eigenes: Wer sein Loadout wechselt und
+     * dann das Lager aufmacht, um die Angel zu holen, hat nichts gefunden - die Angel kam aus dem Lager. Zuvor
+     * zaehlte sie, weil jedes Fenster in den acht Sekunden nach dem Wechsel als das Loadout-Menue galt.
+     */
+    static boolean swapWindow(long now, long swapAt, long openedAt) {
+        if (now - swapAt >= SWAP_WINDOW_MILLIS) return false;
+        return swapAt >= openedAt - SWAP_LEAD_MILLIS;
+    }
 
     private static boolean looksLikeGear(ItemStack stack) {
         // Ein Pet ist ein Spielerkopf, und Koepfe lassen sich aufsetzen - daran darf es nicht
@@ -476,7 +496,10 @@ public final class ItemChanges {
             // Ohne Vergleichsstand gibt es auch nichts zu vergleichen: dann ist das
             // Fenster waehrend eines Wechsels aufgegangen, und das halbe Inventar saehe
             // hinterher aus wie frisch hereingekommen
-            if (windowBaseline == null && previousCounts != null) windowBaseline = previousCounts;
+            if (windowBaseline == null && previousCounts != null) {
+                windowBaseline = previousCounts;
+                windowOpenedAt = System.currentTimeMillis();
+            }
             return;
         }
 
@@ -583,6 +606,7 @@ public final class ItemChanges {
             // Und gezaehlt wird dabei nur die wortlose Beute: Was der Spieler selbst durchs Fenster holt,
             // zaehlt auch dann nicht, wenn nebenbei Beute fliesst
             gains = wordlessLootOnly(gains, System.currentTimeMillis());
+            if (windowBaseline == null) windowOpenedAt = System.currentTimeMillis();
             windowBaseline = current;
         }
         if (!gains.isEmpty()) held.add(new Held(gains, tickCount));
@@ -640,14 +664,18 @@ public final class ItemChanges {
     private static void noteWindow(Map<String, Integer> before, Map<String, Integer> after) {
         Map<String, Integer> gains = new LinkedHashMap<>();
         long now = System.currentTimeMillis();
-        boolean afterSwap = now - lastSwapAt < SWAP_WINDOW_MILLIS;
+        boolean afterSwap = swapWindow(now, lastSwapAt, windowOpenedAt);
+        if (!afterSwap && now - lastSwapAt < SWAP_WINDOW_MILLIS) {
+            ShokiMod.LOGGER.info("[Profit] this window opened {}s after the loadout swap - it is a window of its own, "
+                    + "what came out of it is moved, not found", (windowOpenedAt - lastSwapAt) / 1000L);
+        }
         // Als ein Schwung gesammelt, damit der Sammelschutz ihn als Ganzes sieht
         Map<String, Integer> swapFinds = new LinkedHashMap<>();
         for (Map.Entry<String, Integer> entry : after.entrySet()) {
             int delta = entry.getValue() - before.getOrDefault(entry.getKey(), 0);
             if (delta <= 0) continue;
 
-            // Gleich nach einem Loadout-Wechsel kommt durch das Fenster nur Ruestung herein -
+            // Im Fenster des Loadout-Wechsels kommt nur Ruestung herein -
             // alles andere ist ein Fund, der in diese Sekunde fiel, und zaehlt
             if (afterSwap && !isGear(entry.getKey())) {
                 swapFinds.put(entry.getKey(), delta);
