@@ -48,9 +48,12 @@ import java.util.regex.Pattern;
  * </ul>
  *
  * <p><b>Welches zaehlt.</b> Der Staender sagt nicht, wem das Deployable gehoert - nur das Totem nennt
- * seinen Besitzer. Gewarnt wird deshalb vor jedem Deployable, in dessen Reichweite man steht: Das ist das,
- * dessen Wirkung man verliert. Ein fremder Orb, der einen versorgt, zaehlt also mit; einer in hundert
- * Metern Entfernung nicht. Beim Totem zaehlt nur das eigene, wenn der Besitzer dabeisteht.
+ * seinen Besitzer. Bis 1.17.18 wurde deshalb vor jedem Deployable gewarnt, in dessen Reichweite man steht;
+ * wer mit fuenf Leuten zusammen angelt, bekam die Warnung fuenffach. Jetzt zaehlt (Einstellung "Only my own",
+ * Standard an) nur, was man selbst aufgestellt hat. Das erkennt man am Aufstellen: Ein Staender, der kurz
+ * nach dem eigenen Rechtsklick mit einem Deployable in der Hand in der Naehe zum ersten Mal auftaucht, ist
+ * der eigene (siehe {@link #placedByMe}). Was man nicht hat aufstellen sehen, gehoert nicht dazu. Beim
+ * Totem zaehlt wie bisher nur das eigene, wenn der Besitzer dabeisteht.
  *
  * <p><b>Nicht beim Vorbeilaufen.</b> Gewarnt wird nur, wenn man den Staender herunterzaehlen sah: Wer an
  * einem Deployable mit fuenf Sekunden Rest vorbeikommt, bekommt keine Warnung. Beim Flare gilt das Alter
@@ -71,6 +74,24 @@ public final class DeployableCountdown {
     /** Woran man einen Staendertext erkennt, der zu einem Deployable gehoert, aber nicht gelesen wird */
     private static final Pattern LOOKS_LIKE = Pattern.compile(
             "(?i)power orb|flux|radiant|umberella|umbrella|lantern|totem|black hole|flare");
+
+    /** So lange nach einem Rechtsklick gilt ein neu auftauchender Staender als von mir aufgestellt */
+    private static final long PLACE_WINDOW_MILLIS = 3_500L;
+    /** Wie nah am Spieler ein Staender stehen muss, damit er beim Aufstellen als der eigene gilt */
+    private static final double PLACE_RANGE = 8.0;
+    /**
+     * Ohne erkennbares Deployable in der Hand zaehlt nur, was fast an der eigenen Stelle und fast sofort erscheint.
+     * Das faengt Deployables ab, deren Item-Kennung die Liste unten nicht kennt - und ist eng genug, dass der
+     * Rechtsklick mit der Angel (mehrmals je Minute) nicht jeden Staender neben einem zum eigenen macht.
+     */
+    private static final long PLACE_STRICT_WINDOW_MILLIS = 1_500L;
+    private static final double PLACE_STRICT_RANGE = 2.5;
+    /** So lange bleibt ein eigener Staender gemerkt, nachdem man ihn zuletzt sah (laenger als jedes Deployable haelt) */
+    private static final long MINE_KEEP_MILLIS = 15L * 60_000L;
+    /** Woran man ein Deployable-Item erkennt (SkyBlock-Kennung des Items in der Hand) */
+    private static final Pattern DEPLOYABLE_ITEM = Pattern.compile(
+            "POWER_ORB|FLARE|UMBERELLA|UMBRELLA|LANTERN|WISP|BLACK_HOLE|TOTEM|RADIANT|FLUX");
+    private static final int DECISION_LOG_LIMIT = 80;
 
     private static final int SCAN_TICKS = 10;
     private static final int FLARE_SECONDS = 180;
@@ -106,6 +127,13 @@ public final class DeployableCountdown {
     private static final Map<Integer, String> heads = new HashMap<>();
     private static final Set<String> notUnderstood = new HashSet<>();
     private static int ticks = 0;
+    /** Staender, ueber die schon entschieden ist, ob sie meine sind (entschieden wird beim ersten Sehen) */
+    private static final Set<Integer> known = new HashSet<>();
+    /** Meine Staender, mit dem Zeitpunkt, zu dem ich sie zuletzt sah */
+    private static final Map<Integer, Long> mine = new HashMap<>();
+    /** Alle Deployable-Staender dieses Durchgangs - damit "known" nicht waechst */
+    private static final Set<Integer> scanned = new HashSet<>();
+    private static int decisionsLogged = 0;
 
     private DeployableCountdown() {
     }
@@ -215,6 +243,9 @@ public final class DeployableCountdown {
     static void reset() {
         seen.clear();
         heads.clear();
+        known.clear();
+        mine.clear();
+        scanned.clear();
     }
 
     static int watching() {
@@ -238,6 +269,7 @@ public final class DeployableCountdown {
         Vec3 me = client.player.position();
         String myName = client.player.getName().getString();
         Set<Integer> present = new HashSet<>();
+        scanned.clear();
         List<Part> remaining = new ArrayList<>();
         List<Part> totems = new ArrayList<>();
         List<Part> owners = new ArrayList<>();
@@ -281,6 +313,9 @@ public final class DeployableCountdown {
         }
 
         seen.keySet().retainAll(present);
+        // Wer nicht mehr zu sehen ist, wird vergessen - ausser meinen: Sie kommen wieder, wenn man zurueckgeht
+        known.retainAll(scanned);
+        mine.values().removeIf(lastSeen -> now - lastSeen > MINE_KEEP_MILLIS);
     }
 
     private record Part(ArmorStand stand, String text) {
@@ -305,6 +340,7 @@ public final class DeployableCountdown {
     }
 
     private static void watch(ArmorStand stand, Reading reading, Vec3 me, Set<Integer> present, long now) {
+        if (!isMine(stand, reading, me, now)) return;
         if (stand.distanceToSqr(me) > reading.range() * reading.range()) return;
 
         present.add(stand.getId());
@@ -312,6 +348,51 @@ public final class DeployableCountdown {
         if (observe(stand.getId(), reading.kind(), reading.name(), reading.seconds(), warn)) {
             DeployableReminder.early(reading.kind(), reading.name(), reading.seconds(), now);
         }
+    }
+
+    /**
+     * Gehoert der Staender mir? Entschieden wird einmal, wenn er zum ersten Mal auftaucht.
+     *
+     * Aus ("Only my own" aus) und beim Totem (das den Besitzer nennt und anderswo geprueft wird) zaehlt jeder.
+     */
+    private static boolean isMine(ArmorStand stand, Reading reading, Vec3 me, long now) {
+        if (!ModConfig.INSTANCE.deployables.ownOnly || reading.kind() == Kind.TOTEM) return true;
+        int id = stand.getId();
+        scanned.add(id);
+        if (mine.containsKey(id)) {
+            mine.put(id, now);
+            return true;
+        }
+        if (!known.add(id)) return false;
+        boolean placed = placedByMe(stand, reading, me, now);
+        if (placed) mine.put(id, now);
+        return placed;
+    }
+
+    /**
+     * Ist dieser neu aufgetauchte Staender von mir aufgestellt?
+     *
+     * Ja, wenn mein letzter Rechtsklick (Haupthand) hoechstens dreieinhalb Sekunden her ist und der Staender nah
+     * steht - mit einem Deployable-Item in der Hand bis acht Bloecke weit, sonst nur, wenn er fast sofort und fast
+     * an meiner Stelle erscheint. Jede Entscheidung steht, mit den Zahlen, im Log: Daran sieht man, wenn die
+     * Item-Liste ein Deployable nicht kennt.
+     */
+    static boolean placedByMe(ArmorStand stand, Reading reading, Vec3 me, long now) {
+        long since = now - ParticleTracer.lastUseAt();
+        String item = ParticleTracer.lastUseItem();
+        double distance = Math.sqrt(stand.distanceToSqr(me));
+        boolean deployableItem = item != null && DEPLOYABLE_ITEM.matcher(item).find();
+        boolean placed = since >= 0 && since <= PLACE_WINDOW_MILLIS
+                && ((deployableItem && distance <= PLACE_RANGE)
+                || (since <= PLACE_STRICT_WINDOW_MILLIS && distance <= PLACE_STRICT_RANGE));
+        // Nur was nah genug zum Aufstellen war, ist ein Eintrag wert - fremde Deployables in der Ferne sind Rauschen
+        if (distance <= 12.0 && decisionsLogged < DECISION_LOG_LIMIT) {
+            decisionsLogged++;
+            ShokiMod.LOGGER.info("[Deployables] {} ({}): {} - right-click {} ms ago with {}, {} blocks away",
+                    reading.name(), reading.kind(), placed ? "MINE" : "not mine", since, item,
+                    String.format(Locale.ROOT, "%.1f", distance));
+        }
+        return placed;
     }
 
     /** Ein Flare: Kopf mit der Textur eines der drei, Zeit aus dem Alter des Staenders */
