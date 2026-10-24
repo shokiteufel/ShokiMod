@@ -177,6 +177,11 @@ public final class FeatureGate {
         return ModConfig.INSTANCE.chat.reminder.darkAuctionAlert;
     }
 
+    /** Der Zeitkasten der Dark Auction braucht den Ort (nur in SkyBlock) - nur wenn er an ist */
+    public static boolean darkAuctionTimer() {
+        return ModConfig.INSTANCE.chat.reminder.darkAuctionHud;
+    }
+
     /** Die Stummschaltung schaut bei jedem Ton nach - nur wenn mindestens einer der beiden Schalter an ist */
     public static boolean mute() {
         ModConfig.MuteCategory c = ModConfig.INSTANCE.fishing.mute;
@@ -186,6 +191,6 @@ public final class FeatureGate {
     public static boolean location() {
         return contest() || safari() || nearbyPanel() || rareLoot() || huntingTracker() || mobMarkers() || chatRules()
                 || cakeReminder() || hotspots() || collectionTracker() || pestTraps() || gardenVisitors() || seaHp() || mute() || outOfAir() || hotspotShare()
-                || slayerSpawn() || darkAuction() || ModConfig.INSTANCE.effects.enabled;
+                || slayerSpawn() || darkAuction() || darkAuctionTimer() || ModConfig.INSTANCE.effects.enabled;
     }
 }
