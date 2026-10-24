@@ -29,7 +29,7 @@ public final class PlayerSize {
 
     /** Wird vom Mixin am Anfang von {@code scale} aufgerufen */
     public static void apply(AvatarRenderState state, PoseStack pose) {
-        ModConfig.PlayerSizeCategory size = ModConfig.INSTANCE.playerSize;
+        ModConfig.PlayerSizeCategory size = ModConfig.INSTANCE.odin.playerSize;
         if (!size.enabled) return;
         if (state == null || !isSelf(state)) return;
 

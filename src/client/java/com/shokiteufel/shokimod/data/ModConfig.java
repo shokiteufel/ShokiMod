@@ -307,6 +307,12 @@ public class ModConfig extends Config {
         if (visuals.legacyHideyhoFinder != null) { visuals.safari.hideyhoFinder = visuals.legacyHideyhoFinder; visuals.legacyHideyhoFinder = null; }
         // Der Farbwaehler zeigt nur sein eigenes Format; aeltere Dateien haben sechs Hexstellen
         visuals.safari.shinyColour = ColourText.forPicker(visuals.safari.shinyColour, 0xFFD700);
+        if (INSTANCE.odin == null) INSTANCE.odin = new OdinCategory();
+        if (INSTANCE.odin.playerSize == null) INSTANCE.odin.playerSize = new PlayerSizeCategory();
+        if (adoptLegacyPlayerSize(INSTANCE.legacyPlayerSize, INSTANCE.odin.playerSize)) {
+            INSTANCE.legacyPlayerSize = null;
+            INSTANCE.saveNow();
+        }
         if (INSTANCE.slayer == null) INSTANCE.slayer = new SlayerCategory();
         INSTANCE.slayer.highlightColour = ColourText.forPicker(INSTANCE.slayer.highlightColour, 0xFF5555);
         INSTANCE.slayer.minibossColour = ColourText.forPicker(INSTANCE.slayer.minibossColour, 0x55FFFF);
@@ -500,10 +506,10 @@ public class ModConfig extends Config {
                 com.shokiteufel.shokimod.handler.SoundTracer::summary);
         INSTANCE.particles.particleSummary = () -> Minecraft.getInstance().execute(
                 com.shokiteufel.shokimod.handler.ParticleTracer::summary);
-        INSTANCE.playerSize.reset = () -> {
-            INSTANCE.playerSize.sizeX = 1.0f;
-            INSTANCE.playerSize.sizeY = 1.0f;
-            INSTANCE.playerSize.sizeZ = 1.0f;
+        INSTANCE.odin.playerSize.reset = () -> {
+            INSTANCE.odin.playerSize.sizeX = 1.0f;
+            INSTANCE.odin.playerSize.sizeY = 1.0f;
+            INSTANCE.odin.playerSize.sizeZ = 1.0f;
         };
         INSTANCE.fishing.rareCatch.openPicker = () -> Minecraft.getInstance().execute(() ->
                 Minecraft.getInstance().setScreenAndShow(new com.shokiteufel.shokimod.gui.SeaCreatureScreen(
@@ -717,6 +723,21 @@ public class ModConfig extends Config {
      * die Wertgrenze. Wer den Alarm nicht will, schaltet ihn aus - er startet
      * ausgeschaltet nur dann, wenn nie ein Mindestwert gesetzt war.
      */
+    /**
+     * Bis 1.18.0 stand Player Size direkt im Hauptreiter. Wer dort etwas eingestellt hatte, behaelt es: Die Werte
+     * werden in das Objekt unter Odin kopiert (nicht das Objekt ersetzt - die Knoepfe haengen daran).
+     *
+     * @return ob etwas uebernommen wurde (dann ist zu speichern und das alte Feld zu leeren)
+     */
+    static boolean adoptLegacyPlayerSize(PlayerSizeCategory old, PlayerSizeCategory now) {
+        if (old == null || now == null) return false;
+        now.enabled = old.enabled;
+        now.sizeX = old.sizeX;
+        now.sizeY = old.sizeY;
+        now.sizeZ = old.sizeZ;
+        return true;
+    }
+
     private static void adoptOldMinValues() {
         if (INSTANCE.chat.valueAlertMigrated) return;
         INSTANCE.chat.valueAlertMigrated = true;
@@ -894,8 +915,17 @@ public class ModConfig extends Config {
     public MobVisualsCategory mobVisuals = new MobVisualsCategory();
 
     @Expose
-    @Category(name = "Player Size", desc = "Makes your own player bigger, smaller, wider or upside down. Only you see it.")
-    public PlayerSizeCategory playerSize = new PlayerSizeCategory();
+    @Category(name = "Odin", desc = "Functions taken from the Odin mod (BSD-3-Clause, Odtheking): Player Size, and more.")
+    public OdinCategory odin = new OdinCategory();
+
+    /**
+     * Bis 1.18.0 war Player Size ein eigener Reiter und steht in alten Dateien unter "playerSize". Seitdem liegt es
+     * unter Odin. Dieses Feld gibt es nur, damit alte Dateien gelesen werden koennen (siehe adoptLegacyPlayerSize);
+     * ist es uebernommen, steht es auf null und wird nicht mehr geschrieben.
+     */
+    @Expose
+    @SerializedName("playerSize")
+    public PlayerSizeCategory legacyPlayerSize = null;
 
     @Expose
     @Category(name = "Particles", desc = "Which particles come from which item - the basis for hiding the particles of single items.")
@@ -3122,6 +3152,21 @@ public class ModConfig extends Config {
         @ConfigEditorButton(buttonText = "Test")
         public transient Runnable test = () -> {
         };
+    }
+
+    /**
+     * Der Reiter "Odin": Funktionen, die aus der Odin-Mod (BSD-3-Clause, Odtheking) stammen. Jede steht in ihrer Klappe oder
+     * als Unterreiter; wer woher kommt, steht in CREDITS.md.
+     */
+    public static class OdinCategory {
+
+        @ConfigOption(name = "Odin", desc = "Functions taken from the Odin mod (BSD-3-Clause, Odtheking). Each one has its own section or sub tab. If you run Odin too, switch its twin of a function off here or there, so the two do not stack.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @Category(name = "Player Size", desc = "Makes your own player bigger, smaller, wider or upside down. Only you see it.")
+        public PlayerSizeCategory playerSize = new PlayerSizeCategory();
     }
 
     /**
