@@ -15,6 +15,7 @@ import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Player;
@@ -91,12 +92,14 @@ public final class ParticleTracer {
 
     /** Beim Start: Rechtsklicks merken, damit zu jedem Partikel steht, wie lange der letzte her war */
     public static void register() {
+        // Nur die Haupthand: Nach einem Rechtsklick fragt der Server oft noch die leere Nebenhand, und deren "Benutzung"
+        // ueberschriebe sonst, womit man zuletzt benutzt hat
         UseItemCallback.EVENT.register((player, level, hand) -> {
-            noteUse(player.getItemInHand(hand));
+            if (hand == InteractionHand.MAIN_HAND) noteUse(player.getItemInHand(hand));
             return InteractionResult.PASS;
         });
         UseBlockCallback.EVENT.register((player, level, hand, hitResult) -> {
-            noteUse(player.getItemInHand(hand));
+            if (hand == InteractionHand.MAIN_HAND) noteUse(player.getItemInHand(hand));
             return InteractionResult.PASS;
         });
         ClientTickEvents.END_CLIENT_TICK.register(ParticleTracer::tick);
@@ -180,11 +183,21 @@ public final class ParticleTracer {
 
     /** Ein Rechtsklick mit diesem Item in der Hand */
     public static void noteUse(ItemStack stack) {
-        if (!ModConfig.INSTANCE.particles.particleTracer) return;
-        ensureSession(Minecraft.getInstance());
         lastUseAt = System.currentTimeMillis();
         lastUseItem = idOf(stack);
+        if (!ModConfig.INSTANCE.particles.particleTracer) return;
+        ensureSession(Minecraft.getInstance());
         write("you used " + lastUseItem);
+    }
+
+    /** Wann zuletzt ein Rechtsklick war (Millisekunden) - der Schalter "Hide own" fragt danach */
+    public static long lastUseAt() {
+        return lastUseAt;
+    }
+
+    /** Mit welchem Item (SkyBlock-Kennung) der letzte Rechtsklick war, "-" wenn mit keinem */
+    public static String lastUseItem() {
+        return lastUseItem;
     }
 
     /** Vom Mixin an {@code handleParticleEvent} - laeuft bei jedem Partikel-Paket, also zuerst die billigen Pruefungen */
@@ -206,9 +219,9 @@ public final class ParticleTracer {
 
     private static void trace(Minecraft client, ModConfig.ParticlesCategory cfg, ClientboundLevelParticlesPacket packet) {
         Player player = client.player;
-        double dx = packet.x() - player.getX();
-        double dy = packet.y() - player.getY();
-        double dz = packet.z() - player.getZ();
+        double dx = ParticlePacketView.x(packet) - player.getX();
+        double dy = ParticlePacketView.y(packet) - player.getY();
+        double dz = ParticlePacketView.z(packet) - player.getZ();
         double distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
         if (distance > radius(cfg)) return;
 
@@ -236,7 +249,7 @@ public final class ParticleTracer {
 
     /** Die Art eines Pakets in einer Zeile: dasselbe Aussehen ergibt dieselbe Zeile */
     private static String signature(ClientboundLevelParticlesPacket packet) {
-        ParticleOptions options = packet.particle();
+        ParticleOptions options = ParticlePacketView.particle(packet);
         String type = String.valueOf(BuiltInRegistries.PARTICLE_TYPE.getKey(options.getType())).replace("minecraft:", "");
         StringBuilder out = new StringBuilder(type);
         if (options instanceof DustParticleOptions dust) {
@@ -251,8 +264,9 @@ public final class ParticleTracer {
                     color.getRed(), color.getGreen(), color.getBlue(), color.getAlpha()));
         }
         out.append(String.format(Locale.ROOT, " count=%d speed=%.3f off=(%.3f,%.3f,%.3f)",
-                packet.count(), packet.xMaxSpeed(), packet.xDist(), packet.yDist(), packet.zDist()));
-        if (packet.overrideLimiter()) out.append(" long");
+                ParticlePacketView.count(packet), ParticlePacketView.maxSpeed(packet), ParticlePacketView.xDist(packet),
+                ParticlePacketView.yDist(packet), ParticlePacketView.zDist(packet)));
+        if (ParticlePacketView.overrideLimiter(packet)) out.append(" long");
         return out.toString();
     }
 
@@ -266,6 +280,8 @@ public final class ParticleTracer {
         String lastUse = lastUseAt == 0L ? "never" : String.format(Locale.ROOT, "%s %.1fs ago", lastUseItem, (now - lastUseAt) / 1000.0);
         String header = "held=" + idOf(player.getMainHandItem()) + " worn=" + worn(player) + " lastUse=" + lastUse;
         write("---- " + header);
+        String hidden = ParticleHider.hiddenSummary();
+        if (!hidden.isEmpty()) write("hidden by your settings so far: " + hidden);
         Minecraft client = Minecraft.getInstance();
         if (toChat) tell(client, Component.literal("[ShokiMod] Particles near you, most often first:").withStyle(ChatFormatting.DARK_AQUA));
         int shown = 0;
