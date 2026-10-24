@@ -543,6 +543,10 @@ public class ModConfig extends Config {
                 Minecraft.getInstance().setScreen(
                         new com.shokiteufel.shokimod.gui.ProfitItemScreen(Minecraft.getInstance().screen)));
         INSTANCE.chat.reminder.testCake = () -> Minecraft.getInstance().execute(CakeReminder::test);
+        INSTANCE.chat.reminder.testDarkAuction = () -> Minecraft.getInstance().execute(
+                com.shokiteufel.shokimod.handler.DarkAuctionReminder::test);
+        INSTANCE.chat.reminder.openDarkAuctionSound = soundPicker(() -> INSTANCE.chat.reminder.darkAuctionSoundFile,
+                picked -> INSTANCE.chat.reminder.darkAuctionSoundFile = picked);
         INSTANCE.garden.traps.test = () -> Minecraft.getInstance().execute(PestReminder::test);
         INSTANCE.garden.traps.openSound = () -> Minecraft.getInstance().execute(() ->
                 Minecraft.getInstance().setScreen(new SoundPickerScreen(
@@ -3847,7 +3851,7 @@ public class ModConfig extends Config {
         public BannerCategory banner = new BannerCategory();
 
         @Expose
-        @Category(name = "Reminder", desc = "Reminders read from chat, one fold-out section each: expired cakes, with one click to get new ones.")
+        @Category(name = "Reminder", desc = "Reminders, one fold-out section each: expired cakes with one click to get new ones, and the Dark Auction before it opens.")
         public ReminderCategory reminder = new ReminderCategory();
 
         /**
@@ -3948,8 +3952,8 @@ public class ModConfig extends Config {
     }
 
     /**
-     * Erinnerungen. Bisher eine: der Kuchen-Alarm aus RiccioFishingUtils, ergaenzt um
-     * den anklickbaren Text, der zum Kuchenholen teleportiert.
+     * Erinnerungen. Der Kuchen-Alarm aus RiccioFishingUtils, ergaenzt um den anklickbaren Text, der
+     * zum Kuchenholen teleportiert, und der Alarm vor der Dark Auction.
      *
      * Jede Erinnerung hat ihre eigene Klappe. Ein Unterreiter in der Baumansicht waere schoener,
      * geht aber nicht: MoulConfig kennt zwei Ebenen (Reiter und Unterreiter), und Reminder ist selbst
@@ -3996,6 +4000,53 @@ public class ModConfig extends Config {
         @ConfigEditorButton(buttonText = "Clear")
         @ConfigAccordionId(id = 50)
         public transient Runnable clearCakes = () -> {
+        };
+
+        @ConfigOption(name = "Dark Auction", desc = "Warns shortly before the Dark Auction opens. It opens at minute 55 of every real-world hour - every third SkyBlock day.")
+        @ConfigEditorAccordion(id = 51)
+        public transient boolean darkAuctionFolder = false;
+
+        @Expose
+        @ConfigOption(name = "Dark Auction alert", desc = "Warns before the Dark Auction opens, with a banner and a sound. The time comes from the clock, not from the game, so it works anywhere in SkyBlock. Works in SkyBlock only.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 51)
+        public boolean darkAuctionAlert = false;
+
+        @Expose
+        @ConfigOption(name = "Warn seconds before", desc = "How many seconds before the opening the alert comes: 10 to 60.")
+        @ConfigEditorSlider(minValue = 10f, maxValue = 60f, minStep = 1f)
+        @ConfigAccordionId(id = 51)
+        public int darkAuctionLeadSeconds = 30;
+
+        @Expose
+        @ConfigOption(name = "Banner", desc = "Shows a banner with the alert. The design is picked in Alerts > Banner > Sandbox. Off: the alert only plays its sound.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 51)
+        public boolean darkAuctionBanner = true;
+
+        /** Das Design des Banners - gewaehlt im Sandkasten (Liste "Use for") */
+        @Expose
+        public String darkAuctionBannerDesign = BannerDesign.ALERT_BAND;
+
+        @Expose
+        @ConfigOption(name = "Sound", desc = "Plays a sound with the alert, at the alert volume. Off: the alert stays silent.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 51)
+        public boolean darkAuctionSound = true;
+
+        @ConfigOption(name = "Sound file", desc = "Your own file from config/shokimod/sounds. Empty (No sound) plays the standard ping.")
+        @ConfigEditorButton(buttonText = "Pick")
+        @ConfigAccordionId(id = 51)
+        public transient Runnable openDarkAuctionSound = () -> {
+        };
+
+        @Expose
+        public String darkAuctionSoundFile = "";
+
+        @ConfigOption(name = "Test Dark Auction alert", desc = "Plays the alert once, as it would come before the opening.")
+        @ConfigEditorButton(buttonText = "Test")
+        @ConfigAccordionId(id = 51)
+        public transient Runnable testDarkAuction = () -> {
         };
 
         // Bis 1.15.14 stand hier auch die Warnung vor vollen Pest-Fallen. Sie wohnt jetzt unter

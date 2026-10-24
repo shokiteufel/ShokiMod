@@ -172,6 +172,11 @@ public final class FeatureGate {
         return ModConfig.INSTANCE.slayer.spawnBanner;
     }
 
+    /** Der Alarm vor der Dark Auction schaut jeden Tick auf die Uhr - nur wenn er an ist */
+    public static boolean darkAuction() {
+        return ModConfig.INSTANCE.chat.reminder.darkAuctionAlert;
+    }
+
     /** Die Stummschaltung schaut bei jedem Ton nach - nur wenn mindestens einer der beiden Schalter an ist */
     public static boolean mute() {
         ModConfig.MuteCategory c = ModConfig.INSTANCE.fishing.mute;
@@ -181,6 +186,6 @@ public final class FeatureGate {
     public static boolean location() {
         return contest() || safari() || nearbyPanel() || rareLoot() || huntingTracker() || mobMarkers() || chatRules()
                 || cakeReminder() || hotspots() || collectionTracker() || pestTraps() || gardenVisitors() || seaHp() || mute() || outOfAir() || hotspotShare()
-                || slayerSpawn() || ModConfig.INSTANCE.effects.enabled;
+                || slayerSpawn() || darkAuction() || ModConfig.INSTANCE.effects.enabled;
     }
 }
