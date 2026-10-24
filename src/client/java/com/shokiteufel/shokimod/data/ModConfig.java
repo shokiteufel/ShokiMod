@@ -3249,10 +3249,10 @@ public class ModConfig extends Config {
         @ConfigAccordionId(id = 82)
         public transient boolean particleTracer = false;
 
-        @ConfigOption(name = "Particle radius", desc = "Only particles this close to you count, in blocks (1 - 64).")
+        @ConfigOption(name = "Particle radius", desc = "Only particles this close to you go into the file, in blocks (1 - 64). Only the file: hiding has its own distances. A beam or a trail that reaches further than this shows up cut off in the table - raise it when you measure something long.")
         @ConfigEditorText
         @ConfigAccordionId(id = 82)
-        public transient String particleRadius = "8";
+        public transient String particleRadius = "16";
 
         @ConfigOption(name = "Particle summary", desc = "Writes the particle table since the last one to the file and into the chat, the most frequent kind first, and starts counting again.")
         @ConfigEditorButton(buttonText = "Show")

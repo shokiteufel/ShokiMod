@@ -23,9 +23,14 @@ import java.util.function.Function;
  * Gemessen (Partikel-Mitschreiber, Datei shokimod-particles.log) ist:
  * - Divan-Ruestung: Staub in Orange (1,0.6,0) und Weiss (1,1,1), dauernd und ohne Rechtsklick, in 0,3 bis 1,3 Bloecken
  *   um den Koerper - beim Rennen bis etwa 3, weil die Position des Servers nachhinkt;
- * - Flaming Flay: Staub in Gelb (1,1,0) und Rot (1,0,0), nur nach dem Rechtsklick, als Strahl bis etwa 8 Bloecke weit;
- * - Spaten (gemessen mit dem Deific Spade): nach dem Rechtsklick die Spur zur Grabstelle aus drei Arten, 1,5 bis 8 Bloecke
- *   weit: enchant (Anzahl 10, Tempo -2), firework (Anzahl 1, Tempo 0) und dripping_lava (Anzahl 2, Tempo -0,5).
+ * - Flaming Flay: Staub in Gelb (1,1,0) und Rot (1,0,0), nur nach dem Rechtsklick, als Strahl;
+ * - Spaten (gemessen mit dem Deific Spade): nach dem Rechtsklick die Spur zur Grabstelle aus drei Arten:
+ *   enchant (Anzahl 10, Tempo -2), firework (Anzahl 1, Tempo 0) und dripping_lava (Anzahl 2, Tempo -0,5).
+ *
+ * Wie weit Strahl und Spur reichen, steht nicht in den ersten Messungen: Dort zaehlte der Mitschreiber nur Partikel
+ * bis acht Bloecke Abstand, und die Strahlen reichen etwa vierzehn Bloecke, die Spur bis zur Grabstelle. Die Abstaende
+ * der Regeln sind deshalb grosszuegig (Flay 48, Spaten 256 Bloecke): Art, Anzahl, Tempo, die Weitsicht-Markierung und das
+ * Fenster nach dem eigenen Rechtsklick grenzen schon eng genug ein.
  * Alle diese Pakete sind "long" (der Server hat die Weitsicht-Markierung gesetzt) und haben keinen Versatz ausser der Farbe.
  * Bei Staub: Anzahl 0, Tempo 1, Groesse 1 - je Paket ein Partikel.
  *
@@ -96,12 +101,12 @@ public final class ParticleHider {
     }
 
     private static final List<Rule> RULES = List.of(
-            new Rule("Flay", c -> c.flayMode, Source.HELD, List.of("FLAMING_FLAY"), 10.0,
+            new Rule("Flay", c -> c.flayMode, Source.HELD, List.of("FLAMING_FLAY"), 48.0,
                     List.of(Look.dust(0xFFFF00), Look.dust(0xFF0000))),
             new Rule("Divan", c -> c.divanMode, Source.WORN, List.of("DIVAN_"), 4.0,
                     List.of(Look.dust(0xFF9900), Look.dust(0xFFFFFF))),
             new Rule("Spade", c -> c.spadeMode, Source.HELD,
-                    List.of("ANCESTRAL_SPADE", "ARCHAIC_SPADE", "DEIFIC_SPADE"), 10.0,
+                    List.of("ANCESTRAL_SPADE", "ARCHAIC_SPADE", "DEIFIC_SPADE"), 256.0,
                     List.of(Look.of("enchant", 10, -2.0), Look.of("firework", 1, 0.0), Look.of("dripping_lava", 2, -0.5))));
 
     private ParticleHider() {
