@@ -4291,6 +4291,38 @@ public class ModConfig extends Config {
         public transient Runnable testDarkAuction = () -> {
         };
 
+        @ConfigOption(name = "Dark Auction timer", desc = "A panel counting down to the next Dark Auction, always or only in the last seconds before it opens.")
+        @ConfigEditorAccordion(id = 81)
+        public transient boolean darkAuctionTimerFolder = false;
+
+        @Expose
+        @ConfigOption(name = "Timer panel", desc = "Shows the time until the next Dark Auction opens in a panel on screen: minutes and seconds. Move and resize it in the HUD editor (/shoki hud). Works in SkyBlock only.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 81)
+        public boolean darkAuctionHud = false;
+
+        @Expose
+        @ConfigOption(name = "Only shortly before", desc = "Shows the panel only in the last seconds before the opening, so it is not on screen all the time. Off: the panel is always there.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 81)
+        public boolean darkAuctionHudOnlyLast = false;
+
+        @Expose
+        @ConfigOption(name = "Show it for the last", desc = "How many seconds before the opening the panel appears: 10 to 60. Only counts with 'Only shortly before' on.")
+        @ConfigEditorSlider(minValue = 10f, maxValue = 60f, minStep = 1f)
+        @ConfigAccordionId(id = 81)
+        public int darkAuctionHudSeconds = 30;
+
+        // Lage des Kastens, gesetzt ueber /shoki hud
+        @Expose
+        public float darkAuctionHudX = 0.75f;
+        @Expose
+        public float darkAuctionHudY = 0.22f;
+        @Expose
+        public float darkAuctionHudScale = 1.0f;
+        @Expose
+        public float darkAuctionHudAlpha = 1.0f;
+
         // Bis 1.15.14 stand hier auch die Warnung vor vollen Pest-Fallen. Sie wohnt jetzt unter
         // Garden > Traps; diese Felder gibt es nur noch, damit alte Dateien gelesen werden koennen
         // (siehe migratePestTraps). Sind sie uebernommen, stehen sie auf null und werden nicht mehr
