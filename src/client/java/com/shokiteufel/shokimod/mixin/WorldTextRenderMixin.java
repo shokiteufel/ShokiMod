@@ -26,6 +26,8 @@ public class WorldTextRenderMixin {
     @Inject(at = @At("TAIL"), method = "emitGizmos")
     private void onEmitGizmos(Frustum frustum, double camX, double camY, double camZ, float partialTicks, CallbackInfo ci) {
         Minecraft client = Minecraft.getInstance();
+        // Die Tasten der Shortcuts in jedem Bild, nicht nur im Tick: kuerzere Wartezeit, kein Tipper geht zwischen zwei Ticks verloren
+        com.shokiteufel.shokimod.handler.ShortcutHandler.pollFrame(client);
         WorldTextRenderer.render(client);
         EntityTracerRenderer.emitGizmos(client, partialTicks);
         BoxHighlightRenderer.emitGizmos(client, partialTicks);

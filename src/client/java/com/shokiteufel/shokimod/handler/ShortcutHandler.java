@@ -26,6 +26,13 @@ import java.util.Set;
  * mindestens eine kurze Pause - die Taste ist eine Abkuerzung fuer das, was man sonst tippt, kein
  * Dauerfeuer. Es zaehlt nur der Augenblick, in dem die Taste unten ankommt.
  *
+ * Die Pause ist {@link #GAP_MILLIS} lang, so wie bei Skyblocker ({@code KEY_BINDING_COOLDOWN}); bis 1.18.9
+ * waren es 400, und ein weiterer Druck in dieser Zeit ging verloren. Jetzt wartet er: Eine andere Taste, die in der
+ * Pause gedrueckt wird, wird gleich danach gesendet; derselbe Druck zweimal (ein Doppeltipper, ein prellender Kontakt)
+ * zaehlt einmal. Und die Tasten werden nicht nur einmal je Tick (alle 50 ms) abgefragt, sondern in jedem Bild
+ * ({@link #pollFrame}): Das spart im Schnitt die halbe Tickzeit und laesst keinen kurzen Tipper zwischen zwei Ticks
+ * durchrutschen.
+ *
  * Gesendet wird nur, wenn der Mauszeiger vom Spiel gehalten wird, also kein Fenster offen ist:
  * Wer im Chat, im Inventar oder in einem Schild tippt, loest nichts aus. Eine noch gehaltene
  * Taste zaehlt nach dem Schliessen eines Fensters nicht als neuer Druck.
@@ -35,12 +42,16 @@ import java.util.Set;
  */
 public final class ShortcutHandler {
 
-    /** So viel Pause liegt mindestens zwischen zwei Sendungen */
-    private static final long MIN_GAP_MILLIS = 400L;
+    /** So viel Pause liegt mindestens zwischen zwei Sendungen: 200 ms wie bei Skyblocker, bis 1.18.9 waren es 400 */
+    static final long GAP_MILLIS = 200L;
 
-    /** Welche Tasten im letzten Tick unten waren - fuer den Augenblick des Druecks */
+    /** Welche Tasten bei der letzten Abfrage unten waren - fuer den Augenblick des Druecks */
     private static Map<Integer, Boolean> wasDown = new HashMap<>();
-    private static long lastSent = 0L;
+    /** Gedrueckt, aber wegen der Pause noch nicht gesendet - in der Reihenfolge der Druecke, je Taste hoechstens einer */
+    private static final java.util.ArrayDeque<Shortcut> queued = new java.util.ArrayDeque<>();
+    /** Weit genug zurueck, dass der erste Druck nie in der Pause liegt - und ohne Ueberlauf bei der Rechnung */
+    private static long lastSent = Long.MIN_VALUE / 2;
+    private static int lastSentKey = 0;
     private static boolean openRequested = false;
 
     // Die Abfrage "ist die Taste unten?" heisst in 26.1 und 26.2 isKeyDown(Window, int), ab 26.3
@@ -79,16 +90,75 @@ public final class ShortcutHandler {
             return;
         }
 
+        poll(client);
+    }
+
+    /**
+     * Aus dem Zeichnen jedes Bildes gerufen ({@code WorldTextRenderMixin}): Die Tasten werden nicht nur im Tick abgefragt.
+     * Ein Tick ist 50 ms lang; wer die Taste kuerzer antippt, haette zwischen zwei Abfragen gedrueckt und losgelassen.
+     * Wann eine Taste unten ist, merkt sich {@code wasDown} - ob Tick oder Bild sie zuerst sieht, ist gleich, gesendet wird einmal.
+     */
+    public static void pollFrame(Minecraft client) {
+        poll(client);
+    }
+
+    private static void poll(Minecraft client) {
         List<Shortcut> list = ModConfig.INSTANCE.shortcuts;
         ClientPacketListener connection = client.getConnection();
         if (list == null || list.isEmpty() || client.player == null || connection == null) {
             if (!wasDown.isEmpty()) wasDown = new HashMap<>();
+            queued.clear();
             return;
         }
 
         // Kein Fenster offen und das Spiel im Vordergrund: Dann gilt ein Druck
         boolean canFire = client.mouseHandler.isMouseGrabbed() && client.isWindowActive();
-        for (Shortcut shortcut : due(list, ShortcutHandler::isDown, canFire)) send(connection, shortcut);
+        for (Shortcut shortcut : step(list, ShortcutHandler::isDown, canFire, System.currentTimeMillis())) send(connection, shortcut);
+    }
+
+    /** Ein Durchgang: die neuen Druecke erkennen und entscheiden, was jetzt gesendet wird. Mit Uhr und Tastenstand als Parameter, damit sich das ohne Warten pruefen laesst */
+    static List<Shortcut> step(List<Shortcut> list, java.util.function.IntPredicate isDown, boolean canFire, long now) {
+        return schedule(due(list, isDown, canFire), canFire, now);
+    }
+
+    /**
+     * Wann was gesendet wird.
+     *
+     * Hoechstens eine Sendung je Durchgang, und danach {@link #GAP_MILLIS} Pause. Ein Druck in der Pause geht nicht verloren, er
+     * wartet und geht beim ersten Durchgang nach der Pause hinaus - es sei denn, es ist derselbe Druck wie der eben gesendete (ein
+     * Doppeltipper) oder dieselbe Taste wartet schon: Dann zaehlt er nicht noch einmal. Ist kein Druck mehr erlaubt (ein Fenster ging
+     * auf), verfaellt, was wartete: Ein Befehl, der erst im Chat erscheint, ist nicht der, den man meinte.
+     */
+    static List<Shortcut> schedule(List<Shortcut> pressed, boolean canFire, long now) {
+        if (!canFire) {
+            queued.clear();
+            return List.of();
+        }
+        for (Shortcut press : pressed) {
+            if (press.key == lastSentKey && now - lastSent < GAP_MILLIS) continue;
+            boolean waiting = false;
+            for (Shortcut other : queued) {
+                if (other.key == press.key) {
+                    waiting = true;
+                    break;
+                }
+            }
+            if (!waiting) queued.add(press);
+        }
+        if (queued.isEmpty() || now - lastSent < GAP_MILLIS) return List.of();
+
+        Shortcut next = queued.poll();
+        lastSent = now;
+        lastSentKey = next.key;
+        return List.of(next);
+    }
+
+    /** Alles vergessen, was von frueher uebrig ist - fuer Pruefungen */
+    static void reset() {
+        wasDown = new HashMap<>();
+        queued.clear();
+        lastSent = Long.MIN_VALUE / 2;
+        lastSentKey = 0;
     }
 
     /**
@@ -116,12 +186,8 @@ public final class ShortcutHandler {
     }
 
     private static void send(ClientPacketListener connection, Shortcut shortcut) {
-        long time = System.currentTimeMillis();
-        if (time - lastSent < MIN_GAP_MILLIS) return;
-
         String text = shortcut.command.trim();
         if (text.isEmpty() || text.equals("/")) return;
-        lastSent = time;
         if (text.startsWith("/")) connection.sendCommand(text.substring(1));
         else connection.sendChat(text);
     }
