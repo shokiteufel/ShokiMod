@@ -1,7 +1,9 @@
 package com.shokiteufel.shokimod.mixin;
 
+import com.shokiteufel.shokimod.handler.ParticleForce;
 import com.shokiteufel.shokimod.handler.ParticleHider;
 import com.shokiteufel.shokimod.handler.ParticleTracer;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket;
 import org.spongepowered.asm.mixin.Mixin;
@@ -22,6 +24,18 @@ public class ParticleTraceMixin {
         // Erst mitschreiben, dann entscheiden: Der Mitschreiber soll auch zeigen, was der Server geschickt hat und die
         // Einstellung dann ausblendet
         ParticleTracer.onPacket(packet);
-        if (ParticleHider.shouldHide(packet)) ci.cancel();
+        ParticleHider.Action action = ParticleHider.decide(packet);
+        if (action == ParticleHider.Action.HIDE) {
+            ci.cancel();
+        } else if (action == ParticleHider.Action.FORCE) {
+            // "Show always": Waehrend dieses Paket verarbeitet wird, erzeugt ParticleEngineForceMixin die Partikel selbst
+            ParticleForce.arm();
+        }
+    }
+
+    /** Die Markierung gilt nur fuer dieses eine Paket */
+    @Inject(method = "handleParticleEvent", at = @At("RETURN"))
+    private void shokimod$disarm(ClientboundLevelParticlesPacket packet, CallbackInfo ci) {
+        if (Minecraft.getInstance().isSameThread()) ParticleForce.disarm();
     }
 }
