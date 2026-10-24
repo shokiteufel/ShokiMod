@@ -19,7 +19,7 @@ public final class SafariHud {
 
     /** Ein Kasten auf dem Bildschirm. Traegt seine eigene Lage und Groesse in der Config */
     public enum Panel {
-        PROGRESS, MISSING, CONTEST, NEARBY, HUNTING, GUILD, COLLECTION, PROFIT, MINING, PET, PERFORMANCE, SEATRACKER, EFFECTS, SEAHP;
+        PROGRESS, MISSING, CONTEST, NEARBY, HUNTING, GUILD, COLLECTION, PROFIT, MINING, PET, PERFORMANCE, SEATRACKER, EFFECTS, SEAHP, DARK_AUCTION;
 
         public boolean visible() {
             ModConfig.SafariCategory c = ModConfig.INSTANCE.safari;
@@ -43,6 +43,8 @@ public final class SafariHud {
                 case SEAHP -> ModConfig.INSTANCE.fishing.hp.enabled
                         && (com.shokiteufel.shokimod.handler.SeaCreatureHp.hasRows()
                         || Minecraft.getInstance().gui.screen() instanceof com.shokiteufel.shokimod.gui.HudEditorScreen);
+                // Immer oder nur kurz vor der Eroeffnung - je nach Einstellung; im HUD-Editor immer
+                case DARK_AUCTION -> DarkAuctionHud.shownNow();
             };
         }
 
@@ -75,6 +77,7 @@ public final class SafariHud {
                 case SEATRACKER -> "Sea creature";
                 case EFFECTS -> "Effects";
                 case SEAHP -> "Sea creature HP";
+                case DARK_AUCTION -> "Dark Auction";
             };
         }
 
@@ -122,6 +125,7 @@ public final class SafariHud {
                 case SEATRACKER -> ModConfig.INSTANCE.fishing.tracker.hudX;
                 case EFFECTS -> ModConfig.INSTANCE.effects.hudX;
                 case SEAHP -> ModConfig.INSTANCE.fishing.hp.hudX;
+                case DARK_AUCTION -> ModConfig.INSTANCE.chat.reminder.darkAuctionHudX;
             };
         }
 
@@ -142,6 +146,7 @@ public final class SafariHud {
                 case SEATRACKER -> ModConfig.INSTANCE.fishing.tracker.hudY;
                 case EFFECTS -> ModConfig.INSTANCE.effects.hudY;
                 case SEAHP -> ModConfig.INSTANCE.fishing.hp.hudY;
+                case DARK_AUCTION -> ModConfig.INSTANCE.chat.reminder.darkAuctionHudY;
             };
         }
 
@@ -162,6 +167,7 @@ public final class SafariHud {
                 case SEATRACKER -> ModConfig.INSTANCE.fishing.tracker.hudScale;
                 case EFFECTS -> ModConfig.INSTANCE.effects.hudScale;
                 case SEAHP -> ModConfig.INSTANCE.fishing.hp.hudScale;
+                case DARK_AUCTION -> ModConfig.INSTANCE.chat.reminder.darkAuctionHudScale;
             };
         }
 
@@ -224,6 +230,10 @@ public final class SafariHud {
                     ModConfig.INSTANCE.fishing.hp.hudX = x;
                     ModConfig.INSTANCE.fishing.hp.hudY = y;
                 }
+                case DARK_AUCTION -> {
+                    ModConfig.INSTANCE.chat.reminder.darkAuctionHudX = x;
+                    ModConfig.INSTANCE.chat.reminder.darkAuctionHudY = y;
+                }
             }
         }
 
@@ -245,6 +255,7 @@ public final class SafariHud {
                 case SEATRACKER -> ModConfig.INSTANCE.fishing.tracker.hudAlpha;
                 case EFFECTS -> ModConfig.INSTANCE.effects.hudAlpha;
                 case SEAHP -> ModConfig.INSTANCE.fishing.hp.hudAlpha;
+                case DARK_AUCTION -> ModConfig.INSTANCE.chat.reminder.darkAuctionHudAlpha;
             };
         }
 
@@ -268,6 +279,7 @@ public final class SafariHud {
                 case SEATRACKER -> ModConfig.INSTANCE.fishing.tracker.hudAlpha = clamped;
                 case EFFECTS -> ModConfig.INSTANCE.effects.hudAlpha = clamped;
                 case SEAHP -> ModConfig.INSTANCE.fishing.hp.hudAlpha = clamped;
+                case DARK_AUCTION -> ModConfig.INSTANCE.chat.reminder.darkAuctionHudAlpha = clamped;
             }
         }
 
@@ -289,6 +301,7 @@ public final class SafariHud {
                 case SEATRACKER -> ModConfig.INSTANCE.fishing.tracker.hudScale = clamped;
                 case EFFECTS -> ModConfig.INSTANCE.effects.hudScale = clamped;
                 case SEAHP -> ModConfig.INSTANCE.fishing.hp.hudScale = clamped;
+                case DARK_AUCTION -> ModConfig.INSTANCE.chat.reminder.darkAuctionHudScale = clamped;
             }
         }
 
@@ -329,6 +342,7 @@ public final class SafariHud {
                 case SEATRACKER -> SeaTrackerHud.build();
                 case EFFECTS -> EffectsHud.build();
                 case SEAHP -> SeaHpHud.build();
+                case DARK_AUCTION -> DarkAuctionHud.build();
             };
         }
     }
