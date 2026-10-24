@@ -38,7 +38,7 @@ import java.util.Map;
  * einem Rechtsklick kamen, und dazu das Item in der Hand und die getragene Ruestung. Wer die Ruestung ohne das Item traegt
  * und danach das Item ohne die Ruestung benutzt, sieht an den beiden Tabellen, was die Quellen trennt.
  *
- * Eingeschaltet wird in den Einstellungen unter dem Suchwort "bug"; gespeichert wird der Schalter nicht.
+ * Eingeschaltet wird in den Einstellungen im Reiter "Particles"; gespeichert wird der Schalter nicht.
  */
 public final class ParticleTracer {
 
@@ -81,7 +81,7 @@ public final class ParticleTracer {
 
     /** Ein Rechtsklick mit diesem Item in der Hand */
     public static void noteUse(ItemStack stack) {
-        if (!ModConfig.INSTANCE.bugHunt.particleTracer) return;
+        if (!ModConfig.INSTANCE.particles.particleTracer) return;
         lastUseAt = System.currentTimeMillis();
         lastUseItem = idOf(stack);
         ShokiMod.LOGGER.info("[Particles] you used {}", lastUseItem);
@@ -89,7 +89,7 @@ public final class ParticleTracer {
 
     /** Vom Mixin an {@code handleParticleEvent} - laeuft bei jedem Partikel-Paket, also zuerst die billigen Pruefungen */
     public static void onPacket(ClientboundLevelParticlesPacket packet) {
-        ModConfig.BugHuntCategory cfg = ModConfig.INSTANCE.bugHunt;
+        ModConfig.ParticlesCategory cfg = ModConfig.INSTANCE.particles;
         if (!cfg.particleTracer) return;
         Minecraft client = Minecraft.getInstance();
         // Das Paket kommt erst im Netzwerk-Thread an und wird dann auf den Haupt-Thread gelegt: Gezaehlt wird beim zweiten Mal
@@ -103,7 +103,7 @@ public final class ParticleTracer {
         }
     }
 
-    private static void trace(Minecraft client, ModConfig.BugHuntCategory cfg, ClientboundLevelParticlesPacket packet) {
+    private static void trace(Minecraft client, ModConfig.ParticlesCategory cfg, ClientboundLevelParticlesPacket packet) {
         Player player = client.player;
         double dx = packet.x() - player.getX();
         double dy = packet.y() - player.getY();
@@ -203,7 +203,7 @@ public final class ParticleTracer {
         return id == null ? "-" : id;
     }
 
-    private static double radius(ModConfig.BugHuntCategory cfg) {
+    private static double radius(ModConfig.ParticlesCategory cfg) {
         try {
             return Math.max(1.0, Math.min(64.0, Double.parseDouble(cfg.particleRadius.trim())));
         } catch (RuntimeException e) {

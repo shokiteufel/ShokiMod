@@ -497,7 +497,7 @@ public class ModConfig extends Config {
                                 com.shokiteufel.shokimod.util.AlertVolume.factor())));
         INSTANCE.bugHunt.soundSummary = () -> Minecraft.getInstance().execute(
                 com.shokiteufel.shokimod.handler.SoundTracer::summary);
-        INSTANCE.bugHunt.particleSummary = () -> Minecraft.getInstance().execute(
+        INSTANCE.particles.particleSummary = () -> Minecraft.getInstance().execute(
                 com.shokiteufel.shokimod.handler.ParticleTracer::summary);
         INSTANCE.playerSize.reset = () -> {
             INSTANCE.playerSize.sizeX = 1.0f;
@@ -895,6 +895,10 @@ public class ModConfig extends Config {
     @Expose
     @Category(name = "Player Size", desc = "Makes your own player bigger, smaller, wider or upside down. Only you see it.")
     public PlayerSizeCategory playerSize = new PlayerSizeCategory();
+
+    @Expose
+    @Category(name = "Particles", desc = "Which particles come from which item - the basis for hiding the particles of single items.")
+    public ParticlesCategory particles = new ParticlesCategory();
 
     /**
      * Werkzeuge zum Fehlersuchen. Steht nicht in der Liste: Sichtbar wird der Reiter, wenn im
@@ -3185,6 +3189,22 @@ public class ModConfig extends Config {
         @ConfigEditorButton(buttonText = "Show")
         public transient Runnable soundSummary = () -> {
         };
+
+    }
+
+    /**
+     * Partikel. Bisher der Mitschreiber, der zeigt, welche Partikel von welchem Item kommen; die Schalter
+     * je Item (verstecken, nur eigene verstecken, zeigen) folgen hier, sobald die Logs zeigen, woran sich die
+     * Quellen trennen lassen. Der Mitschreiber stand bis 1.17.12 im versteckten Reiter "Bug hunt".
+     *
+     * Nichts davon wird gespeichert: Ein vergessener Mitschreiber soll nicht beim naechsten Start weiter
+     * ins Log schreiben.
+     */
+    public static class ParticlesCategory {
+
+        @ConfigOption(name = "Particles", desc = "Finds out which particles come from which item - the basis for hiding the particles of single items later, like the Flaming Flay, the Ancestral Spade or the Divan armour. Nothing here is saved: every start begins with the tracer off.")
+        @ConfigEditorInfoText
+        public transient String about = "";
 
         @ConfigOption(name = "Particle tracer", desc = "Writes the particles that reach you into the log, grouped by kind - type, colour, count, speed, offset, distance - with the item in your hand, the armour you wear and whether they came right after a right-click. To tell two sources apart (say armour and an item): wear the armour without using the item and send the log, then use the item without the armour and send that log.")
         @ConfigEditorBoolean

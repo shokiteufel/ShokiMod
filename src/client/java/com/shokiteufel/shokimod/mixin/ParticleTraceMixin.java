@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Jedes Partikel-Paket, das der Server schickt, fuer den Partikel-Mitschreiber (Einstellungen, Suchwort "bug").
+ * Jedes Partikel-Paket, das der Server schickt, fuer den Partikel-Mitschreiber (Einstellungen, Reiter "Particles").
  * Er schreibt nur mit und greift nicht ein; ausgeschaltet kostet der Aufruf einen Feldzugriff.
  */
 @Mixin(ClientPacketListener.class)
