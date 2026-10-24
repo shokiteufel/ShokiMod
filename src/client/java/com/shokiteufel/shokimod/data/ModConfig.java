@@ -498,6 +498,8 @@ public class ModConfig extends Config {
                                 com.shokiteufel.shokimod.util.AlertVolume.factor())));
         INSTANCE.bugHunt.soundSummary = () -> Minecraft.getInstance().execute(
                 com.shokiteufel.shokimod.handler.SoundTracer::summary);
+        INSTANCE.bugHunt.particleSummary = () -> Minecraft.getInstance().execute(
+                com.shokiteufel.shokimod.handler.ParticleTracer::summary);
         INSTANCE.playerSize.reset = () -> {
             INSTANCE.playerSize.sizeX = 1.0f;
             INSTANCE.playerSize.sizeY = 1.0f;
@@ -2977,6 +2979,19 @@ public class ModConfig extends Config {
         @ConfigOption(name = "Summary", desc = "Prints how often each source played a traced sound since the last summary, the most frequent first, and starts counting again.")
         @ConfigEditorButton(buttonText = "Show")
         public transient Runnable soundSummary = () -> {
+        };
+
+        @ConfigOption(name = "Particle tracer", desc = "Writes the particles that reach you into the log, grouped by kind - type, colour, count, speed, offset, distance - with the item in your hand, the armour you wear and whether they came right after a right-click. To tell two sources apart (say armour and an item): wear the armour without using the item and send the log, then use the item without the armour and send that log.")
+        @ConfigEditorBoolean
+        public transient boolean particleTracer = false;
+
+        @ConfigOption(name = "Particle radius", desc = "Only particles this close to you count, in blocks (1 - 64).")
+        @ConfigEditorText
+        public transient String particleRadius = "8";
+
+        @ConfigOption(name = "Particle summary", desc = "Prints the particle table since the last one, the most frequent kind first, into the chat as well, and starts counting again.")
+        @ConfigEditorButton(buttonText = "Show")
+        public transient Runnable particleSummary = () -> {
         };
     }
 
