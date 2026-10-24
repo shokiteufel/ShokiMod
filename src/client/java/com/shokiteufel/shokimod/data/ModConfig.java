@@ -3201,6 +3201,22 @@ public class ModConfig extends Config {
         @ConfigAccordionId(id = 91)
         public boolean noFrontCamera = false;
 
+        @ConfigOption(name = "No Cursor Reset", desc = "Keeps the mouse pointer in place when one chest-style menu closes and another opens right after. From Odin's No Cursor Reset.")
+        @ConfigEditorAccordion(id = 92)
+        public transient boolean noCursorResetFolder = false;
+
+        @Expose
+        @ConfigOption(name = "Enabled", desc = "The game puts the pointer back in the middle of the window every time a menu opens. Menus on servers like Hypixel often close and another one opens at once, so the pointer jumps each time. With this on, a chest-style menu that opens right after another one closed gets the pointer back where it was. Other windows (inventory, chat) are not touched. If you run Odin too, switch its No Cursor Reset off.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 92)
+        public boolean noCursorReset = false;
+
+        @Expose
+        @ConfigOption(name = "Unhook Timeout", desc = "How many milliseconds after a menu closed the next one still gets the pointer back. Later than that, it opens with the pointer in the middle as usual. 0 turns it off.")
+        @ConfigEditorSlider(minValue = 0f, maxValue = 1000f, minStep = 10f)
+        @ConfigAccordionId(id = 92)
+        public int noCursorResetTimeout = 150;
+
         @Expose
         @Category(name = "Player Size", desc = "Makes your own player bigger, smaller, wider or upside down. Only you see it.")
         public PlayerSizeCategory playerSize = new PlayerSizeCategory();
