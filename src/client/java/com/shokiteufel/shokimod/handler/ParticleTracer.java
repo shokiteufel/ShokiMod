@@ -63,7 +63,7 @@ public final class ParticleTracer {
     private static final long USE_WINDOW_MILLIS = 3_000L;
     /** Mehr verschiedene Arten merkt sich eine Runde nicht - ein Gewitter von Partikeln soll den Speicher nicht fuellen */
     private static final int MAX_ROWS = 500;
-    private static final double DEFAULT_RADIUS = 8.0;
+    private static final double DEFAULT_RADIUS = 16.0;
     private static final String LOG_NAME = "shokimod-particles.log";
     /** Ist die Datei so gross, wandert sie nach shokimod-particles.old.log - eine Messung ist nie so lang */
     private static final long MAX_LOG_BYTES = 8L * 1024 * 1024;
