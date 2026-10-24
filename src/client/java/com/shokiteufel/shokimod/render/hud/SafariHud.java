@@ -42,13 +42,9 @@ public final class SafariHud {
                 // Nur wenn gerade einer in der Naehe steht - im HUD-Editor immer, sonst liesse er sich nicht setzen
                 case SEAHP -> ModConfig.INSTANCE.fishing.hp.enabled
                         && (com.shokiteufel.shokimod.handler.SeaCreatureHp.hasRows()
-<<<<<<< HEAD
                         || Minecraft.getInstance().gui.screen() instanceof com.shokiteufel.shokimod.gui.HudEditorScreen);
-=======
-                        || Minecraft.getInstance().screen instanceof com.shokiteufel.shokimod.gui.HudEditorScreen);
                 // Immer oder nur kurz vor der Eroeffnung - je nach Einstellung; im HUD-Editor immer
                 case DARK_AUCTION -> DarkAuctionHud.shownNow();
->>>>>>> 92b22bc (Reminder: a timer panel counts down to the next Dark Auction, always or only in the last seconds (1.17.14))
             };
         }
 

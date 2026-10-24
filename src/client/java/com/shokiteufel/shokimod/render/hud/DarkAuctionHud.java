@@ -32,7 +32,7 @@ public final class DarkAuctionHud {
 
     /** Soll der Kasten jetzt gezeichnet werden? */
     public static boolean shownNow() {
-        boolean editor = Minecraft.getInstance().screen instanceof com.shokiteufel.shokimod.gui.HudEditorScreen;
+        boolean editor = Minecraft.getInstance().gui.screen() instanceof com.shokiteufel.shokimod.gui.HudEditorScreen;
         return shownAt(System.currentTimeMillis(), editor);
     }
 
