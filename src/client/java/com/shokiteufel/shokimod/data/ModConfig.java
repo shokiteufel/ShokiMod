@@ -981,56 +981,70 @@ public class ModConfig extends Config {
         @ConfigEditorDropdown
         public HudVisibility visibility = HudVisibility.EVERYWHERE;
 
+        @ConfigOption(name = "What it shows", desc = "The parts of the pet panel: icon, name, level, overflow, held item and progress bar.")
+        @ConfigEditorAccordion(id = 79)
+        public transient boolean showsFolder = false;
+
         @Expose
         @ConfigOption(name = "Icon", desc = "The pet's item image, read from the pet menu.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 79)
         public boolean showIcon = true;
 
         @Expose
         @ConfigOption(name = "Pet name", desc = "The name, in the colour of its rarity.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 79)
         public boolean showName = true;
 
         @Expose
         @ConfigOption(name = "Name colour", desc = "Which rarity colour the pet name is drawn in. The pet's own rarity is read from the tab list.")
         @ConfigEditorDropdown
+        @ConfigAccordionId(id = 79)
         public NameColour nameColour = NameColour.AUTO;
 
         @Expose
         @ConfigOption(name = "Pet level", desc = "The level in brackets, as the game writes it: [Lvl 100].")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 79)
         public boolean showLevel = true;
 
         @Expose
         @ConfigOption(name = "Overflow level", desc = "Level plus the levels beyond the maximum, added up: a level 200 dragon with 332 extra shows [532]. Hypixel does not show these - they are a calculation.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 79)
         public boolean showOverflowLevel = true;
 
         @Expose
         @ConfigOption(name = "Overflow XP", desc = "The experience collected beyond the maximum level.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 79)
         public boolean showOverflowXp = true;
 
         @Expose
         @ConfigOption(name = "Held item", desc = "The item the pet carries, if it has one.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 79)
         public boolean showHeldItem = false;
 
         @Expose
         @ConfigOption(name = "Held item on its own line",
                 desc = "Put it under the pet instead of behind it - with \"Held Item:\" in front, like SkyblockAddons does. Only matters while the lines are joined.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 79)
         public boolean heldItemOwnLine = false;
 
         @Expose
         @ConfigOption(name = "Held item as image",
                 desc = "Show the item's picture instead of its name. Saves the width of a long name like Burnt Texts.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 79)
         public boolean heldItemIcon = false;
 
         @Expose
         @ConfigOption(name = "Progress bar", desc = "How far it is to the next level. Only shown below the maximum level.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 79)
         public boolean showProgress = true;
 
         /**
@@ -1495,29 +1509,38 @@ public class ModConfig extends Config {
         @ConfigEditorDropdown
         public HudVisibility visibility = HudVisibility.MINING_ISLANDS;
 
+        @ConfigOption(name = "What it shows", desc = "The parts of the mining panel.")
+        @ConfigEditorAccordion(id = 80)
+        public transient boolean showsFolder = false;
+
         @Expose
         @ConfigOption(name = "Commissions", desc = "The running commissions with their progress.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 80)
         public boolean showCommissions = true;
 
         @Expose
         @ConfigOption(name = "Ability name", desc = "Which pickaxe ability is equipped.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 80)
         public boolean showAbility = true;
 
         @Expose
         @ConfigOption(name = "Ability cooldown", desc = "How long until the pickaxe ability is ready again.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 80)
         public boolean showCooldown = true;
 
         @Expose
         @ConfigOption(name = "Sky Mall", desc = "The Sky Mall buff of the day. Read from the chat message that announces it, so it appears once the day rolls over.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 80)
         public boolean showSkyMall = true;
 
         @Expose
         @ConfigOption(name = "Frozen corpses", desc = "The frozen corpses of the mineshaft you are in, and how many of each are still unlooted. Vanguard is never listed.")
         @ConfigEditorDropdown
+        @ConfigAccordionId(id = 80)
         public CorpseFilter corpses = CorpseFilter.OFF;
 
         @Expose
@@ -1588,39 +1611,50 @@ public class ModConfig extends Config {
         @ConfigEditorBoolean
         public boolean timerEnabled = true;
 
+        @ConfigOption(name = "Panel lines", desc = "Which lines the panel shows, and in what order.")
+        @ConfigEditorAccordion(id = 78)
+        public transient boolean linesFolder = false;
+
         @Expose
         @ConfigOption(name = "Show worth", desc = "Also show what the collected items are worth on the bazaar.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 78)
         public boolean showValue = true;
 
         @Expose
         @ConfigOption(name = "Price", desc = "Instant Sell is what selling right now pays; Sell Order is what a listed order brings once it fills.")
         @ConfigEditorDropdown
+        @ConfigAccordionId(id = 78)
         public ItemValue.PriceMode priceMode = ItemValue.PriceMode.INSTANT_SELL;
 
         @Expose
         @ConfigOption(name = "Show total", desc = "The collection you already have. Open the collections menu once so the mod can read it.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 78)
         public boolean showTotal = true;
 
         @Expose
         @ConfigOption(name = "Show gained", desc = "What came in since the last reset.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 78)
         public boolean showGained = true;
 
         @Expose
         @ConfigOption(name = "Show per hour", desc = "The pace, from the tracked time.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 78)
         public boolean showPerHour = true;
 
         @Expose
         @ConfigOption(name = "Show next tier", desc = "The next tier of the collection and, from the pace, when it is reached. Needs the total, so open the collections menu once.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 78)
         public boolean showNextTier = true;
 
         @Expose
         @ConfigOption(name = "Line order", desc = "In which order Total, Gained and Per hour stand under each collection.")
         @ConfigEditorDropdown
+        @ConfigAccordionId(id = 78)
         public LineOrder lineOrder = LineOrder.TOTAL_GAINED_HOUR;
 
         /** Die drei Zeilen unter einer Collection, in jeder moeglichen Reihenfolge */
@@ -1779,18 +1813,25 @@ public class ModConfig extends Config {
         @ConfigEditorBoolean
         public boolean alertOutside = true;
 
+        @ConfigOption(name = "Command and sound", desc = "What a click on [Go] runs, and the sound with the warning.")
+        @ConfigEditorAccordion(id = 54)
+        public transient boolean reactionFolder = false;
+
         @Expose
         @ConfigOption(name = "Trap command", desc = "Runs when you click [Go] in the warning.")
         @ConfigEditorText
+        @ConfigAccordionId(id = 54)
         public String command = "/warp garden";
 
         @Expose
         @ConfigOption(name = "Trap sound", desc = "Plays a sound with the warning, at the alert volume. Off: the warning stays silent.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 54)
         public boolean sound = true;
 
         @ConfigOption(name = "Trap sound file", desc = "Your own file from config/shokimod/sounds. Empty (No sound) plays the standard ping.")
         @ConfigEditorButton(buttonText = "Pick")
+        @ConfigAccordionId(id = 54)
         public transient Runnable openSound = () -> {
         };
 
@@ -1830,18 +1871,25 @@ public class ModConfig extends Config {
         @ConfigEditorBoolean
         public boolean alertOutside = true;
 
+        @ConfigOption(name = "Command and sound", desc = "What a click on [Go] runs, and the sound with the warning.")
+        @ConfigEditorAccordion(id = 55)
+        public transient boolean reactionFolder = false;
+
         @Expose
         @ConfigOption(name = "Visitor command", desc = "Runs when you click [Go] in the warning.")
         @ConfigEditorText
+        @ConfigAccordionId(id = 55)
         public String command = "/warp garden";
 
         @Expose
         @ConfigOption(name = "Visitor sound", desc = "Plays a sound with the warning, at the alert volume. Off: the warning stays silent.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 55)
         public boolean sound = true;
 
         @ConfigOption(name = "Visitor sound file", desc = "Your own file from config/shokimod/sounds. Empty (No sound) plays the standard ping.")
         @ConfigEditorButton(buttonText = "Pick")
+        @ConfigAccordionId(id = 55)
         public transient Runnable openSound = () -> {
         };
 
@@ -1871,29 +1919,38 @@ public class ModConfig extends Config {
         @ConfigEditorBoolean
         public boolean enabled = false;
 
+        @ConfigOption(name = "Which deployables", desc = "Pick the kinds that warn you.")
+        @ConfigEditorAccordion(id = 56)
+        public transient boolean kindsFolder = false;
+
         @Expose
         @ConfigOption(name = "Power Orbs", desc = "Radiant, Mana Flux, Overflux and Plasmaflux.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 56)
         public boolean powerOrbs = true;
 
         @Expose
         @ConfigOption(name = "Flares", desc = "Warning, Alert and SOS Flare. Also when one vanishes because you moved too far away.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 56)
         public boolean flares = true;
 
         @Expose
         @ConfigOption(name = "Lanterns", desc = "Dwarven, Mithril, Titanium and Glacite Lantern, and the Will-o'-wisp.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 56)
         public boolean lanterns = true;
 
         @Expose
         @ConfigOption(name = "Totem of Corruption", desc = "The totem from fishing.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 56)
         public boolean totem = true;
 
         @Expose
         @ConfigOption(name = "Black Hole", desc = "The Black Hole.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 56)
         public boolean blackHole = true;
 
         @Expose
@@ -1901,9 +1958,14 @@ public class ModConfig extends Config {
         @ConfigEditorSlider(minValue = 0f, maxValue = 60f, minStep = 1f)
         public int warnSeconds = 10;
 
+        @ConfigOption(name = "Banner and chat", desc = "The banner, the chat line, and hiding the line Hypixel writes itself.")
+        @ConfigEditorAccordion(id = 57)
+        public transient boolean bannerFolder = false;
+
         @Expose
         @ConfigOption(name = "Banner", desc = "Large text across the screen. Its design is picked in Alerts > Banner > Sandbox.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 57)
         public boolean banner = true;
 
         /** Das Design des Banners - gewaehlt wird es im Sandkasten (Liste "Use for"), nicht hier */
@@ -1913,20 +1975,28 @@ public class ModConfig extends Config {
         @Expose
         @ConfigOption(name = "Chat line", desc = "Writes a line into your chat. Hypixel already writes its own red one, so this is off by default.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 57)
         public boolean chatLine = false;
 
         @Expose
         @ConfigOption(name = "Hide Hypixel's line", desc = "Hides the red \"... despawned.\" line Hypixel writes when one of these runs out. Works with the alert switched off, too. Off by default.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 57)
         public boolean hideLine = false;
+
+        @ConfigOption(name = "Sound", desc = "The sound with the warning, and your own file for it.")
+        @ConfigEditorAccordion(id = 58)
+        public transient boolean soundFolder = false;
 
         @Expose
         @ConfigOption(name = "Deployable sound", desc = "Plays a sound with the warning, at the alert volume. Off: the warning stays silent.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 58)
         public boolean sound = true;
 
         @ConfigOption(name = "Deployable sound file", desc = "Your own file from config/shokimod/sounds. Empty (No sound) plays the standard ping.")
         @ConfigEditorButton(buttonText = "Pick")
+        @ConfigAccordionId(id = 58)
         public transient Runnable openSound = () -> {
         };
 
@@ -1971,9 +2041,14 @@ public class ModConfig extends Config {
         @ConfigEditorSlider(minValue = 0f, maxValue = 60f, minStep = 1f)
         public int warnSeconds = 10;
 
+        @ConfigOption(name = "Banner and chat", desc = "The banner, the chat line, and hiding the line Hypixel writes itself.")
+        @ConfigEditorAccordion(id = 59)
+        public transient boolean bannerFolder = false;
+
         @Expose
         @ConfigOption(name = "Banner", desc = "Large text across the screen. Its design is picked in Alerts > Banner > Sandbox.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 59)
         public boolean banner = true;
 
         /** Das Design des Banners - gewaehlt wird es im Sandkasten (Liste "Use for"), nicht hier */
@@ -1983,20 +2058,28 @@ public class ModConfig extends Config {
         @Expose
         @ConfigOption(name = "Chat line", desc = "Writes a line into your chat. Hypixel already writes its own red one, so this is off by default.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 59)
         public boolean chatLine = false;
 
         @Expose
         @ConfigOption(name = "Hide Hypixel's line", desc = "Hides the red \"Your Umberella despawned.\" line. Works with the alert switched off, too. Off by default.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 59)
         public boolean hideLine = false;
+
+        @ConfigOption(name = "Sound", desc = "The sound with the warning, and your own file for it.")
+        @ConfigEditorAccordion(id = 60)
+        public transient boolean soundFolder = false;
 
         @Expose
         @ConfigOption(name = "Umberella sound", desc = "Plays a sound with the warning, at the alert volume. Off: the warning stays silent.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 60)
         public boolean sound = true;
 
         @ConfigOption(name = "Umberella sound file", desc = "Your own file from config/shokimod/sounds. Empty (No sound) plays the standard ping.")
         @ConfigEditorButton(buttonText = "Pick")
+        @ConfigAccordionId(id = 60)
         public transient Runnable openSound = () -> {
         };
 
@@ -2030,9 +2113,14 @@ public class ModConfig extends Config {
         @ConfigEditorBoolean
         public boolean replacedAlert = false;
 
+        @ConfigOption(name = "Banner and chat", desc = "The banner, the chat line, and hiding the lines Hypixel writes itself.")
+        @ConfigEditorAccordion(id = 61)
+        public transient boolean bannerFolder = false;
+
         @Expose
         @ConfigOption(name = "Banner", desc = "Large text across the screen. Its design is picked in Alerts > Banner > Sandbox.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 61)
         public boolean banner = true;
 
         /** Das Design des Banners - gewaehlt wird es im Sandkasten (Liste "Use for"), nicht hier */
@@ -2042,20 +2130,28 @@ public class ModConfig extends Config {
         @Expose
         @ConfigOption(name = "Chat line", desc = "Writes a line into your chat. Hypixel already writes its own one, so this is off by default.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 61)
         public boolean chatLine = false;
 
         @Expose
         @ConfigOption(name = "Hide Hypixel's lines", desc = "Hides both lines (\"Your previous ... was removed!\" and \"Your flare disappeared ...\"). Works with the alerts switched off, too. Off by default.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 61)
         public boolean hideLines = false;
+
+        @ConfigOption(name = "Sound", desc = "The sound with the warning, and your own file for it.")
+        @ConfigEditorAccordion(id = 62)
+        public transient boolean soundFolder = false;
 
         @Expose
         @ConfigOption(name = "Endings sound", desc = "Plays a sound with the warning, at the alert volume. Off: the warning stays silent.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 62)
         public boolean sound = true;
 
         @ConfigOption(name = "Endings sound file", desc = "Your own file from config/shokimod/sounds. Empty (No sound) plays the standard ping.")
         @ConfigEditorButton(buttonText = "Pick")
+        @ConfigAccordionId(id = 62)
         public transient Runnable openSound = () -> {
         };
 
@@ -2116,28 +2212,37 @@ public class ModConfig extends Config {
         @ConfigEditorBoolean
         public boolean answerHph = true;
 
+        @ConfigOption(name = "What is counted", desc = "Which catches count, and which creatures.")
+        @ConfigEditorAccordion(id = 63)
+        public transient boolean countedFolder = false;
+
         @Expose
         @ConfigOption(name = "Only this area", desc = "Shows only the creatures you can catch in the area you are in now (a Jawbus does not clutter the list on the Hub). Events and hotspots count everywhere. Off shows everything you have caught.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 63)
         public boolean onlyThisArea = true;
 
         @Expose
         @ConfigOption(name = "Show Double Hooks", desc = "Adds a DH column: the Double Hooks of each creature and how often it came as one.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 63)
         public boolean showDoubleHooks = true;
 
         @Expose
         @ConfigOption(name = "Show Blood Shot", desc = "Adds BS, the number of creatures your Bloodshot reforge cocooned, under the total.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 63)
         public boolean showBloodShot = true;
 
         @Expose
         @ConfigOption(name = "Show Others", desc = "A last line that adds up every creature without a line of its own.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 63)
         public boolean showOthers = true;
 
         @ConfigOption(name = "Pick creatures", desc = "Which creatures get their own line. The rare ones are picked from the start; everything else counts under Others.")
         @ConfigEditorButton(buttonText = "Open")
+        @ConfigAccordionId(id = 63)
         public transient Runnable openPicker = () -> {
         };
 
@@ -2195,28 +2300,41 @@ public class ModConfig extends Config {
         @ConfigEditorBoolean
         public boolean enabled = true;
 
+        @ConfigOption(name = "Banner and chat", desc = "The big title in the middle of the screen and the chat line.")
+        @ConfigEditorAccordion(id = 52)
+        public transient boolean bannerFolder = false;
+
         @Expose
         @ConfigOption(name = "Banner", desc = "The big title in the middle of the screen.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 52)
         public boolean banner = true;
 
         @Expose
         @ConfigOption(name = "Banner design", desc = "Name of the banner design. Feesh uses the game's own title - that is the design \"Feesh\". Build your own in Alerts > Banner > Sandbox.")
         @ConfigEditorText
+        @ConfigAccordionId(id = 52)
         public String bannerDesign = "Feesh";
 
         @Expose
         @ConfigOption(name = "Chat line", desc = "Writes \"You are almost out of air!\" into your chat, as Feesh does.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 52)
         public boolean chatLine = true;
+
+        @ConfigOption(name = "Sound", desc = "The sound with the warning, and your own file for it.")
+        @ConfigEditorAccordion(id = 53)
+        public transient boolean soundFolder = false;
 
         @Expose
         @ConfigOption(name = "Sound", desc = "Plays a sound with the warning.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 53)
         public boolean sound = true;
 
         @ConfigOption(name = "Sound file", desc = "Your own file from config/shokimod/sounds. Leave empty for the drowning sound Feesh plays.")
         @ConfigEditorButton(buttonText = "Pick")
+        @ConfigAccordionId(id = 53)
         public transient Runnable openSound = () -> {
         };
 
@@ -2360,13 +2478,19 @@ public class ModConfig extends Config {
         @Expose
         public Map<String, Boolean> picks = new HashMap<>();
 
+        @ConfigOption(name = "Sound", desc = "The sound when a creature shows up, and your own file for it.")
+        @ConfigEditorAccordion(id = 64)
+        public transient boolean soundFolder = false;
+
         @Expose
         @ConfigOption(name = "Sound", desc = "Plays a sound when a new creature joins the list - not when a Reindrake only comes back into view, as in Feesh.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 64)
         public boolean sound = false;
 
         @ConfigOption(name = "Sound file", desc = "Your own file from config/shokimod/sounds. Leave empty for the experience orb sound Feesh plays.")
         @ConfigEditorButton(buttonText = "Pick")
+        @ConfigAccordionId(id = 64)
         public transient Runnable openSound = () -> {
         };
 
@@ -2444,19 +2568,26 @@ public class ModConfig extends Config {
         @Expose
         public Map<String, Boolean> share = new HashMap<>();
 
+        @ConfigOption(name = "Banner and chat", desc = "The banner, its design and the chat line.")
+        @ConfigEditorAccordion(id = 65)
+        public transient boolean bannerFolder = false;
+
         @Expose
         @ConfigOption(name = "Banner", desc = "Large text across the screen, same as a rare drop.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 65)
         public boolean banner = true;
 
         @Expose
         @ConfigOption(name = "Banner design", desc = "Name of the banner design. Build one in Alerts > Banner > Sandbox. Empty uses \"Sea creature\": the game-title look with the player above the creature.")
         @ConfigEditorText
+        @ConfigAccordionId(id = 65)
         public String bannerDesign = "";
 
         @Expose
         @ConfigOption(name = "Chat line", desc = "Writes the creature into your chat.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 65)
         public boolean chatLine = true;
 
         @ConfigOption(name = "Sound", desc = "Your own file from config/shokimod/sounds. Leave empty for silence.")
@@ -2481,59 +2612,82 @@ public class ModConfig extends Config {
         @ConfigEditorBoolean
         public boolean enabled = false;
 
+        @ConfigOption(name = "Circle", desc = "How the circle on the hotspot looks.")
+        @ConfigEditorAccordion(id = 66)
+        public transient boolean circleFolder = false;
+
         @Expose
         @ConfigOption(name = "Circle surface", desc = "Fill the hotspot area on the water in the colour of its bonus.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 66)
         public boolean circleSurface = true;
 
         @Expose
         @ConfigOption(name = "Circle outline", desc = "Draw the rim of the hotspot.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 66)
         public boolean circleOutline = true;
 
         @Expose
         @ConfigOption(name = "Hide particles", desc = "Hide Hypixel's pink rim particles once the circle knows its size.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 66)
         public boolean hideParticles = true;
 
         @Expose
         @ConfigOption(name = "Surface opacity", desc = "Opacity of the filled area, in percent.")
         @ConfigEditorSlider(minValue = 0f, maxValue = 100f, minStep = 5f)
+        @ConfigAccordionId(id = 66)
         public int surfaceAlpha = 50;
 
         @Expose
         @ConfigOption(name = "Outline opacity", desc = "Opacity of the rim, in percent.")
         @ConfigEditorSlider(minValue = 0f, maxValue = 100f, minStep = 5f)
+        @ConfigAccordionId(id = 66)
         public int outlineAlpha = 100;
+
+        @ConfigOption(name = "Warning", desc = "The warning when your hotspot despawns.")
+        @ConfigEditorAccordion(id = 67)
+        public transient boolean warningFolder = false;
 
         @Expose
         @ConfigOption(name = "Despawn warning", desc = "Chat line and banner when the hotspot you were fishing in disappears.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 67)
         public boolean warning = false;
 
         @Expose
         @ConfigOption(name = "Warning sound", desc = "A low note with the despawn warning, at the alert volume.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 67)
         public boolean warningSound = true;
 
         @Expose
         @ConfigOption(name = "Warning banner", desc = "Name of the banner design for the despawn warning. Pick it in Alerts > Banner > Sandbox, where a design can be ticked for each alert.")
         @ConfigEditorText
+        @ConfigAccordionId(id = 67)
         public String warningDesign = "Classic band";
+
+        @ConfigOption(name = "Sharing", desc = "Offering your hotspot to the party.")
+        @ConfigEditorAccordion(id = 68)
+        public transient boolean sharingFolder = false;
 
         @Expose
         @ConfigOption(name = "Share Hotspot", desc = "Shows a clickable chat message that offers sharing the Hotspot location and its perk to ALL chat or PARTY chat. You need a fishing rod in your hotbar and must be close to the hotspot to trigger it. Works in every world with hotspots, offers each hotspot once, and does not need Enabled above. Ported from Feesh.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 68)
         public boolean offerShare = true;
 
         @Expose
         @ConfigOption(name = "Share sound", desc = "A short pling with the share offer, at the alert volume.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 68)
         public boolean shareSound = true;
 
         @Expose
         @ConfigOption(name = "Share key", desc = "Press this key to share the hotspot near you to PARTY chat - the same as clicking [Share to PARTY chat], without opening the chat. You must be within 10 blocks of a hotspot; no fishing rod needed. Works with or without Share Hotspot above. Keyboard keys only. No key is set from the start.")
         @ConfigEditorKeybind(defaultKey = -1)
+        @ConfigAccordionId(id = 68)
         public int shareKey = -1;
 
         /**
@@ -2546,6 +2700,7 @@ public class ModConfig extends Config {
 
         @ConfigOption(name = "Share test", desc = "Shows the share offer once with your own position. The two buttons in the test line do nothing.")
         @ConfigEditorButton(buttonText = "Test")
+        @ConfigAccordionId(id = 68)
         public transient Runnable shareTest = () -> {
         };
     }
@@ -2574,9 +2729,14 @@ public class ModConfig extends Config {
         @ConfigEditorBoolean
         public boolean enabled = false;
 
+        @ConfigOption(name = "Panel", desc = "The live ranking on screen.")
+        @ConfigEditorAccordion(id = 69)
+        public transient boolean panelFolder = false;
+
         @Expose
         @ConfigOption(name = "Show panel", desc = "The event panel: name, time left, top places and your own. Hidden while there is nothing to show. Move it with /shoki hud.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 69)
         public boolean showHud = true;
 
         /**
@@ -2588,30 +2748,40 @@ public class ModConfig extends Config {
         @Expose
         @ConfigOption(name = "Show announced", desc = "Shows the panel as soon as an event is announced, with a countdown to its start. Off means only running events appear.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 69)
         public boolean showUpcoming = true;
 
         @Expose
         @ConfigOption(name = "Top rows", desc = "How many places the panel lists.")
         @ConfigEditorSlider(minValue = 1f, maxValue = 10f, minStep = 1f)
+        @ConfigAccordionId(id = 69)
         public int topRows = 3;
+
+        @ConfigOption(name = "Banner", desc = "The banners when an event starts or ends.")
+        @ConfigEditorAccordion(id = 70)
+        public transient boolean bannerFolder = false;
 
         @Expose
         @ConfigOption(name = "Start banner", desc = "Banner when an event starts: Guild 'Kill Ender Dragon' Event Start.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 70)
         public boolean startBanner = true;
 
         @Expose
         @ConfigOption(name = "End banner", desc = "Banner when an event ends, with your final place.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 70)
         public boolean endBanner = true;
 
         @Expose
         @ConfigOption(name = "Banner design", desc = "Name of a design from Alerts > Banner.")
         @ConfigEditorText
+        @ConfigAccordionId(id = 70)
         public String bannerDesign = "Classic band";
 
         @ConfigOption(name = "Test banner", desc = "Shows the start banner with an example event.")
         @ConfigEditorButton(buttonText = "Test")
+        @ConfigAccordionId(id = 70)
         public transient Runnable testBanner = () -> {
         };
 
@@ -2620,9 +2790,14 @@ public class ModConfig extends Config {
                 "https://gist.githubusercontent.com/shokiteufel/645fc250482ee832e484a56e328db125"
                         + "/raw/shokimod-events.json";
 
+        @ConfigOption(name = "Connection", desc = "Where the data comes from and how often it is fetched.")
+        @ConfigEditorAccordion(id = 71)
+        public transient boolean connectionFolder = false;
+
         @Expose
         @ConfigOption(name = "Primary URL", desc = "The bot on ShokiTeufel's PC, e.g. https://xyz.trycloudflare.com/shokimod/events.json. Asked first. Empty: skipped.")
         @ConfigEditorText
+        @ConfigAccordionId(id = 71)
         public String primaryUrl = "";
 
         @Expose
@@ -2630,21 +2805,25 @@ public class ModConfig extends Config {
         @ConfigEditorText
         // Voreingestellt, damit die Events ohne jede Einrichtung ankommen: der Gist steht
         // oeffentlich und wird vom Bot im Zehn-Minuten-Takt geschrieben
+        @ConfigAccordionId(id = 71)
         public String fallbackUrl = DEFAULT_FALLBACK_URL;
 
         @Expose
         @ConfigOption(name = "Shared key", desc = "The same word as shokimod_key in the bot's config.json. Sent to the primary URL as X-ShokiMod-Key.")
         @ConfigEditorText
+        @ConfigAccordionId(id = 71)
         public String sharedKey = "";
 
         @Expose
         @ConfigOption(name = "Follow the bot", desc = "Ask exactly when the bot has fresh numbers: every ten minutes at xx:x4:50, ten seconds before Discord shows them. Off: the interval below.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 71)
         public boolean syncToBot = true;
 
         @Expose
         @ConfigOption(name = "Refresh seconds", desc = "Only without Follow the bot: how often to ask.")
         @ConfigEditorSlider(minValue = 15f, maxValue = 600f, minStep = 5f)
+        @ConfigAccordionId(id = 71)
         public int refreshSeconds = 30;
 
         /** Ankuendigungen, die schon als Banner liefen - jede genau einmal */
@@ -2806,29 +2985,42 @@ public class ModConfig extends Config {
         public transient Runnable openList = () -> {
         };
 
+        @ConfigOption(name = "Alerts", desc = "When an effect warns you.")
+        @ConfigEditorAccordion(id = 72)
+        public transient boolean alertsFolder = false;
+
         @Expose
         @ConfigOption(name = "Alert before it runs out", desc = "Warns once when this many minutes are left. 0 turns the early warning off.")
         @ConfigEditorSlider(minValue = 0f, maxValue = 120f, minStep = 1f)
+        @ConfigAccordionId(id = 72)
         public int alertMinutes = 5;
 
         @Expose
         @ConfigOption(name = "Alert when it is off", desc = "Warns once when an effect has run out.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 72)
         public boolean alertOnExpire = true;
 
         @Expose
         @ConfigOption(name = "Repeat while it is off", desc = "Keeps warning every few seconds until the effect is back - for the effects with Alert switched on.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 72)
         public boolean repeatExpired = false;
 
         @Expose
         @ConfigOption(name = "Repeat every (seconds)", desc = "How often the warning is repeated while an effect is off.")
         @ConfigEditorSlider(minValue = 5f, maxValue = 300f, minStep = 5f)
+        @ConfigAccordionId(id = 72)
         public int repeatSeconds = 60;
+
+        @ConfigOption(name = "Banner, chat and sound", desc = "How the warning shows up.")
+        @ConfigEditorAccordion(id = 73)
+        public transient boolean reactionFolder = false;
 
         @Expose
         @ConfigOption(name = "Banner", desc = "Large text across the screen. Its design is picked in Alerts > Banner > Sandbox.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 73)
         public boolean banner = true;
 
         /** Das Design des Banners - gewaehlt wird es im Sandkasten (Liste "Use for"), nicht hier */
@@ -2838,10 +3030,12 @@ public class ModConfig extends Config {
         @Expose
         @ConfigOption(name = "Chat line", desc = "Writes the warning into your chat.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 73)
         public boolean chatLine = true;
 
         @ConfigOption(name = "Sound", desc = "Your own file from config/shokimod/sounds. Leave empty for silence.")
         @ConfigEditorButton(buttonText = "Pick")
+        @ConfigAccordionId(id = 73)
         public transient Runnable openSound = () -> {
         };
 
@@ -2878,24 +3072,32 @@ public class ModConfig extends Config {
         @ConfigEditorBoolean
         public boolean enabled = false;
 
+        @ConfigOption(name = "Banner and chat", desc = "The banner, its design, the chat line and what the levelling brought.")
+        @ConfigEditorAccordion(id = 74)
+        public transient boolean bannerFolder = false;
+
         @Expose
         @ConfigOption(name = "Banner", desc = "Large text across the screen, same as a rare drop.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 74)
         public boolean banner = true;
 
         @Expose
         @ConfigOption(name = "Banner design", desc = "Name of the banner design. Build one in Alerts > Banner > Sandbox. Empty uses the default.")
         @ConfigEditorText
+        @ConfigAccordionId(id = 74)
         public String bannerDesign = "";
 
         @Expose
         @ConfigOption(name = "Chat line", desc = "Writes the pet into your chat.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 74)
         public boolean chatLine = true;
 
         @Expose
         @ConfigOption(name = "Show what it brought", desc = "A second line with what the finished pet is worth and what levelling it gained - the price of a fresh one taken off.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 74)
         public boolean showPrice = true;
 
         @ConfigOption(name = "Sound", desc = "Your own file from config/shokimod/sounds. Leave empty for silence.")
@@ -3282,39 +3484,58 @@ public class ModConfig extends Config {
         @ConfigEditorInfoText
         public transient String about = "";
 
+        @ConfigOption(name = "Own boss", desc = "Your own Slayer boss: the glow, its colour and the line.")
+        @ConfigEditorAccordion(id = 75)
+        public transient boolean ownFolder = false;
+
         @Expose
         @ConfigOption(name = "Highlight own Slayerboss", desc = "Outlines the Slayer boss you spawned yourself with a glow, so you can tell it from the bosses other players brought. It is found by the line 'Spawned by: <your name>' that Hypixel puts under every boss. Works in SkyBlock only.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 75)
         public boolean highlightOwnBoss = false;
 
         @Expose
         @ConfigOption(name = "Highlight colour", desc = "Colour of the glow and the line for your boss. Click the colour to pick one. The opacity slider changes nothing here.")
         @ConfigEditorColour
+        @ConfigAccordionId(id = 75)
         public String highlightColour = ColourText.ofRgb(0xFF5555);
 
         @Expose
         @ConfigOption(name = "Line to own Slayerboss", desc = "Draws a line from your crosshair to your own Slayer boss, in the colour set above, so you find it in a crowd. Works in SkyBlock only.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 75)
         public boolean lineToBoss = false;
+
+        @ConfigOption(name = "Minibosses", desc = "The minibosses: the glow, their colour and the line.")
+        @ConfigEditorAccordion(id = 76)
+        public transient boolean minibossFolder = false;
 
         @Expose
         @ConfigOption(name = "Highlight minibosses", desc = "Outlines the Slayer minibosses that turn up while you collect kills - Revenant Sycophant and Champion, Tarantula Vermin and Beast, Pack Enforcer, Voidling Devotee, Flare Demon and the like. They belong to nobody, so this marks every one in sight. Works in SkyBlock only.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 76)
         public boolean highlightMinibosses = false;
 
         @Expose
         @ConfigOption(name = "Miniboss colour", desc = "Colour of the glow and the line for minibosses. Click the colour to pick one. The opacity slider changes nothing here.")
         @ConfigEditorColour
+        @ConfigAccordionId(id = 76)
         public String minibossColour = ColourText.ofRgb(0x55FFFF);
 
         @Expose
         @ConfigOption(name = "Line to minibosses", desc = "Draws a line from your crosshair to the nearest Slayer miniboss, in its colour. Only the nearest one, so a pack of them does not fill the screen. Works in SkyBlock only.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 76)
         public boolean lineToMinibosses = false;
+
+        @ConfigOption(name = "Spawn banner", desc = "The banner when your boss appears.")
+        @ConfigEditorAccordion(id = 77)
+        public transient boolean spawnFolder = false;
 
         @Expose
         @ConfigOption(name = "Boss spawn banner", desc = "Shows a banner the moment your Slayer boss appears, so you know to stop killing and turn to it. It only says that the boss is here, not which one. It reads the line 'Slay the boss!' in the sidebar. The design is picked in Alerts > Banner > Sandbox. Works in SkyBlock only.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 77)
         public boolean spawnBanner = false;
 
         /** Das Design des Spawn-Banners - gewaehlt im Sandkasten (Liste "Use for") */
@@ -3323,6 +3544,7 @@ public class ModConfig extends Config {
 
         @ConfigOption(name = "Test", desc = "Shows the spawn banner once, in the design you picked.")
         @ConfigEditorButton(buttonText = "Test")
+        @ConfigAccordionId(id = 77)
         public transient Runnable test = () -> {
         };
 
