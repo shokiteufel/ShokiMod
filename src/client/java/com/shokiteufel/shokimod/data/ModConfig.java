@@ -3207,7 +3207,7 @@ public class ModConfig extends Config {
         @ConfigEditorInfoText
         public transient String about = "";
 
-        @ConfigOption(name = "Particle tracer", desc = "Writes the particles that reach you into the log, grouped by kind - type, colour, count, speed, offset, distance - with the item in your hand, the armour you wear and whether they came right after a right-click. To tell two sources apart (say armour and an item): wear the armour without using the item and send the log, then use the item without the armour and send that log.")
+        @ConfigOption(name = "Particle tracer", desc = "Writes the particles that reach you into its own file, logs/shokimod-particles.log (next to latest.log), grouped by kind - type, colour, count, speed, offset, distance - with the item in your hand, the armour you wear and whether they came right after a right-click. The path shows up in the chat when you switch it on. To tell two sources apart (say armour and an item): wear the armour without using the item, switch the tracer off and send the file; then use the item without the armour and send the file again.")
         @ConfigEditorBoolean
         public transient boolean particleTracer = false;
 
@@ -3215,7 +3215,7 @@ public class ModConfig extends Config {
         @ConfigEditorText
         public transient String particleRadius = "8";
 
-        @ConfigOption(name = "Particle summary", desc = "Prints the particle table since the last one, the most frequent kind first, into the chat as well, and starts counting again.")
+        @ConfigOption(name = "Particle summary", desc = "Writes the particle table since the last one to the file and into the chat, the most frequent kind first, and starts counting again.")
         @ConfigEditorButton(buttonText = "Show")
         public transient Runnable particleSummary = () -> {
         };
