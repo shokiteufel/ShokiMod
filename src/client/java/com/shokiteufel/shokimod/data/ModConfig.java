@@ -254,6 +254,10 @@ public class ModConfig extends Config {
         if (INSTANCE.fishing.tracker.mobs == null) INSTANCE.fishing.tracker.mobs = new HashMap<>();
         if (INSTANCE.fishing.tracker.counts == null) INSTANCE.fishing.tracker.counts = new HashMap<>();
         if (INSTANCE.fishing.tracker.areaCounts == null) INSTANCE.fishing.tracker.areaCounts = new HashMap<>();
+        if (INSTANCE.fishing.nearby == null) INSTANCE.fishing.nearby = new NearbyRareCategory();
+        if (INSTANCE.fishing.nearby.picks == null) INSTANCE.fishing.nearby.picks = new HashMap<>();
+        INSTANCE.fishing.nearby.alertRange = Math.max(10, Math.min(48, INSTANCE.fishing.nearby.alertRange));
+        INSTANCE.fishing.nearby.hitboxRange = Math.max(5, Math.min(48, INSTANCE.fishing.nearby.hitboxRange));
         if (INSTANCE.fishing.hp == null) INSTANCE.fishing.hp = new SeaHpCategory();
         if (INSTANCE.fishing.hp.picks == null) INSTANCE.fishing.hp.picks = new HashMap<>();
         if (INSTANCE.fishing.hp.sort == null) INSTANCE.fishing.hp.sort = SeaHpSort.LOWEST_HP;
@@ -516,6 +520,10 @@ public class ModConfig extends Config {
                         Minecraft.getInstance().gui.screen())));
         INSTANCE.fishing.rareCatch.test = () -> Minecraft.getInstance().execute(
                 com.shokiteufel.shokimod.handler.RareCatchAlert::test);
+        // Der Alarm in der Naehe nimmt dasselbe Auswahlfenster: wieder eine Spalte mehr
+        INSTANCE.fishing.nearby.openPicker = INSTANCE.fishing.rareCatch.openPicker;
+        INSTANCE.fishing.nearby.test = () -> Minecraft.getInstance().execute(
+                com.shokiteufel.shokimod.handler.SeaCreatureNear::test);
         INSTANCE.fishing.tracker.openPicker = () -> Minecraft.getInstance().execute(() ->
                 Minecraft.getInstance().setScreenAndShow(new com.shokiteufel.shokimod.gui.SeaTrackerScreen(
                         Minecraft.getInstance().gui.screen())));
@@ -1783,6 +1791,10 @@ public class ModConfig extends Config {
         public RareCatchCategory rareCatch = new RareCatchCategory();
 
         @Expose
+        @Category(name = "Nearby rare", desc = "Alerts and marks rare sea creatures that surface near you - found from the creatures around you, not from the chat. Picked in /shoki seacreatures, column Near.")
+        public NearbyRareCategory nearby = new NearbyRareCategory();
+
+        @Expose
         @Category(name = "Sea creature tracker", desc = "Counts your catches, Double Hooks and Blood Shots - as Feesh does.")
         public SeaTrackerCategory tracker = new SeaTrackerCategory();
 
@@ -2676,6 +2688,88 @@ public class ModConfig extends Config {
         public String sound = "";
 
         @ConfigOption(name = "Test", desc = "Fires the alert once with a Yeti, so you can see and hear what you set.")
+        @ConfigEditorButton(buttonText = "Test")
+        public transient Runnable test = () -> {
+        };
+    }
+
+    /**
+     * Seltene Meeresbewohner, die in der Naehe auftauchen - aus den Mobs um einen herum gelesen, nicht aus dem Chat.
+     *
+     * Der Alarm im Reiter "Rare catch" lebt von den Saetzen im Chat: Er meldet, was man selbst oder die Gruppe gefangen hat. Dieser hier
+     * schaut auf die Namensschilder der Mobs in der Naehe - wie die HP-Anzeige - und meldet auch, was ein anderer hochgezogen hat, der nichts
+     * in den Gruppenchat schreibt. Zusaetzlich bekommt der Mob einen Kasten, der auch durch Waende zu sehen ist, aber nur in der Naehe.
+     */
+    public static class NearbyRareCategory {
+
+        @ConfigOption(name = "Nearby rare", desc = "Reads the creatures around you - the name plates Hypixel puts over them - instead of the chat. A rare one that comes into range is announced once, and gets a box that shows through walls while it is close. Which creatures count is picked in /shoki seacreatures, column Near; without a pick the rare ones do, as in Rare catch.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Enabled", desc = "Look for rare sea creatures near you. Works in SkyBlock only. Off means nothing is scanned.")
+        @ConfigEditorBoolean
+        public boolean enabled = false;
+
+        @Expose
+        @ConfigOption(name = "Alert range", desc = "How close a creature has to be to be announced, in blocks. 30 is the range in which you share the loot.")
+        @ConfigEditorSlider(minValue = 10f, maxValue = 48f, minStep = 1f)
+        public int alertRange = 30;
+
+        @ConfigOption(name = "Pick creatures", desc = "Which creatures count: the Near column of the creature list. Opens with /shoki seacreatures.")
+        @ConfigEditorButton(buttonText = "Open")
+        public transient Runnable openPicker = () -> {
+        };
+
+        /** Welche Bewohner sich melden und einen Kasten bekommen. Ohne Eintrag gilt: die seltenen ja, die uebrigen nein */
+        @Expose
+        public Map<String, Boolean> picks = new HashMap<>();
+
+        @ConfigOption(name = "Alert", desc = "How the announcement looks and sounds.")
+        @ConfigEditorAccordion(id = 94)
+        public transient boolean alertFolder = false;
+
+        @Expose
+        @ConfigOption(name = "Banner", desc = "Large text across the screen, in the design of Rare catch (Fishing > Rare catch > Banner design), with \"Nearby\" above the name.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 94)
+        public boolean banner = true;
+
+        @Expose
+        @ConfigOption(name = "Chat line", desc = "Writes the creature and its distance into your chat.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 94)
+        public boolean chatLine = true;
+
+        @Expose
+        @ConfigOption(name = "Sound", desc = "Plays the sound of the creature (the note in /shoki seacreatures), or else the one set under Fishing > Rare catch. Off keeps this alert silent.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 94)
+        public boolean sound = true;
+
+        @ConfigOption(name = "Hitbox", desc = "The box around the creature.")
+        @ConfigEditorAccordion(id = 95)
+        public transient boolean boxFolder = false;
+
+        @Expose
+        @ConfigOption(name = "Hitbox", desc = "Draws the creature's hit box in the colour of its rarity while it is within the range below.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 95)
+        public boolean hitbox = true;
+
+        @Expose
+        @ConfigOption(name = "Hitbox range", desc = "How close a creature has to be for its box, in blocks. Kept small on purpose, so you see what is next to you and not every creature in the lake.")
+        @ConfigEditorSlider(minValue = 5f, maxValue = 48f, minStep = 1f)
+        @ConfigAccordionId(id = 95)
+        public int hitboxRange = 20;
+
+        @Expose
+        @ConfigOption(name = "Through walls", desc = "Shows the box through blocks and walls. Off: it is hidden behind them like any other line.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 95)
+        public boolean hitboxThroughWalls = true;
+
+        @ConfigOption(name = "Test", desc = "Fires the alert once with a Yeti, so you can see and hear what you set. The box needs a real creature.")
         @ConfigEditorButton(buttonText = "Test")
         public transient Runnable test = () -> {
         };

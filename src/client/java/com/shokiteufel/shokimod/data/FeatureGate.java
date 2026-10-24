@@ -193,6 +193,11 @@ public final class FeatureGate {
         return ModConfig.INSTANCE.iq.fireVeil;
     }
 
+    /** Fishing > Nearby rare: die Mobs in der Naehe lesen - nur wenn es an ist. Braucht den Ort (nur in SkyBlock) */
+    public static boolean nearbyRare() {
+        return ModConfig.INSTANCE.fishing.nearby.enabled;
+    }
+
     /** Fishing > Frozen Blaze: Das Set wird nur erkannt, solange eine der Funktionen daraus an ist */
     public static boolean frozenBlaze() {
         ModConfig.FrozenBlazeCategory c = ModConfig.INSTANCE.fishing.frozenBlaze;
@@ -208,6 +213,6 @@ public final class FeatureGate {
     public static boolean location() {
         return contest() || safari() || nearbyPanel() || rareLoot() || huntingTracker() || mobMarkers() || chatRules()
                 || cakeReminder() || hotspots() || collectionTracker() || pestTraps() || gardenVisitors() || seaHp() || mute() || outOfAir() || hotspotShare()
-                || slayerSpawn() || darkAuction() || darkAuctionTimer() || hidePlayersDungeon() || ModConfig.INSTANCE.effects.enabled;
+                || slayerSpawn() || darkAuction() || darkAuctionTimer() || hidePlayersDungeon() || nearbyRare() || ModConfig.INSTANCE.effects.enabled;
     }
 }
