@@ -195,6 +195,12 @@ anders ist, steht dabei. Der Lizenztext folgt unten, wie die Lizenz es fuer die 
 - **Camera** (`features/impl/render/Camera.kt`) — Version 1.18.3. Steht die Kamera am Ende eines Ticks auf der dritten Person von vorn, wird sie auf
   die erste Person zurueckgesetzt. Nachgebaut als `FrontCamera`; die Regel ist dieselbe, die Einstellung ist ein Schalter in der Klappe "Camera"
   im Reiter Odin.
+- **No Cursor Reset** (`features/impl/skyblock/NoCursorReset.kt`, `MouseHandlerMixin`) — Version 1.18.4. Oeffnet sich ein Kisten-Fenster weniger als die
+  eingestellte Zeit (Standard 150 ms, 0 bis 1000 in Zehnerschritten) nach dem Schliessen des letzten Fensters, wird der Mauszeiger an die Stelle gestellt, an
+  der er beim Schliessen stand, statt in die Mitte. Nachgebaut als `NoCursorReset` und `MouseHandlerMixin`. Anders: Die Zeit nimmt der Mixin beim Schliessen
+  selbst (Odin fuehrt sie jeden Tick nach); die Einspruenge sitzen an den Raendern von `grabMouse` und `releaseMouse` statt mitten in den Methoden; der
+  Zeiger wird ueber GLFW gesetzt (`InputConstants.releaseMouse` gibt es nicht in jeder Version); und welches Fenster sich oeffnet, kommt aus dem Fabric-Ereignis
+  `ScreenEvents.AFTER_INIT`, weil der Zugriff auf das aktuelle Fenster je Version anders heisst.
 - **Player Size** und die Ping-Anzeige: siehe weiter unten unter "Nur nachgeschlagen". Seit 1.18.1 steht Player Size als Unterreiter im Reiter Odin.
 
 Der Lizenztext von Odin (Quelle: `LICENSE` im Odin-Repository):
