@@ -3191,6 +3191,16 @@ public class ModConfig extends Config {
         @ConfigAccordionId(id = 90)
         public float hidePlayersDistance = 3.0f;
 
+        @ConfigOption(name = "Camera", desc = "Keeps the camera from going to the front of your player. From Odin's Camera.")
+        @ConfigEditorAccordion(id = 91)
+        public transient boolean cameraFolder = false;
+
+        @Expose
+        @ConfigOption(name = "No Front View", desc = "Skips the third-person view from the front when you press the perspective key (F5): it goes first person, back view, first person again. If you run Odin too, switch its Camera off.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 91)
+        public boolean noFrontCamera = false;
+
         @Expose
         @Category(name = "Player Size", desc = "Makes your own player bigger, smaller, wider or upside down. Only you see it.")
         public PlayerSizeCategory playerSize = new PlayerSizeCategory();

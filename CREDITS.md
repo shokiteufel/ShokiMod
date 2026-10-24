@@ -192,6 +192,9 @@ anders ist, steht dabei. Der Lizenztext folgt unten, wie die Lizenz es fuer die 
   Dungeon wird aus der Zeile der Tab-Liste ("Area: ..." oder "Dungeon: ..." mit "Catacombs") **und** aus dem Kasten der Seitenleiste
   gelesen, zweimal je Sekunde zwischengespeichert; der Einsprung versucht beide Formen von `shouldRender` (mit und ohne Teilticks) und steht in
   einer eigenen, nicht zwingenden Mixin-Konfiguration, damit eine geaenderte Methode das Spiel nicht beim Start abbricht.
+- **Camera** (`features/impl/render/Camera.kt`) — Version 1.18.3. Steht die Kamera am Ende eines Ticks auf der dritten Person von vorn, wird sie auf
+  die erste Person zurueckgesetzt. Nachgebaut als `FrontCamera`; die Regel ist dieselbe, die Einstellung ist ein Schalter in der Klappe "Camera"
+  im Reiter Odin.
 - **Player Size** und die Ping-Anzeige: siehe weiter unten unter "Nur nachgeschlagen". Seit 1.18.1 steht Player Size als Unterreiter im Reiter Odin.
 
 Der Lizenztext von Odin (Quelle: `LICENSE` im Odin-Repository):
