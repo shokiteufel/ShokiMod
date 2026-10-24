@@ -381,6 +381,25 @@ public final class ProfitTracker {
                 itemId, Math.max(0, updated));
     }
 
+    /**
+     * Ein Stapel aus dem Inventar, von Hand in den Tracker genommen ("Add" im Kasten, siehe InventoryPick).
+     *
+     * Gebucht wie jede Nachbesserung ({@link #adjust}: in allen drei Zeitraeumen) - und sichtbar gemacht: Bei "Only picked" muss die
+     * Ware angeklickt sein, bei "Everything but hidden" darf sie nicht ausgeblendet sein. Wer sie eben ausdruecklich aufnimmt, will sie
+     * im Kasten sehen.
+     */
+    public static void takeIn(String itemId, int amount) {
+        if (itemId == null || amount <= 0) return;
+        adjust(itemId, amount);
+        if (cfg().selection == ModConfig.ProfitSelection.PICKED) {
+            if (!cfg().picked.contains(itemId)) cfg().picked.add(itemId);
+        } else {
+            cfg().hidden.remove(itemId);
+        }
+        invalidateRows();
+        ModConfig.INSTANCE.saveNow();
+    }
+
     /** Der Klick in der Liste: aus wird an, an wird aus - in beiden Betriebsarten */
     public static void toggle(String itemId) {
         if (itemId == null) return;

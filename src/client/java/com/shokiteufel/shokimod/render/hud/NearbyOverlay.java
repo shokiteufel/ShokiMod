@@ -181,6 +181,12 @@ public final class NearbyOverlay {
             // Klick den Zeitraum - Lauf, Tag, alles
             if (row == 0) {
                 double titleX = (mouseX - SafariHud.originX(panel)) / panel.scale() - HudPanel.padding();
+                // [Add]: der Auswahlmodus, in dem ein Klick auf einen Stapel im Inventar ihn in den Tracker nimmt
+                if (ProfitHud.addAt(Minecraft.getInstance().font, titleX)) {
+                    com.shokiteufel.shokimod.handler.InventoryPick.toggle();
+                    SafariHud.invalidate(panel);
+                    return true;
+                }
                 if (ProfitHud.resetAt(Minecraft.getInstance().font, titleX)) {
                     com.shokiteufel.shokimod.handler.ProfitTracker.askReset();
                     return true;
@@ -245,6 +251,9 @@ public final class NearbyOverlay {
                 return true;
             }
         }
-        return false;
+
+        // Zuletzt: Ist der Auswahlmodus an, nimmt ein Klick auf einen Stapel im eigenen Inventar ihn in den Profit Tracker. Erst hier,
+        // damit ein Kasten, der ueber dem Inventar liegt, seine Klicks behaelt
+        return com.shokiteufel.shokimod.handler.InventoryPick.handleClick(shiftDown());
     }
 }
