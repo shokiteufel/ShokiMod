@@ -2,6 +2,7 @@ package com.shokiteufel.shokimod.mixin;
 
 import com.shokiteufel.shokimod.render.BoxHighlightRenderer;
 import com.shokiteufel.shokimod.render.EntityTracerRenderer;
+import com.shokiteufel.shokimod.render.FireVeilRenderer;
 import com.shokiteufel.shokimod.render.HotspotRenderer;
 import com.shokiteufel.shokimod.render.WorldTextRenderer;
 import net.minecraft.client.Minecraft;
@@ -29,5 +30,6 @@ public class WorldTextRenderMixin {
         EntityTracerRenderer.emitGizmos(client, partialTicks);
         BoxHighlightRenderer.emitGizmos(client, partialTicks);
         HotspotRenderer.emitGizmos(client);
+        FireVeilRenderer.emitGizmos(client, partialTicks);
     }
 }

@@ -195,6 +195,8 @@ public final class ParticleHider {
      * keinem Traeger passt, bleibt unberuehrt.
      */
     public static Action decide(ClientboundLevelParticlesPacket packet) {
+        // Fire Veil Overlay (Reiter IQ): Solange der eigene Ring gezeichnet wird, kommen die Flammen des Spiels weg
+        if (isFireVeilFlame(packet)) return Action.HIDE;
         ModConfig.ParticlesCategory cfg = ModConfig.INSTANCE.particles;
         if (!anyOn(cfg)) return Action.NONE;
 
@@ -229,6 +231,22 @@ public final class ParticleHider {
             cfg.hyperionMode = HideMode.SHOW;
             ShokiMod.LOGGER.warn("[Particles] hiding switched itself off after an error", e);
             return Action.NONE;
+        }
+    }
+
+    /**
+     * Ist das eine Flamme, die das Fire Veil Overlay verdraengen soll? Zuerst der billige Zeitvergleich: ausserhalb der neun Sekunden
+     * nach einem Wurf kostet das Paket nichts weiter. Wie bei IQ gilt es fuer jede Flamme, die in dieser Zeit eintrifft - auch fuer die
+     * von Mitspielern.
+     */
+    private static boolean isFireVeilFlame(ClientboundLevelParticlesPacket packet) {
+        if (!FireVeil.hidesDefaultFlames(System.currentTimeMillis())) return false;
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null || !client.isSameThread()) return false;
+        try {
+            return ParticlePacketView.particle(packet).getType() == net.minecraft.core.particles.ParticleTypes.FLAME;
+        } catch (RuntimeException | LinkageError e) {
+            return false;
         }
     }
 

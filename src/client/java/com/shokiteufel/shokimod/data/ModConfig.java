@@ -917,6 +917,10 @@ public class ModConfig extends Config {
     @Category(name = "Odin", desc = "Functions taken from the Odin mod (BSD-3-Clause, Odtheking): Player Size, and more.")
     public OdinCategory odin = new OdinCategory();
 
+    @Expose
+    @Category(name = "IQ", desc = "Functions taken from the IQ mod (Apache-2.0, PeHenrii and DarkJota), a Kuudra mod for Hypixel SkyBlock: Fire Veil Overlay.")
+    public IqCategory iq = new IqCategory();
+
     /**
      * Bis 1.18.0 war Player Size ein eigener Reiter und steht in alten Dateien unter "playerSize". Seitdem liegt es
      * unter Odin. Dieses Feld gibt es nur, damit alte Dateien gelesen werden koennen (siehe adoptLegacyPlayerSize);
@@ -3220,6 +3224,94 @@ public class ModConfig extends Config {
         @Expose
         @Category(name = "Player Size", desc = "Makes your own player bigger, smaller, wider or upside down. Only you see it.")
         public PlayerSizeCategory playerSize = new PlayerSizeCategory();
+    }
+
+    /**
+     * Der Reiter "IQ": Funktionen, die aus der IQ-Mod (Apache-2.0, PeHenrii und DarkJota) stammen. Jede steht in ihrer Klappe;
+     * wer woher kommt, steht in CREDITS.md.
+     */
+    public static class IqCategory {
+
+        /** Wie der Wirkungskreis des Fire Veil Wand gezeichnet wird */
+        public enum FireVeilRender {
+            /** Nichts Eigenes: die Flammen des Spiels bleiben, wie sie sind */
+            DEFAULT("Default"),
+            /** Ein Gitter aus drei Ringen und senkrechten Strichen - eine Wand */
+            WALL("Wall"),
+            /** Ein dicker Ring auf dem Boden */
+            CIRCLE("Circle");
+
+            private final String label;
+
+            FireVeilRender(String label) {
+                this.label = label;
+            }
+
+            @Override
+            public String toString() {
+                return label;
+            }
+        }
+
+        @ConfigOption(name = "IQ", desc = "Functions taken from the IQ mod (Apache-2.0, PeHenrii and DarkJota), a Kuudra mod for Hypixel SkyBlock. If you run IQ too, switch its twin of a function off here or there, so the two do not stack.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @ConfigOption(name = "Fire Veil Overlay", desc = "Shows how far the Fire Veil Wand reaches after you cast it: a ring or a wall around you, for as long as the flames burn, plus a countdown and a sound when it can be cast again. From IQ's Fire Veil Overlay.")
+        @ConfigEditorAccordion(id = 93)
+        public transient boolean fireVeilFolder = false;
+
+        @Expose
+        @ConfigOption(name = "Enabled", desc = "Draws the Fire Veil Wand's reach around you for 5 seconds after you cast it (right-click with the wand in your main hand), and hides the game's own flames for 9 seconds so the ring is easy to read. If you run IQ too, switch its Fire Veil Overlay off.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 93)
+        public boolean fireVeil = false;
+
+        @Expose
+        @ConfigOption(name = "Render", desc = "How the reach is drawn. Circle: a thick ring on the ground. Wall: a grid of three rings and upright strokes, one block high. Default: nothing is drawn and the game's own flames stay.")
+        @ConfigEditorDropdown
+        @ConfigAccordionId(id = 93)
+        public FireVeilRender fireVeilRender = FireVeilRender.CIRCLE;
+
+        @Expose
+        @ConfigOption(name = "Render colour", desc = "Colour of the ring or wall. Click the colour to pick one. The opacity is set below; the picker's own opacity slider changes nothing here.")
+        @ConfigEditorColour
+        @ConfigAccordionId(id = 93)
+        public String fireVeilColour = ColourText.ofRgb(0xFFAA00);
+
+        @Expose
+        @ConfigOption(name = "Render opacity", desc = "How solid the ring or wall is, in percent. IQ's default is 78 (200 of 255).")
+        @ConfigEditorSlider(minValue = 10f, maxValue = 100f, minStep = 1f)
+        @ConfigAccordionId(id = 93)
+        public int fireVeilOpacity = 78;
+
+        @Expose
+        @ConfigOption(name = "Render through walls", desc = "Draws the ring or wall through blocks, walls and mobs, so you see it when something stands in front.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 93)
+        public boolean fireVeilThroughWalls = false;
+
+        @Expose
+        @ConfigOption(name = "Ability countdown", desc = "A panel counting the seconds until the Fire Veil ends and the wand can be cast again. Move and resize it in the HUD editor (/shoki hud).")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 93)
+        public boolean fireVeilCountdown = true;
+
+        @Expose
+        @ConfigOption(name = "Sound when recast", desc = "A loud pling when the Fire Veil Wand is ready to be cast again.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 93)
+        public boolean fireVeilSound = true;
+
+        // Lage des Kastens, gesetzt ueber /shoki hud (IQs Standardlage liegt knapp unter der Bildschirmmitte)
+        @Expose
+        public float fireVeilHudX = 0.5f;
+        @Expose
+        public float fireVeilHudY = 0.58f;
+        @Expose
+        public float fireVeilHudScale = 1.2f;
+        @Expose
+        public float fireVeilHudAlpha = 1.0f;
     }
 
     /**
