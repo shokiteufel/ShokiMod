@@ -79,12 +79,15 @@ public final class HidePlayers {
     /** Soll diese Figur gezeichnet werden? Vom Einsprung in {@code EntityRenderer.shouldRender} gerufen */
     public static boolean shouldRender(Entity entity) {
         ModConfig.OdinCategory cfg = ModConfig.INSTANCE.odin;
-        if (!cfg.hidePlayers) return true;
+        boolean frozenBlaze = FrozenBlaze.hidesPlayers();
+        if (!cfg.hidePlayers && !frozenBlaze) return true;
         if (!(entity instanceof Player)) return true;
         // NPCs tragen keine Version-4-Kennung: Nur echte Spieler werden ausgeblendet
         if (entity.getUUID().version() != 4) return true;
         Minecraft client = Minecraft.getInstance();
         if (entity == client.player) return true;
+        // Fishing > Frozen Blaze: Im ganzen Set werden alle echten Spieler ausgeblendet, ganz gleich wie weit und ob im Dungeon
+        if (frozenBlaze) return false;
         if (cfg.hidePlayersOnlyInDungeons && !inDungeons) return true;
         if (cfg.hidePlayersAll) return false;
         if (client.player == null) return true;
