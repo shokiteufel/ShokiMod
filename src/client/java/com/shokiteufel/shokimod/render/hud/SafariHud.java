@@ -19,7 +19,7 @@ public final class SafariHud {
 
     /** Ein Kasten auf dem Bildschirm. Traegt seine eigene Lage und Groesse in der Config */
     public enum Panel {
-        PROGRESS, MISSING, CONTEST, NEARBY, HUNTING, GUILD, COLLECTION, PROFIT, MINING, PET, PERFORMANCE, SEATRACKER, EFFECTS, SEAHP, DARK_AUCTION;
+        PROGRESS, MISSING, CONTEST, NEARBY, HUNTING, GUILD, COLLECTION, PROFIT, MINING, PET, PERFORMANCE, SEATRACKER, EFFECTS, SEAHP, DARK_AUCTION, FIRE_VEIL;
 
         public boolean visible() {
             ModConfig.SafariCategory c = ModConfig.INSTANCE.safari;
@@ -45,6 +45,8 @@ public final class SafariHud {
                         || Minecraft.getInstance().screen instanceof com.shokiteufel.shokimod.gui.HudEditorScreen);
                 // Immer oder nur kurz vor der Eroeffnung - je nach Einstellung; im HUD-Editor immer
                 case DARK_AUCTION -> DarkAuctionHud.shownNow();
+                // Waehrend des Zaubers und der Bereit-Anzeige; im HUD-Editor immer
+                case FIRE_VEIL -> FireVeilHud.shownNow();
             };
         }
 
@@ -78,6 +80,7 @@ public final class SafariHud {
                 case EFFECTS -> "Effects";
                 case SEAHP -> "Sea creature HP";
                 case DARK_AUCTION -> "Dark Auction";
+                case FIRE_VEIL -> "Fire Veil";
             };
         }
 
@@ -126,6 +129,7 @@ public final class SafariHud {
                 case EFFECTS -> ModConfig.INSTANCE.effects.hudX;
                 case SEAHP -> ModConfig.INSTANCE.fishing.hp.hudX;
                 case DARK_AUCTION -> ModConfig.INSTANCE.chat.reminder.darkAuctionHudX;
+                case FIRE_VEIL -> ModConfig.INSTANCE.iq.fireVeilHudX;
             };
         }
 
@@ -147,6 +151,7 @@ public final class SafariHud {
                 case EFFECTS -> ModConfig.INSTANCE.effects.hudY;
                 case SEAHP -> ModConfig.INSTANCE.fishing.hp.hudY;
                 case DARK_AUCTION -> ModConfig.INSTANCE.chat.reminder.darkAuctionHudY;
+                case FIRE_VEIL -> ModConfig.INSTANCE.iq.fireVeilHudY;
             };
         }
 
@@ -168,6 +173,7 @@ public final class SafariHud {
                 case EFFECTS -> ModConfig.INSTANCE.effects.hudScale;
                 case SEAHP -> ModConfig.INSTANCE.fishing.hp.hudScale;
                 case DARK_AUCTION -> ModConfig.INSTANCE.chat.reminder.darkAuctionHudScale;
+                case FIRE_VEIL -> ModConfig.INSTANCE.iq.fireVeilHudScale;
             };
         }
 
@@ -234,6 +240,10 @@ public final class SafariHud {
                     ModConfig.INSTANCE.chat.reminder.darkAuctionHudX = x;
                     ModConfig.INSTANCE.chat.reminder.darkAuctionHudY = y;
                 }
+                case FIRE_VEIL -> {
+                    ModConfig.INSTANCE.iq.fireVeilHudX = x;
+                    ModConfig.INSTANCE.iq.fireVeilHudY = y;
+                }
             }
         }
 
@@ -256,6 +266,7 @@ public final class SafariHud {
                 case EFFECTS -> ModConfig.INSTANCE.effects.hudAlpha;
                 case SEAHP -> ModConfig.INSTANCE.fishing.hp.hudAlpha;
                 case DARK_AUCTION -> ModConfig.INSTANCE.chat.reminder.darkAuctionHudAlpha;
+                case FIRE_VEIL -> ModConfig.INSTANCE.iq.fireVeilHudAlpha;
             };
         }
 
@@ -280,6 +291,7 @@ public final class SafariHud {
                 case EFFECTS -> ModConfig.INSTANCE.effects.hudAlpha = clamped;
                 case SEAHP -> ModConfig.INSTANCE.fishing.hp.hudAlpha = clamped;
                 case DARK_AUCTION -> ModConfig.INSTANCE.chat.reminder.darkAuctionHudAlpha = clamped;
+                case FIRE_VEIL -> ModConfig.INSTANCE.iq.fireVeilHudAlpha = clamped;
             }
         }
 
@@ -302,6 +314,7 @@ public final class SafariHud {
                 case EFFECTS -> ModConfig.INSTANCE.effects.hudScale = clamped;
                 case SEAHP -> ModConfig.INSTANCE.fishing.hp.hudScale = clamped;
                 case DARK_AUCTION -> ModConfig.INSTANCE.chat.reminder.darkAuctionHudScale = clamped;
+                case FIRE_VEIL -> ModConfig.INSTANCE.iq.fireVeilHudScale = clamped;
             }
         }
 
@@ -343,6 +356,7 @@ public final class SafariHud {
                 case EFFECTS -> EffectsHud.build();
                 case SEAHP -> SeaHpHud.build();
                 case DARK_AUCTION -> DarkAuctionHud.build();
+                case FIRE_VEIL -> FireVeilHud.build();
             };
         }
     }
