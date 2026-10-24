@@ -525,6 +525,13 @@ public final class CollectionTracker {
         ShokiMod.LOGGER.info("[Collections] tracker reset");
     }
 
+    /** Der Reset-Knopf, im Kasten wie in den Einstellungen: erst fragen (Schalter "Ask before reset" im Reiter HUD) */
+    public static void askReset() {
+        com.shokiteufel.shokimod.gui.ResetConfirm.ask("Collections tracker",
+                "Clears the gained amounts, their value and the timer. The totals from the collections menu stay.",
+                CollectionTracker::reset);
+    }
+
     /** Fuer den Diagnosebericht */
     public static String status() {
         if (!FeatureGate.collectionTracker()) return "collection tracker: off";

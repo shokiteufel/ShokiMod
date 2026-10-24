@@ -165,8 +165,7 @@ public final class NearbyOverlay {
             // Der Reset-Knopf sitzt in der Ueberschrift, neben dem Namen
             double titleX = (mouseX - SafariHud.originX(panel)) / panel.scale() - HudPanel.padding();
             if (row == 0 && CollectionHud.resetAt(Minecraft.getInstance().font, titleX)) {
-                CollectionTracker.reset();
-                SafariHud.invalidate(panel);
+                CollectionTracker.askReset();
                 return true;
             }
         }
@@ -222,8 +221,7 @@ public final class NearbyOverlay {
             if (row == 0) {
                 double localX = (mouseX - SafariHud.originX(panel)) / panel.scale() - HudPanel.padding();
                 if (SeaTrackerHud.resetAt(Minecraft.getInstance().font, localX)) {
-                    com.shokiteufel.shokimod.handler.SeaCreatureTracker.reset();
-                    SafariHud.invalidate(panel);
+                    com.shokiteufel.shokimod.handler.SeaCreatureTracker.askReset();
                     return true;
                 }
                 com.shokiteufel.shokimod.handler.SeaCreatureTracker.toggleView();
@@ -241,8 +239,7 @@ public final class NearbyOverlay {
             // Der Reset-Knopf sitzt in der Ueberschrift, neben dem Namen
             double titleX = (mouseX - SafariHud.originX(panel)) / panel.scale() - HudPanel.padding();
             if (row == 0 && HuntingHud.resetAt(Minecraft.getInstance().font, titleX)) {
-                HuntingTracker.reset();
-                SafariHud.invalidate(panel);
+                HuntingTracker.askReset();
                 return true;
             }
         }

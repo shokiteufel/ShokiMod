@@ -527,7 +527,7 @@ public class ModConfig extends Config {
                 Minecraft.getInstance().setScreenAndShow(new com.shokiteufel.shokimod.gui.SeaTrackerScreen(
                         Minecraft.getInstance().gui.screen())));
         INSTANCE.fishing.tracker.resetTracker = () -> Minecraft.getInstance().execute(
-                com.shokiteufel.shokimod.handler.SeaCreatureTracker::reset);
+                com.shokiteufel.shokimod.handler.SeaCreatureTracker::askReset);
         // Die HP-Anzeige nimmt dasselbe Auswahlfenster wie der Alarm: eine Spalte mehr
         INSTANCE.fishing.hp.openPicker = INSTANCE.fishing.rareCatch.openPicker;
         INSTANCE.fishing.hp.openSound = soundPicker(() -> INSTANCE.fishing.hp.soundFile,
@@ -544,14 +544,14 @@ public class ModConfig extends Config {
                 Minecraft.getInstance().setScreenAndShow(new com.shokiteufel.shokimod.gui.TrashBooksScreen(
                         Minecraft.getInstance().gui.screen())));
         INSTANCE.chat.testAlertVolume = () -> Minecraft.getInstance().execute(AlertVolume::test);
-        INSTANCE.hunting.tracker.resetTracker = () -> Minecraft.getInstance().execute(HuntingTracker::reset);
+        INSTANCE.hunting.tracker.resetTracker = () -> Minecraft.getInstance().execute(HuntingTracker::askReset);
         INSTANCE.guild.events.testBanner = () -> Minecraft.getInstance().execute(GuildEvents::testBanner);
         INSTANCE.slayer.test = () -> Minecraft.getInstance().execute(
                 com.shokiteufel.shokimod.handler.SlayerBossSpawn::test);
-        INSTANCE.collections.tracker.resetTracker = () -> Minecraft.getInstance().execute(CollectionTracker::reset);
+        INSTANCE.collections.tracker.resetTracker = () -> Minecraft.getInstance().execute(CollectionTracker::askReset);
         INSTANCE.collections.tracker.openPicker = () -> Minecraft.getInstance().execute(() ->
                 Minecraft.getInstance().setScreenAndShow(new CollectionPickerScreen(Minecraft.getInstance().gui.screen())));
-        INSTANCE.profit.resetTracker = () -> Minecraft.getInstance().execute(ProfitTracker::reset);
+        INSTANCE.profit.resetTracker = () -> Minecraft.getInstance().execute(ProfitTracker::askReset);
         INSTANCE.profit.openItems = () -> Minecraft.getInstance().execute(() ->
                 Minecraft.getInstance().setScreenAndShow(
                         new com.shokiteufel.shokimod.gui.ProfitItemScreen(Minecraft.getInstance().gui.screen())));
@@ -4143,6 +4143,11 @@ public class ModConfig extends Config {
         @ConfigOption(name = "Editor shows", desc = "In /shoki hud: all panels, so you can place them before switching them on - or only the ones that are on right now.")
         @ConfigEditorBoolean
         public boolean editorShowsAll = true;
+
+        @Expose
+        @ConfigOption(name = "Ask before reset", desc = "Asks \"Reset the tracker?\" before a tracker is reset - for the Collections, Hunting, Profit and Sea creature trackers, whether you click [Reset] in the panel or the Reset button in the settings. Off: a click resets right away.")
+        @ConfigEditorBoolean
+        public boolean confirmReset = true;
 
         /**
          * Bis 1.7.1 ein eigener Kasten.
