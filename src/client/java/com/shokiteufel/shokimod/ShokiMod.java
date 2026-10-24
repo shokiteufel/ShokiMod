@@ -92,6 +92,7 @@ public class ShokiMod implements ClientModInitializer {
         CakeReminder.register();
         com.shokiteufel.shokimod.handler.DarkAuctionReminder.register();
         com.shokiteufel.shokimod.handler.HidePlayers.register();
+        com.shokiteufel.shokimod.handler.FrontCamera.register();
         com.shokiteufel.shokimod.handler.PestReminder.register();
         com.shokiteufel.shokimod.handler.VisitorReminder.register();
         com.shokiteufel.shokimod.handler.DeployableReminder.register();
