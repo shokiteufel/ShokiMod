@@ -3163,6 +3163,34 @@ public class ModConfig extends Config {
         @ConfigEditorInfoText
         public transient String about = "";
 
+        @ConfigOption(name = "Hide Players", desc = "Hides other players around you, so a crowded spot (or a dungeon) is easier to see through. From Odin's Hide Players.")
+        @ConfigEditorAccordion(id = 90)
+        public transient boolean hidePlayersFolder = false;
+
+        @Expose
+        @ConfigOption(name = "Enabled", desc = "Hides real players near you - NPCs, mobs and your own figure stay. Nothing else changes: they still see you, and the hidden ones are still there. If you run Odin too, switch its Hide Players off.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 90)
+        public boolean hidePlayers = false;
+
+        @Expose
+        @ConfigOption(name = "Only in Dungeons", desc = "Only hides players while you are in a dungeon (the Catacombs). Read from the tab list and the sidebar.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 90)
+        public boolean hidePlayersOnlyInDungeons = false;
+
+        @Expose
+        @ConfigOption(name = "Hide all", desc = "Hides all players, regardless of distance.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 90)
+        public boolean hidePlayersAll = false;
+
+        @Expose
+        @ConfigOption(name = "Distance", desc = "How many blocks around you players are hidden. Ignored with Hide all.")
+        @ConfigEditorSlider(minValue = 0f, maxValue = 32f, minStep = 0.5f)
+        @ConfigAccordionId(id = 90)
+        public float hidePlayersDistance = 3.0f;
+
         @Expose
         @Category(name = "Player Size", desc = "Makes your own player bigger, smaller, wider or upside down. Only you see it.")
         public PlayerSizeCategory playerSize = new PlayerSizeCategory();

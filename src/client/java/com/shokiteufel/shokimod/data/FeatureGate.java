@@ -182,6 +182,12 @@ public final class FeatureGate {
         return ModConfig.INSTANCE.chat.reminder.darkAuctionHud;
     }
 
+    /** "Hide Players" nur im Dungeon muss wissen, wo man ist: Der Tab-Listen-Leser laeuft nur, wenn der Ort gebraucht wird */
+    public static boolean hidePlayersDungeon() {
+        ModConfig.OdinCategory o = ModConfig.INSTANCE.odin;
+        return o.hidePlayers && o.hidePlayersOnlyInDungeons;
+    }
+
     /** Die Stummschaltung schaut bei jedem Ton nach - nur wenn mindestens einer der beiden Schalter an ist */
     public static boolean mute() {
         ModConfig.MuteCategory c = ModConfig.INSTANCE.fishing.mute;
@@ -191,6 +197,6 @@ public final class FeatureGate {
     public static boolean location() {
         return contest() || safari() || nearbyPanel() || rareLoot() || huntingTracker() || mobMarkers() || chatRules()
                 || cakeReminder() || hotspots() || collectionTracker() || pestTraps() || gardenVisitors() || seaHp() || mute() || outOfAir() || hotspotShare()
-                || slayerSpawn() || darkAuction() || darkAuctionTimer() || ModConfig.INSTANCE.effects.enabled;
+                || slayerSpawn() || darkAuction() || darkAuctionTimer() || hidePlayersDungeon() || ModConfig.INSTANCE.effects.enabled;
     }
 }
