@@ -494,7 +494,13 @@ und nicht ausgefuellt, ein eigener Urheberhinweis steht dort nicht):
 Diese Mods stehen hier, weil gegen sie geprüft wurde, nicht weil etwas von ihnen
 drinsteckt.
 
-- **SkyHanni** (AGPL-3.0) — dagegen gegengeprüft wurden: die Sky-Mall-Platzierung, die
+- **SkyHanni** (LGPL-2.1, `SkyHanniStudios/SkyHanni`) — die Schadenszahl über einem getroffenen Mob (`HideDamageSplash`,
+  `DamageIndicatorManager.isDamageSplash`, `damagePattern`), Version 1.18.9: ein Rüstungsständer mit Namen, höchstens 300 Ticks alt, dessen Name ohne
+  Kommas nur aus einer Zahl mit ein paar Zeichen davor und dahinter besteht (✧ ✯ ⚔ + ❤ ♞ ☄ ✷ ﬗ). Das ist eine Beobachtung darüber, wie Hypixel diese Namen
+  schickt, und kein Code: Das Muster ist hier selbst hingeschrieben (`FrozenBlaze.hidesDamage`), nur die Zeichen sind dieselben. Anders: SkyHanni blendet die
+  Zahlen immer aus, wenn man es einschaltet; hier nur, solange man das ganze Frozen-Blaze-Set trägt (Fishing > Frozen Blaze > Hide damage numbers).
+  *Korrektur:* An dieser Stelle stand bisher "AGPL-3.0". Die `LICENSE` im Repository ist die GNU Lesser General Public License v2.1 (am 24.10.2026 gelesen).
+- **SkyHanni** (LGPL-2.1) — dagegen gegengeprüft wurden: die Sky-Mall-Platzierung, die
   Mengen in der Hunting Box, das Whale-Bait-Rezept und die vier Helme, an denen eine
   gefrorene Leiche zu erkennen ist (`LAPIS_ARMOR_HELMET`, `ARMOR_OF_YOG_HELMET`,
   `MINERAL_HELMET`, `VANGUARD_HELMET` — Lapis, Umber, Tungsten, Vanguard) sowie die
