@@ -251,6 +251,12 @@ Die aelteren Feesh-Eintraege (Pet-Stufen, Rare catch, HP-Anzeige, Banner, Bueche
   und das alle fuenf Ticks statt bei jeder Abfrage. Nachgebaut als `FrozenBlaze`. Anders: Die Erkennung laeuft nur, solange eine der Funktionen unter
   Fishing > Frozen Blaze an ist. Darauf setzt die erste eigene Funktion dieses Unterreiters auf, "Hide players": Wer das Set traegt, sieht keine anderen
   Spieler (Feesh blendet an dieser Stelle nur Chatzeilen aus; das Ausblenden der Spieler ist eigen und nutzt den Einsprung von "Hide Players" aus dem Reiter Odin).
+- **Hide lootshare messages when in Frozen Blaze armor** (`features/chat/HideLootshareMessages.kt`, `settings/categories/Chat.kt`) — Version 1.18.8. Solange das ganze
+  Set getragen wird, werden die Chatzeilen "LOOT SHARE You received ... for assisting <Spieler>!" ausgeblendet, die jeder Kill der Party bringt. Feesh hat dafuer ein
+  Muster (`LOOTSHARE_ASSIST_PATTERN`) und blendet nur diese Zeilen aus - das README sagt zwar "all LOOT SHARE messages", der Quelltext tut es nicht; hier gilt der
+  Quelltext. Nachgebaut als `FrozenBlaze.hidesLootshare`. Anders: Das Muster kennt auch die Schreibweise, die Hypixel heute verwendet (ein Ausrufezeichen hinter "LOOT SHARE",
+  ein Zaehler in Klammern am Ende), und die Zeile wird erst ausgeblendet, nachdem der Jagd-Zaehler und der Rare-Loot-Alarm sie gelesen haben - bei Shards ist sie die einzige
+  Meldung. Die Zeilen "from ... catching ..." bleiben.
 
 ### IQ (Apache-2.0, PeHenrii und DarkJota, `iqaddons/IQ`)
 

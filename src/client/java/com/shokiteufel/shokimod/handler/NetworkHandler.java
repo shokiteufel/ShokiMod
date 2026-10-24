@@ -115,6 +115,8 @@ public class NetworkHandler {
             boolean zeigen = ChatRuleHandler.handleMessage(message, msg, unformattedMsg);
             // Hypixels Zeilen zu den Deployables lassen sich ausblenden - die Meldung hat sie schon gesehen
             if (zeigen && com.shokiteufel.shokimod.handler.DeployableReminder.hides(unformattedMsg)) zeigen = false;
+            // Fishing > Frozen Blaze: Im ganzen Set kommt mit jedem Kill der Party eine Lootshare-Zeile - sie ist gelesen (Jagd-Zaehler, Rare Loot), jetzt darf sie weg
+            if (zeigen && com.shokiteufel.shokimod.handler.FrozenBlaze.hidesLootshare(unformattedMsg)) zeigen = false;
 
             // Die Sammelzeile der Saecke zuletzt - erst muss jeder sie gelesen haben.
             //
