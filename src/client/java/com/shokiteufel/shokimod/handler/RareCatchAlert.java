@@ -285,7 +285,17 @@ public final class RareCatchAlert {
         return client == null || client.player == null ? "" : client.player.getName().getString();
     }
 
+    /** Wann zuletzt ein Bewohner angesagt wurde (eigener Fang oder Gruppe) - daran erkennt der Alarm in der Naehe, dass es schon gesagt ist */
+    private static final java.util.Map<String, Long> announcedAt = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** Wurde dieser Bewohner in den letzten Millisekunden schon angesagt? */
+    public static boolean announcedRecently(String name, long withinMillis) {
+        Long at = name == null ? null : announcedAt.get(name);
+        return at != null && System.currentTimeMillis() - at <= withinMillis;
+    }
+
     private static void announce(SeaCreatures.Creature creature, boolean doppelt, String spieler) {
+        announcedAt.put(creature.name(), System.currentTimeMillis());
         // Der Spieler steht hinten in "caught by", nicht noch einmal vorn
         String kopf = (doppelt ? "2x " : "") + creature.name();
         String unten = "";
