@@ -3,7 +3,8 @@
 	"package": "com.shokiteufel.shokimod.mixin",
 	"compatibilityLevel": "JAVA_25",
 	"client": [
-		"HidePlayersMixin"
+		"HidePlayersMixin",
+		"MouseHandlerMixin"
 	],
 	"injectors": {
 		"defaultRequire": 0
