@@ -188,6 +188,11 @@ public final class FeatureGate {
         return o.hidePlayers && o.hidePlayersOnlyInDungeons;
     }
 
+    /** Fire Veil Overlay (Reiter IQ): Wurf erkennen, Ring zeichnen, Partikel und Ton - nur wenn es an ist */
+    public static boolean fireVeil() {
+        return ModConfig.INSTANCE.iq.fireVeil;
+    }
+
     /** Die Stummschaltung schaut bei jedem Ton nach - nur wenn mindestens einer der beiden Schalter an ist */
     public static boolean mute() {
         ModConfig.MuteCategory c = ModConfig.INSTANCE.fishing.mute;

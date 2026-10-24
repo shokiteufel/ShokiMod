@@ -94,6 +94,10 @@ jar {
 	from("COPYING") {
 		rename { "${it}_$projectName"}
 	}
+
+	// Herkunft und Lizenztexte der nachgebauten Funktionen (Odin: BSD-3-Clause, IQ: Apache-2.0, ...). Die Lizenzen verlangen, dass der
+	// Text mit der ausgelieferten Mod mitgeht - das Jar ist das Einzige, was ein Release ausliefert
+	from("CREDITS.md")
 }
 
 // configure the maven publication
