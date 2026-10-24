@@ -95,6 +95,7 @@ public class ShokiMod implements ClientModInitializer {
         com.shokiteufel.shokimod.handler.FrontCamera.register();
         com.shokiteufel.shokimod.handler.NoCursorReset.register();
         com.shokiteufel.shokimod.handler.FireVeil.register();
+        com.shokiteufel.shokimod.handler.FrozenBlaze.register();
         com.shokiteufel.shokimod.handler.PestReminder.register();
         com.shokiteufel.shokimod.handler.VisitorReminder.register();
         com.shokiteufel.shokimod.handler.DeployableReminder.register();

@@ -234,6 +234,24 @@ Der Lizenztext von Odin (Quelle: `LICENSE` im Odin-Repository):
     OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
     OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+### Feesh (Apache-2.0, MoonTheSadFisher, `Sleepy-Panda/Feesh`)
+
+Feesh ist die Fischerei-Mod, aus der die Funktionen unter **Fishing** (Rare catch, Sea creature HP, Trash books, Mute, Out of air, Frozen Blaze) und
+Teile des Profit-Trackers stammen. Die Lizenz ist die **Apache License 2.0**: `LICENSE` im Repository und `"license": "Apache 2.0"` in `fabric.mod.json`
+sagen dasselbe. Der Text ist derselbe wie beim Abschnitt IQ weiter unten und steht dort einmal vollstaendig. Ein eigener Urheberhinweis steht weder in
+Feeshs `LICENSE` (die Vorlage am Ende ist nicht ausgefuellt) noch in den Quelldateien, und es gibt keine NOTICE-Datei; als Autor nennt `fabric.mod.json`
+MoonTheSadFisher. Die Funktionen sind in Java nachgebaut; uebernommen sind nur Daten und Muster, und wo das so ist, steht es bei der Funktion
+(zum Beispiel die Tabelle der Meeresbewohner bei "Rare catch").
+
+Die aelteren Feesh-Eintraege (Pet-Stufen, Rare catch, HP-Anzeige, Banner, Buecher, Mute, Out of air, Hotspot teilen) stehen weiter unten unter
+"Nur nachgeschlagen"; fuer sie gilt dieselbe Lizenz auf dieselbe Weise.
+
+- **Frozen Blaze erkennen** (`utils/PlayerUtils.kt`, `isInFrozenBlaze`, `FROZEN_BLAZE_ARMOR_IDS`) — Version 1.18.7. Das Set gilt als getragen, wenn alle vier
+  Ruestungsplaetze ein Stueck der Frozen Blaze tragen: erkannt an der Kennung `FROZEN_BLAZE_HELMET`, `_CHESTPLATE`, `_LEGGINGS` oder `_BOOTS`, ersatzweise am Namen,
+  und das alle fuenf Ticks statt bei jeder Abfrage. Nachgebaut als `FrozenBlaze`. Anders: Die Erkennung laeuft nur, solange eine der Funktionen unter
+  Fishing > Frozen Blaze an ist. Darauf setzt die erste eigene Funktion dieses Unterreiters auf, "Hide players": Wer das Set traegt, sieht keine anderen
+  Spieler (Feesh blendet an dieser Stelle nur Chatzeilen aus; das Ausblenden der Spieler ist eigen und nutzt den Einsprung von "Hide Players" aus dem Reiter Odin).
+
 ### IQ (Apache-2.0, PeHenrii und DarkJota, `iqaddons/IQ`)
 
 Aus IQ, einer Kuudra-Mod fuer Hypixel SkyBlock, kommen die Funktionen im Reiter **IQ**. Sie sind in Java nachgebaut; die Regeln, Zahlen und der

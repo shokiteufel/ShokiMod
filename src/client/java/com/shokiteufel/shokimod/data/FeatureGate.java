@@ -193,6 +193,12 @@ public final class FeatureGate {
         return ModConfig.INSTANCE.iq.fireVeil;
     }
 
+    /** Fishing > Frozen Blaze: Das Set wird nur erkannt, solange eine der Funktionen daraus an ist */
+    public static boolean frozenBlaze() {
+        ModConfig.FrozenBlazeCategory c = ModConfig.INSTANCE.fishing.frozenBlaze;
+        return c.hidePlayers;
+    }
+
     /** Die Stummschaltung schaut bei jedem Ton nach - nur wenn mindestens einer der beiden Schalter an ist */
     public static boolean mute() {
         ModConfig.MuteCategory c = ModConfig.INSTANCE.fishing.mute;

@@ -1801,6 +1801,29 @@ public class ModConfig extends Config {
         @Expose
         @Category(name = "Out of air", desc = "Warns when you are about to run out of air while diving. Ported from Feesh.")
         public OutOfAirCategory air = new OutOfAirCategory();
+
+        @Expose
+        @Category(name = "Frozen Blaze", desc = "For fishing in the full Frozen Blaze armor, whose aura kills the sea creatures around you: it clears the screen and the chat. Detection from Feesh.")
+        public FrozenBlazeCategory frozenBlaze = new FrozenBlazeCategory();
+    }
+
+    /**
+     * Fischen in der Frozen-Blaze-Ruestung.
+     *
+     * Der Set-Bonus "Frozen Blazing Aura" verletzt jede Sekunde alle Mobs im Umkreis von fuenf Bloecken - beim Angeln toetet er die
+     * Meeresbewohner am Haken von allein, und rundherum wird es voll. Was hier steht, raeumt auf, solange man das ganze Set traegt.
+     * Das Erkennen des Sets stammt aus Feesh (Apache-2.0, "isInFrozenBlaze").
+     */
+    public static class FrozenBlazeCategory {
+
+        @ConfigOption(name = "Frozen Blaze", desc = "Everything here works only while you wear the full Frozen Blaze armor: helmet, chestplate, leggings and boots. Taking one piece off turns it off again within a quarter of a second. The set is recognised the way Feesh does it.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Hide players", desc = "Hides all other players while you wear the full Frozen Blaze armor, so a crowded fishing spot is easy to look through. NPCs, mobs and your own figure stay; nothing else changes - the others still see you, and the hidden ones are still there. It uses the same mechanism as Hide Players in the Odin tab, but does not need that switch to be on.")
+        @ConfigEditorBoolean
+        public boolean hidePlayers = false;
     }
 
     /**
