@@ -30,6 +30,10 @@
 		{
 			"config": "shokimod.mixins.json",
 			"environment": "client"
+		},
+		{
+			"config": "shokimod-odin.mixins.json",
+			"environment": "client"
 		}
 	],
 	"custom": {

@@ -181,6 +181,50 @@ erledigt sich, statt offen zu bleiben.
 
 ---
 
+### Odin (BSD-3-Clause, Odtheking, `OdinFabric`)
+
+Aus Odin kommen die Funktionen im Reiter **Odin**. Jede ist in Java nachgebaut; die Regel stammt aus Odins Kotlin-Quelltext, und was
+anders ist, steht dabei. Der Lizenztext folgt unten, wie die Lizenz es fuer die ausgelieferte Mod verlangt (Bedingung 2).
+
+- **Hide Players** (`features/impl/render/HidePlayers.kt`, `EntityRendererMixin`) — Version 1.18.2. Ein Spieler wird nicht gezeichnet, wenn er
+  ein echter Spieler ist (Kennung der Version 4; NPCs haben eine andere), nicht man selbst, und entweder alle ausgeblendet werden oder er
+  naeher als die eingestellte Entfernung steht; auf Wunsch nur im Dungeon. Nachgebaut als `HidePlayers` und `HidePlayersMixin`. Anders: Der
+  Dungeon wird aus der Zeile der Tab-Liste ("Area: ..." oder "Dungeon: ..." mit "Catacombs") **und** aus dem Kasten der Seitenleiste
+  gelesen, zweimal je Sekunde zwischengespeichert; der Einsprung versucht beide Formen von `shouldRender` (mit und ohne Teilticks) und steht in
+  einer eigenen, nicht zwingenden Mixin-Konfiguration, damit eine geaenderte Methode das Spiel nicht beim Start abbricht.
+- **Player Size** und die Ping-Anzeige: siehe weiter unten unter "Nur nachgeschlagen". Seit 1.18.1 steht Player Size als Unterreiter im Reiter Odin.
+
+Der Lizenztext von Odin (Quelle: `LICENSE` im Odin-Repository):
+
+    BSD 3-Clause License
+
+    Copyright (c) 2025, odtheking
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+
+    1. Redistributions of source code must retain the above copyright notice, this
+       list of conditions and the following disclaimer.
+
+    2. Redistributions in binary form must reproduce the above copyright notice,
+       this list of conditions and the following disclaimer in the documentation
+       and/or other materials provided with the distribution.
+
+    3. Neither the name of the copyright holder nor the names of its
+       contributors may be used to endorse or promote products derived from
+       this software without specific prior written permission.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+    AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+    IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+    FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+    DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+    CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+    OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 ## Nur nachgeschlagen — kein Code
 
 Diese Mods stehen hier, weil gegen sie geprüft wurde, nicht weil etwas von ihnen
