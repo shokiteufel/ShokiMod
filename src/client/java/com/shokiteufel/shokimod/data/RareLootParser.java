@@ -84,6 +84,15 @@ public final class RareLootParser {
             "^You caught (?:x(?<amount>\\d+) |an? )?(?<shard>.+?) Shards?!(?:\\s*\\(\\d+\\))?$",
             Pattern.CASE_INSENSITIVE);
     /**
+     * Die Menge in einer Lootshare-Zeile.
+     *
+     * Hypixel schreibt sie nicht immer gleich: "2", "x2" (wie in "You caught x3 Timil Shards!"), "2x" (wie in der Safari-Zeile
+     * "3x Rockmite Shard"), mit Tausenderkomma ("1,234") und bei einem einzelnen Shard als Artikel ("a", "an"). Wer nur die
+     * Ziffer kennt, verliert jede Zeile in einer anderen Schreibweise - ohne Fehler, sie faellt still durch, und der Zaehler steht.
+     */
+    private static final String SHARE_AMOUNT = "(?<amount>x?[0-9][0-9,]*x?|an?)";
+
+    /**
      * Geteilte Beute: "LOOT SHARE You received 3 Silkbreeze Shards for assisting Outyc!"
      *
      * Bei Shards ist diese Zeile die einzige Meldung - es folgt kein eigener Fund. Wer sie
@@ -92,7 +101,7 @@ public final class RareLootParser {
     private static final Pattern LOOT_SHARE = Pattern.compile(
             // Das Ausrufezeichen hinter "LOOT SHARE" ist neu und war der Grund, warum
             // diese Zeile zuletzt durchfiel
-            "^LOOT SHARE!? +You received (?<amount>[0-9]+|an?) (?<shard>.+?) Shards? "
+            "^LOOT SHARE!? +You received " + SHARE_AMOUNT + " (?<shard>.+?) Shards? "
                     + "for assisting [A-Za-z0-9_]{1,16}!?(?: *[(][0-9]+[)])?$",
             Pattern.CASE_INSENSITIVE);
     /**
@@ -104,7 +113,7 @@ public final class RareLootParser {
      * der Party.
      */
     private static final Pattern LOOT_SHARE_CATCH = Pattern.compile(
-            "^LOOT SHARE!? +You received (?<amount>[0-9]+|an?) (?<shard>.+?) Shards? "
+            "^LOOT SHARE!? +You received " + SHARE_AMOUNT + " (?<shard>.+?) Shards? "
                     + "from .+? catching .+?!?$",
             Pattern.CASE_INSENSITIVE);
     private static final String SHARD_PREFIX = "SHARD_";
@@ -398,11 +407,13 @@ public final class RareLootParser {
     /** "3" und "Ghost" werden zu 3x "Ghost Shard" mit der Kennung SHARD_GHOST */
     private static Drop shardDrop(String amountText, String shardName) {
         int amount = 1;
-        if (amountText != null && Character.isDigit(amountText.charAt(0))) {
+        // "2", "x2", "2x" und "1,234": nur die Ziffern zaehlen. "a" und "an" haben keine und bleiben bei eins
+        String digits = amountText == null ? "" : amountText.replaceAll("[^0-9]", "");
+        if (!digits.isEmpty()) {
             try {
-                amount = Math.max(1, Integer.parseInt(amountText));
+                amount = Math.max(1, Integer.parseInt(digits));
             } catch (NumberFormatException ignored) {
-                // "a" oder "an" bleiben bei eins
+                // Eine Zahl, die nicht in eine int passt, ist keine Menge - eins bleibt
             }
         }
         String name = shardName.trim();
