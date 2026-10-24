@@ -1958,9 +1958,14 @@ public class ModConfig extends Config {
         public boolean blackHole = true;
 
         @Expose
-        @ConfigOption(name = "Warn before it ends", desc = "How many seconds before a deployable ends the warning comes. It reads the countdown above the deployable, so it warns about the ones you stand in the range of - yours or someone else's - and only while you can see them. 0: no early warning, only after it ran out, from Hypixel's chat line.")
+        @ConfigOption(name = "Warn before it ends", desc = "How many seconds before a deployable ends the warning comes. It reads the countdown above the deployable and only warns about the ones you stand in the range of, while you can see them. Which ones count as yours is set below. 0: no early warning, only after it ran out, from Hypixel's chat line.")
         @ConfigEditorSlider(minValue = 0f, maxValue = 60f, minStep = 1f)
         public int warnSeconds = 10;
+
+        @Expose
+        @ConfigOption(name = "Only my own", desc = "The early warning only comes for deployables you put down yourself - not for the ones of the people fishing next to you. A deployable counts as yours when it shows up near you right after you right-clicked with it (an orb, a flare, an Umberella, a lantern or a Black Hole in your hand). One you did not see being placed - because you joined later or came from far away - is not yours. The Totem of Corruption names its owner and is always checked that way. Off: warns about every deployable in range, yours or not.")
+        @ConfigEditorBoolean
+        public boolean ownOnly = true;
 
         @ConfigOption(name = "Banner and chat", desc = "The banner, the chat line, and hiding the line Hypixel writes itself.")
         @ConfigEditorAccordion(id = 57)
