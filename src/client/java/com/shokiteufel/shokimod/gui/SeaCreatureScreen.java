@@ -2,6 +2,7 @@ package com.shokiteufel.shokimod.gui;
 
 import com.shokiteufel.shokimod.handler.RareCatchAlert;
 import com.shokiteufel.shokimod.handler.SeaCreatureHp;
+import com.shokiteufel.shokimod.handler.SeaCreatureNear;
 import com.shokiteufel.shokimod.util.AlertVolume;
 import com.shokiteufel.shokimod.util.SeaCreatures;
 
@@ -34,16 +35,19 @@ public class SeaCreatureScreen extends Screen {
 
     private static final int ROW_HEIGHT = 22;
     private static final int SOUND_WIDTH = 20;
-    private static final int NAME_WIDTH = 150;
-    // Schmal genug, dass die Zeile auch bei der Oberflaeche "2" in einem Fenster von 854 Punkten Breite passt
-    private static final int OWN_WIDTH = 50;
-    private static final int PARTY_WIDTH = 50;
-    private static final int SHARE_WIDTH = 50;
-    private static final int HP_WIDTH = 44;
-    private static final int TEST_WIDTH = 34;
+    private static final int GAP = 4;
+    /** Luft links und rechts vom Text in einem Schalter */
+    private static final int BUTTON_PADDING = 10;
+    /** Der Name darf schrumpfen, wenn die Zeile sonst nicht ins Fenster passt - der Schalter scrollt dann den Text */
+    private static final int NAME_MIN_WIDTH = 96;
+    /** Rand, den die Zeile links und rechts mindestens frei laesst */
+    private static final int SIDE_MARGIN = 8;
     private static final int LIST_TOP = 74;
 
     private final Screen parent;
+    // Das Raster einer Zeile; in layout() aus den Beschriftungen gemessen, damit es mit dem Text waechst statt bei einer Spalte mehr zu ueberlaufen
+    private int nameWidth, ownWidth, partyWidth, shareWidth, hpWidth, nearWidth, testWidth;
+    private int soundX, nameX, ownX, partyX, shareX, hpX, nearX, testX, gridWidth;
     /** Der Suchbegriff ueberdauert das Schliessen - man sucht selten nur einmal */
     private static String filter = "";
     /** Nur die, die sich melden - wer neunzig Zeilen nicht braucht */
@@ -61,7 +65,7 @@ public class SeaCreatureScreen extends Screen {
         for (SeaCreatures.Creature c : SeaCreatures.withHpOnly()) {
             if (!suche.isEmpty() && !c.name().toLowerCase(Locale.ROOT).contains(suche)) continue;
             if (onlyPicked && !RareCatchAlert.wantsOwn(c) && !RareCatchAlert.partyPicked(c)
-                    && !SeaCreatureHp.wants(c)) continue;
+                    && !SeaCreatureHp.wants(c) && !SeaCreatureNear.wants(c)) continue;
             out.add(c);
         }
         return out;
@@ -80,16 +84,54 @@ public class SeaCreatureScreen extends Screen {
         init();
     }
 
+    /** Breite eines Schalters, in den einer von mehreren Texten kommen kann */
+    private int fit(String... texts) {
+        int widest = 0;
+        for (String text : texts) widest = Math.max(widest, font.width(Component.literal(text)));
+        return widest + BUTTON_PADDING;
+    }
+
+    /**
+     * Die Spalten messen: jede so breit wie ihr breitester Text. Passt die Zeile so nicht ins Fenster - bei der Oberflaeche "2" sind es
+     * nur 427 Punkte -, gibt der Name nach, denn nur er hat einen Text, der sich scrollen laesst.
+     */
+    private void layout() {
+        int widestName = 0;
+        for (SeaCreatures.Creature c : SeaCreatures.withHpOnly()) {
+            widestName = Math.max(widestName, font.width(Component.literal("☑ " + c.name())));
+        }
+        ownWidth = Math.max(fit("Own ☑", "Own ☐"), fit("Picked", "All"));
+        partyWidth = Math.max(fit("Party ☑", "Party ☐"), fit("All on"));
+        shareWidth = Math.max(fit("Share ☑", "Share ☐"), fit("Off"));
+        hpWidth = fit("HP ☑", "HP ☐");
+        nearWidth = fit("Near ☑", "Near ☐");
+        testWidth = fit("Test");
+
+        int others = SOUND_WIDTH + ownWidth + partyWidth + shareWidth + hpWidth + nearWidth + testWidth + 7 * GAP;
+        int room = width - 2 * SIDE_MARGIN - others;
+        nameWidth = Math.clamp(widestName + BUTTON_PADDING, NAME_MIN_WIDTH, Math.max(NAME_MIN_WIDTH, room));
+
+        gridWidth = others + nameWidth;
+        int left = width / 2 - gridWidth / 2;
+        soundX = left;
+        nameX = soundX + SOUND_WIDTH + GAP;
+        ownX = nameX + nameWidth + GAP;
+        partyX = ownX + ownWidth + GAP;
+        shareX = partyX + partyWidth + GAP;
+        hpX = shareX + shareWidth + GAP;
+        nearX = hpX + hpWidth + GAP;
+        testX = nearX + nearWidth + GAP;
+    }
+
     @Override
     protected void init() {
         page = Math.clamp(page, 0, pageCount() - 1);
 
         List<SeaCreatures.Creature> liste = visible();
-        int gridWidth = SOUND_WIDTH + 4 + NAME_WIDTH + 4 + OWN_WIDTH + 4 + PARTY_WIDTH
-                + 4 + SHARE_WIDTH + 4 + HP_WIDTH + 4 + TEST_WIDTH;
-        int left = width / 2 - gridWidth / 2;
+        layout();
+        int left = soundX;
 
-        EditBox search = new EditBox(font, left + SOUND_WIDTH + 4, 34, NAME_WIDTH, 20,
+        EditBox search = new EditBox(font, nameX, 34, nameWidth, 20,
                 Component.literal("Search"));
         search.setValue(filter);
         search.setHint(Component.literal("Search").withStyle(ChatFormatting.DARK_GRAY));
@@ -106,7 +148,7 @@ public class SeaCreatureScreen extends Screen {
                     onlyPicked = !onlyPicked;
                     page = 0;
                     rebuild();
-                }).bounds(left + SOUND_WIDTH + 8 + NAME_WIDTH, 34, OWN_WIDTH, 20).build());
+                }).bounds(ownX, 34, ownWidth, 20).build());
 
         // Alles an oder alles aus - bei neunzig Zeilen spart das viel Klicken
         addRenderableWidget(Button.builder(Component.literal("All on"), button -> {
@@ -114,27 +156,26 @@ public class SeaCreatureScreen extends Screen {
                 if (!c.hpOnly() && !RareCatchAlert.wantsOwn(c)) RareCatchAlert.toggleOwn(c);
             }
             rebuild();
-        }).bounds(left + SOUND_WIDTH + 12 + NAME_WIDTH + OWN_WIDTH, 34, PARTY_WIDTH, 20).build());
+        }).bounds(partyX, 34, partyWidth, 20).build());
 
         addRenderableWidget(Button.builder(Component.literal("Off"), button -> {
             for (SeaCreatures.Creature c : visible()) {
                 if (!c.hpOnly() && RareCatchAlert.wantsOwn(c)) RareCatchAlert.toggleOwn(c);
             }
             rebuild();
-        }).bounds(left + SOUND_WIDTH + 16 + NAME_WIDTH + OWN_WIDTH + PARTY_WIDTH, 34, TEST_WIDTH, 20).build());
+        }).bounds(shareX, 34, shareWidth, 20).build());
 
         int start = page * rowsPerPage();
         for (int i = 0; i < rowsPerPage() && start + i < liste.size(); i++) {
             SeaCreatures.Creature c = liste.get(start + i);
             int y = LIST_TOP + i * ROW_HEIGHT;
-            int hpX = left + SOUND_WIDTH + 20 + NAME_WIDTH + OWN_WIDTH + PARTY_WIDTH + SHARE_WIDTH;
 
             if (c.hpOnly()) {
                 // Die vier, die man nicht faengt: nur die HP-Anzeige kennt sie
                 Button name = Button.builder(hpNameLabel(c), button -> {
                     SeaCreatureHp.toggle(c);
                     rebuild();
-                }).bounds(left + SOUND_WIDTH + 4, y, NAME_WIDTH, 20).build();
+                }).bounds(nameX, y, nameWidth, 20).build();
                 name.setTooltip(Tooltip.create(Component.literal(
                         "Not caught, only seen - so it only has the HP list. Fought with another creature.")));
                 addRenderableWidget(name);
@@ -149,14 +190,14 @@ public class SeaCreatureScreen extends Screen {
                             picked -> RareCatchAlert.setSound(c, picked),
                             AlertVolume.factor()));
                 }
-            }).bounds(left, y, SOUND_WIDTH, 20).build();
+            }).bounds(soundX, y, SOUND_WIDTH, 20).build();
             sound.setTooltip(soundTooltip(c));
             addRenderableWidget(sound);
 
             Button name = Button.builder(nameLabel(c), button -> {
                 RareCatchAlert.toggleOwn(c);
                 rebuild();
-            }).bounds(left + SOUND_WIDTH + 4, y, NAME_WIDTH, 20).build();
+            }).bounds(nameX, y, nameWidth, 20).build();
             name.setTooltip(Tooltip.create(Component.literal(
                     c.rarity() + (c.rare() ? " - counts as rare" : " - common, off by default"))));
             addRenderableWidget(name);
@@ -164,12 +205,12 @@ public class SeaCreatureScreen extends Screen {
             addRenderableWidget(Button.builder(ownLabel(c), button -> {
                 RareCatchAlert.toggleOwn(c);
                 rebuild();
-            }).bounds(left + SOUND_WIDTH + 8 + NAME_WIDTH, y, OWN_WIDTH, 20).build());
+            }).bounds(ownX, y, ownWidth, 20).build());
 
             Button party = Button.builder(partyLabel(c), button -> {
                 RareCatchAlert.toggleParty(c);
                 rebuild();
-            }).bounds(left + SOUND_WIDTH + 12 + NAME_WIDTH + OWN_WIDTH, y, PARTY_WIDTH, 20).build();
+            }).bounds(partyX, y, partyWidth, 20).build();
             party.setTooltip(Tooltip.create(Component.literal(
                     "Whether a catch reported by your party says something. "
                             + "The main switch under Fishing > Rare catch has to be on as well.")));
@@ -178,8 +219,7 @@ public class SeaCreatureScreen extends Screen {
             Button share = Button.builder(shareLabel(c), button -> {
                 RareCatchAlert.toggleShare(c);
                 rebuild();
-            }).bounds(left + SOUND_WIDTH + 16 + NAME_WIDTH + OWN_WIDTH + PARTY_WIDTH, y,
-                    SHARE_WIDTH, 20).build();
+            }).bounds(shareX, y, shareWidth, 20).build();
             share.setTooltip(Tooltip.create(Component.literal(
                     "Writes your own catch into the party chat, in the wording Feesh uses "
                             + "(\"--> A YETI has spawned <--\") - so everyone's mod understands it. "
@@ -187,11 +227,11 @@ public class SeaCreatureScreen extends Screen {
             addRenderableWidget(share);
 
             addRenderableWidget(hpButton(c, hpX, y));
+            addRenderableWidget(nearButton(c, nearX, y));
 
             Button test = Button.builder(Component.literal("Test").withStyle(ChatFormatting.GRAY),
                     button -> RareCatchAlert.preview(c))
-                    .bounds(left + SOUND_WIDTH + 24 + NAME_WIDTH + OWN_WIDTH + PARTY_WIDTH + SHARE_WIDTH
-                            + HP_WIDTH, y, TEST_WIDTH, 20).build();
+                    .bounds(testX, y, testWidth, 20).build();
             test.setTooltip(Tooltip.create(Component.literal("Show this one once, as it would appear.")));
             addRenderableWidget(test);
         }
@@ -229,11 +269,30 @@ public class SeaCreatureScreen extends Screen {
         Button hp = Button.builder(hpLabel(c), button -> {
             SeaCreatureHp.toggle(c);
             rebuild();
-        }).bounds(x, y, HP_WIDTH, 20).build();
+        }).bounds(x, y, hpWidth, 20).build();
         hp.setTooltip(Tooltip.create(Component.literal(
                 "Whether this one shows in the HP list while it is near you (30 blocks). "
                         + "The main switch under Fishing > Sea creature HP has to be on as well.")));
         return hp;
+    }
+
+    /** Die Spalte Near: meldet sich dieser Bewohner, wenn er in der Naehe auftaucht, und bekommt er einen Kasten? */
+    private Button nearButton(SeaCreatures.Creature c, int x, int y) {
+        Button near = Button.builder(nearLabel(c), button -> {
+            SeaCreatureNear.toggle(c);
+            rebuild();
+        }).bounds(x, y, nearWidth, 20).build();
+        near.setTooltip(Tooltip.create(Component.literal(
+                "Whether this one is announced - and gets a box that shows through walls - when it comes near you, "
+                        + "read from the creatures around you and not from the chat. "
+                        + "The main switch under Fishing > Nearby rare has to be on as well.")));
+        return near;
+    }
+
+    private Component nearLabel(SeaCreatures.Creature c) {
+        boolean an = SeaCreatureNear.wants(c);
+        return Component.literal(an ? "Near ☑" : "Near ☐")
+                .withStyle(an ? ChatFormatting.LIGHT_PURPLE : ChatFormatting.DARK_GRAY);
     }
 
     private Component hpLabel(SeaCreatures.Creature c) {
@@ -278,6 +337,14 @@ public class SeaCreatureScreen extends Screen {
                 : "Plays " + ton));
     }
 
+    private static int nearPicked() {
+        int n = 0;
+        for (SeaCreatures.Creature c : SeaCreatures.all()) {
+            if (SeaCreatureNear.wants(c)) n++;
+        }
+        return n;
+    }
+
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
@@ -291,13 +358,17 @@ public class SeaCreatureScreen extends Screen {
         for (SeaCreatures.Creature c : SeaCreatures.all()) {
             if (RareCatchAlert.wantsOwn(c)) gewaehlt++;
         }
-        // Zwei kurze Zeilen statt einer langen: Bei der Oberflaeche "2" ist das Fenster nur 427 Punkte breit
+        // Kurze Zeilen statt einer langen: Bei der Oberflaeche "2" ist das Fenster nur 427 Punkte breit. Die zwei letzten Spalten stehen unten links
         graphics.centeredText(font, Component.literal(
-                        "Own: your catch  ·  Party: others' catch  ·  Share: tell your party  ·  HP: the HP list")
+                        "Own: your catch  ·  Party: others' catch  ·  Share: tell your party")
                 .withStyle(ChatFormatting.DARK_GRAY), centerX, 24, 0xFF888888);
+        // Unten steht sie ueber der Welt statt ueber dem dunklen Rand, darum heller als die Zeilen oben
+        graphics.text(font, Component.literal("HP: the HP list  ·  Near: seen near you")
+                .withStyle(ChatFormatting.GRAY), soundX, height - 22, 0xFFAAAAAA, true);
         graphics.centeredText(font, Component.literal(
                         gewaehlt + " of " + SeaCreatures.all().size() + " announce themselves  ·  "
-                        + SeaCreatureHp.pickedCount() + " in the HP list")
+                        + SeaCreatureHp.pickedCount() + " in the HP list  ·  "
+                        + nearPicked() + " in the nearby alert")
                 .withStyle(ChatFormatting.DARK_GRAY), centerX, 60, 0xFF888888);
 
         if (liste.isEmpty()) {

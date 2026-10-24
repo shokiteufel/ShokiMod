@@ -257,6 +257,10 @@ Die aelteren Feesh-Eintraege (Pet-Stufen, Rare catch, HP-Anzeige, Banner, Bueche
   Quelltext. Nachgebaut als `FrozenBlaze.hidesLootshare`. Anders: Das Muster kennt auch die Schreibweise, die Hypixel heute verwendet (ein Ausrufezeichen hinter "LOOT SHARE",
   ein Zaehler in Klammern am Ende), und die Zeile wird erst ausgeblendet, nachdem der Jagd-Zaehler und der Rare-Loot-Alarm sie gelesen haben - bei Shards ist sie die einzige
   Meldung. Die Zeilen "from ... catching ..." bleiben.
+- **Nearby rare** (`features/overlays/SeaCreatureHpTracker.kt`, `utils/EntityUtils.kt`: Namensschild "[Lv600] Name 69M/100M", Mob-Kennung = Kennung des Schildes minus eins) — Version 1.18.12.
+  Die Erkennung der Bewohner aus den Namensschildern ist die der HP-Anzeige (siehe unten, "die HP-Anzeige der Meeresbewohner"), nachgebaut als `SeaCreatureHp.parse`.
+  Neu ist, was darauf aufsetzt: eine Ansage je Mob, wenn ein seltener in den Umkreis kommt, und ein Kasten um seine Trefferbox (`SeaCreatureNear`,
+  `SeaCreatureBoxRenderer`). Feesh hat beides nicht - sein Alarm liest nur den Chat. Die Tabelle der seltenen Bewohner ist dieselbe wie bei "Rare catch".
 
 ### IQ (Apache-2.0, PeHenrii und DarkJota, `iqaddons/IQ`)
 
