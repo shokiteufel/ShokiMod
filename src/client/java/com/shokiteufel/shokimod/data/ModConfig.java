@@ -3194,29 +3194,69 @@ public class ModConfig extends Config {
     }
 
     /**
-     * Partikel. Bisher der Mitschreiber, der zeigt, welche Partikel von welchem Item kommen; die Schalter
-     * je Item (verstecken, nur eigene verstecken, zeigen) folgen hier, sobald die Logs zeigen, woran sich die
-     * Quellen trennen lassen. Der Mitschreiber stand bis 1.17.12 im versteckten Reiter "Bug hunt".
+     * Partikel: je Item einstellen, ob seine Partikel gezeigt werden, nur die eigenen verschwinden oder alle - und der
+     * Mitschreiber, der misst, woran sich die Quellen eines Items erkennen lassen. Der Mitschreiber stand bis 1.17.12
+     * im versteckten Reiter "Bug hunt".
      *
-     * Nichts davon wird gespeichert: Ein vergessener Mitschreiber soll nicht beim naechsten Start weiter
-     * ins Log schreiben.
+     * Die Schalter je Item werden gespeichert; der Mitschreiber nicht: Ein vergessener Mitschreiber soll nicht beim
+     * naechsten Start weiter in die Datei schreiben.
      */
     public static class ParticlesCategory {
 
-        @ConfigOption(name = "Particles", desc = "Finds out which particles come from which item - the basis for hiding the particles of single items later, like the Flaming Flay, the Ancestral Spade or the Divan armour. Nothing here is saved: every start begins with the tracer off.")
+        /** Was mit den Partikeln eines Items geschehen soll */
+        public enum HideMode {
+            SHOW("Show"),
+            OWN("Hide own"),
+            ALL("Hide all");
+
+            private final String label;
+
+            HideMode(String label) {
+                this.label = label;
+            }
+
+            @Override
+            public String toString() {
+                return label;
+            }
+        }
+
+        @ConfigOption(name = "Particles", desc = "Hides the particles of single items. For each item: Show leaves them alone, Hide own hides the ones that come from you, Hide all hides them for every player around you too. Only the items listed here are known; the tracer below measures new ones.")
         @ConfigEditorInfoText
         public transient String about = "";
 
+        @Expose
+        @ConfigOption(name = "Flaming Flay", desc = "The yellow and red beam of the Flaming Flay. Hide own: the beam that comes after your own right-click (your Flay in hand). Hide all: also the beams of other players with a Flay in their hand within ten blocks of the particle.")
+        @ConfigEditorDropdown
+        public HideMode flayMode = HideMode.SHOW;
+
+        @Expose
+        @ConfigOption(name = "Divan armour", desc = "The orange and white sparks around Divan armour. Hide own: the ones around you while you wear Divan armour. Hide all: also the ones around other players who wear it. Only particles close to a Divan wearer are hidden.")
+        @ConfigEditorDropdown
+        public HideMode divanMode = HideMode.SHOW;
+
+        @Expose
+        @ConfigOption(name = "Spade trail", desc = "The trail the Ancestral, Archaic and Deific Spade draw towards the next burrow: sparkles, fireworks and lava drips. Hide own: the trail after your own right-click with a spade in hand. Hide all: also trails near other players with a spade in hand. Measured with the Deific Spade; the other two are expected to look the same.")
+        @ConfigEditorDropdown
+        public HideMode spadeMode = HideMode.SHOW;
+
+        @ConfigOption(name = "Tracer", desc = "For finding out which particles an item makes: it writes what reaches you into a file. Send the file to get a new item into the list above.")
+        @ConfigEditorAccordion(id = 82)
+        public transient boolean tracerFolder = false;
+
         @ConfigOption(name = "Particle tracer", desc = "Writes the particles that reach you into its own file, logs/shokimod-particles.log (next to latest.log), grouped by kind - type, colour, count, speed, offset, distance - with the item in your hand, the armour you wear and whether they came right after a right-click. The path shows up in the chat when you switch it on. To tell two sources apart (say armour and an item): wear the armour without using the item, switch the tracer off and send the file; then use the item without the armour and send the file again.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 82)
         public transient boolean particleTracer = false;
 
         @ConfigOption(name = "Particle radius", desc = "Only particles this close to you count, in blocks (1 - 64).")
         @ConfigEditorText
+        @ConfigAccordionId(id = 82)
         public transient String particleRadius = "8";
 
         @ConfigOption(name = "Particle summary", desc = "Writes the particle table since the last one to the file and into the chat, the most frequent kind first, and starts counting again.")
         @ConfigEditorButton(buttonText = "Show")
+        @ConfigAccordionId(id = 82)
         public transient Runnable particleSummary = () -> {
         };
     }
