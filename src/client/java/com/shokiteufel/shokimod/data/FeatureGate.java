@@ -196,7 +196,7 @@ public final class FeatureGate {
     /** Fishing > Frozen Blaze: Das Set wird nur erkannt, solange eine der Funktionen daraus an ist */
     public static boolean frozenBlaze() {
         ModConfig.FrozenBlazeCategory c = ModConfig.INSTANCE.fishing.frozenBlaze;
-        return c.hidePlayers;
+        return c.hidePlayers || c.hideLootshare;
     }
 
     /** Die Stummschaltung schaut bei jedem Ton nach - nur wenn mindestens einer der beiden Schalter an ist */
