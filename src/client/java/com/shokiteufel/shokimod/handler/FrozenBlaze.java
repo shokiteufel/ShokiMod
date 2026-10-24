@@ -6,7 +6,9 @@ import com.shokiteufel.shokimod.util.SkyBlockItems;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 
@@ -58,6 +60,32 @@ public final class FrozenBlaze {
     /** Sollen fremde Spieler gerade ausgeblendet werden? */
     public static boolean hidesPlayers() {
         return wearing && ModConfig.INSTANCE.fishing.frozenBlaze.hidePlayers;
+    }
+
+    /**
+     * Die Schadenszahl, die ueber einem getroffenen Mob schwebt: ein Ruestungsstaender mit einem Namen, der nur aus einer Zahl besteht, davor und danach hoechstens ein
+     * Stern oder ein paar Zeichen (Schwert, Pluszeichen, Herz, Pferd, Komet, ...). Beispiele: "86761", "1234567" mit Sternen links und rechts.
+     *
+     * Herkunft: SkyHanni (LGPL-2.1), {@code DamageIndicatorManager.isDamageSplash} - dort steht dieselbe Beobachtung als Muster
+     * ({@code damagePattern}); hier selbst hingeschrieben, mit denselben Zeichen, weil es die Form ist, in der Hypixel die Namen schickt. Die Kommas
+     * der Tausender fallen vorher weg, und eine Zahl, die aelter als 300 Ticks ist, ist keine Schadenszahl mehr (die schweben nur kurz).
+     */
+    private static final java.util.regex.Pattern DAMAGE = java.util.regex.Pattern.compile(
+            "[✧✯]?\\d+[⚔+✧❤♞☄✷ﬗ✯]*");
+    private static final int DAMAGE_MAX_AGE_TICKS = 300;
+
+    /**
+     * Soll dieser Ruestungsstaender nicht gezeichnet werden, weil er eine Schadenszahl traegt? Vom Einsprung in {@code EntityRenderer.shouldRender}
+     * fuer jede Figur in jedem Bild gerufen - erst die billigen Schalter, dann der Name.
+     */
+    public static boolean hidesDamage(ArmorStand stand) {
+        if (!wearing || !ModConfig.INSTANCE.fishing.frozenBlaze.hideDamage) return false;
+        if (stand.tickCount > DAMAGE_MAX_AGE_TICKS || !stand.hasCustomName()) return false;
+        Component name = stand.getCustomName();
+        if (name == null) return false;
+        String text = name.getString();
+        if (text.isEmpty()) return false;
+        return DAMAGE.matcher(text.replaceAll("§.", "").replace(",", "")).matches();
     }
 
     /**
