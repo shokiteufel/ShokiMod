@@ -60,6 +60,26 @@ public final class FrozenBlaze {
         return wearing && ModConfig.INSTANCE.fishing.frozenBlaze.hidePlayers;
     }
 
+    /**
+     * "LOOT SHARE You received 2 Titanoboa Shards for assisting CuzImCrzz!" - die Zeile, die jeder Kill der Party in der Naehe bringt.
+     *
+     * Herkunft: Feesh, {@code features/chat/HideLootshareMessages.kt}: Dort steht dieselbe Zeile als Muster
+     * ({@code LOOTSHARE_ASSIST_PATTERN}), und nur die Zeilen "for assisting" werden ausgeblendet. Hier zusaetzlich die Schreibweise, die
+     * Hypixel heute verwendet (ein Ausrufezeichen hinter "LOOT SHARE", ein Zaehler in Klammern am Ende) - dieselbe, die auch der
+     * Rare-Loot-Leser und der Jagd-Zaehler kennen. Die Zeilen "from ... catching ..." bleiben.
+     */
+    private static final java.util.regex.Pattern LOOTSHARE_ASSIST = java.util.regex.Pattern.compile(
+            "^LOOT SHARE!? +You received .+ for assisting [A-Za-z0-9_]{1,16}!?(?: *[(][0-9]+[)])?$");
+
+    /**
+     * Soll diese Chatzeile ausgeblendet werden? Der Aufruf kommt fuer jede Zeile - erst die billigen Schalter, dann der Text.
+     * Die Zeile ist ohne Farbcodes zu uebergeben.
+     */
+    public static boolean hidesLootshare(String unformatted) {
+        if (!wearing || !ModConfig.INSTANCE.fishing.frozenBlaze.hideLootshare) return false;
+        return unformatted != null && LOOTSHARE_ASSIST.matcher(unformatted.trim()).matches();
+    }
+
     static boolean fullSet(Player player) {
         for (EquipmentSlot slot : SLOTS) {
             if (!isPiece(player.getItemBySlot(slot))) return false;

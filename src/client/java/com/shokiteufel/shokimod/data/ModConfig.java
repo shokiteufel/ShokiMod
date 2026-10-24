@@ -1824,6 +1824,11 @@ public class ModConfig extends Config {
         @ConfigOption(name = "Hide players", desc = "Hides all other players while you wear the full Frozen Blaze armor, so a crowded fishing spot is easy to look through. NPCs, mobs and your own figure stay; nothing else changes - the others still see you, and the hidden ones are still there. It uses the same mechanism as Hide Players in the Odin tab, but does not need that switch to be on.")
         @ConfigEditorBoolean
         public boolean hidePlayers = false;
+
+        @Expose
+        @ConfigOption(name = "Hide lootshare messages", desc = "Hides the chat lines \"LOOT SHARE You received ... for assisting <player>!\" while you wear the full Frozen Blaze armor: its aura kills sea creatures for the whole party, and every kill would add such a line. Lines about loot from somebody else's catch (\"... from <player> catching ...\") stay. The Hunting tracker and the rare loot alert still read the lines first, so they keep counting. From Feesh.")
+        @ConfigEditorBoolean
+        public boolean hideLootshare = false;
     }
 
     /**
