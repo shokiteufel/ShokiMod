@@ -589,9 +589,11 @@ drinsteckt.
   Reindrake auch weiter weg, die Zeilen nach niedrigsten Lebenspunkten, die Liste der Bewohner mit
   der Voreinstellung (achtundzwanzig), die Immune-Anzeige für die ersten fünf Sekunden und Nessies
   Flucht, der Ton beim Neuzugang (nicht beim Wiederkehren des Reindrake). Nachgebaut, nicht
-  übernommen — und mit drei Unterschieden: Die Symbole links vom Namen und das Herz rechts fehlen,
-  die Reihenfolge lässt sich auch nach Seltenheit wählen, und die Auswahl der Bewohner steht im
-  selben Fenster wie die des Alarms (`/shoki seacreatures`, Spalte HP) statt in einer eigenen Liste.
+  übernommen — und mit vier Unterschieden: Die Symbole links vom Namen und das Herz rechts fehlen,
+  die Reihenfolge lässt sich auch nach Seltenheit wählen, die Namen stehen in der Farbe ihrer
+  Seltenheit (abschaltbar; die Farben der Lebenspunkte bleiben die des Namensschilds), und die Auswahl
+  der Bewohner steht im selben Fenster wie die des Alarms (`/shoki seacreatures`, Spalte HP) statt in
+  einer eigenen Liste.
 - **Feesh** (Apache-2.0, `Sleepy-Panda/Feesh`) — der Banner bei seltenen Fängen
   (`utils/CommonUtils.kt` `showTitle`, `constants/SeaCreatures.kt` `getTitle`): Feesh zeigt den Fang als
   Titel des Spiels — der Name fett in der Farbe der Seltenheit, bei einem Double Hook ein rotes „X2",
