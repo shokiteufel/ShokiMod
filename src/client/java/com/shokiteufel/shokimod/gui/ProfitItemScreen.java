@@ -62,15 +62,43 @@ public class ProfitItemScreen extends Screen {
         return ModConfig.INSTANCE.profit;
     }
 
-    /** Alle Funde, wertvollste zuerst - die Reihenfolge des Kastens */
+    /**
+     * Die Reihenfolge, die beim Oeffnen dieses Fensters galt: wertvollste Ware zuerst, so wie der Kasten sie ordnet.
+     *
+     * Sie wird einmal festgehalten und bleibt, bis das Fenster zu ist. Wer die Verkaufsart oder die Stufe einer Ware aendert,
+     * aendert ihren Wert - und die Zeile sprang dann unter der Maus davon, noch bevor man die naechste Ware einstellen konnte.
+     * Beim naechsten Oeffnen ist es ein neues Fenster und die Preisreihenfolge gilt wieder.
+     */
+    private final List<String> order = new ArrayList<>();
+    private final java.util.Set<String> ordered = new java.util.HashSet<>();
+
+    /** Alle Funde in der Reihenfolge dieses Fensters; was waehrend es offen ist neu dazukommt, steht unten (nach Wert untereinander) */
     private List<String> visible() {
         String needle = filter.trim().toLowerCase(Locale.ROOT);
-        List<String> out = new ArrayList<>();
+        List<String> present = new ArrayList<>();
+        List<String> fresh = new ArrayList<>();
         for (String itemId : ProfitTracker.seen()) {
             int menge = ProfitTracker.countOf(itemId);
             // Auch was im Minus steht (Koeder, Schluessel, Lagerfeuer): Wer seine Schluessel
             // selbst baut, traegt hier ein, was sie ihn kosten
             if (menge == 0 || (menge < 0 && !ProfitTracker.mayBeNegative(itemId))) continue;
+            present.add(itemId);
+            if (!ordered.contains(itemId)) fresh.add(itemId);
+        }
+        // Zum ersten Mal gesehen (beim Oeffnen: alle): in der Preisreihenfolge hinten anhaengen
+        if (!fresh.isEmpty()) {
+            fresh.sort(Comparator.comparingDouble((String id) -> worth(id)).reversed()
+                    .thenComparing(ProfitTracker::nameOf));
+            for (String itemId : fresh) {
+                order.add(itemId);
+                ordered.add(itemId);
+            }
+        }
+
+        java.util.Set<String> inList = new java.util.HashSet<>(present);
+        List<String> out = new ArrayList<>();
+        for (String itemId : order) {
+            if (!inList.contains(itemId)) continue;
             if (!needle.isEmpty()
                     && !ProfitTracker.nameOf(itemId).toLowerCase(Locale.ROOT).contains(needle)
                     && !itemId.toLowerCase(Locale.ROOT).contains(needle)) {
@@ -78,8 +106,6 @@ public class ProfitItemScreen extends Screen {
             }
             out.add(itemId);
         }
-        out.sort(Comparator.comparingDouble((String id) -> worth(id)).reversed()
-                .thenComparing(ProfitTracker::nameOf));
         return out;
     }
 
