@@ -3212,7 +3212,9 @@ public class ModConfig extends Config {
         public enum HideMode {
             SHOW("Show"),
             OWN("Hide own"),
-            ALL("Hide all");
+            ALL("Hide all"),
+            /** Zeigt die Partikel des Items auch dann, wenn Sodium Extra oder eine andere Mod sie ausblendet */
+            ALWAYS("Show always");
 
             private final String label;
 
@@ -3226,27 +3228,27 @@ public class ModConfig extends Config {
             }
         }
 
-        @ConfigOption(name = "Particles", desc = "Hides the particles of single items. For each item: Show leaves them alone, Hide own hides the ones that come from you, Hide all hides them for every player around you too. Only the items listed here are known; the tracer below measures new ones.")
+        @ConfigOption(name = "Particles", desc = "Hides the particles of single items. For each item: Show leaves them alone, Hide own hides the ones that come from you, Hide all hides them for every player around you too, Show always shows them even if Sodium Extra or another mod hides particles. Only the items listed here are known; the tracer below measures new ones.")
         @ConfigEditorInfoText
         public transient String about = "";
 
         @Expose
-        @ConfigOption(name = "Flaming Flay", desc = "The yellow and red beam of the Flaming Flay. Hide own: the beam that comes after your own right-click (your Flay in hand). Hide all: also the beams of other players with a Flay in their hand within ten blocks of the particle.")
+        @ConfigOption(name = "Flaming Flay", desc = "The yellow and red beam of the Flaming Flay. Hide own: the beam that comes after your own right-click (your Flay in hand). Hide all: also the beams of other players with a Flay in their hand within ten blocks of the particle. Show always: shown even when Sodium Extra or another mod hides particles - only the particles that belong to this item, from you and from the players around you.")
         @ConfigEditorDropdown
         public HideMode flayMode = HideMode.SHOW;
 
         @Expose
-        @ConfigOption(name = "Divan armour", desc = "The orange and white sparks around Divan armour. Hide own: the ones around you while you wear Divan armour. Hide all: also the ones around other players who wear it. Only particles close to a Divan wearer are hidden.")
+        @ConfigOption(name = "Divan armour", desc = "The orange and white sparks around Divan armour. Hide own: the ones around you while you wear Divan armour. Hide all: also the ones around other players who wear it. Only particles close to a Divan wearer are hidden. Show always: shown even when Sodium Extra or another mod hides particles - only the particles that belong to this item, from you and from the players around you.")
         @ConfigEditorDropdown
         public HideMode divanMode = HideMode.SHOW;
 
         @Expose
-        @ConfigOption(name = "Spade trail", desc = "The trail the Ancestral, Archaic and Deific Spade draw towards the next burrow: sparkles, fireworks and lava drips. Hide own: the trail after your own right-click with a spade in hand. Hide all: also trails near other players with a spade in hand. Measured with the Deific Spade; the other two are expected to look the same.")
+        @ConfigOption(name = "Spade trail", desc = "The trail the Ancestral, Archaic and Deific Spade draw towards the next burrow: sparkles, fireworks and lava drips. Hide own: the trail after your own right-click with a spade in hand. Hide all: also trails near other players with a spade in hand. Measured with the Deific Spade; the other two are expected to look the same. Show always: shown even when Sodium Extra or another mod hides particles - only the particles that belong to this item, from you and from the players around you.")
         @ConfigEditorDropdown
         public HideMode spadeMode = HideMode.SHOW;
 
         @Expose
-        @ConfigOption(name = "Hyperion", desc = "The explosion and the purple ring of the Wither Impact, when you teleport with a Hyperion, Astraea, Scylla or Valkyrie. Hide own: the ones after your own right-click with such a blade in hand. Hide all: also those around other players holding one. Measured with the Hyperion; the other three share the ability and are expected to look the same.")
+        @ConfigOption(name = "Hyperion", desc = "The explosion and the purple ring of the Wither Impact, when you teleport with a Hyperion, Astraea, Scylla or Valkyrie. Hide own: the ones after your own right-click with such a blade in hand. Hide all: also those around other players holding one. Measured with the Hyperion; the other three share the ability and are expected to look the same. Show always: shown even when Sodium Extra or another mod hides particles - only the particles that belong to this item, from you and from the players around you.")
         @ConfigEditorDropdown
         public HideMode hyperionMode = HideMode.SHOW;
 

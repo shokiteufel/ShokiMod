@@ -15,6 +15,7 @@
 		"FloorDropParticleMixin",
 		"HotspotParticleMixin",
 		"ParticleTraceMixin",
+		"ParticleEngineForceMixin",
 		"ServerTimeMixin",
 		"PongResponseMixin",
 		"PlayerSizeMixin",
