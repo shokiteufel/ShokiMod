@@ -3,6 +3,7 @@ package com.shokiteufel.shokimod.handler;
 import com.shokiteufel.shokimod.ShokiMod;
 import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.util.SkyBlockItems;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.minecraft.ChatFormatting;
@@ -18,7 +19,16 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.fabricmc.loader.api.FabricLoader;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -38,6 +48,10 @@ import java.util.Map;
  * einem Rechtsklick kamen, und dazu das Item in der Hand und die getragene Ruestung. Wer die Ruestung ohne das Item traegt
  * und danach das Item ohne die Ruestung benutzt, sieht an den beiden Tabellen, was die Quellen trennt.
  *
+ * Die Tabellen gehen in eine eigene Datei, {@code logs/shokimod-particles.log} neben der latest.log: Wer sie weitergibt,
+ * schickt nur diese eine Datei und nicht das ganze Spiel-Log. Die letzte Tabelle wird auch dann geschrieben, wenn danach
+ * kein Partikel mehr kommt.
+ *
  * Eingeschaltet wird in den Einstellungen im Reiter "Particles"; gespeichert wird der Schalter nicht.
  */
 public final class ParticleTracer {
@@ -49,6 +63,11 @@ public final class ParticleTracer {
     /** Mehr verschiedene Arten merkt sich eine Runde nicht - ein Gewitter von Partikeln soll den Speicher nicht fuellen */
     private static final int MAX_ROWS = 500;
     private static final double DEFAULT_RADIUS = 8.0;
+    private static final String LOG_NAME = "shokimod-particles.log";
+    /** Ist die Datei so gross, wandert sie nach shokimod-particles.old.log - eine Messung ist nie so lang */
+    private static final long MAX_LOG_BYTES = 8L * 1024 * 1024;
+    private static final DateTimeFormatter CLOCK = DateTimeFormatter.ofPattern("HH:mm:ss.SSS");
+    private static final DateTimeFormatter STAMP = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     private static final class Row {
         int packets;
@@ -63,6 +82,9 @@ public final class ParticleTracer {
     private static long lastReport = 0L;
     private static long lastUseAt = 0L;
     private static String lastUseItem = "-";
+    /** Hat diese Messung schon ihre Kopfzeile in der Datei? */
+    private static boolean sessionOpen = false;
+    private static boolean fileWarned = false;
 
     private ParticleTracer() {
     }
@@ -77,14 +99,92 @@ public final class ParticleTracer {
             noteUse(player.getItemInHand(hand));
             return InteractionResult.PASS;
         });
+        ClientTickEvents.END_CLIENT_TICK.register(ParticleTracer::tick);
+    }
+
+    /**
+     * Jeden Tick: eine Messung, die zu Ende ist, wird abgeschlossen, und die Tabelle, die noch aussteht, kommt in die Datei.
+     *
+     * Ohne das wuerde eine Tabelle nur geschrieben, wenn danach noch ein Partikel eintrifft: Hoert ein Effekt auf, bliebe
+     * seine letzte Tabelle fuer immer im Speicher, und gerade sie wollte man lesen.
+     */
+    private static void tick(Minecraft client) {
+        ModConfig.ParticlesCategory cfg = ModConfig.INSTANCE.particles;
+        if (!cfg.particleTracer) {
+            if (sessionOpen) closeSession(client);
+            return;
+        }
+        if (rows.isEmpty() || client.player == null) return;
+        try {
+            long now = System.currentTimeMillis();
+            if (now - lastReport >= REPORT_MILLIS) {
+                lastReport = now;
+                report(client.player, now, false);
+            }
+        } catch (RuntimeException | LinkageError e) {
+            cfg.particleTracer = false;
+            ShokiMod.LOGGER.warn("[Particles] switched itself off after an error", e);
+        }
+    }
+
+    /** Die Datei neben der latest.log */
+    private static Path logFile() {
+        return FabricLoader.getInstance().getGameDir().resolve("logs").resolve(LOG_NAME);
+    }
+
+    /** Beim ersten Eintrag einer Messung: Kopfzeile in die Datei und der Pfad einmal in den Chat */
+    private static void ensureSession(Minecraft client) {
+        if (sessionOpen) return;
+        sessionOpen = true;
+        String mod = FabricLoader.getInstance().getModContainer("shokimod")
+                .map(c -> c.getMetadata().getVersion().getFriendlyString()).orElse("?");
+        write("==== particle tracer on " + LocalDateTime.now().format(STAMP) + " - ShokiMod " + mod);
+        tell(client, Component.literal("[ShokiMod] Particle log: " + logFile().toAbsolutePath()).withStyle(ChatFormatting.DARK_AQUA));
+    }
+
+    /** Die Messung ist aus: was noch aussteht, kommt in die Datei, dann die Schlusszeile */
+    private static void closeSession(Minecraft client) {
+        sessionOpen = false;
+        try {
+            if (!rows.isEmpty() && client.player != null) report(client.player, System.currentTimeMillis(), false);
+        } catch (RuntimeException | LinkageError e) {
+            ShokiMod.LOGGER.warn("[Particles] last table could not be written", e);
+        }
+        rows.clear();
+        write("==== particle tracer off");
+    }
+
+    /**
+     * Eine Zeile mit Uhrzeit ans Ende der Datei.
+     *
+     * Ist die Datei nicht beschreibbar, geht die Zeile ins gewoehnliche Log - eine Messung soll nicht verloren sein,
+     * nur weil ein Ordner gesperrt ist.
+     */
+    private static void write(String line) {
+        try {
+            Path file = logFile();
+            Files.createDirectories(file.getParent());
+            if (Files.exists(file) && Files.size(file) > MAX_LOG_BYTES) {
+                Files.move(file, file.resolveSibling("shokimod-particles.old.log"), StandardCopyOption.REPLACE_EXISTING);
+            }
+            Files.writeString(file, LocalDateTime.now().format(CLOCK) + " " + line + System.lineSeparator(),
+                    StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+        } catch (IOException | RuntimeException e) {
+            ShokiMod.LOGGER.info("[Particles] {}", line);
+            if (!fileWarned) {
+                fileWarned = true;
+                ShokiMod.LOGGER.warn("[Particles] cannot write {} - writing to the normal log instead", LOG_NAME, e);
+            }
+        }
     }
 
     /** Ein Rechtsklick mit diesem Item in der Hand */
     public static void noteUse(ItemStack stack) {
         if (!ModConfig.INSTANCE.particles.particleTracer) return;
+        ensureSession(Minecraft.getInstance());
         lastUseAt = System.currentTimeMillis();
         lastUseItem = idOf(stack);
-        ShokiMod.LOGGER.info("[Particles] you used {}", lastUseItem);
+        write("you used " + lastUseItem);
     }
 
     /** Vom Mixin an {@code handleParticleEvent} - laeuft bei jedem Partikel-Paket, also zuerst die billigen Pruefungen */
@@ -100,6 +200,7 @@ public final class ParticleTracer {
         } catch (RuntimeException | LinkageError e) {
             cfg.particleTracer = false;
             ShokiMod.LOGGER.warn("[Particles] switched itself off after an error", e);
+            write("switched itself off after an error: " + e);
         }
     }
 
@@ -111,6 +212,7 @@ public final class ParticleTracer {
         double distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
         if (distance > radius(cfg)) return;
 
+        ensureSession(client);
         long now = System.currentTimeMillis();
         String key = signature(packet);
         Row row = rows.get(key);
@@ -163,7 +265,7 @@ public final class ParticleTracer {
 
         String lastUse = lastUseAt == 0L ? "never" : String.format(Locale.ROOT, "%s %.1fs ago", lastUseItem, (now - lastUseAt) / 1000.0);
         String header = "held=" + idOf(player.getMainHandItem()) + " worn=" + worn(player) + " lastUse=" + lastUse;
-        ShokiMod.LOGGER.info("[Particles] ---- {}", header);
+        write("---- " + header);
         Minecraft client = Minecraft.getInstance();
         if (toChat) tell(client, Component.literal("[ShokiMod] Particles near you, most often first:").withStyle(ChatFormatting.DARK_AQUA));
         int shown = 0;
@@ -172,11 +274,11 @@ public final class ParticleTracer {
             Row row = entry.getValue();
             String line = String.format(Locale.ROOT, "%dx %s dist=%.1f-%.1f afterUse=%d/%d firstAt=%s held=%s",
                     row.packets, entry.getKey(), row.nearest, row.farthest, row.afterUse, row.packets, row.where, row.held);
-            ShokiMod.LOGGER.info("[Particles] {}", line);
+            write(line);
             if (toChat && shown < 6) tell(client, Component.literal(" " + line).withStyle(ChatFormatting.GRAY));
             shown++;
         }
-        if (sorted.size() > shown) ShokiMod.LOGGER.info("[Particles] ... and {} more kinds", sorted.size() - shown);
+        if (sorted.size() > shown) write("... and " + (sorted.size() - shown) + " more kinds");
     }
 
     /** Der Knopf "Show": die Tabelle jetzt, auch in den Chat */
