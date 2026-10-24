@@ -3239,6 +3239,11 @@ public class ModConfig extends Config {
         @ConfigEditorDropdown
         public HideMode spadeMode = HideMode.SHOW;
 
+        @Expose
+        @ConfigOption(name = "Hyperion", desc = "The explosion and the purple ring of the Wither Impact, when you teleport with a Hyperion, Astraea, Scylla or Valkyrie. Hide own: the ones after your own right-click with such a blade in hand. Hide all: also those around other players holding one. Measured with the Hyperion; the other three share the ability and are expected to look the same.")
+        @ConfigEditorDropdown
+        public HideMode hyperionMode = HideMode.SHOW;
+
         @ConfigOption(name = "Tracer", desc = "For finding out which particles an item makes: it writes what reaches you into a file. Send the file to get a new item into the list above.")
         @ConfigEditorAccordion(id = 82)
         public transient boolean tracerFolder = false;

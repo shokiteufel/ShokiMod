@@ -31,6 +31,8 @@ import java.util.function.Function;
  * bis acht Bloecke Abstand, und die Strahlen reichen etwa vierzehn Bloecke, die Spur bis zur Grabstelle. Die Abstaende
  * der Regeln sind deshalb grosszuegig (Flay 48, Spaten 256 Bloecke): Art, Anzahl, Tempo, die Weitsicht-Markierung und das
  * Fenster nach dem eigenen Rechtsklick grenzen schon eng genug ein.
+ * - Wither-Klingen (gemessen mit der Hyperion): nach dem Rechtsklick (Wither Impact) eine Explosion an der eigenen Position
+ *   (explosion, Anzahl 8, Tempo 8) und ein Ring aus witch (Anzahl 1, Tempo 0) im Abstand von 0,9 bis 2,3 Bloecken.
  * Alle diese Pakete sind "long" (der Server hat die Weitsicht-Markierung gesetzt) und haben keinen Versatz ausser der Farbe.
  * Bei Staub: Anzahl 0, Tempo 1, Groesse 1 - je Paket ein Partikel.
  *
@@ -107,7 +109,12 @@ public final class ParticleHider {
                     List.of(Look.dust(0xFF9900), Look.dust(0xFFFFFF))),
             new Rule("Spade", c -> c.spadeMode, Source.HELD,
                     List.of("ANCESTRAL_SPADE", "ARCHAIC_SPADE", "DEIFIC_SPADE"), 256.0,
-                    List.of(Look.of("enchant", 10, -2.0), Look.of("firework", 1, 0.0), Look.of("dripping_lava", 2, -0.5))));
+                    List.of(Look.of("enchant", 10, -2.0), Look.of("firework", 1, 0.0), Look.of("dripping_lava", 2, -0.5))),
+            // Wither Impact der Klingen Hyperion, Astraea, Scylla und Valkyrie. Gemessen mit der Hyperion; die anderen drei teilen
+            // die Faehigkeit und werden als gleich angenommen. Die Messung (Radius 8) zeigte nichts weiter als 2,3 Bloecke weg
+            new Rule("Hyperion", c -> c.hyperionMode, Source.HELD,
+                    List.of("HYPERION", "ASTRAEA", "SCYLLA", "VALKYRIE"), 16.0,
+                    List.of(Look.of("explosion", 8, 8.0), Look.of("witch", 1, 0.0))));
 
     private ParticleHider() {
     }
@@ -128,6 +135,10 @@ public final class ParticleHider {
 
     public static int hiddenSpade() {
         return hidden("Spade");
+    }
+
+    public static int hiddenHyperion() {
+        return hidden("Hyperion");
     }
 
     /** "Flay 3, Divan 0, Spade 12" - oder leer, wenn noch nichts ausgeblendet wurde */
@@ -168,6 +179,7 @@ public final class ParticleHider {
             cfg.flayMode = HideMode.SHOW;
             cfg.divanMode = HideMode.SHOW;
             cfg.spadeMode = HideMode.SHOW;
+            cfg.hyperionMode = HideMode.SHOW;
             ShokiMod.LOGGER.warn("[Particles] hiding switched itself off after an error", e);
             return false;
         }
