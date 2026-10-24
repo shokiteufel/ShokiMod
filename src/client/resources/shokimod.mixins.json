@@ -23,7 +23,8 @@
 		"SlotBackgroundMixin",
 		"SoundMuteMixin",
 		"SoundManagerMixin",
-		"AbstractSoundInstanceAccessor"
+		"AbstractSoundInstanceAccessor",
+		"AbstractContainerScreenAccessor"
 	],
 	"injectors": {
 		"defaultRequire": 1
