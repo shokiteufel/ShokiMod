@@ -41,9 +41,10 @@ import java.util.regex.Pattern;
  * Reindrake zaehlt immer), gehoert zur Loot-Teilung und kommt in die Liste - sofern er in der Auswahl
  * steht ({@code /shoki seacreatures}, Spalte HP).
  *
- * <p>Zwei Unterschiede zu Feesh, beide gewollt: Die Symbole links vom Namen und das Herz hinter den
- * Lebenspunkten fehlen, alles andere steht wie dort - die Farben des Namensschilds, der Stern fuer den
- * Shuriken, die rote Anzeige "[Immune 4s]". Und die Reihenfolge ist waehlbar.
+ * <p>Drei Unterschiede zu Feesh, alle gewollt: Die Symbole links vom Namen und das Herz hinter den
+ * Lebenspunkten fehlen, die Reihenfolge ist waehlbar, und die Namen stehen in der Farbe ihrer Seltenheit
+ * (abschaltbar - dann die Farben des Namensschilds wie dort). Alles andere steht wie dort: die Farben der
+ * Lebenspunkte, der Stern fuer den Shuriken, die rote Anzeige "[Immune 4s]".
  *
  * <p>Immun: Manche Bewohner nehmen in den ersten fuenf Sekunden kaum Schaden. Feesh schliesst das daraus,
  * dass das Wesen jung ist und man es eben erst gesehen hat - also "nicht auf die Sekunde genau".
@@ -85,20 +86,40 @@ public final class SeaCreatureHp {
     private static final Pattern NON_NAME = Pattern.compile("[^a-zA-Z\\s'-]");
     private static final Pattern HAS_LETTER = Pattern.compile("[A-Za-z0-9]");
     private static final Pattern HEART_WITH_CODES = Pattern.compile("(?:§.)*❤");
+    /** Ein Farbcode oder das Zuruecksetzen - Formate wie Fett (§l) sind es nicht und bleiben */
+    private static final Pattern COLOUR_OR_RESET = Pattern.compile("(?i)§[0-9a-fr]");
 
-    /** Was ein Namensschild hergibt */
-    record Parsed(int id, String name, String line, double hp, double maxHp) {
+    /**
+     * Was ein Namensschild hergibt.
+     *
+     * @param line     die Zeile, wie das Namensschild sie malt (Name und Rest zusammen)
+     * @param nameText nur der Name, mit den Farbcodes des Schilds
+     * @param tail     alles hinter dem Namen, mit dem Zustand der Farbcodes davor - so behaelt es seine Farben, auch wenn es
+     *                 im Schild zusammen mit dem Namen in einem Stueck stand und die Farbe nur vom Namen erbte
+     */
+    record Parsed(int id, String name, String line, double hp, double maxHp, String nameText, String tail) {
     }
 
     /** Was in der Liste steht - samt dem, was fuers Sortieren gebraucht wird */
     public record Mob(int id, String name, String line, double hp, double maxHp, boolean immune,
-                      int immuneSeconds, double distance) {
+                      int immuneSeconds, double distance, String nameText, String tail) {
 
         /** Die fertige Zeile, mit der roten Immune-Anzeige dahinter */
         public String display() {
-            if (!immune) return line;
+            String base = coloured();
+            if (!immune) return base;
             String timer = immuneSeconds > 0 ? " §f" + immuneSeconds + "s" : "";
-            return line + " §c§l[Immune" + timer + "§c§l]";
+            return base + " §c§l[Immune" + timer + "§c§l]";
+        }
+
+        /**
+         * Der Name in der Farbe seiner Seltenheit - wenn die Einstellung an ist und der Bewohner eine hat. Sonst die Zeile,
+         * wie das Namensschild sie malt.
+         */
+        private String coloured() {
+            if (!cfg().rarityColours) return line;
+            String code = rarityCode(name);
+            return code == null ? line : paint(nameText, code) + tail;
         }
     }
 
@@ -253,7 +274,7 @@ public final class SeaCreatureHp {
             immune = true;
             seconds = 0;
         }
-        return new Mob(p.id(), p.name(), p.line(), p.hp(), p.maxHp(), immune, seconds, distance);
+        return new Mob(p.id(), p.name(), p.line(), p.hp(), p.maxHp(), immune, seconds, distance, p.nameText(), p.tail());
     }
 
     private static boolean nessieRunsAway(Minecraft client, Parsed p) {
@@ -378,17 +399,77 @@ public final class SeaCreatureHp {
             maxHp = number(m.group(2));
         }
 
-        StringBuilder line = new StringBuilder(String.join(" ", nameTokens));
+        String nameText = String.join(" ", nameTokens);
+        StringBuilder tail = new StringBuilder();
         if (hpAt >= 0) {
             // Ohne das Herz: "§a69M§f/§a100M" statt "§a69M§f/§a100M§c❤"
             String lives = HEART_WITH_CODES.matcher(tokens[hpAt]).replaceAll("");
-            if (!plainOf(lives).isBlank()) line.append(' ').append(lives);
+            // Vor jedem Stueck steht, was an seiner Stelle galt: Stand es im Schild im selben Stueck wie der Name, erbte es dessen
+            // Farbe - und die wird beim Faerben des Namens ausgetauscht
+            if (!plainOf(lives).isBlank()) tail.append(' ').append(stateBefore(tokens, hpAt)).append(lives);
             // Der Stern des Shurikens bleibt; was sonst noch hinter dem Herz steht, nicht
             for (int i = hpAt + 1; i < tokens.length; i++) {
-                if (plainOf(tokens[i]).contains("✯")) line.append(' ').append(tokens[i]);
+                if (plainOf(tokens[i]).contains("✯")) tail.append(' ').append(stateBefore(tokens, i)).append(tokens[i]);
             }
         }
-        return new Parsed(id, base, line.toString(), hp, maxHp);
+        return new Parsed(id, base, nameText + tail, hp, maxHp, nameText, tail.toString());
+    }
+
+    /**
+     * Die Farbcodes, die nach diesem Text gelten: der letzte Farbcode und die Formate danach.
+     *
+     * So rechnet auch das Spiel beim Zeichnen: Ein Zuruecksetzen loescht alles, ein Farbcode loescht die Formate davor.
+     */
+    static String stateAfter(String text) {
+        String colour = "";
+        StringBuilder formats = new StringBuilder();
+        for (int i = 0; i + 1 < text.length(); i++) {
+            if (text.charAt(i) != '§') continue;
+            char code = Character.toLowerCase(text.charAt(++i));
+            if (code == 'r') {
+                colour = "";
+                formats.setLength(0);
+            } else if ((code >= '0' && code <= '9') || (code >= 'a' && code <= 'f')) {
+                colour = "§" + code;
+                formats.setLength(0);
+            } else if ("klmno".indexOf(code) >= 0) {
+                formats.append('§').append(code);
+            }
+        }
+        return "§r" + colour + formats;
+    }
+
+    /** Die Farbcodes, die vor dem Wort mit dieser Nummer gelten */
+    private static String stateBefore(String[] tokens, int index) {
+        return stateAfter(String.join(" ", java.util.Arrays.copyOfRange(tokens, 0, index)));
+    }
+
+    /**
+     * Der Farbcode der Seltenheit dieses Bewohners, oder null.
+     *
+     * Die Farbe steht in der Tabelle (SeaCreatures) und ist dort Hypixels Farbe der Seltenheit: gewoehnlich weiss, ungewoehnlich gruen, selten
+     * blau, episch lila, legendaer gold, mythisch rosa. Wer nicht in der Tabelle steht - die vier, die man nur sieht und deren Seltenheit nur
+     * angenommen ist -, hat keine und behaelt die Farben seines Namensschilds.
+     */
+    static String rarityCode(String name) {
+        SeaCreatures.Creature creature = SeaCreatures.byName(name);
+        if (creature == null) return null;
+        // 26.2: ChatFormatting.isColor()/getColor()/getChar() sind weg - wie in legacy() ueber TextColor.fromLegacyFormat,
+        // und toString() einer ChatFormatting ist "§c"
+        for (ChatFormatting f : ChatFormatting.values()) {
+            TextColor legacy = TextColor.fromLegacyFormat(f);
+            if (legacy != null && legacy.getValue() == creature.colour()) return f.toString();
+        }
+        return null;
+    }
+
+    /**
+     * Den Namen in diese Farbe bringen: Jeder Farbcode im Text wird dieser, und nach jedem Zuruecksetzen gilt sie wieder. Formate wie Fett
+     * bleiben. Vorn steht sie noch einmal, falls der Text gar keinen Code traegt.
+     */
+    static String paint(String text, String code) {
+        return code + COLOUR_OR_RESET.matcher(text).replaceAll(match ->
+                java.util.regex.Matcher.quoteReplacement(match.group().equalsIgnoreCase("§r") ? "§r" + code : code));
     }
 
     /** "69M", "6.3M", "521.8k", "75,000" -> Zahl */
