@@ -1121,17 +1121,16 @@ public final class ProfitTracker {
     }
 
     /**
-     * Worauf gerade eine Bestaetigung aussteht - eine Kennung oder {@link #RESET_TOKEN}.
+     * Welche Ware gerade zum Entfernen ansteht - die Rueckfrage im Chat ist noch offen.
      *
-     * Beides nimmt etwas weg, und beides passiert mit einem einzigen Klick im Kasten.
-     * Eine Rueckfrage im Chat kostet einen zweiten Klick und rettet einen Lauf, der
-     * sonst mit einem Danebengreifen weg waere.
+     * Das rote Kreuz an einer Ware nimmt sie mit einem einzigen Klick aus dem Kasten. Eine Rueckfrage im Chat kostet einen
+     * zweiten Klick und rettet eine Ware, die sonst mit einem Danebengreifen weg waere. Der Reset-Knopf fragt in einem eigenen
+     * Fenster, wie alle Tracker (siehe {@link com.shokiteufel.shokimod.gui.ResetConfirm}).
      */
     private static String pending = null;
     private static long pendingAt = 0L;
     /** So lange gilt eine Frage. Danach ist sie keine Frage mehr, sondern ein Klick von gestern */
     private static final long CONFIRM_MILLIS = 30_000L;
-    private static final String RESET_TOKEN = "*reset*";
 
     /**
      * Alle Waren, die der Kasten kennt - fuer die Vorschlagsliste des Befehls.
@@ -1696,13 +1695,15 @@ public final class ProfitTracker {
                 .append(Component.literal(" from the tracker?").withStyle(ChatFormatting.YELLOW)));
     }
 
-    /** Der Reset-Knopf: erst fragen */
+    /** Der Reset-Knopf, im Kasten wie in den Einstellungen: erst fragen (Schalter "Ask before reset" im Reiter HUD) */
     public static void askReset() {
-        pending = RESET_TOKEN;
-        pendingAt = System.currentTimeMillis();
-        ask(Component.literal("Reset the ").withStyle(ChatFormatting.YELLOW)
-                .append(Component.literal(view().toString()).withStyle(ChatFormatting.WHITE))
-                .append(Component.literal(" count and its timer?").withStyle(ChatFormatting.YELLOW)));
+        com.shokiteufel.shokimod.gui.ResetConfirm.ask("Profit tracker",
+                "Clears the " + view() + " count and its timer. Your item choices stay.",
+                () -> {
+                    String was = view().toString();
+                    reset();
+                    say(Component.literal(was + " is back to zero.").withStyle(ChatFormatting.YELLOW));
+                });
     }
 
     /** Die Frage samt Knopf - der Knopf fuehrt den Befehl aus, der hier wieder ankommt */
@@ -1736,14 +1737,6 @@ public final class ProfitTracker {
                                     ? "That question is too old - click the button again."
                                     : "Nothing to confirm.")
                             .withStyle(ChatFormatting.GRAY)));
-            return;
-        }
-
-        if (RESET_TOKEN.equals(was)) {
-            reset();
-            client.player.sendSystemMessage(Component.literal("[ShokiMod] ")
-                    .withStyle(ChatFormatting.DARK_AQUA)
-                    .append(Component.literal(view() + " is back to zero.").withStyle(ChatFormatting.YELLOW)));
             return;
         }
 

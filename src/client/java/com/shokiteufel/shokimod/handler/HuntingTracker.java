@@ -220,6 +220,12 @@ public final class HuntingTracker {
         ShokiMod.LOGGER.info("[Hunting] tracker reset");
     }
 
+    /** Der Reset-Knopf, im Kasten wie in den Einstellungen: erst fragen (Schalter "Ask before reset" im Reiter HUD) */
+    public static void askReset() {
+        com.shokiteufel.shokimod.gui.ResetConfirm.ask("Hunting tracker",
+                "Clears the shard count and the timer.", HuntingTracker::reset);
+    }
+
     /** Ohne Uhr pausiert auch nichts - dann steht "(paused)" ueber einem Kasten ohne Zeit */
     public static boolean isPaused() {
         return cfg().timerEnabled && paused;

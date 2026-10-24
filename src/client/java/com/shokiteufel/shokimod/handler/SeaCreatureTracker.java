@@ -318,4 +318,11 @@ public final class SeaCreatureTracker {
         doubleHook = false;
         ModConfig.INSTANCE.saveNow();
     }
+
+    /** Der Reset-Knopf, im Kasten wie in den Einstellungen: erst fragen - und sagen, welche Ansicht es trifft */
+    public static void askReset() {
+        com.shokiteufel.shokimod.gui.ResetConfirm.ask("Sea creature tracker",
+                sessionView() ? "Clears the counts of this session and its timer." : "Sets the total counts back to zero.",
+                SeaCreatureTracker::reset);
+    }
 }
