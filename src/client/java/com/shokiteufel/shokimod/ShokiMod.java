@@ -83,6 +83,7 @@ public class ShokiMod implements ClientModInitializer {
         TabListScanner.register();
         EntityHighlightManager.register();
         FloorDropHandler.register();
+        com.shokiteufel.shokimod.handler.ParticleTracer.register();
         RareLootHandler.register();
         HuntingTracker.register();
         com.shokiteufel.shokimod.scanner.ItemChanges.register();
