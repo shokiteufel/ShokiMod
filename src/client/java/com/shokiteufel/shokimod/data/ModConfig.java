@@ -1829,6 +1829,11 @@ public class ModConfig extends Config {
         @ConfigOption(name = "Hide lootshare messages", desc = "Hides the chat lines \"LOOT SHARE You received ... for assisting <player>!\" while you wear the full Frozen Blaze armor: its aura kills sea creatures for the whole party, and every kill would add such a line. Lines about loot from somebody else's catch (\"... from <player> catching ...\") stay. The Hunting tracker and the rare loot alert still read the lines first, so they keep counting. From Feesh.")
         @ConfigEditorBoolean
         public boolean hideLootshare = false;
+
+        @Expose
+        @ConfigOption(name = "Hide damage numbers", desc = "Hides the floating damage numbers (like 1,234 with its little stars and swords) while you wear the full Frozen Blaze armor. The aura hits every mob around you every second, and the numbers would cover the screen. All damage numbers are hidden, yours and the others'. Nothing else changes: the mobs are still hit, and the numbers are only not drawn. The look of the numbers is taken from SkyHanni's Hide Damage Splash.")
+        @ConfigEditorBoolean
+        public boolean hideDamage = false;
     }
 
     /**

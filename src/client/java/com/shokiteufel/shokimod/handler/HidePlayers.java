@@ -78,6 +78,8 @@ public final class HidePlayers {
 
     /** Soll diese Figur gezeichnet werden? Vom Einsprung in {@code EntityRenderer.shouldRender} gerufen */
     public static boolean shouldRender(Entity entity) {
+        // Fishing > Frozen Blaze > Hide damage numbers: Ein Ruestungsstaender mit einer Schadenszahl als Namen wird nicht gezeichnet
+        if (entity instanceof net.minecraft.world.entity.decoration.ArmorStand stand) return !FrozenBlaze.hidesDamage(stand);
         ModConfig.OdinCategory cfg = ModConfig.INSTANCE.odin;
         boolean frozenBlaze = FrozenBlaze.hidesPlayers();
         if (!cfg.hidePlayers && !frozenBlaze) return true;
