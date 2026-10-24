@@ -1148,6 +1148,22 @@ public final class ProfitTracker {
     }
 
     /**
+     * Tragen mehrere Waren denselben Namen, gilt die, die der Basar fuehrt.
+     *
+     * "Enchanted Hay Bale" heisst die gehandelte ENCHANTED_HAY_BALE und auch die alte ENCHANTED_HAY_BLOCK, die niemand mehr
+     * handelt und die in der Liste zuerst steht. Wer den Namen tippt, meint die, mit der sich rechnen laesst. Fuehrt der
+     * Basar keine davon (oder sind seine Preise noch nicht da), bleibt es bei der ersten.
+     */
+    private static String handelbare(List<String> ids) {
+        if (ids.size() > 1) {
+            for (String id : ids) {
+                if (com.shokiteufel.shokimod.util.ItemValue.bazaarPrice(id) != null) return id;
+            }
+        }
+        return ids.get(0);
+    }
+
+    /**
      * Die Kennung zu einem eingetippten Namen, oder null.
      *
      * Drei Wege, in dieser Reihenfolge: die Item-Liste von Hypixel, ein Name aus dem
@@ -1159,13 +1175,13 @@ public final class ProfitTracker {
         String gesucht = name.trim();
 
         List<String> ids = ItemNames.idsFor(gesucht);
-        if (!ids.isEmpty()) return ids.get(0);
+        if (!ids.isEmpty()) return handelbare(ids);
 
         // "Enchanted_Bone" ist gemeint wie "Enchanted Bone": Wer die Kennung im Kopf hat,
         // tippt Unterstriche, und daran soll der Befehl nicht scheitern
         if (gesucht.indexOf('_') >= 0) {
             ids = ItemNames.idsFor(gesucht.replace('_', ' '));
-            if (!ids.isEmpty()) return ids.get(0);
+            if (!ids.isEmpty()) return handelbare(ids);
         }
 
         // Und umgekehrt: Die Kennung selbst, ob gross geschrieben oder nicht. Gueltig ist
@@ -1236,11 +1252,15 @@ public final class ProfitTracker {
      * Zusammensetzen des Namens kommt dahin. Eingetragen ist, wohin zu suchen ist; ob es
      * das Rezept gibt und mit welcher Zahl, steht im Bauplan, nicht hier.
      *
-     * Weizen fehlt mit Absicht: Hay Bale und Enchanted Hay Bale haengen zusammen, aber das
-     * NEU-Verzeichnis fuehrt fuer Enchanted Hay Bale kein Rezept. Ohne Rezept laesst sich
-     * die Kette nicht rechnen, und Weizen bleibt bei Enchanted Wheat.
+     * Weizen und Samen: Wheat -> Enchanted Wheat -> Enchanted Hay Bale und Seeds -> Enchanted
+     * Seeds -> Box of Seeds, je 160 Stueck je Stufe. Der Weizen stand hier einmal nicht, mit
+     * der Begruendung, das NEU-Verzeichnis fuehre fuer Enchanted Hay Bale kein Rezept. Das galt
+     * fuer ENCHANTED_HAY_BLOCK, die alte Ware mit demselben Namen, die niemand mehr handelt. Die
+     * gehandelte heisst ENCHANTED_HAY_BALE und hat ein Rezept (fuenfmal 32 Enchanted Wheat).
      */
     private static final Map<String, List<String>> IRREGULAR_NEXT = Map.ofEntries(
+            Map.entry("WHEAT", List.of("ENCHANTED_WHEAT", "ENCHANTED_HAY_BALE")),
+            Map.entry("SEEDS", List.of("ENCHANTED_SEEDS", "BOX_OF_SEEDS")),
             Map.entry("PUMPKIN", List.of("POLISHED_PUMPKIN")),
             Map.entry("POTATO_ITEM", List.of("ENCHANTED_BAKED_POTATO")),
             Map.entry("NETHER_STALK", List.of("MUTANT_NETHER_STALK")),
@@ -1258,6 +1278,8 @@ public final class ProfitTracker {
             Map.entry("ENCHANTED_PUMPKIN", List.of("POLISHED_PUMPKIN")),
             Map.entry("ENCHANTED_POTATO", List.of("ENCHANTED_BAKED_POTATO")),
             Map.entry("ENCHANTED_MELON", List.of("ENCHANTED_MELON_BLOCK")),
+            Map.entry("ENCHANTED_WHEAT", List.of("ENCHANTED_HAY_BALE")),
+            Map.entry("ENCHANTED_SEEDS", List.of("BOX_OF_SEEDS")),
             Map.entry("ENCHANTED_SUGAR", List.of("ENCHANTED_SUGAR_CANE")),
             Map.entry("ENCHANTED_CACTUS_GREEN", List.of("ENCHANTED_CACTUS")),
             Map.entry("ENCHANTED_COCOA", List.of("ENCHANTED_COOKIE")),
@@ -1444,6 +1466,12 @@ public final class ProfitTracker {
                 String id = stufe + "_" + sorte + "_GEM";
                 if (!id.equals(itemId) && ItemNames.displayName(id) != null) ids.add(id);
             }
+        }
+
+        // Die Stufen, die sich nicht aus dem Namen ergeben (Enchanted Hay Bale zu Wheat, Box of Seeds zu Seeds), gehoeren
+        // in dieselbe Liste wie die Knoepfe im Fenster: Sonst kennt der Befehl weniger als das Fenster
+        for (String id : IRREGULAR_NEXT.getOrDefault(itemId, List.of())) {
+            if (!id.equals(itemId) && ItemNames.displayName(id) != null) ids.add(id);
         }
 
         // Nach Namen, und jeden nur einmal: Zwei Kennungen koennen denselben tragen
