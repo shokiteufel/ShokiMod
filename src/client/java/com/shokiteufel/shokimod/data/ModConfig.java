@@ -3847,7 +3847,7 @@ public class ModConfig extends Config {
         public BannerCategory banner = new BannerCategory();
 
         @Expose
-        @Category(name = "Reminder", desc = "Reminders read from chat: expired cakes, with one click to get new ones.")
+        @Category(name = "Reminder", desc = "Reminders read from chat, one fold-out section each: expired cakes, with one click to get new ones.")
         public ReminderCategory reminder = new ReminderCategory();
 
         /**
@@ -3950,36 +3950,51 @@ public class ModConfig extends Config {
     /**
      * Erinnerungen. Bisher eine: der Kuchen-Alarm aus RiccioFishingUtils, ergaenzt um
      * den anklickbaren Text, der zum Kuchenholen teleportiert.
+     *
+     * Jede Erinnerung hat ihre eigene Klappe. Ein Unterreiter in der Baumansicht waere schoener,
+     * geht aber nicht: MoulConfig kennt zwei Ebenen (Reiter und Unterreiter), und Reminder ist selbst
+     * schon ein Unterreiter von Alerts - ein dritter Schritt bricht mit "double recursive sub category"
+     * ab und das Fenster oeffnet sich gar nicht.
      */
     public static class ReminderCategory {
+
+        @ConfigOption(name = "Cake", desc = "Reads the Yum! line when you eat a cake and warns in chat once its 48 hours are over, with one click to get new ones. Ported from RiccioFishingUtils.")
+        @ConfigEditorAccordion(id = 50)
+        public transient boolean cakeFolder = false;
 
         @Expose
         @ConfigOption(name = "Outdated cake alert", desc = "Reads the Yum! line when you eat a cake and warns in chat once its 48 hours are over. Ported from RiccioFishingUtils.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 50)
         public boolean cakeAlert = false;
 
         @Expose
         @ConfigOption(name = "Get Cakes command", desc = "Runs when you click [Get Cakes!] in the reminder.")
         @ConfigEditorText
+        @ConfigAccordionId(id = 50)
         public String cakeCommand = "/visit SchiggyMobil";
 
         @Expose
         @ConfigOption(name = "Repeat minutes", desc = "How often the reminder repeats while a cake stays expired. 0: only once per expired cake.")
         @ConfigEditorSlider(minValue = 0f, maxValue = 60f, minStep = 1f)
+        @ConfigAccordionId(id = 50)
         public int cakeRepeatMinutes = 5;
 
         @Expose
         @ConfigOption(name = "Sound", desc = "A short ping with the reminder, at the alert volume.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 50)
         public boolean cakeSound = true;
 
         @ConfigOption(name = "Test", desc = "Shows the reminder line with the clickable [Get Cakes!].")
         @ConfigEditorButton(buttonText = "Test")
+        @ConfigAccordionId(id = 50)
         public transient Runnable testCake = () -> {
         };
 
         @ConfigOption(name = "Clear cakes", desc = "Forgets every remembered cake - for example after eating on another profile.")
         @ConfigEditorButton(buttonText = "Clear")
+        @ConfigAccordionId(id = 50)
         public transient Runnable clearCakes = () -> {
         };
 
