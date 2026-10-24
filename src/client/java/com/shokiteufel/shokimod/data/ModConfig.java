@@ -2539,7 +2539,7 @@ public class ModConfig extends Config {
      */
     public static class SeaHpCategory {
 
-        @ConfigOption(name = "Sea creature HP", desc = "Shows the HP of the sea creatures around you - the ones you share the loot with, within 30 blocks. Like Feesh, but without the icons left of the name and the heart behind the HP. Which creatures show up is picked in /shoki seacreatures, column HP.")
+        @ConfigOption(name = "Sea creature HP", desc = "Shows the HP of the sea creatures around you - the ones you share the loot with, within 30 blocks. Like Feesh, but without the icons left of the name and the heart behind the HP, and with the names in the colour of their rarity. Which creatures show up is picked in /shoki seacreatures, column HP.")
         @ConfigEditorInfoText
         public transient String about = "";
 
@@ -2557,6 +2557,11 @@ public class ModConfig extends Config {
         @ConfigOption(name = "Order", desc = "Lowest HP first: the one that dies first stands on top, as in Feesh. Highest rarity first: Mythic creatures on top, those of the same rarity by lowest HP.")
         @ConfigEditorDropdown
         public SeaHpSort sort = SeaHpSort.LOWEST_HP;
+
+        @Expose
+        @ConfigOption(name = "Rarity colours", desc = "Colours each name by its rarity: common white, uncommon green, rare blue, epic purple, legendary gold, mythic pink. The HP keep their colours. Off: the colours of the name tag, as in Feesh. The four creatures that are only seen and never caught (Jawbus Follower, Wiki Tiki Laser Totem, Flipflopper, Seashine) have no rarity and keep the colours of their name tag either way.")
+        @ConfigEditorBoolean
+        public boolean rarityColours = true;
 
         @ConfigOption(name = "Pick creatures", desc = "Which creatures show up in the list: the HP column of the creature list. Feesh's picks are on from the start. Opens with /shoki seacreatures.")
         @ConfigEditorButton(buttonText = "Open")
