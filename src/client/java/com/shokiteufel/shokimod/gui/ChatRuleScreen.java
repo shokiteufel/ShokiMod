@@ -1,7 +1,9 @@
 package com.shokiteufel.shokimod.gui;
 
 import com.shokiteufel.shokimod.data.ChatRule;
+import com.shokiteufel.shokimod.data.ChatRuleShare;
 import com.shokiteufel.shokimod.data.ModConfig;
+import com.shokiteufel.shokimod.util.CustomSoundPlayer;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
@@ -9,6 +11,7 @@ import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
+import java.nio.file.Files;
 import java.util.List;
 
 /** Liste der Chatregeln. Bearbeitet wird eine Regel im ChatRuleEditScreen. */
@@ -21,6 +24,8 @@ public class ChatRuleScreen extends Screen {
 
     private final Screen parent;
     private int page;
+    /** Was die letzte Aktion ergeben hat - im Bildschirm, denn der Chat liegt hinter dem Fenster */
+    private Component status;
 
     public ChatRuleScreen(Screen parent) {
         super(Component.literal("Chat Rules"));
@@ -61,12 +66,20 @@ public class ChatRuleScreen extends Screen {
             Button edit = Button.builder(Component.literal(
                     (needsFilter ? "§c⚠ §r" : "") + rule.label() + "  §8" + summary(rule)),
                     button -> minecraft.setScreenAndShow(new ChatRuleEditScreen(this, rule)))
-                    .bounds(left + 44, y, 252, WIDGET_HEIGHT).build();
+                    .bounds(left + 44, y, 228, WIDGET_HEIGHT).build();
             edit.setTooltip(Tooltip.create(needsFilter
                     ? Component.literal("No filter yet - the rule never triggers")
                             .withStyle(ChatFormatting.RED)
                     : Component.literal("Filter: " + rule.filter)));
             addRenderableWidget(edit);
+
+            Button share = Button.builder(Component.literal("↗").withStyle(ChatFormatting.AQUA),
+                    button -> share(List.of(rule), "\"" + shortLabel(rule) + "\""))
+                    .bounds(left + 276, y, 20, WIDGET_HEIGHT).build();
+            share.active = !rule.isUntouched();
+            share.setTooltip(Tooltip.create(Component.literal(
+                    "Copies this rule as a code you can paste anywhere.")));
+            addRenderableWidget(share);
 
             // Die Reihenfolge entscheidet, welche Regel zuerst zuschlaegt - und damit,
             // welche eine andere aussperren kann
@@ -97,21 +110,90 @@ public class ChatRuleScreen extends Screen {
             ChatRule fresh = new ChatRule();
             rules().add(fresh);
             minecraft.setScreenAndShow(new ChatRuleEditScreen(this, fresh));
-        }).bounds(left, y, 100, WIDGET_HEIGHT).build());
+        }).bounds(left, y, 90, WIDGET_HEIGHT).build());
 
         if (pageCount() > 1) {
             addRenderableWidget(Button.builder(Component.literal("◀"), button -> {
                 page = (page - 1 + pageCount()) % pageCount();
                 rebuild();
-            }).bounds(left + 108, y, 20, WIDGET_HEIGHT).build());
+            }).bounds(left + 96, y, 20, WIDGET_HEIGHT).build());
             addRenderableWidget(Button.builder(Component.literal("▶"), button -> {
                 page = (page + 1) % pageCount();
                 rebuild();
-            }).bounds(left + 132, y, 20, WIDGET_HEIGHT).build());
+            }).bounds(left + 120, y, 20, WIDGET_HEIGHT).build());
         }
 
+        // Weitergeben und Holen laufen ueber die Zwischenablage, weil die von jedem Fenster aus
+        // erreichbar ist - Discord, Chat, Notizzettel. Wie beim Banner-Design
+        Button shareAll = Button.builder(Component.literal("Share all").withStyle(ChatFormatting.AQUA),
+                button -> shareAll()).bounds(left + 148, y, 78, WIDGET_HEIGHT).build();
+        shareAll.active = rules().stream().anyMatch(rule -> !rule.isUntouched());
+        shareAll.setTooltip(Tooltip.create(Component.literal(
+                "Copies every rule in the list as one code you can paste anywhere.")));
+        addRenderableWidget(shareAll);
+
+        Button importButton = Button.builder(Component.literal("Import").withStyle(ChatFormatting.GREEN),
+                button -> importRules()).bounds(left + 230, y, 78, WIDGET_HEIGHT).build();
+        importButton.setTooltip(Tooltip.create(Component.literal(
+                "Reads a rule code from your clipboard and adds the rules at the end of the list. "
+                        + "They arrive switched off, so look them over before you turn them on.")));
+        addRenderableWidget(importButton);
+
         addRenderableWidget(Button.builder(Component.literal("Done"), button -> onClose())
-                .bounds(left + ROW_WIDTH - 90, y, 90, WIDGET_HEIGHT).build());
+                .bounds(left + ROW_WIDTH - 80, y, 80, WIDGET_HEIGHT).build());
+    }
+
+    private void shareAll() {
+        long count = rules().stream().filter(rule -> !rule.isUntouched()).count();
+        share(rules(), count + (count == 1 ? " rule" : " rules"));
+    }
+
+    private void share(List<ChatRule> toShare, String what) {
+        try {
+            String code = ChatRuleShare.encode(toShare);
+            minecraft.keyboardHandler.setClipboard(code);
+            say("Copied " + what + " (" + code.length() + " characters) to your clipboard", ChatFormatting.GREEN);
+        } catch (ChatRuleShare.ShareException e) {
+            say(e.getMessage(), ChatFormatting.RED);
+        }
+    }
+
+    /**
+     * Regeln aus der Zwischenablage ans Ende der Liste.
+     *
+     * Angehaengt wird immer - ein Code soll nie still ersetzen, woran jemand gearbeitet hat.
+     * Ausgeschaltet kommen sie an (ChatRuleShare.decode), denn eine Regel kann Chatzeilen
+     * verschlucken. Eine Sounddatei, die es hier nicht gibt, wird gemeldet: die Regel schweigt
+     * dann an dieser Stelle, und man soll nicht raten muessen, warum.
+     */
+    private void importRules() {
+        try {
+            List<ChatRule> incoming = ChatRuleShare.decode(minecraft.keyboardHandler.getClipboard());
+            int firstNew = rules().size();
+            rules().addAll(incoming);
+            // Auf die Seite, auf der die erste neue Regel steht - nicht ans Ende, wo nur die letzte zu sehen waere
+            page = firstNew / rowsPerPage();
+
+            long missing = incoming.stream().filter(rule -> !rule.soundFile.isBlank()
+                    && !Files.isRegularFile(CustomSoundPlayer.SOUND_DIRECTORY.resolve(rule.soundFile))).count();
+            String text = "Added " + incoming.size() + (incoming.size() == 1 ? " rule" : " rules")
+                    + ", switched off";
+            if (missing > 0) text += " - sound file missing for " + missing;
+            say(text, missing > 0 ? ChatFormatting.YELLOW : ChatFormatting.GREEN);
+            rebuild();
+        } catch (ChatRuleShare.ShareException e) {
+            say(e.getMessage(), ChatFormatting.RED);
+        }
+    }
+
+    private void say(String text, ChatFormatting colour) {
+        status = Component.literal(text).withStyle(colour);
+    }
+
+    /** Der Name fuer die Rueckmeldung - ein langer soll die Zeile nicht ueber den Rand schieben */
+    private static String shortLabel(ChatRule rule) {
+        String label = rule.label();
+        return label.length() > 24 ? label.substring(0, 23) + "…" : label;
     }
 
     /** Zwei Regeln tauschen. Ausserhalb der Liste passiert nichts */
@@ -156,6 +238,9 @@ public class ChatRuleScreen extends Screen {
         if (rules().isEmpty()) {
             graphics.centeredText(font, Component.literal("No rules yet - add one below.")
                     .withStyle(ChatFormatting.GRAY), centerX, LIST_TOP + 12, 0xFFAAAAAA);
+        }
+        if (status != null) {
+            graphics.centeredText(font, status, centerX, height - 58, 0xFFFFFFFF);
         }
         if (pageCount() > 1) {
             graphics.centeredText(font,
