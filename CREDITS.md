@@ -95,6 +95,7 @@ Die gesamte Safari-Seite geht auf crittermod zurück.
 | Profit/h | Die Idee, Pausen nicht mitzuzählen (`HuntingTracker`) |
 | Fund-Erkennung am Inventar | Der Weg selbst: jeden Tick nachzählen statt den Chat zu lesen, mit Beruhigungszeit nach einem Wechsel und Blindheit bei offenem Behälter — aus SkyBlockInventoryChanges / ProfitTrackerItemTracking (`ItemChanges`) |
 | Profit-Tracker | Aufbau und Bedienidee: Auswahl je Item, eigene Verkaufsart je Item, Preisquellen Instant Sell / Sell Order / NPC (`ProfitTracker`, `ProfitItemScreen`) |
+| Item aus dem Inventar in den Tracker nehmen | Der Weg „Add Item“, Betriebsart „Inventory“: ein Item im eigenen Inventar anklicken (`ProfitTrackerHudControls.wasInventoryItemAdded`, `TrackedItemSelectionPanel`). Gebucht wird anders: Skysoft nimmt das Item in eine feste Liste auf, hier kommt der Stapel als Fund in den Kasten (`InventoryPick`, `ProfitTracker.takeIn`) |
 
 ### Skyblocker (LGPL-3.0-or-later, SkyblockerMod)
 

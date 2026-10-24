@@ -88,7 +88,12 @@ public final class ProfitHud {
         // weil man ihn anklicken kann - und dahinter der Reset-Knopf, wie beim Sea-Creature-Tracker
         panel.title(titleText(), TITLE_COLOUR);
         ids.add(null);
-        panel.blank();
+        // Im Auswahlmodus steht hier, was zu tun ist - an der Stelle der Leerzeile, damit sich keine Zeilennummer verschiebt
+        if (com.shokiteufel.shokimod.handler.InventoryPick.active()) {
+            panel.line(HINT, LABEL_COLOUR);
+        } else {
+            panel.blank();
+        }
         ids.add(null);
 
         if (rows.isEmpty()) {
@@ -150,6 +155,9 @@ public final class ProfitHud {
     }
 
     private static final String RESET_LABEL = "§c[Reset]";
+    private static final String ADD_LABEL = "§a[Add]";
+    private static final String CANCEL_LABEL = "§e[Cancel]";
+    private static final String HINT = "§eClick an item in your inventory  §7Shift: one piece";
 
     /**
      * "Profit Tracker Session [Reset]" - der Zeitraum unterstrichen, dahinter der Reset-Knopf.
@@ -159,8 +167,25 @@ public final class ProfitHud {
      */
     private static String titleText() {
         boolean session = ProfitTracker.view() == ModConfig.ProfitView.SESSION;
-        return "Profit Tracker §n" + ProfitTracker.view() + "§r" + (session ? "  " + RESET_LABEL : "")
+        return "Profit Tracker §n" + ProfitTracker.view() + "§r" + addButton() + (session ? "  " + RESET_LABEL : "")
                 + (ProfitTracker.isPaused() ? " (paused)" : "");
+    }
+
+    /**
+     * "[Add]" hinter dem Zeitraum - nur bei offenem Inventar, denn nur dort laesst sich ein Item anklicken. Im Auswahlmodus steht
+     * dort "[Cancel]".
+     */
+    private static String addButton() {
+        if (!NearbyOverlay.interactive()) return "";
+        return "  " + (com.shokiteufel.shokimod.handler.InventoryPick.active() ? CANCEL_LABEL : ADD_LABEL);
+    }
+
+    /** Liegt ein Klick in der Ueberschrift auf "[Add]" (oder "[Cancel]")? Gleiches Mass wie bei resetAt */
+    public static boolean addAt(Font font, double localX) {
+        if (!NearbyOverlay.interactive()) return false;
+        int start = font.width("Profit Tracker " + ProfitTracker.view() + "  ");
+        String label = com.shokiteufel.shokimod.handler.InventoryPick.active() ? CANCEL_LABEL : ADD_LABEL;
+        return localX >= start && localX < start + font.width(label);
     }
 
     /**
@@ -170,7 +195,8 @@ public final class ProfitHud {
      */
     public static boolean resetAt(Font font, double localX) {
         if (ProfitTracker.view() != ModConfig.ProfitView.SESSION) return false;
-        int start = font.width("Profit Tracker " + ProfitTracker.view() + "  ");
+        // Alles, was vor dem Knopf steht: die Ueberschrift, und bei offenem Inventar "[Add]" mit seinem Abstand
+        int start = font.width("Profit Tracker " + ProfitTracker.view() + addButton() + "  ");
         return localX >= start && localX < start + font.width(RESET_LABEL);
     }
 
