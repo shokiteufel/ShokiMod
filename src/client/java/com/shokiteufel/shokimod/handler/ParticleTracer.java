@@ -112,6 +112,8 @@ public final class ParticleTracer {
      * seine letzte Tabelle fuer immer im Speicher, und gerade sie wollte man lesen.
      */
     private static void tick(Minecraft client) {
+        // Eine Markierung "Show always" gilt hoechstens fuer ein Paket - bleibt sie je stehen, endet sie spaetestens hier
+        ParticleForce.disarm();
         ModConfig.ParticlesCategory cfg = ModConfig.INSTANCE.particles;
         if (!cfg.particleTracer) {
             if (sessionOpen) closeSession(client);
@@ -282,6 +284,8 @@ public final class ParticleTracer {
         write("---- " + header);
         String hidden = ParticleHider.hiddenSummary();
         if (!hidden.isEmpty()) write("hidden by your settings so far: " + hidden);
+        String forced = ParticleHider.forcedSummary();
+        if (!forced.isEmpty()) write("shown anyway (Show always) so far: " + forced + " (made by this mod: " + ParticleForce.created() + ")");
         Minecraft client = Minecraft.getInstance();
         if (toChat) tell(client, Component.literal("[ShokiMod] Particles near you, most often first:").withStyle(ChatFormatting.DARK_AQUA));
         int shown = 0;

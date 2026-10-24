@@ -90,6 +90,8 @@ public final class ParticleHider {
         final double radius;
         final List<Look> looks;
         int hidden = 0;
+        /** Wie viele Pakete dieser Regel wegen "Show always" durchgesetzt wurden */
+        int forced = 0;
 
         Rule(String name, Function<ModConfig.ParticlesCategory, HideMode> mode, Source source, List<String> ids,
              double radius, List<Look> looks) {
@@ -141,6 +143,22 @@ public final class ParticleHider {
         return hidden("Hyperion");
     }
 
+    public static int forced(String rule) {
+        for (Rule r : RULES) if (r.name.equals(rule)) return r.forced;
+        return 0;
+    }
+
+    /** "Divan 40" - was wegen "Show always" durchgesetzt wurde; leer, wenn noch nichts */
+    public static String forcedSummary() {
+        StringBuilder out = new StringBuilder();
+        for (Rule r : RULES) {
+            if (r.forced == 0) continue;
+            if (out.length() > 0) out.append(", ");
+            out.append(r.name).append(' ').append(r.forced);
+        }
+        return out.toString();
+    }
+
     /** "Flay 3, Divan 0, Spade 12" - oder leer, wenn noch nichts ausgeblendet wurde */
     public static String hiddenSummary() {
         StringBuilder out = new StringBuilder();
@@ -153,35 +171,64 @@ public final class ParticleHider {
         return any ? out.toString() : "";
     }
 
-    /** Vom Mixin an {@code handleParticleEvent} - laeuft bei jedem Partikel-Paket, also zuerst die billigen Pruefungen */
+    /** Was mit einem Paket geschehen soll */
+    public enum Action {
+        /** Nichts: das Paket geht seinen Weg */
+        NONE,
+        /** Verwerfen: das Item steht auf "Hide own" oder "Hide all" und das Paket gehoert dazu */
+        HIDE,
+        /** Trotz allem zeigen: das Item steht auf "Show always" - auch wenn Sodium Extra die Art abschaltet */
+        FORCE
+    }
+
+    /** Verwerfen? (Nur die Entscheidung "verwerfen"; "Show always" ist hier ein Nein) */
     public static boolean shouldHide(ClientboundLevelParticlesPacket packet) {
+        return decide(packet) == Action.HIDE;
+    }
+
+    /**
+     * Was mit diesem Paket geschehen soll. Vom Mixin an {@code handleParticleEvent} - laeuft bei jedem Partikel-Paket,
+     * also zuerst die billigen Pruefungen.
+     *
+     * "Show always" gilt fuer das Item ueberhaupt, nicht nur fuer die eigenen: Wer die Funken der Divan-Ruestung sehen will,
+     * will auch die der anderen sehen. Zugeordnet wird dabei wie bei "Hide all" - ein fremdes Partikel gleicher Art, das zu
+     * keinem Traeger passt, bleibt unberuehrt.
+     */
+    public static Action decide(ClientboundLevelParticlesPacket packet) {
         ModConfig.ParticlesCategory cfg = ModConfig.INSTANCE.particles;
-        if (!anyOn(cfg)) return false;
+        if (!anyOn(cfg)) return Action.NONE;
 
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null || client.level == null || !client.isSameThread()) return false;
+        if (client.player == null || client.level == null || !client.isSameThread()) return Action.NONE;
+        // Eine Markierung vom vorigen Paket darf nicht stehen bleiben
+        ParticleForce.disarm();
         // Ein Schalter fuer die Optik darf das Spiel nie selbst zum Absturz bringen
         try {
-            if (!ParticlePacketView.overrideLimiter(packet)) return false;
+            if (!ParticlePacketView.overrideLimiter(packet)) return Action.NONE;
             Look seen = lookOf(packet);
-            if (seen == null) return false;
+            if (seen == null) return Action.NONE;
             for (Rule rule : RULES) {
                 HideMode mode = rule.mode.apply(cfg);
                 if (mode == null || mode == HideMode.SHOW) continue;
                 if (!matches(rule, seen)) continue;
-                if (belongs(client, packet, rule, mode)) {
+                if (mode == HideMode.ALWAYS) {
+                    if (belongs(client, packet, rule, HideMode.ALL)) {
+                        rule.forced++;
+                        return Action.FORCE;
+                    }
+                } else if (belongs(client, packet, rule, mode)) {
                     rule.hidden++;
-                    return true;
+                    return Action.HIDE;
                 }
             }
-            return false;
+            return Action.NONE;
         } catch (RuntimeException | LinkageError e) {
             cfg.flayMode = HideMode.SHOW;
             cfg.divanMode = HideMode.SHOW;
             cfg.spadeMode = HideMode.SHOW;
             cfg.hyperionMode = HideMode.SHOW;
             ShokiMod.LOGGER.warn("[Particles] hiding switched itself off after an error", e);
-            return false;
+            return Action.NONE;
         }
     }
 
