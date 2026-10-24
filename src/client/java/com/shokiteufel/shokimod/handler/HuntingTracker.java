@@ -86,7 +86,10 @@ public final class HuntingTracker {
         }
 
         Drop drop = RareLootParser.parse(clean);
-        if (drop == null) return;
+        if (drop == null) {
+            logUnread(clean);
+            return;
+        }
 
         String shard = null;
         for (String candidate : drop.itemIdCandidates()) {
@@ -101,6 +104,23 @@ public final class HuntingTracker {
         markActivity();
         dirty = true;
         ShokiMod.LOGGER.info("[Hunting] +{} {} -> {}", drop.amount(), shard, cfg().counts.get(shard));
+    }
+
+    /** So viele nicht gelesene Shard-Zeilen stehen in dieser Sitzung schon im Log - es sind wenige, eine Schleife soll das Log nicht fuellen */
+    private static int unreadLogged = 0;
+    private static final int UNREAD_LOG_MAX = 30;
+
+    /**
+     * Eine Lootshare-Zeile mit einem Shard, die der Leser nicht versteht, kommt samt Wortlaut ins Log.
+     *
+     * Ohne das faellt so eine Zeile still durch: der Zaehler steht, und nichts sagt, warum. So steht die echte Schreibweise danach
+     * in latest.log und laesst sich lesen, statt sie erraten zu muessen.
+     */
+    private static void logUnread(String clean) {
+        if (unreadLogged >= UNREAD_LOG_MAX) return;
+        if (!clean.startsWith("LOOT SHARE") || !clean.contains("Shard")) return;
+        unreadLogged++;
+        ShokiMod.LOGGER.info("[Hunting] shard line not read: {}", clean);
     }
 
     /**
