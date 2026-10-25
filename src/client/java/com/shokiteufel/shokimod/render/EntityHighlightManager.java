@@ -8,6 +8,7 @@ import com.shokiteufel.shokimod.data.MobVisual;
 import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.data.SlayerBossTarget;
 import com.shokiteufel.shokimod.data.SlayerMinibossTarget;
+import com.shokiteufel.shokimod.data.SlayerMobKind;
 import com.shokiteufel.shokimod.data.SparklingTarget;
 import com.shokiteufel.shokimod.util.CustomMobDebug;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -16,6 +17,8 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Display;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.decoration.ArmorStand;
@@ -24,6 +27,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.phys.AABB;
 
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -94,15 +98,31 @@ public class EntityHighlightManager {
     private static int debugMatchCount = 0;
 
     /**
-     * Der eigene Slayer-Boss: wie viele Kennungen vor der Zeile "Spawned by" der Mob angelegt sein darf.
+     * Der Mob zu einer Zeile "Spawned by" oder einem Namensschild: wie viele Kennungen davor er angelegt sein darf.
      *
      * Hypixel legt den Mob und gleich danach seine Namensschilder an. SkyHanni rechnet mit der zweiten
-     * Zeile hinter dem ersten Namensschild; ob es immer genau so viele sind, ist nicht gesichert, deshalb
-     * wird ein Stueck weiter zurueck gesucht, und danach in der Naehe.
+     * Zeile hinter dem ersten Namensschild; ob es immer genau so viele sind, ist nicht gesichert, und bei
+     * der Tarantel sitzt noch eine Hoehlenspinne dazwischen. Deshalb wird ein Stueck weiter zurueck gesucht.
      */
-    private static final int SLAYER_ID_SPAN = 4;
+    private static final int SLAYER_ID_SPAN = 6;
     private static final double SLAYER_NEAR_SQR = 16.0;
     private static final double SLAYER_NEAR_Y = 5.0;
+    /**
+     * Wie ein Kandidat fuer den Mob bewertet wird - je kleiner, desto besser. Die Strafen stehen vor der Naehe:
+     * Eine falsche Art ist das staerkste Zeichen gegen einen Mob (ein Huhn neben dem Revenant), dann kommt eine
+     * Kennung weit vor dem Schild, dann ein Mob, der als unsichtbar gilt. Unsichtbar zaehlt nur wenig: Hypixel
+     * baut manche Mobs unsichtbar und mit Ruestung, SkyHanni und Skyblocker nehmen sie trotzdem.
+     */
+    private static final double SLAYER_WRONG_KIND = 10_000.0;
+    private static final double SLAYER_NOT_ADJACENT = 5_000.0;
+    private static final double SLAYER_INVISIBLE = 2_500.0;
+    /** Wie oft das Log hoechstens aufzaehlt, was um ein Schild herum steht; danach genuegt die eine Zeile */
+    private static final int SLAYER_DUMP_MAX = 12;
+    private static final int SLAYER_DUMP_LINES = 24;
+    private static final double SLAYER_NOTE_RANGE_SQR = 400.0;
+    private static int slayerDumps = 0;
+    private static int bossTagNotes = 0;
+    private static final Set<Integer> bossTagsSeen = new HashSet<>();
     /** Die Namen der Slayer-Bosse. Ein Namensschild mit dem Totenkopf zaehlt ebenso */
     private static final String[] SLAYER_NAMES = {
             "Revenant Horror", "Atoned Horror", "Tarantula Broodfather", "Conjoined Brood", "Sven Packmaster",
@@ -240,9 +260,11 @@ public class EntityHighlightManager {
             if (scanSlayer && entity instanceof ArmorStand && SlayerBossTarget.isOwn(nameStr, ownName)) {
                 markOwnSlayerBoss(client, entity);
             }
+            // Nur fuers Log: ein Boss-Schild in der Naehe und was daneben als "Spawned by" steht
+            if (scanSlayer && entity instanceof ArmorStand) noteBossTag(client, entity, nameStr);
             // Die Slayer-Minibosse: das Namensschild nennt sie, der Mob steht daneben - er gehoert niemandem
             if (scanMiniboss && entity instanceof ArmorStand && SlayerMinibossTarget.matches(nameStr)) {
-                markSlayerMiniboss(client, entity);
+                markSlayerMiniboss(client, entity, nameStr);
             }
 
             // Sparkling(レア個体)。接頭辞と、その後ろの種名の両方で判定する
@@ -315,23 +337,28 @@ public class EntityHighlightManager {
      *
      * Sagt die Zeile "mein", ist der Mob daneben mein Boss - sofern er ein Slayer-Namensschild traegt.
      * Ohne diese Gegenprobe wuerde jedes andere Ding, das Hypixel mit "Spawned by" beschriftet, als
-     * Slayer-Boss gelten. Findet sich nichts, steht das einmal im Log: Dann stimmt die Annahme ueber
-     * Hypixels Anordnung nicht, und die Zeile sagt, was da war.
+     * Slayer-Boss gelten. Das Schild mit dem Namen des Bosses steht dicht ueber der Zeile; es sagt auch,
+     * welche Art Mob zu suchen ist. Findet sich nichts, steht das einmal im Log, samt allem, was um die
+     * Zeile herum steht: Dann stimmt die Annahme ueber Hypixels Anordnung nicht, und das Log sagt, was da war.
      */
     private static void markOwnSlayerBoss(Minecraft client, Entity line) {
-        Entity body = slayerBody(client, line);
+        String tagText = slayerTagText(client, line.getBoundingBox().inflate(1.0, 3.0, 1.0));
+        Entity body = slayerBody(client, line, SlayerMobKind.of(tagText));
         int bodyId = body == null ? -1 : body.getId();
-        boolean tagged = body != null && hasSlayerTag(client, body);
+        boolean tagged = tagText != null || (body != null && hasSlayerTag(client, body));
+        boolean marked = body != null && tagged;
         if (slayerLogged.size() >= SLAYER_LOGGED_MAX) slayerLogged.clear();
         // Zeile, Mob und Gegenprobe in einer Zahl; ohne Mob ist die Kennung -1
         if (slayerLogged.add(line.getId() * 4_000_000_007L + (bodyId + 1L) * 2L + (tagged ? 1L : 0L))) {
             com.shokiteufel.shokimod.ShokiMod.LOGGER.info(
-                    "[Slayer] own Spawned-by line #{} at {} {} {}: mob {}, slayer name tag {}",
+                    "[Slayer] own Spawned-by line #{} at {} {} {}: mob {}, slayer name tag {} - {}",
                     line.getId(), (int) line.getX(), (int) line.getY(), (int) line.getZ(),
-                    body == null ? "none found" : body.getType().getDescriptionId() + " #" + bodyId,
-                    tagged ? "found - highlighted" : "missing - not highlighted");
+                    body == null ? "none found" : describeMob(body),
+                    tagged ? "found" : "missing",
+                    marked ? "highlighted" : "not highlighted");
+            if (!marked) logAround(client, "own Spawned-by line #" + line.getId(), line);
         }
-        if (body == null || !tagged) return;
+        if (!marked) return;
         if (SlayerBossTarget.INSTANCE.highlight()) registerHighlight(body, SlayerBossTarget.INSTANCE);
         // Je Art nur die naechste Linie: bei einem eigenen Boss ist das er selbst
         registerTracer(body, SlayerBossTarget.INSTANCE);
@@ -340,19 +367,19 @@ public class EntityHighlightManager {
     /**
      * Umreisst den Slayer-Miniboss, zu dem dieses Namensschild gehoert.
      *
-     * Der Mob wird wie beim eigenen Boss gesucht: der kurz vor dem Schild angelegte, sonst der naechste.
+     * Der Mob wird wie beim eigenen Boss gesucht, mit der Art, die der Name des Minibosses nennt.
      * Eine Gegenprobe wie das Slayer-Namensschild gibt es hier nicht - das Schild ist das Zeichen selbst.
      * Umriss und Linie sind getrennt zu schalten; gesucht wird, wenn eines von beiden an ist.
      */
-    private static void markSlayerMiniboss(Minecraft client, Entity tag) {
-        Entity body = slayerBody(client, tag);
+    private static void markSlayerMiniboss(Minecraft client, Entity tag, String tagName) {
+        Entity body = slayerBody(client, tag, SlayerMobKind.of(tagName));
         int bodyId = body == null ? -1 : body.getId();
         if (minibossLogged.size() >= SLAYER_LOGGED_MAX) minibossLogged.clear();
         if (minibossLogged.add(tag.getId() * 4_000_000_007L + (bodyId + 1L))) {
             com.shokiteufel.shokimod.ShokiMod.LOGGER.info("[Slayer] miniboss name tag #{} at {} {} {}: mob {}",
                     tag.getId(), (int) tag.getX(), (int) tag.getY(), (int) tag.getZ(),
-                    body == null ? "none found - not highlighted"
-                            : body.getType().getDescriptionId() + " #" + bodyId + " - highlighted");
+                    body == null ? "none found - not highlighted" : describeMob(body) + " - highlighted");
+            if (body == null) logAround(client, "miniboss name tag #" + tag.getId(), tag);
         }
         if (body == null) return;
         if (SlayerMinibossTarget.INSTANCE.highlight()) registerHighlight(body, SlayerMinibossTarget.INSTANCE);
@@ -360,38 +387,155 @@ public class EntityHighlightManager {
         registerTracer(body, SlayerMinibossTarget.INSTANCE);
     }
 
-    /** Der Mob zu einer Zeile "Spawned by": der kurz davor angelegte, sonst der naechste in der Naehe */
-    private static Entity slayerBody(Minecraft client, Entity line) {
-        for (int back = 1; back <= SLAYER_ID_SPAN; back++) {
-            Entity candidate = client.level.getEntity(line.getId() - back);
-            if (isSlayerBodyCandidate(candidate, line)) return candidate;
-        }
+    /**
+     * Der Mob zu einer Zeile "Spawned by" oder einem Namensschild.
+     *
+     * Gesucht wird in der Naehe, nicht allein nach der Kennung: Zwischen Mob und Schild kann sich ein fremdes
+     * Wesen geschoben haben, und im Slayer-Gebiet laufen Mobs derselben Gattung herum. Bewertet wird nach
+     * Art (siehe SlayerMobKind), Kennung kurz vor dem Schild, Sichtbarkeit und Naehe, in dieser Reihenfolge.
+     * Ein als unsichtbar gekennzeichneter Mob ist nicht ausgeschlossen: Auch er kann der Boss sein, und seine
+     * Position taugt fuer die Linie, sein Umriss fuer den Glow.
+     */
+    private static Entity slayerBody(Minecraft client, Entity line, SlayerMobKind kind) {
         AABB box = line.getBoundingBox().inflate(Math.sqrt(SLAYER_NEAR_SQR), SLAYER_NEAR_Y, Math.sqrt(SLAYER_NEAR_SQR));
         List<LivingEntity> mobs = client.level.getEntitiesOfClass(LivingEntity.class, box,
                 e -> isSlayerBodyCandidate(e, line));
-        return headStandUnderNameTag(mobs, line);
+        LivingEntity best = null;
+        double bestScore = Double.MAX_VALUE;
+        for (int i = 0; i < mobs.size(); i++) {
+            LivingEntity mob = mobs.get(i);
+            double score = slayerBodyScore(mob, line, kind);
+            if (score < bestScore || (score == bestScore && best != null && mob.getId() < best.getId())) {
+                best = mob;
+                bestScore = score;
+            }
+        }
+        if (best == null || kind == SlayerMobKind.UNKNOWN) return best;
+
+        // Hat der Mob einen Begleiter gleicher Art (die Tarantel und ihre Hoehlenspinne), ist der mit der
+        // kleineren Kennung der Koerper - so macht es SkyHanni: das Wesen mit der kleinsten Kennung der Reihe
+        Entity base = best;
+        for (int step = 0; step < SLAYER_ID_SPAN; step++) {
+            Entity before = client.level.getEntity(base.getId() - 1);
+            if (before == null || !isSlayerBodyCandidate(before, line) || !kindMatches(kind, before)) break;
+            base = before;
+        }
+        return base;
     }
 
     private static boolean isSlayerBodyCandidate(Entity candidate, Entity line) {
         if (!(candidate instanceof LivingEntity) || candidate instanceof ArmorStand || candidate instanceof Player) return false;
-        if (candidate.isInvisible() || !candidate.isAlive()) return false;
+        if (!candidate.isAlive()) return false;
         double dx = candidate.getX() - line.getX();
         double dz = candidate.getZ() - line.getZ();
         return dx * dx + dz * dz <= SLAYER_NEAR_SQR && Math.abs(candidate.getY() - line.getY()) <= SLAYER_NEAR_Y;
     }
 
-    /** Traegt der Mob ein Slayer-Namensschild - den Totenkopf oder den Namen eines Slayer-Bosses? */
-    private static boolean hasSlayerTag(Minecraft client, Entity body) {
-        AABB box = body.getBoundingBox().inflate(0.5, 3.0, 0.5);
+    private static double slayerBodyScore(LivingEntity mob, Entity line, SlayerMobKind kind) {
+        double dx = mob.getX() - line.getX();
+        double dz = mob.getZ() - line.getZ();
+        // Die waagerechte Abweichung zaehlt stark, die Hoehe nur wenig - der Mob steht unter seinem Schild
+        double score = (dx * dx + dz * dz) * 100.0 + Math.abs(mob.getY() - line.getY());
+        int back = line.getId() - mob.getId();
+        if (back < 1 || back > SLAYER_ID_SPAN) score += SLAYER_NOT_ADJACENT;
+        if (!kindMatches(kind, mob)) score += SLAYER_WRONG_KIND;
+        if (mob.isInvisible()) score += SLAYER_INVISIBLE;
+        return score;
+    }
+
+    /** Passt der Mob zur Art, die das Schild nennt? Ohne Angabe passt jeder */
+    private static boolean kindMatches(SlayerMobKind kind, Entity mob) {
+        EntityType<?> type = mob.getType();
+        return switch (kind) {
+            case ZOMBIE -> type == EntityTypes.ZOMBIE || type == EntityTypes.HUSK || type == EntityTypes.DROWNED
+                    || type == EntityTypes.ZOMBIE_VILLAGER;
+            case SPIDER -> type == EntityTypes.SPIDER || type == EntityTypes.CAVE_SPIDER;
+            case WOLF -> type == EntityTypes.WOLF;
+            case ENDERMAN -> type == EntityTypes.ENDERMAN;
+            case BLAZE -> type == EntityTypes.BLAZE;
+            case UNKNOWN -> true;
+        };
+    }
+
+    /** Der Text des Slayer-Namensschilds in diesem Bereich - mit dem Totenkopf oder dem Namen eines Slayer-Bosses - oder null */
+    private static String slayerTagText(Minecraft client, AABB box) {
         List<ArmorStand> stands = client.level.getEntitiesOfClass(ArmorStand.class, box, ArmorStand::hasCustomName);
         for (int i = 0; i < stands.size(); i++) {
             String name = stands.get(i).getName().getString();
-            if (name.indexOf((char) 0x2620) >= 0) return true;
+            if (name.indexOf((char) 0x2620) >= 0) return name;
             for (int n = 0; n < SLAYER_NAMES.length; n++) {
-                if (name.contains(SLAYER_NAMES[n])) return true;
+                if (name.contains(SLAYER_NAMES[n])) return name;
             }
         }
-        return false;
+        return null;
+    }
+
+    /** Traegt der Mob ein Slayer-Namensschild - den Totenkopf oder den Namen eines Slayer-Bosses? */
+    private static boolean hasSlayerTag(Minecraft client, Entity body) {
+        return slayerTagText(client, body.getBoundingBox().inflate(0.5, 3.0, 0.5)) != null;
+    }
+
+    private static String describeMob(Entity mob) {
+        return mob.getType().getDescriptionId() + " #" + mob.getId() + (mob.isInvisible() ? " (flagged invisible)" : "");
+    }
+
+    /**
+     * Fuers Log: ein Boss-Schild mit dem Totenkopf in der Naehe, samt den Zeilen "Spawned by" daneben.
+     *
+     * Gehoert der Boss einem anderen, ist das erwartet. Fehlt dem eigenen Boss die Zeile, oder schreibt Hypixel
+     * sie anders, zeigt erst dieser Eintrag, was da steht - ohne ihn schwiege das Log genau in dem Fall, den man sucht.
+     * Je Schild einmal, und nur wenige Eintraege je Sitzung.
+     */
+    private static void noteBossTag(Minecraft client, Entity stand, String text) {
+        if (text.indexOf((char) 0x2620) < 0 || client.player == null) return;
+        if (stand.distanceToSqr(client.player) > SLAYER_NOTE_RANGE_SQR) return;
+        if (bossTagsSeen.size() >= SLAYER_LOGGED_MAX) bossTagsSeen.clear();
+        if (!bossTagsSeen.add(stand.getId()) || bossTagNotes >= SLAYER_DUMP_MAX) return;
+        bossTagNotes++;
+        List<ArmorStand> owners = client.level.getEntitiesOfClass(ArmorStand.class, stand.getBoundingBox().inflate(1.0, 3.0, 1.0),
+                s -> s.hasCustomName() && s.getName().getString().contains("Spawned by"));
+        StringBuilder lines = new StringBuilder();
+        for (int i = 0; i < owners.size(); i++) {
+            if (i > 0) lines.append(" | ");
+            lines.append('\'').append(MobVisual.COLOUR_CODE.matcher(owners.get(i).getName().getString()).replaceAll("")).append('\'');
+        }
+        com.shokiteufel.shokimod.ShokiMod.LOGGER.info("[Slayer] boss name tag #{} '{}' at {} {} {}: Spawned-by lines next to it: {}",
+                stand.getId(), MobVisual.COLOUR_CODE.matcher(text).replaceAll(""),
+                (int) stand.getX(), (int) stand.getY(), (int) stand.getZ(), owners.isEmpty() ? "none" : lines);
+    }
+
+    /**
+     * Fuers Log: was im Umkreis um eine Zeile oder ein Schild steht, wenn zu ihr kein Mob zu finden war.
+     *
+     * Mit Kennung (und ihrem Abstand zur Zeile), Art, Zustand, Abstand und bei Schildern dem Text, die mit der
+     * naechsten Kennung zuerst. Spieler, Gegenstaende und Erfahrungskugeln stehen nicht darin: Sie fuellten
+     * das Log, und der Mob zum Schild haengt an den Kennungen dicht davor. Nur wenige Male je Sitzung.
+     */
+    private static void logAround(Minecraft client, String what, Entity centre) {
+        if (slayerDumps >= SLAYER_DUMP_MAX) return;
+        slayerDumps++;
+        List<Entity> near = client.level.getEntitiesOfClass(Entity.class, centre.getBoundingBox().inflate(6.0, 6.0, 6.0),
+                e -> e != centre && !(e instanceof Player)
+                        && e.getType() != EntityTypes.ITEM && e.getType() != EntityTypes.EXPERIENCE_ORB);
+        near.sort(Comparator.comparingInt((Entity e) -> Math.abs(e.getId() - centre.getId())).thenComparingInt(Entity::getId));
+        StringBuilder out = new StringBuilder();
+        for (int i = 0; i < near.size() && i < SLAYER_DUMP_LINES; i++) {
+            Entity e = near.get(i);
+            int rel = e.getId() - centre.getId();
+            out.append("\n    #").append(e.getId()).append(" (").append(rel > 0 ? "+" : "").append(rel).append(") ")
+                    .append(e.getType().getDescriptionId()).append(e.isInvisible() ? " invisible" : "").append(e.isAlive() ? "" : " dead")
+                    .append(" d=").append(offset(e.getX() - centre.getX())).append('/').append(offset(e.getY() - centre.getY()))
+                    .append('/').append(offset(e.getZ() - centre.getZ()));
+            if (e instanceof ArmorStand && e.hasCustomName()) {
+                String text = MobVisual.COLOUR_CODE.matcher(e.getName().getString()).replaceAll("");
+                out.append(" '").append(text.length() > 48 ? text.substring(0, 48) : text).append('\'');
+            }
+        }
+        com.shokiteufel.shokimod.ShokiMod.LOGGER.info("[Slayer] around {}: {} entities within 6 blocks{}", what, near.size(), out);
+    }
+
+    private static String offset(double value) {
+        return String.format(java.util.Locale.ROOT, "%.1f", value);
     }
 
     private static String nameplateLabel(MobVisual target, String text) {
