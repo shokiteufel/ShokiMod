@@ -48,8 +48,27 @@ public final class RareLootParser {
     private static final Pattern CONTEXT = Pattern.compile(
             "^(?<drop>.+?)\\s+(?<context>\\([^)]*(?:Magic Find|MF)[^)]*\\))(?:\\s+.*)?$",
             Pattern.CASE_INSENSITIVE);
+    /**
+     * Ein Zuschlag in Klammern hinter dem Namen, der kein Magic Find nennt: "(+162.9)".
+     *
+     * Hypixel haengt an die Zeile, was den Fund beguenstigt hat. Im Garten steht dort eine Zahl ohne den Namen "Magic Find"
+     * ("RARE DROP! Slow and Groovy Vinyl (+162.9)"), und ohne diese Stelle blieb die Klammer im Namen: Aus ihr wurde die
+     * Kennung SLOW_AND_GROOVY_VINYL_162_9, die es nirgends gibt - kein Preis, kein Treffer im Inventar, dieselbe Beute stand
+     * danach ein zweites Mal im Profit-Kasten. Gelesen wird die Form, nicht der Inhalt: eine Klammer, die mit einem Plus und
+     * einer Zahl anfaengt. Eine Klammer, die zum Namen gehoert ("Enchanted Book (Flash I)"), hat kein Plus.
+     */
+    private static final Pattern BONUS = Pattern.compile(
+            "^(?<drop>.+?)\\s*\\(\\s*\\+\\s*[0-9][^()]*\\)\\s*$");
     private static final Pattern AMOUNT = Pattern.compile(
             "^(?<amount>\\d+)\\s*x\\s+(?<drop>.+)$", Pattern.CASE_INSENSITIVE);
+    /**
+     * Die Menge hinter dem Namen: "Enchanted Golden Carrot x10", auch "x1,500".
+     *
+     * Das Leerzeichen davor und die Ziffer danach sind entscheidend: "Wishing Compass x" und jedes Wort, das auf x endet,
+     * bleiben ein Name. Ohne diese Form wurde "x10" ein Teil der Kennung (ENCHANTED_GOLDEN_CARROT_X10).
+     */
+    private static final Pattern TRAILING_AMOUNT = Pattern.compile(
+            "^(?<drop>.+?)\\s+x(?<amount>[0-9][0-9,]*)$", Pattern.CASE_INSENSITIVE);
     private static final Pattern ENCHANTED_BOOK = Pattern.compile(
             "^Enchanted Book \\((?<enchant>.+?) (?<level>\\d+|[IVXLCDM]+)\\)$", Pattern.CASE_INSENSITIVE);
     /**
@@ -326,9 +345,24 @@ public final class RareLootParser {
             body = withContext.group("drop").trim();
             context = normalizeContext(withContext.group("context"));
         }
+        // Was dann noch in Klammern mit einem Plus am Ende steht, ist ein Zuschlag ohne Magic Find und gehoert nicht zum Namen.
+        // Als Zusatz wird er nicht uebernommen: {mf} der Teilen-Zeile heisst Magic Find, und eine Zahl ohne diesen Namen waere
+        // dort falsch beschriftet
+        body = withoutBonus(body);
 
         String name = cleanDropName(body);
         return name == null ? null : build(name, context);
+    }
+
+    /** "Slow and Groovy Vinyl (+162.9)" wird zu "Slow and Groovy Vinyl", auch wenn mehrere Klammern hintereinander stehen */
+    private static String withoutBonus(String body) {
+        String text = body;
+        Matcher bonus = BONUS.matcher(text);
+        while (bonus.matches()) {
+            text = bonus.group("drop").trim();
+            bonus = BONUS.matcher(text);
+        }
+        return text;
     }
 
     /**
@@ -374,6 +408,16 @@ public final class RareLootParser {
                 displayName = counted.group("drop").trim();
             } catch (NumberFormatException ignored) {
                 // dann ist es eben ein Name, der mit einer Zahl beginnt
+            }
+        } else {
+            Matcher after = TRAILING_AMOUNT.matcher(name);
+            if (after.matches()) {
+                try {
+                    amount = Math.max(1, Integer.parseInt(after.group("amount").replace(",", "")));
+                    displayName = after.group("drop").trim();
+                } catch (NumberFormatException ignored) {
+                    // eine Zahl, die nicht in eine int passt, ist keine Menge - der Name bleibt, wie er ist
+                }
             }
         }
 
