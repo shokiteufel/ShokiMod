@@ -108,6 +108,14 @@ public class EntityHighlightManager {
     private static final double SLAYER_NEAR_SQR = 16.0;
     private static final double SLAYER_NEAR_Y = 5.0;
     /**
+     * Der Mob, der kurz vor dem Schild angelegt ist, darf weiter weg stehen: Stand und Mob laufen auseinander, wenn der
+     * Boss springt (im Log stand das Schild einmal vier Bloecke neben seinem Mob).
+     */
+    private static final double SLAYER_FAR_SQR = 100.0;
+    private static final double SLAYER_FAR_Y = 8.0;
+    /** Gesetzt von slayerBody: Der Mob zu diesem Schild ist gerade gestorben - "kein Mob" ist dann zu erwarten, kein Fehler */
+    private static boolean bodyDied = false;
+    /**
      * Wie ein Kandidat fuer den Mob bewertet wird - je kleiner, desto besser. Die Strafen stehen vor der Naehe:
      * Eine falsche Art ist das staerkste Zeichen gegen einen Mob (ein Huhn neben dem Revenant), dann kommt eine
      * Kennung weit vor dem Schild, dann ein Mob, der als unsichtbar gilt. Unsichtbar zaehlt nur wenig: Hypixel
@@ -369,8 +377,9 @@ public class EntityHighlightManager {
                     (int) tag.getX(), (int) tag.getY(), (int) tag.getZ(),
                     named ? "Spawned-by lines " + lines : "no Spawned-by line, sidebar says the boss is " + (mine ? "there" : "not there"),
                     mine ? "mine" : "not mine",
-                    !mine ? "not looked for" : body == null ? "none found - not highlighted" : describeMob(body) + " - highlighted");
-            if (mine && body == null) logAround(client, "boss name tag #" + tag.getId(), tag);
+                    !mine ? "not looked for" : body == null ? (bodyDied ? "it just died - not highlighted" : "none found - not highlighted")
+                            : describeMob(body) + " - highlighted");
+            if (mine && body == null && !bodyDied) logAround(client, "boss name tag #" + tag.getId(), tag);
         }
         if (body == null) return;
         if (SlayerBossTarget.INSTANCE.highlight()) registerHighlight(body, SlayerBossTarget.INSTANCE);
@@ -393,8 +402,9 @@ public class EntityHighlightManager {
         if (minibossLogged.add(tag.getId() * 4_000_000_007L + (bodyId + 1L))) {
             com.shokiteufel.shokimod.ShokiMod.LOGGER.info("[Slayer] miniboss name tag #{} at {} {} {}: mob {}",
                     tag.getId(), (int) tag.getX(), (int) tag.getY(), (int) tag.getZ(),
-                    body == null ? "none found - not highlighted" : describeMob(body) + " - highlighted");
-            if (body == null) logAround(client, "miniboss name tag #" + tag.getId(), tag);
+                    body == null ? (bodyDied ? "it just died - not highlighted" : "none found - not highlighted")
+                            : describeMob(body) + " - highlighted");
+            if (body == null && !bodyDied) logAround(client, "miniboss name tag #" + tag.getId(), tag);
         }
         if (body == null) return;
         if (SlayerMinibossTarget.INSTANCE.highlight()) registerHighlight(body, SlayerMinibossTarget.INSTANCE);
@@ -403,15 +413,34 @@ public class EntityHighlightManager {
     }
 
     /**
-     * Der Mob zu einer Zeile "Spawned by" oder einem Namensschild.
+     * Der Mob zu einem Namensschild.
      *
-     * Gesucht wird in der Naehe, nicht allein nach der Kennung: Zwischen Mob und Schild kann sich ein fremdes
-     * Wesen geschoben haben, und im Slayer-Gebiet laufen Mobs derselben Gattung herum. Bewertet wird nach
-     * Art (siehe SlayerMobKind), Kennung kurz vor dem Schild, Sichtbarkeit und Naehe, in dieser Reihenfolge.
-     * Ein als unsichtbar gekennzeichneter Mob ist nicht ausgeschlossen: Auch er kann der Boss sein, und seine
-     * Position taugt fuer die Linie, sein Umriss fuer den Glow.
+     * Zuerst nach der Kennung: Auf Hypixel steht der Mob unmittelbar vor seinem Schild (so im Log: Mob #53464, Schild
+     * #53465, Zeile "SLAYER MINIBOSS" #53466; beim Boss Mob #53501, Schild #53502, Restzeit und "SLAYER BOSS" dahinter).
+     * Das ist sicherer als die Naehe, denn im Slayer-Gebiet laufen Mobs derselben Gattung herum, und ein Boss springt. Nach
+     * Kennungen davor wird rueckwaerts gesucht, ein fremdes Wesen anderer Art dazwischen wird uebergangen. Ist der Mob
+     * gerade gestorben (sein Schild bleibt noch kurz stehen), gibt es keinen: Ein anderer Zombie darf nicht einspringen.
+     *
+     * Nur wenn so nichts zu finden ist (die Schilder wurden vor dem Mob angelegt, oder der Mob steht zu weit weg), wird in
+     * der Naehe gesucht und bewertet: nach Art (siehe SlayerMobKind), Kennung kurz vor dem Schild, Sichtbarkeit und Naehe,
+     * in dieser Reihenfolge. Ein als unsichtbar gekennzeichneter Mob ist nicht ausgeschlossen, ein NPC-Spieler auch nicht.
      */
     private static Entity slayerBody(Minecraft client, Entity line, SlayerMobKind kind) {
+        bodyDied = false;
+        for (int back = 1; back <= SLAYER_ID_SPAN; back++) {
+            Entity before = client.level.getEntity(line.getId() - back);
+            if (!(before instanceof LivingEntity) || before instanceof ArmorStand || isRealPlayer(before)) continue;
+            if (!kindMatches(kind, before)) continue;
+            if (!before.isAlive()) {
+                bodyDied = true;
+                return null;
+            }
+            double dx = before.getX() - line.getX();
+            double dz = before.getZ() - line.getZ();
+            if (dx * dx + dz * dz > SLAYER_FAR_SQR || Math.abs(before.getY() - line.getY()) > SLAYER_FAR_Y) break;
+            return lowestOfRun(client, before, line, kind);
+        }
+
         AABB box = line.getBoundingBox().inflate(Math.sqrt(SLAYER_NEAR_SQR), SLAYER_NEAR_Y, Math.sqrt(SLAYER_NEAR_SQR));
         List<LivingEntity> mobs = client.level.getEntitiesOfClass(LivingEntity.class, box,
                 e -> isSlayerBodyCandidate(e, line));
@@ -425,17 +454,24 @@ public class EntityHighlightManager {
                 bestScore = score;
             }
         }
-        if (best == null || kind == SlayerMobKind.UNKNOWN) return best;
+        return best == null ? null : lowestOfRun(client, best, line, kind);
+    }
 
-        // Hat der Mob einen Begleiter gleicher Art (die Tarantel und ihre Hoehlenspinne), ist der mit der
-        // kleineren Kennung der Koerper - so macht es SkyHanni: das Wesen mit der kleinsten Kennung der Reihe
-        Entity base = best;
-        for (int step = 0; step < SLAYER_ID_SPAN; step++) {
-            Entity before = client.level.getEntity(base.getId() - 1);
-            if (before == null || !isSlayerBodyCandidate(before, line) || !kindMatches(kind, before)) break;
-            base = before;
-        }
-        return base;
+    /**
+     * Die Tarantel: Ihre Hoehlenspinne wird nach der Spinne angelegt und gehoert zu ihr, der Koerper ist die Spinne - so macht es
+     * SkyHanni (die Hoehlenspinne gehoert dort zur Tarantel davor). Nur dieser Fall: Bei Zombies etwa stehen oft Mobs derselben
+     * Art mit der Kennung davor, und die gehoeren nicht dazu.
+     */
+    private static Entity lowestOfRun(Minecraft client, Entity best, Entity line, SlayerMobKind kind) {
+        if (kind != SlayerMobKind.SPIDER || !isMobType(best, "cave_spider")) return best;
+        Entity before = client.level.getEntity(best.getId() - 1);
+        if (before != null && isMobType(before, "spider") && isSlayerBodyCandidate(before, line)) return before;
+        return best;
+    }
+
+    /** Ist das Wesen von dieser Art? Nach dem Namen der Art statt nach der Konstante: Sie heisst je Spielversion anders */
+    private static boolean isMobType(Entity entity, String name) {
+        return ("entity.minecraft." + name).equals(entity.getType().getDescriptionId());
     }
 
     /**
