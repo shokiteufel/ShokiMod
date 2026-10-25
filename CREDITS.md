@@ -526,15 +526,20 @@ drinsteckt.
   übernommen worden, nur Tatsachen abgelesen. Auch der eigene Slayer-Boss ist so entstanden:
   Aus `Mob`, `MobFilter` und `MobUtils` stammt, dass Hypixel den Mob und seine Namensschilder
   nacheinander anlegt und der Besitzer in der Zeile „Spawned by: <Name>“ steht, zwei Kennungen
-  hinter dem ersten Namensschild. Hier wird bis vier Kennungen zurück gesucht, weil nicht geprüft
-  ist, ob es immer genau zwei sind, und danach in der Nähe. Kein Code übernommen. Dazu stammt aus
+  hinter dem ersten Namensschild. Hier wird bis sechs Kennungen zurück gesucht, weil nicht geprüft
+  ist, ob es immer genau zwei sind, und dazu in der Nähe; gewählt wird nach Art, Kennung, Sichtbarkeit
+  und Nähe. Kein Code übernommen. Dazu stammt aus
   `SlayerApi` die Zeile „Slay the boss!“ in der Seitenleiste als Zeichen, dass der eigene Boss da
   ist. Partikel nutzt SkyHanni dafür nicht, nur um die Spawn-Effekte auszublenden
   (`HideSlayerSpawnParticles`); hier gilt allein die Seitenleiste. Die Namen der Slayer-Minibosse
   (`SlayerMiniBossType`) stammen ebenfalls von dort und stimmen mit denen in Skyblockers
   `SlayerType` überein; Erkennung und Umriss sind eigener Code. SkyHanni zeichnet außerdem eine Linie
   zum Miniboss (`SlayerMiniBossFeatures`); die Idee ist dieselbe, die Umsetzung (nur die nächste Linie
-  je Art, über die Linien der Mob-Markierung) ist eigen.
+  je Art, über die Linien der Mob-Markierung) ist eigen. Dass ein als unsichtbar gekennzeichneter Mob
+  trotzdem der Boss sein kann, stammt aus `Mob.isInvisible` (Zombies gelten dort immer als sichtbar,
+  und angelegt wird der Mob ohnehin ohne diese Prüfung); Skyblocker (`BossFight`) sucht den Boss nach
+  Art (Zombie, Spinne, Wolf, Enderman, Blaze) und ohne Sichtbarkeitsprüfung. Beides nur abgelesen;
+  die Zuordnung der Schilder zu einer Art (`SlayerMobKind`) und die Bewertung sind eigener Code.
 - **Feesh** (Apache-2.0, `Sleepy-Panda/Feesh`) — dort wird ein Pet, das die Hoechststufe
   erreicht, in den Tracker gelegt: Die Zeile "Your … leveled up to level 100!" wird
   gelesen, und nur 100 und 200 zaehlen. Auch die Schreibweise der Kennung ist von dort
