@@ -3,10 +3,10 @@ package com.shokiteufel.shokimod.data;
 /**
  * Der eigene Slayer-Boss: ein fester Eintrag, der nicht in der Mob-Liste steht.
  *
- * Hypixel haengt unter jeden Slayer-Boss eine Zeile "Spawned by: <Name>". Steht dort der eigene
- * Name, ist es der Boss, den man selbst gerufen hat; alle anderen gehoeren anderen Spielern, die
- * im selben Gebiet jagen. Dieselbe Zeile lesen SkyHanni und Skyblocker, um den eigenen Boss zu
- * erkennen.
+ * Woran der eigene Boss erkannt wird, steht in EntityHighlightManager.markOwnSlayerBoss. Hypixel haengte frueher unter jeden
+ * Slayer-Boss eine Zeile "Spawned by: <Name>"; heute tragen sie vor allem die gewoehnlichen Mobs der Quest, und beim eigenen
+ * Boss steht nur "SLAYER BOSS" und die Restzeit da. Die Zeile wird deshalb nur noch neben dem Schild eines Bosses gelesen, und
+ * fehlt sie, entscheidet die Seitenleiste ("Slay the boss!"). SkyHanni und Skyblocker lesen dieselbe Zeile.
  *
  * Gezeigt wird der Umriss und, wenn man will, eine Linie zum Boss. Kasten und Namensschild gehoeren nicht dazu.
  */
