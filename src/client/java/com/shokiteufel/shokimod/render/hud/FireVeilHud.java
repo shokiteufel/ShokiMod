@@ -51,13 +51,17 @@ public final class FireVeilHud {
         return HudColours.RED;
     }
 
-    /** "4.83s" - wie bei IQ auf zwei Stellen */
+    /** "4.83s" - wie bei IQ auf zwei Stellen; die Zahl wechselt mit jedem Tick, nicht mit jedem Bild */
     public static String seconds(long remainingMs) {
         return String.format(Locale.ROOT, "%.2fs", remainingMs / 1000.0);
     }
 
+    /**
+     * Der Kasten, wie er jetzt gezeichnet wird - nach der Uhr des letzten Ticks, nicht der des Bildes (siehe
+     * {@link FireVeil#tickTime()}). Die Auswahl der Kaesten baut ihn mit jedem neuen Tick neu.
+     */
     public static HudPanel build() {
-        return build(System.currentTimeMillis(), editorOpen());
+        return build(FireVeil.tickTime(), editorOpen());
     }
 
     public static HudPanel build(long now, boolean editorOpen) {

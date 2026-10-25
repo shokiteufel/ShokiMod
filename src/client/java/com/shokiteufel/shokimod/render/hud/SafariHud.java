@@ -329,14 +329,26 @@ public final class SafariHud {
         public HudPanel build() {
             long now = System.currentTimeMillis();
             HudPanel panel = cache.get(this);
-            if (panel != null && now - cachedAt.getOrDefault(this, 0L) < REBUILD_INTERVAL_MILLIS) {
+            if (panel != null && fresh(now)) {
                 return panel;
             }
 
             panel = rebuild();
             cache.put(this, panel);
-            cachedAt.put(this, now);
+            cachedAt.put(this, this == FIRE_VEIL ? com.shokiteufel.shokimod.handler.FireVeil.tickTime() : now);
             return panel;
+        }
+
+        /**
+         * Ist der gemerkte Kasten noch aktuell? Meist heisst das: hoechstens eine Viertelsekunde alt. Der Zeitkasten
+         * des Fire Veil dagegen wird mit jedem Tick neu gebaut und nur dann: So zaehlen seine Hundertstel gleichmaessig
+         * herunter, wie bei IQ, statt im Viertelsekundentakt zu springen.
+         */
+        private boolean fresh(long now) {
+            long at = cachedAt.getOrDefault(this, 0L);
+            return this == FIRE_VEIL
+                    ? at == com.shokiteufel.shokimod.handler.FireVeil.tickTime()
+                    : now - at < REBUILD_INTERVAL_MILLIS;
         }
 
         private HudPanel rebuild() {

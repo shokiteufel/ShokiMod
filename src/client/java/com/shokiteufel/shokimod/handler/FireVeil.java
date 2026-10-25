@@ -39,6 +39,8 @@ public final class FireVeil {
 
     private static long lastCastMs = 0L;
     private static boolean readySoundPlayed = false;
+    /** Die Uhrzeit des letzten Ticks - danach rechnet der Zeitkasten, siehe tickTime() */
+    private static long tickMs = 0L;
 
     private FireVeil() {
     }
@@ -55,6 +57,7 @@ public final class FireVeil {
     }
 
     private static void tick(Minecraft client) {
+        tickMs = System.currentTimeMillis();
         if (!FeatureGate.fireVeil()) {
             if (lastCastMs != 0L) reset();
             return;
@@ -82,6 +85,18 @@ public final class FireVeil {
     public static void reset() {
         lastCastMs = 0L;
         readySoundPlayed = false;
+    }
+
+    /**
+     * Die Uhrzeit, nach der der Zeitkasten rechnet: die des letzten Ticks, nicht die des Bildes.
+     *
+     * Bei IQ setzt das Widget die Zahl in jedem Tick (zwanzigmal je Sekunde), und das HUD zeichnet den gemerkten
+     * Text. Rechnete der Kasten mit der Uhr jedes Bildes, sprangen die Hundertstel so schnell, dass man sie nicht lesen
+     * kann; hier wechselt die Zahl in gleichmaessigen Schritten, alle fuenfzig Millisekunden. Nach dem Wurf gilt
+     * dessen Zeit, bis der erste Tick kommt - zuerst steht "5.00s" da und nie mehr als das.
+     */
+    public static long tickTime() {
+        return Math.max(tickMs, lastCastMs);
     }
 
     /** Wirkt der Zauber gerade? (Dann wird der Ring gezeichnet) */
