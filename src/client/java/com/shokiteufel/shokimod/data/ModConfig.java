@@ -3871,8 +3871,8 @@ public class ModConfig extends Config {
     /**
      * Slayer: der eigene Boss unter den Bossen der anderen.
      *
-     * Hypixel haengt unter jeden Slayer-Boss die Zeile "Spawned by: <Name>". Wessen Name dort steht,
-     * dem gehoert der Boss - siehe SlayerBossTarget.
+     * Der Boss wird am Namen auf seinem Schild erkannt. Wem er gehoert, sagt die Zeile "Spawned by: <Name>" daneben, und fehlt
+     * sie (so beim eigenen Boss), die Seitenleiste: "Slay the boss!" - siehe SlayerBossTarget.
      */
     public static class SlayerCategory {
 
@@ -3885,7 +3885,7 @@ public class ModConfig extends Config {
         public transient boolean ownFolder = false;
 
         @Expose
-        @ConfigOption(name = "Highlight own Slayerboss", desc = "Outlines the Slayer boss you spawned yourself with a glow, so you can tell it from the bosses other players brought. It is found by the line 'Spawned by: <your name>' that Hypixel puts under every boss. Works in SkyBlock only.")
+        @ConfigOption(name = "Highlight own Slayerboss", desc = "Outlines the Slayer boss you spawned yourself with a glow, so you can tell it from the bosses other players brought. It is found by the boss name on its name tag; that it is yours comes from the line 'Spawned by: <your name>' next to it, or, when there is no such line, from 'Slay the boss!' in the sidebar. Works in SkyBlock only.")
         @ConfigEditorBoolean
         @ConfigAccordionId(id = 75)
         public boolean highlightOwnBoss = false;

@@ -108,7 +108,7 @@ Die gesamte Safari-Seite geht auf crittermod zurück.
 | Dye-Drop-Zeile | Das Muster, an dem Hypixels Meldung abzulesen ist |
 | Preis-Rückfall | hysky.de als Tiefstpreis-Quelle |
 | Floor Drops | Mittelbar — GanKura hatte es von dort |
-| Eigener Slayer-Boss | Woran man ihn erkennt: die Zeile „Spawned by: <Name>“ unter dem Boss, und die Namensschilder des Bosses als Gegenprobe (`SlayerBossTarget`, `EntityHighlightManager`) |
+| Eigener Slayer-Boss | Woran man ihn erkennt: der Name auf dem Schild des Bosses; wem er gehört, sagt die Zeile „Spawned by: <Name>“ daneben, sonst die Seitenleiste (`SlayerBossTarget`, `EntityHighlightManager`) |
 | Slayer-Boss erschienen | Woran man es sieht: die Zeile „Slay the boss!“ im Kasten „Slayer Quest“ der Seitenleiste (`SlayerBossSpawn`) |
 | Slayer-Minibosse | Die Namen der Minibosse je Slayer (`SlayerMinibossTarget`) - in Skyblockers `SlayerType` und SkyHanni gleich |
 
@@ -530,7 +530,9 @@ drinsteckt.
   ist, ob es immer genau zwei sind, und dazu in der Nähe; gewählt wird nach Art, Kennung, Sichtbarkeit
   und Nähe. Kein Code übernommen. Dazu stammt aus
   `SlayerApi` die Zeile „Slay the boss!“ in der Seitenleiste als Zeichen, dass der eigene Boss da
-  ist. Partikel nutzt SkyHanni dafür nicht, nur um die Spawn-Effekte auszublenden
+  ist; sie entscheidet hier auch, wem ein Boss gehört, der keine Zeile „Spawned by“ trägt (so auf
+  Bildern von Hypixel gesehen). Dass aus NPC-Spielern gebaute Mobs (keine Kennung der Version 4)
+  zählen, stammt aus `MobFilter.isSkyBlockMob`. Partikel nutzt SkyHanni dafür nicht, nur um die Spawn-Effekte auszublenden
   (`HideSlayerSpawnParticles`); hier gilt allein die Seitenleiste. Die Namen der Slayer-Minibosse
   (`SlayerMiniBossType`) stammen ebenfalls von dort und stimmen mit denen in Skyblockers
   `SlayerType` überein; Erkennung und Umriss sind eigener Code. SkyHanni zeichnet außerdem eine Linie
