@@ -40,6 +40,15 @@ public final class SlayerMinibossTarget implements MobVisual {
         return ModConfig.INSTANCE.slayer.highlightMinibosses || ModConfig.INSTANCE.slayer.lineToMinibosses;
     }
 
+    /**
+     * Ist das die Zeile "SLAYER MINIBOSS", die Hypixel ueber jeden Miniboss setzt (so auf Bildern gesehen)? Sie nennt keinen Namen,
+     * zeigt aber auch einen Miniboss, der in keiner Liste steht - etwa einen neuen.
+     */
+    public static boolean isLabel(String rawName) {
+        if (rawName == null) return false;
+        return "SLAYER MINIBOSS".equals(COLOUR_CODE.matcher(rawName).replaceAll("").trim());
+    }
+
     /** Traegt das Namensschild den Namen eines Slayer-Minibosses? Level und Leben davor und dahinter stoeren nicht */
     public static boolean matches(String rawName) {
         if (rawName == null) return false;

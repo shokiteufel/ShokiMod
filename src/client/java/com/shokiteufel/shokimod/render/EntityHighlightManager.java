@@ -10,6 +10,7 @@ import com.shokiteufel.shokimod.data.SlayerBossTarget;
 import com.shokiteufel.shokimod.data.SlayerMinibossTarget;
 import com.shokiteufel.shokimod.data.SlayerMobKind;
 import com.shokiteufel.shokimod.data.SparklingTarget;
+import com.shokiteufel.shokimod.handler.SlayerBossSpawn;
 import com.shokiteufel.shokimod.util.CustomMobDebug;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
@@ -118,11 +119,12 @@ public class EntityHighlightManager {
     /** Wie oft das Log hoechstens aufzaehlt, was um ein Schild herum steht; danach genuegt die eine Zeile */
     private static final int SLAYER_DUMP_MAX = 12;
     private static final int SLAYER_DUMP_LINES = 24;
-    private static final double SLAYER_NOTE_RANGE_SQR = 400.0;
     private static int slayerDumps = 0;
-    private static int bossTagNotes = 0;
-    private static final Set<Integer> bossTagsSeen = new HashSet<>();
-    /** Die Namen der Slayer-Bosse. Ein Namensschild mit dem Totenkopf zaehlt ebenso */
+    /**
+     * Die Namen der Slayer-Bosse. Nur sie machen ein Schild zum Schild eines Bosses: Der Totenkopf davor steht auf jedem
+     * Untoten, auch auf den gewoehnlichen Mobs der Quest, und die tragen ebenfalls "Spawned by: <ich>"
+     * (so gesehen: "Crypt Ghoul" mit der Zeile des Spielers).
+     */
     private static final String[] SLAYER_NAMES = {
             "Revenant Horror", "Atoned Horror", "Tarantula Broodfather", "Conjoined Brood", "Sven Packmaster",
             "Voidgloom Seraph", "Inferno Demonlord", "Riftstalker Bloodfiend", "Bloodfiend"};
@@ -255,14 +257,14 @@ public class EntityHighlightManager {
             String nameStr = customName.getString();
             debugNamedCount++;
 
-            // Der eigene Slayer-Boss: die Zeile "Spawned by: <ich>" steht auf einem Armor Stand neben ihm
-            if (scanSlayer && entity instanceof ArmorStand && SlayerBossTarget.isOwn(nameStr, ownName)) {
-                markOwnSlayerBoss(client, entity);
+            // Der eigene Slayer-Boss: das Schild mit seinem Namen. Wem er gehoert, sagt die Zeile "Spawned by" daneben,
+            // und fehlt sie, die Seitenleiste
+            if (scanSlayer && entity instanceof ArmorStand && isBossName(nameStr)) {
+                markOwnSlayerBoss(client, entity, nameStr, ownName);
             }
-            // Nur fuers Log: ein Boss-Schild in der Naehe und was daneben als "Spawned by" steht
-            if (scanSlayer && entity instanceof ArmorStand) noteBossTag(client, entity, nameStr);
             // Die Slayer-Minibosse: das Namensschild nennt sie, der Mob steht daneben - er gehoert niemandem
-            if (scanMiniboss && entity instanceof ArmorStand && SlayerMinibossTarget.matches(nameStr)) {
+            if (scanMiniboss && entity instanceof ArmorStand
+                    && (SlayerMinibossTarget.matches(nameStr) || SlayerMinibossTarget.isLabel(nameStr))) {
                 markSlayerMiniboss(client, entity, nameStr);
             }
 
@@ -332,32 +334,45 @@ public class EntityHighlightManager {
     }
 
     /**
-     * Umreisst den Boss, zu dem die eigene Zeile "Spawned by" gehoert.
+     * Umreisst den Boss, zu dem dieses Schild mit dem Namen eines Slayer-Bosses gehoert - wenn es meiner ist.
      *
-     * Sagt die Zeile "mein", ist der Mob daneben mein Boss - sofern er ein Slayer-Namensschild traegt.
-     * Ohne diese Gegenprobe wuerde jedes andere Ding, das Hypixel mit "Spawned by" beschriftet, als
-     * Slayer-Boss gelten. Das Schild mit dem Namen des Bosses steht dicht ueber der Zeile; es sagt auch,
-     * welche Art Mob zu suchen ist. Findet sich nichts, steht das einmal im Log, samt allem, was um die
-     * Zeile herum steht: Dann stimmt die Annahme ueber Hypixels Anordnung nicht, und das Log sagt, was da war.
+     * Wem er gehoert, sagt Hypixel auf zwei Arten. Steht neben dem Schild eine Zeile "Spawned by: <Name>", gilt sie.
+     * Fehlt sie - so gesehen beim eigenen Boss, ueber dem nur "SLAYER BOSS" und die Restzeit stehen -, gilt die
+     * Seitenleiste: Zeigt sie "Slay the boss!", ist der Boss in der Naehe mein eigener. Die Zeile "Spawned by" tragen
+     * auch gewoehnliche Mobs der Quest (1.19.0 zeichnete so eine Linie zu einem Crypt Ghoul); darum zaehlt sie nur neben
+     * dem Schild eines Bosses. Der Mob steht nicht im Schild, er wird in der Naehe gesucht, mit der Art, die der Name nennt.
+     * Jede Entscheidung steht einmal im Log; wird kein Mob gefunden, folgt die Aufzaehlung des Umkreises.
      */
-    private static void markOwnSlayerBoss(Minecraft client, Entity line) {
-        String tagText = slayerTagText(client, line.getBoundingBox().inflate(1.0, 3.0, 1.0));
-        Entity body = slayerBody(client, line, SlayerMobKind.of(tagText));
-        int bodyId = body == null ? -1 : body.getId();
-        boolean tagged = tagText != null || (body != null && hasSlayerTag(client, body));
-        boolean marked = body != null && tagged;
-        if (slayerLogged.size() >= SLAYER_LOGGED_MAX) slayerLogged.clear();
-        // Zeile, Mob und Gegenprobe in einer Zahl; ohne Mob ist die Kennung -1
-        if (slayerLogged.add(line.getId() * 4_000_000_007L + (bodyId + 1L) * 2L + (tagged ? 1L : 0L))) {
-            com.shokiteufel.shokimod.ShokiMod.LOGGER.info(
-                    "[Slayer] own Spawned-by line #{} at {} {} {}: mob {}, slayer name tag {} - {}",
-                    line.getId(), (int) line.getX(), (int) line.getY(), (int) line.getZ(),
-                    body == null ? "none found" : describeMob(body),
-                    tagged ? "found" : "missing",
-                    marked ? "highlighted" : "not highlighted");
-            if (!marked) logAround(client, "own Spawned-by line #" + line.getId(), line);
+    private static void markOwnSlayerBoss(Minecraft client, Entity tag, String tagText, String ownName) {
+        List<ArmorStand> owners = client.level.getEntitiesOfClass(ArmorStand.class, tag.getBoundingBox().inflate(1.0, 3.0, 1.0),
+                s -> s.hasCustomName() && SlayerBossTarget.owner(s.getName().getString()) != null);
+        boolean named = !owners.isEmpty();
+        boolean mine = false;
+        StringBuilder lines = new StringBuilder();
+        for (int i = 0; i < owners.size(); i++) {
+            String line = owners.get(i).getName().getString();
+            if (SlayerBossTarget.isOwn(line, ownName)) mine = true;
+            if (i > 0) lines.append(" | ");
+            lines.append('\'').append(MobVisual.COLOUR_CODE.matcher(line).replaceAll("")).append('\'');
         }
-        if (!marked) return;
+        // Ohne eigene Zeile entscheidet die Seitenleiste
+        if (!named) mine = SlayerBossSpawn.bossPhase(client);
+
+        Entity body = mine ? slayerBody(client, tag, SlayerMobKind.of(tagText)) : null;
+        int bodyId = body == null ? -1 : body.getId();
+        if (slayerLogged.size() >= SLAYER_LOGGED_MAX) slayerLogged.clear();
+        // Schild, Mob und Entscheidung in einer Zahl; ohne Mob ist die Kennung -1
+        if (slayerLogged.add(tag.getId() * 4_000_000_007L + (bodyId + 1L) * 4L + (named ? 2L : 0L) + (mine ? 1L : 0L))) {
+            com.shokiteufel.shokimod.ShokiMod.LOGGER.info(
+                    "[Slayer] boss name tag #{} '{}' at {} {} {}: {} -> {}; mob {}",
+                    tag.getId(), MobVisual.COLOUR_CODE.matcher(tagText).replaceAll(""),
+                    (int) tag.getX(), (int) tag.getY(), (int) tag.getZ(),
+                    named ? "Spawned-by lines " + lines : "no Spawned-by line, sidebar says the boss is " + (mine ? "there" : "not there"),
+                    mine ? "mine" : "not mine",
+                    !mine ? "not looked for" : body == null ? "none found - not highlighted" : describeMob(body) + " - highlighted");
+            if (mine && body == null) logAround(client, "boss name tag #" + tag.getId(), tag);
+        }
+        if (body == null) return;
         if (SlayerBossTarget.INSTANCE.highlight()) registerHighlight(body, SlayerBossTarget.INSTANCE);
         // Je Art nur die naechste Linie: bei einem eigenen Boss ist das er selbst
         registerTracer(body, SlayerBossTarget.INSTANCE);
@@ -366,8 +381,9 @@ public class EntityHighlightManager {
     /**
      * Umreisst den Slayer-Miniboss, zu dem dieses Namensschild gehoert.
      *
-     * Der Mob wird wie beim eigenen Boss gesucht, mit der Art, die der Name des Minibosses nennt.
-     * Eine Gegenprobe wie das Slayer-Namensschild gibt es hier nicht - das Schild ist das Zeichen selbst.
+     * Der Mob wird wie beim eigenen Boss gesucht, mit der Art, die der Name des Minibosses nennt. Auch die Zeile
+     * "SLAYER MINIBOSS" darueber loest die Suche aus (ohne Namen, also ohne Art). Eine Gegenprobe gibt es hier nicht -
+     * Name und Zeile sind das Zeichen selbst.
      * Umriss und Linie sind getrennt zu schalten; gesucht wird, wenn eines von beiden an ist.
      */
     private static void markSlayerMiniboss(Minecraft client, Entity tag, String tagName) {
@@ -422,8 +438,17 @@ public class EntityHighlightManager {
         return base;
     }
 
+    /**
+     * Ein echter Spieler (Kennung der Version 4) oder man selbst. Hypixels NPCs tragen keine Version 4: aus ihnen baut
+     * Hypixel viele Mobs - vermutlich auch die Slayer-Bosse und -Minibosse (Menschenkoerper mit eigenem Aussehen).
+     */
+    private static boolean isRealPlayer(Entity entity) {
+        if (!(entity instanceof Player)) return false;
+        return entity == Minecraft.getInstance().player || entity.getUUID().version() == 4;
+    }
+
     private static boolean isSlayerBodyCandidate(Entity candidate, Entity line) {
-        if (!(candidate instanceof LivingEntity) || candidate instanceof ArmorStand || candidate instanceof Player) return false;
+        if (!(candidate instanceof LivingEntity) || candidate instanceof ArmorStand || isRealPlayer(candidate)) return false;
         if (!candidate.isAlive()) return false;
         double dx = candidate.getX() - line.getX();
         double dz = candidate.getZ() - line.getZ();
@@ -444,6 +469,8 @@ public class EntityHighlightManager {
 
     /** Passt der Mob zur Art, die das Schild nennt? Ohne Angabe passt jeder */
     private static boolean kindMatches(SlayerMobKind kind, Entity mob) {
+        // Ein NPC-Spieler (echte Spieler kommen gar nicht erst in die Auswahl) ist ein Modell fuer jede Art
+        if (mob instanceof Player) return true;
         EntityType<?> type = mob.getType();
         return switch (kind) {
             case ZOMBIE -> type == EntityType.ZOMBIE || type == EntityType.HUSK || type == EntityType.DROWNED
@@ -456,65 +483,31 @@ public class EntityHighlightManager {
         };
     }
 
-    /** Der Text des Slayer-Namensschilds in diesem Bereich - mit dem Totenkopf oder dem Namen eines Slayer-Bosses - oder null */
-    private static String slayerTagText(Minecraft client, AABB box) {
-        List<ArmorStand> stands = client.level.getEntitiesOfClass(ArmorStand.class, box, ArmorStand::hasCustomName);
-        for (int i = 0; i < stands.size(); i++) {
-            String name = stands.get(i).getName().getString();
-            if (name.indexOf((char) 0x2620) >= 0) return name;
-            for (int n = 0; n < SLAYER_NAMES.length; n++) {
-                if (name.contains(SLAYER_NAMES[n])) return name;
-            }
+    /** Nennt der Text einen Slayer-Boss? Der Totenkopf allein sagt nichts: Er steht auf jedem Untoten */
+    private static boolean isBossName(String text) {
+        for (int n = 0; n < SLAYER_NAMES.length; n++) {
+            if (text.contains(SLAYER_NAMES[n])) return true;
         }
-        return null;
-    }
-
-    /** Traegt der Mob ein Slayer-Namensschild - den Totenkopf oder den Namen eines Slayer-Bosses? */
-    private static boolean hasSlayerTag(Minecraft client, Entity body) {
-        return slayerTagText(client, body.getBoundingBox().inflate(0.5, 3.0, 0.5)) != null;
+        return false;
     }
 
     private static String describeMob(Entity mob) {
-        return mob.getType().getDescriptionId() + " #" + mob.getId() + (mob.isInvisible() ? " (flagged invisible)" : "");
-    }
-
-    /**
-     * Fuers Log: ein Boss-Schild mit dem Totenkopf in der Naehe, samt den Zeilen "Spawned by" daneben.
-     *
-     * Gehoert der Boss einem anderen, ist das erwartet. Fehlt dem eigenen Boss die Zeile, oder schreibt Hypixel
-     * sie anders, zeigt erst dieser Eintrag, was da steht - ohne ihn schwiege das Log genau in dem Fall, den man sucht.
-     * Je Schild einmal, und nur wenige Eintraege je Sitzung.
-     */
-    private static void noteBossTag(Minecraft client, Entity stand, String text) {
-        if (text.indexOf((char) 0x2620) < 0 || client.player == null) return;
-        if (stand.distanceToSqr(client.player) > SLAYER_NOTE_RANGE_SQR) return;
-        if (bossTagsSeen.size() >= SLAYER_LOGGED_MAX) bossTagsSeen.clear();
-        if (!bossTagsSeen.add(stand.getId()) || bossTagNotes >= SLAYER_DUMP_MAX) return;
-        bossTagNotes++;
-        List<ArmorStand> owners = client.level.getEntitiesOfClass(ArmorStand.class, stand.getBoundingBox().inflate(1.0, 3.0, 1.0),
-                s -> s.hasCustomName() && s.getName().getString().contains("Spawned by"));
-        StringBuilder lines = new StringBuilder();
-        for (int i = 0; i < owners.size(); i++) {
-            if (i > 0) lines.append(" | ");
-            lines.append('\'').append(MobVisual.COLOUR_CODE.matcher(owners.get(i).getName().getString()).replaceAll("")).append('\'');
-        }
-        com.shokiteufel.shokimod.ShokiMod.LOGGER.info("[Slayer] boss name tag #{} '{}' at {} {} {}: Spawned-by lines next to it: {}",
-                stand.getId(), MobVisual.COLOUR_CODE.matcher(text).replaceAll(""),
-                (int) stand.getX(), (int) stand.getY(), (int) stand.getZ(), owners.isEmpty() ? "none" : lines);
+        return mob.getType().getDescriptionId() + " #" + mob.getId() + (mob instanceof Player ? " (NPC player)" : "")
+                + (mob.isInvisible() ? " (flagged invisible)" : "");
     }
 
     /**
      * Fuers Log: was im Umkreis um eine Zeile oder ein Schild steht, wenn zu ihr kein Mob zu finden war.
      *
      * Mit Kennung (und ihrem Abstand zur Zeile), Art, Zustand, Abstand und bei Schildern dem Text, die mit der
-     * naechsten Kennung zuerst. Spieler, Gegenstaende und Erfahrungskugeln stehen nicht darin: Sie fuellten
+     * naechsten Kennung zuerst. Echte Spieler, Gegenstaende und Erfahrungskugeln stehen nicht darin: Sie fuellten
      * das Log, und der Mob zum Schild haengt an den Kennungen dicht davor. Nur wenige Male je Sitzung.
      */
     private static void logAround(Minecraft client, String what, Entity centre) {
         if (slayerDumps >= SLAYER_DUMP_MAX) return;
         slayerDumps++;
         List<Entity> near = client.level.getEntitiesOfClass(Entity.class, centre.getBoundingBox().inflate(6.0, 6.0, 6.0),
-                e -> e != centre && !(e instanceof Player)
+                e -> e != centre && !isRealPlayer(e)
                         && e.getType() != EntityType.ITEM && e.getType() != EntityType.EXPERIENCE_ORB);
         near.sort(Comparator.comparingInt((Entity e) -> Math.abs(e.getId() - centre.getId())).thenComparingInt(Entity::getId));
         StringBuilder out = new StringBuilder();

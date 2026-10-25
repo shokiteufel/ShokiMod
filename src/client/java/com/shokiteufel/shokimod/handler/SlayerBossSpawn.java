@@ -43,6 +43,9 @@ public final class SlayerBossSpawn {
     private static boolean armed = false;
     private static int absentReads = 0;
     private static Object lastLevel = null;
+    /** Fuer bossPhase: wann zuletzt gelesen und was dabei herauskam */
+    private static long phaseReadAt = 0L;
+    private static boolean phase = false;
 
     private SlayerBossSpawn() {
     }
@@ -81,6 +84,22 @@ public final class SlayerBossSpawn {
         } else if (++absentReads >= ABSENT_READS) {
             armed = true;
         }
+    }
+
+    /**
+     * Zeigt die Seitenleiste gerade "Slay the boss!" - ist der eigene Boss da?
+     *
+     * Fuer die Markierung des Bosses (EntityHighlightManager): Hypixel schreibt dem eigenen Boss keine Zeile "Spawned by" mehr
+     * unter das Schild - nur "SLAYER BOSS" und die Restzeit (so auf Bildern gesehen); die Seitenleiste sagt es dann. Hoechstens
+     * viermal je Sekunde gelesen; ist die Seitenleiste gerade nicht da, gilt der letzte Stand.
+     */
+    public static boolean bossPhase(Minecraft client) {
+        long now = System.currentTimeMillis();
+        if (now - phaseReadAt < 250L) return phase;
+        phaseReadAt = now;
+        List<String> lines = ScoreboardUtils.getSidebarLines(client);
+        if (!lines.isEmpty()) phase = bossLine(lines) >= 0;
+        return phase;
     }
 
     /** Die Stelle der Zeile "Slay the boss!" in der Seitenleiste, oder -1 */
