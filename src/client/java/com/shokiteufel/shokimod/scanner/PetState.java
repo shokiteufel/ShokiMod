@@ -384,6 +384,14 @@ public final class PetState {
         // war, gilt sofort - beim Angeln mit Pet-Regeln wechselt es im Sekundentakt, und die Tab-Liste braucht laenger
         // als der Chat
         if (wechsel) switchTo(res.key(), true);
+        // Ist das Pet nur geraten (Ruf von Hand ohne Item bei mehreren gleichnamigen), steht unter dem Schluessel ohne Item ein Platzhalter, dessen
+        // gemerkter Ueberschuss von einem anderen Pet stammen kann: im Protokoll vom 27.10.2026 stand kurz die 331 des Pets mit Skin beim
+        // Ammonite ohne. Lieber nichts zeigen, bis die Tab-Liste das Pet nennt
+        if (res.ambiguous()) {
+            overflowLevel = 0;
+            overflowXp = 0.0;
+            atMax = false;
+        }
         name = neu;
         shown = neuGezeigt;
         skin = neuSkin;
