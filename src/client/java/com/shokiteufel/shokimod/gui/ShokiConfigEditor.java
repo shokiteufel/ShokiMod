@@ -43,6 +43,9 @@ public class ShokiConfigEditor extends MoulConfigEditor<ModConfig> {
     /** Das Suchwort der Fehlersuche */
     private static final String BUG_WORD = "bug";
 
+    /** Das Suchwort der Protokolle: Der Reiter "Logs" - und mit ihm der Reiter der Fehlersuche, denn auch der schreibt ins Log */
+    private static final String LOG_WORD = "log";
+
     /**
      * Ein verborgener Reiter: sein Feld in {@link ModConfig} und die Frage, ob das Suchfeld
      * ihn gerade freigibt.
@@ -56,7 +59,8 @@ public class ShokiConfigEditor extends MoulConfigEditor<ModConfig> {
 
     private static final List<Hidden> HIDDEN = List.of(
             hidden("mobVisuals", typed -> SECRET_SHA256.equals(sha256(typed.trim()))),
-            hidden("bugHunt", typed -> BUG_WORD.equalsIgnoreCase(typed.trim())));
+            hidden("bugHunt", typed -> BUG_WORD.equalsIgnoreCase(typed.trim()) || LOG_WORD.equalsIgnoreCase(typed.trim())),
+            hidden("logs", typed -> LOG_WORD.equalsIgnoreCase(typed.trim())));
 
     /** Der Rohtext des Suchfelds. Null, wenn MoulConfig ihn nicht mehr so ablegt */
     private final GetSetter<String> searchText;

@@ -25,7 +25,7 @@ public final class CustomMobDebug {
     public static boolean enabled() {
         return ModConfig.INSTANCE != null
                 && ModConfig.INSTANCE.mobVisuals != null
-                && ModConfig.INSTANCE.mobVisuals.debugLogging;
+                && ModConfig.INSTANCE.logs.mobGlowDiagnostics;
     }
 
     /** 1秒に1回だけ通す。呼び出し側ごとに別の枠を使う */
