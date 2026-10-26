@@ -146,6 +146,11 @@ public final class FeatureGate {
         return ModConfig.INSTANCE.deployables.enabled || ModConfig.INSTANCE.deployables.umberellaAlert.alert;
     }
 
+    /** Der Zeitkasten der Deployables liest jeden Tick die Namen der Ruestungsstaender, die er kennt, und sucht alle zehn Ticks neue - nur wenn er an ist. Braucht den Ort (nur in SkyBlock) */
+    public static boolean deployableHud() {
+        return ModConfig.INSTANCE.deployables.hud.enabled;
+    }
+
     /** Die HP-Anzeige der Meeresbewohner liest die Namensschilder in der Naehe - nur wenn sie an ist */
     public static boolean seaHp() {
         return ModConfig.INSTANCE.fishing.hp.enabled;
@@ -226,7 +231,7 @@ public final class FeatureGate {
 
     public static boolean location() {
         return contest() || safari() || nearbyPanel() || rareLoot() || huntingTracker() || mobMarkers() || chatRules()
-                || cakeReminder() || hotspots() || collectionTracker() || pestTraps() || gardenVisitors() || seaHp() || mute() || outOfAir() || coldAlert() || petHud() || hotspotShare()
+                || cakeReminder() || hotspots() || collectionTracker() || pestTraps() || gardenVisitors() || seaHp() || mute() || outOfAir() || coldAlert() || petHud() || deployableHud() || hotspotShare()
                 || slayerSpawn() || darkAuction() || darkAuctionTimer() || hidePlayersDungeon() || nearbyRare() || ModConfig.INSTANCE.effects.enabled;
     }
 }

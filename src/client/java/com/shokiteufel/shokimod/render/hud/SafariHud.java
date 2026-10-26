@@ -19,7 +19,7 @@ public final class SafariHud {
 
     /** Ein Kasten auf dem Bildschirm. Traegt seine eigene Lage und Groesse in der Config */
     public enum Panel {
-        PROGRESS, MISSING, CONTEST, NEARBY, HUNTING, GUILD, COLLECTION, PROFIT, MINING, PET, PERFORMANCE, SEATRACKER, EFFECTS, SEAHP, DARK_AUCTION, FIRE_VEIL;
+        PROGRESS, MISSING, CONTEST, NEARBY, HUNTING, GUILD, COLLECTION, PROFIT, MINING, PET, PERFORMANCE, SEATRACKER, EFFECTS, SEAHP, DARK_AUCTION, FIRE_VEIL, DEPLOYABLES;
 
         public boolean visible() {
             ModConfig.SafariCategory c = ModConfig.INSTANCE.safari;
@@ -47,6 +47,8 @@ public final class SafariHud {
                 case DARK_AUCTION -> DarkAuctionHud.shownNow();
                 // Waehrend des Zaubers und der Bereit-Anzeige; im HUD-Editor immer
                 case FIRE_VEIL -> FireVeilHud.shownNow();
+                // Nur mit etwas darin (eigene oder nahe Deployables); im HUD-Editor immer
+                case DEPLOYABLES -> DeployableHud.shownNow();
             };
         }
 
@@ -81,6 +83,7 @@ public final class SafariHud {
                 case SEAHP -> "Sea creature HP";
                 case DARK_AUCTION -> "Dark Auction";
                 case FIRE_VEIL -> "Fire Veil";
+                case DEPLOYABLES -> "Time panel";
             };
         }
 
@@ -130,6 +133,7 @@ public final class SafariHud {
                 case SEAHP -> ModConfig.INSTANCE.fishing.hp.hudX;
                 case DARK_AUCTION -> ModConfig.INSTANCE.chat.reminder.darkAuctionHudX;
                 case FIRE_VEIL -> ModConfig.INSTANCE.iq.fireVeilHudX;
+                case DEPLOYABLES -> ModConfig.INSTANCE.deployables.hud.hudX;
             };
         }
 
@@ -152,6 +156,7 @@ public final class SafariHud {
                 case SEAHP -> ModConfig.INSTANCE.fishing.hp.hudY;
                 case DARK_AUCTION -> ModConfig.INSTANCE.chat.reminder.darkAuctionHudY;
                 case FIRE_VEIL -> ModConfig.INSTANCE.iq.fireVeilHudY;
+                case DEPLOYABLES -> ModConfig.INSTANCE.deployables.hud.hudY;
             };
         }
 
@@ -174,6 +179,7 @@ public final class SafariHud {
                 case SEAHP -> ModConfig.INSTANCE.fishing.hp.hudScale;
                 case DARK_AUCTION -> ModConfig.INSTANCE.chat.reminder.darkAuctionHudScale;
                 case FIRE_VEIL -> ModConfig.INSTANCE.iq.fireVeilHudScale;
+                case DEPLOYABLES -> ModConfig.INSTANCE.deployables.hud.hudScale;
             };
         }
 
@@ -244,6 +250,10 @@ public final class SafariHud {
                     ModConfig.INSTANCE.iq.fireVeilHudX = x;
                     ModConfig.INSTANCE.iq.fireVeilHudY = y;
                 }
+                case DEPLOYABLES -> {
+                    ModConfig.INSTANCE.deployables.hud.hudX = x;
+                    ModConfig.INSTANCE.deployables.hud.hudY = y;
+                }
             }
         }
 
@@ -267,6 +277,7 @@ public final class SafariHud {
                 case SEAHP -> ModConfig.INSTANCE.fishing.hp.hudAlpha;
                 case DARK_AUCTION -> ModConfig.INSTANCE.chat.reminder.darkAuctionHudAlpha;
                 case FIRE_VEIL -> ModConfig.INSTANCE.iq.fireVeilHudAlpha;
+                case DEPLOYABLES -> ModConfig.INSTANCE.deployables.hud.hudAlpha;
             };
         }
 
@@ -292,6 +303,7 @@ public final class SafariHud {
                 case SEAHP -> ModConfig.INSTANCE.fishing.hp.hudAlpha = clamped;
                 case DARK_AUCTION -> ModConfig.INSTANCE.chat.reminder.darkAuctionHudAlpha = clamped;
                 case FIRE_VEIL -> ModConfig.INSTANCE.iq.fireVeilHudAlpha = clamped;
+                case DEPLOYABLES -> ModConfig.INSTANCE.deployables.hud.hudAlpha = clamped;
             }
         }
 
@@ -315,6 +327,7 @@ public final class SafariHud {
                 case SEAHP -> ModConfig.INSTANCE.fishing.hp.hudScale = clamped;
                 case DARK_AUCTION -> ModConfig.INSTANCE.chat.reminder.darkAuctionHudScale = clamped;
                 case FIRE_VEIL -> ModConfig.INSTANCE.iq.fireVeilHudScale = clamped;
+                case DEPLOYABLES -> ModConfig.INSTANCE.deployables.hud.hudScale = clamped;
             }
         }
 
@@ -335,7 +348,7 @@ public final class SafariHud {
 
             panel = rebuild();
             cache.put(this, panel);
-            cachedAt.put(this, this == FIRE_VEIL ? com.shokiteufel.shokimod.handler.FireVeil.tickTime() : now);
+            cachedAt.put(this, tickBound() ? tickClock() : now);
             return panel;
         }
 
@@ -346,9 +359,18 @@ public final class SafariHud {
          */
         private boolean fresh(long now) {
             long at = cachedAt.getOrDefault(this, 0L);
-            return this == FIRE_VEIL
-                    ? at == com.shokiteufel.shokimod.handler.FireVeil.tickTime()
-                    : now - at < REBUILD_INTERVAL_MILLIS;
+            return tickBound() ? at == tickClock() : now - at < REBUILD_INTERVAL_MILLIS;
+        }
+
+        /** Kaesten, deren Zahlen mit jedem Tick gleichmaessig herunterlaufen und deshalb mit jedem Tick neu gebaut werden */
+        private boolean tickBound() {
+            return this == FIRE_VEIL || this == DEPLOYABLES;
+        }
+
+        /** Die Uhr des letzten Ticks, nach der ein tickgebundener Kasten gebaut wird */
+        private long tickClock() {
+            return this == FIRE_VEIL ? com.shokiteufel.shokimod.handler.FireVeil.tickTime()
+                    : com.shokiteufel.shokimod.handler.DeployableTimers.tickTime();
         }
 
         private HudPanel rebuild() {
@@ -369,6 +391,7 @@ public final class SafariHud {
                 case SEAHP -> SeaHpHud.build();
                 case DARK_AUCTION -> DarkAuctionHud.build();
                 case FIRE_VEIL -> FireVeilHud.build();
+                case DEPLOYABLES -> DeployableHud.build();
             };
         }
     }
