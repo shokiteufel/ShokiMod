@@ -292,6 +292,10 @@ public class ModConfig extends Config {
         if (INSTANCE.deployables == null) INSTANCE.deployables = new DeployablesCategory();
         if (INSTANCE.deployables.umberellaAlert == null) INSTANCE.deployables.umberellaAlert = new UmberellaCategory();
         if (INSTANCE.deployables.endings == null) INSTANCE.deployables.endings = new DeployableEndingsCategory();
+        if (INSTANCE.deployables.hud == null) INSTANCE.deployables.hud = new DeployableHudCategory();
+        if (INSTANCE.deployables.hud.mode == null) INSTANCE.deployables.hud.mode = DeployableHudMode.OWN;
+        INSTANCE.deployables.hud.nearbyRange = Math.max(10, Math.min(100, INSTANCE.deployables.hud.nearbyRange));
+        INSTANCE.deployables.hud.maxRows = Math.max(1, Math.min(10, INSTANCE.deployables.hud.maxRows));
         // Bis 1.15.17 war die Umberella ein Haken im Hauptreiter: wer den Alarm an hatte und sie nicht
         // abgewaehlt hatte, behaelt ihn jetzt in ihrem eigenen Reiter
         if (INSTANCE.deployables.umberella != null) {
@@ -2153,6 +2157,10 @@ public class ModConfig extends Config {
         };
 
         @Expose
+        @Category(name = "Time panel", desc = "A panel with the time left on your deployables, or on all the ones near you, counting down smoothly.")
+        public DeployableHudCategory hud = new DeployableHudCategory();
+
+        @Expose
         @Category(name = "Umberella", desc = "The Umberella is only for trophy fishing, so it has its own settings: its own switch, banner and sound.")
         public UmberellaCategory umberellaAlert = new UmberellaCategory();
 
@@ -2166,6 +2174,68 @@ public class ModConfig extends Config {
          */
         @Expose
         public Boolean umberella = null;
+    }
+
+    /** Welche Deployables der Zeitkasten zeigt */
+    public enum DeployableHudMode {
+        OWN("Only my own"),
+        NEARBY("All nearby");
+
+        private final String label;
+
+        DeployableHudMode(String label) {
+            this.label = label;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
+    }
+
+    /**
+     * Der Zeitkasten der Deployables: wie lange die eigenen - oder alle in der Naehe - noch halten. Die Zeit laeuft gleichmaessig herunter
+     * (siehe DeployableTimers), nicht in den Spruengen, in denen Hypixel den Namen des Staenders aendert.
+     */
+    public static class DeployableHudCategory {
+
+        @ConfigOption(name = "Deployable timers", desc = "A panel with the time left on your deployables - Power Orbs, Flares, Lanterns, the Umberella, the Black Hole and the Totem of Corruption - or on all the ones near you. The time counts down smoothly, second by second, instead of jumping three or four seconds at a time like the number above the deployable. Move it with /shoki hud. It works in SkyBlock only and does not need the alert above.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Show panel", desc = "The time panel. Off from the start.")
+        @ConfigEditorBoolean
+        public boolean enabled = false;
+
+        @Expose
+        @ConfigOption(name = "Which", desc = "Only my own: the ones you put down yourself (right-clicked with the orb, flare, lantern ... in your hand), also when you have walked away from them. All nearby: every deployable within the range below, yours in gold, the others in grey.")
+        @ConfigEditorDropdown
+        public DeployableHudMode mode = DeployableHudMode.OWN;
+
+        @Expose
+        @ConfigOption(name = "Range", desc = "For \"All nearby\": how far away a deployable may be, in blocks.")
+        @ConfigEditorSlider(minValue = 10f, maxValue = 100f, minStep = 5f)
+        public int nearbyRange = 40;
+
+        @Expose
+        @ConfigOption(name = "Rows", desc = "How many deployables the panel lists, the one that ends first on top.")
+        @ConfigEditorSlider(minValue = 1f, maxValue = 10f, minStep = 1f)
+        public int maxRows = 6;
+
+        @Expose
+        @ConfigOption(name = "Tenths of a second", desc = "Under a minute the time shows tenths (27.4s) and counts down smoothly; off shows whole seconds (28s). From a minute on it shows minutes and seconds.")
+        @ConfigEditorBoolean
+        public boolean tenths = true;
+
+        @Expose
+        public float hudX = 0.02f;
+        @Expose
+        public float hudY = 0.22f;
+        @Expose
+        public float hudScale = 1.0f;
+        @Expose
+        public float hudAlpha = 0.5f;
     }
 
     /** Die Umberella: nur fuer Trophy Fishing, darum ein eigener Reiter */
