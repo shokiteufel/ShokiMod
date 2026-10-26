@@ -150,6 +150,11 @@ public final class BannerUses {
                 name -> ModConfig.INSTANCE.slayer.spawnBannerDesign = name,
                 BannerDesign.ALERT_BAND,
                 () -> resolved(ModConfig.INSTANCE.slayer.spawnBannerDesign)));
+        out.add(new Use("Cold", "Cold", "The warning when your cold gets close to freezing",
+                () -> ModConfig.INSTANCE.mining.cold.bannerDesign,
+                name -> ModConfig.INSTANCE.mining.cold.bannerDesign = name,
+                BannerDesign.ALERT_BAND,
+                () -> resolved(ModConfig.INSTANCE.mining.cold.bannerDesign)));
         out.add(new Use("Dark Auction", "DA", "The warning shortly before the Dark Auction opens",
                 () -> ModConfig.INSTANCE.chat.reminder.darkAuctionBannerDesign,
                 name -> ModConfig.INSTANCE.chat.reminder.darkAuctionBannerDesign = name,

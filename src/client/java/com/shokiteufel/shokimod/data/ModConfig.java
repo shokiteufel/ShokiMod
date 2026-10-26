@@ -279,6 +279,10 @@ public class ModConfig extends Config {
         if (INSTANCE.fishing.air == null) INSTANCE.fishing.air = new OutOfAirCategory();
         if (INSTANCE.fishing.air.bannerDesign == null) INSTANCE.fishing.air.bannerDesign = "Feesh";
         if (INSTANCE.fishing.air.soundFile == null) INSTANCE.fishing.air.soundFile = "";
+        if (INSTANCE.mining.cold == null) INSTANCE.mining.cold = new ColdAlertCategory();
+        if (INSTANCE.mining.cold.bannerDesign == null) INSTANCE.mining.cold.bannerDesign = BannerDesign.ALERT_BAND;
+        if (INSTANCE.mining.cold.soundFile == null) INSTANCE.mining.cold.soundFile = "";
+        INSTANCE.mining.cold.atCold = Math.max(10, Math.min(99, INSTANCE.mining.cold.atCold));
         if (INSTANCE.chat.reminder == null) INSTANCE.chat.reminder = new ReminderCategory();
         if (INSTANCE.garden == null) INSTANCE.garden = new GardenCategory();
         if (INSTANCE.garden.traps == null) INSTANCE.garden.traps = new GardenTrapsCategory();
@@ -538,6 +542,10 @@ public class ModConfig extends Config {
                 com.shokiteufel.shokimod.handler.OutOfAirAlert::test);
         INSTANCE.fishing.air.openSound = soundPicker(() -> INSTANCE.fishing.air.soundFile,
                 picked -> INSTANCE.fishing.air.soundFile = picked);
+        INSTANCE.mining.cold.test = () -> Minecraft.getInstance().execute(
+                com.shokiteufel.shokimod.handler.ColdAlert::test);
+        INSTANCE.mining.cold.openSound = soundPicker(() -> INSTANCE.mining.cold.soundFile,
+                picked -> INSTANCE.mining.cold.soundFile = picked);
         INSTANCE.fishing.hotspot.shareTest = () -> Minecraft.getInstance().execute(
                 com.shokiteufel.shokimod.handler.HotspotShare::test);
         INSTANCE.fishing.books.openPicker = () -> Minecraft.getInstance().execute(() ->
@@ -1224,6 +1232,10 @@ public class ModConfig extends Config {
         @Expose
         @Category(name = "Mineshaft", desc = "Glacite Mineshafts: the corpses of the shaft you are in, their keys, and the gemstone veins lying in it.")
         public MineshaftCategory mineshaft = new MineshaftCategory();
+
+        @Expose
+        @Category(name = "Cold alert", desc = "A warning when your cold gets close to freezing in the Glacite Tunnels and the Mineshaft.")
+        public ColdAlertCategory cold = new ColdAlertCategory();
     }
 
     /** Welche gefrorenen Leichen im Mining-HUD stehen sollen */
@@ -2369,6 +2381,72 @@ public class ModConfig extends Config {
         public float hudScale = 1.0f;
         @Expose
         public float hudAlpha = 1.0f;
+    }
+
+    /**
+     * Die Warnung vor dem Erfrieren: In den eisigen Gebieten (Glacite Tunnels, Mineshaft) steigt die Kaelte, bei
+     * 100 stirbt man. Gewarnt wird einmal, wenn sie die Schwelle erreicht - von Haus aus 90. Wie die anderen
+     * Warnungen von Haus aus aus.
+     */
+    public static class ColdAlertCategory {
+
+        @ConfigOption(name = "Cold alert", desc = "Warns you when your cold gets close to freezing: a banner, a sound, and on request a chat line. It reads the line 'Cold' in the sidebar, which Hypixel shows in the icy areas (Glacite Tunnels, Mineshaft). At 100 you freeze to death; a campfire sets it back to 0. It warns once and can warn again after the cold has dropped below the value. Works in SkyBlock only.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Enabled", desc = "Warn when your cold reaches the value below.")
+        @ConfigEditorBoolean
+        public boolean enabled = false;
+
+        @Expose
+        @ConfigOption(name = "Alert at", desc = "The cold value that sets off the warning. 90 leaves ten points, about as long as it takes to reach a campfire.")
+        @ConfigEditorSlider(minValue = 10f, maxValue = 99f, minStep = 1f)
+        public int atCold = 90;
+
+        @ConfigOption(name = "Banner and chat", desc = "The big title in the middle of the screen and the chat line.")
+        @ConfigEditorAccordion(id = 96)
+        public transient boolean bannerFolder = false;
+
+        @Expose
+        @ConfigOption(name = "Banner", desc = "The big title in the middle of the screen. The design is picked in Alerts > Banner > Sandbox.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 96)
+        public boolean banner = true;
+
+        /** Das Design des Banners - gewaehlt im Sandkasten (Liste "Use for") */
+        @Expose
+        public String bannerDesign = BannerDesign.ALERT_BAND;
+
+        @Expose
+        @ConfigOption(name = "Chat line", desc = "Also writes \"Your cold is at 90 - warm up at a campfire!\" into your chat.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 96)
+        public boolean chatLine = false;
+
+        @ConfigOption(name = "Sound", desc = "The sound with the warning, and your own file for it.")
+        @ConfigEditorAccordion(id = 97)
+        public transient boolean soundFolder = false;
+
+        @Expose
+        @ConfigOption(name = "Sound", desc = "Plays a sound with the warning.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 97)
+        public boolean sound = true;
+
+        @ConfigOption(name = "Sound file", desc = "Your own file from config/shokimod/sounds. Leave empty for the sound the game plays when you freeze.")
+        @ConfigEditorButton(buttonText = "Pick")
+        @ConfigAccordionId(id = 97)
+        public transient Runnable openSound = () -> {
+        };
+
+        @Expose
+        public String soundFile = "";
+
+        @ConfigOption(name = "Test", desc = "Shows the warning once, so you can see and hear what you set.")
+        @ConfigEditorButton(buttonText = "Test")
+        public transient Runnable test = () -> {
+        };
     }
 
     /**
