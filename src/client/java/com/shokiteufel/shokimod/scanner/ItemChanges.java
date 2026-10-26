@@ -1494,9 +1494,9 @@ public final class ItemChanges {
         return lastSource;
     }
 
-    /** Der Schalter unter Profit -> Diagnostics. Aus kostet er nichts */
+    /** Der Schalter im verborgenen Reiter Logs ("log" im Suchfeld). Aus kostet er nichts */
     private static boolean debug() {
-        return ModConfig.INSTANCE.profit.debugLogging;
+        return ModConfig.INSTANCE.logs.profitDiagnostics;
     }
 
     /**
