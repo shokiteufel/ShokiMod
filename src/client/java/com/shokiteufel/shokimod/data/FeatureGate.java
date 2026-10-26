@@ -166,6 +166,15 @@ public final class FeatureGate {
         return ModConfig.INSTANCE.mining.cold.enabled;
     }
 
+    /**
+     * Der Pet-Kasten liest Name, Item und Erfahrung des Pets aus der Tab-Liste - nur wenn er an ist.
+     * Bis 1.19.4 fehlte er in der Ortserkennung: Wer sonst nichts eingeschaltet hatte, bekam die Tab-Liste nie zu sehen,
+     * und der Kasten kannte nur, was Chat und Pet-Menue hergaben.
+     */
+    public static boolean petHud() {
+        return ModConfig.INSTANCE.hud.pet.showHud;
+    }
+
     /** Der Teilen-Vorschlag sucht alle halbe Sekunde den naechsten Hotspot, die Taste fragt jeden Tick - nur wenn eines an ist */
     public static boolean hotspotShare() {
         ModConfig.HotspotCategory c = ModConfig.INSTANCE.fishing.hotspot;
@@ -217,7 +226,7 @@ public final class FeatureGate {
 
     public static boolean location() {
         return contest() || safari() || nearbyPanel() || rareLoot() || huntingTracker() || mobMarkers() || chatRules()
-                || cakeReminder() || hotspots() || collectionTracker() || pestTraps() || gardenVisitors() || seaHp() || mute() || outOfAir() || coldAlert() || hotspotShare()
+                || cakeReminder() || hotspots() || collectionTracker() || pestTraps() || gardenVisitors() || seaHp() || mute() || outOfAir() || coldAlert() || petHud() || hotspotShare()
                 || slayerSpawn() || darkAuction() || darkAuctionTimer() || hidePlayersDungeon() || nearbyRare() || ModConfig.INSTANCE.effects.enabled;
     }
 }

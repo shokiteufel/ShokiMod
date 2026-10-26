@@ -273,7 +273,7 @@ public final class PetHud {
     /** Das zuletzt gesehene Bild, sonst das gemerkte aus frueheren Sitzungen */
     private static ItemStack icon() {
         ItemStack aktuell = PetState.icon();
-        return aktuell.isEmpty() ? PetIcons.iconFor(PetState.name()) : aktuell;
+        return aktuell.isEmpty() ? PetIcons.iconFor(PetState.key()) : aktuell;
     }
 
     /** 23200 liest sich als 23.2k, 1400000 als 1.4M */

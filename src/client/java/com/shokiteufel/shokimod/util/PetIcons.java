@@ -79,19 +79,34 @@ public final class PetIcons {
     private PetIcons() {
     }
 
-    /** Das gemerkte Bild zu diesem Pet, oder ein leerer Gegenstand */
-    public static ItemStack iconFor(String petName) {
-        if (petName == null || petName.isBlank()) return ItemStack.EMPTY;
+    /**
+     * Das gemerkte Bild zu diesem Pet, oder ein leerer Gegenstand.
+     *
+     * Gesucht wird erst unter dem Schluessel des Pets (Name, Skin, Item - siehe PetIdentity), dann ohne das Item: Das
+     * Item aendert das Bild nicht. Ein Pet mit Skin faellt nie auf das ohne Skin zurueck, das war der Fehler.
+     */
+    public static ItemStack iconFor(String petKey) {
+        if (petKey == null || petKey.isBlank()) return ItemStack.EMPTY;
         load();
-        String key = key(petName);
-        ItemStack fertig = built.get(key);
-        if (fertig != null) return fertig;
+        for (String key : PetIdentity.iconKeys(petKey)) {
+            ItemStack fertig = built.get(key);
+            if (fertig != null) return fertig;
 
-        Recipe recipe = recipes.get(key);
-        if (recipe == null) return ItemStack.EMPTY;
-        ItemStack stack = build(recipe);
-        if (!stack.isEmpty()) built.put(key, stack);
-        return stack;
+            Recipe recipe = recipes.get(key);
+            if (recipe == null) continue;
+            ItemStack stack = build(recipe);
+            if (!stack.isEmpty()) {
+                built.put(key, stack);
+                return stack;
+            }
+        }
+        return ItemStack.EMPTY;
+    }
+
+    /** Die gemerkten Schluessel - damit die Zuordnung weiss, welche Pets es schon gibt */
+    public static java.util.List<String> knownKeys() {
+        load();
+        return new java.util.ArrayList<>(recipes.keySet());
     }
 
     /**
@@ -118,6 +133,7 @@ public final class PetIcons {
         if (petName == null || petName.isBlank() || stack == null || stack.isEmpty()) return;
         load();
         String key = key(petName);
+        rememberBase(key, stack);
         Recipe vorher = recipes.get(key);
         // Ein Bild aus der Liste tritt hinter das des getragenen Pets zurueck
         if (!active && vorher != null && vorher.fromActive()) return;
@@ -134,25 +150,37 @@ public final class PetIcons {
     }
 
     /**
-     * Den zuletzt bekannten Ueberschuss festhalten.
-     *
-     * Gilt nur fuer Zahlen groesser null: eine Null waere keine Auskunft, sondern das
-     * Fehlen einer - und wuerde die gemerkte Zahl zerstoeren.
+     * Das Bild des Pets unter Name und Skin ohne Item festhalten, wenn es dort noch fehlt - damit auch ein anderes Pet
+     * dieser Art ohne eigenen Eintrag ein Bild hat. Ein vorhandenes Bild bleibt, der Ueberschuss dort auch.
      */
-    public static void rememberOverflow(String petName, int level, double xp) {
-        rememberOverflow(petName, level, xp, 0);
+    private static void rememberBase(String key, ItemStack stack) {
+        String base = PetIdentity.baseKey(PetIdentity.nameOf(key), PetIdentity.skinOf(key));
+        if (base.equals(key)) return;
+        Recipe vorher = recipes.get(base);
+        if (vorher != null && !vorher.item().isBlank()) return;
+        Recipe recipe = new Recipe(itemId(stack), texture(stack));
+        if (vorher != null) recipe = recipe.withOverflow(vorher.overflowLevel(), vorher.overflowXp());
+        recipes.put(base, recipe);
+        built.put(base, stack.copy());
+        dirty = true;
     }
 
     /**
-     * Dasselbe, mit der Gesamtstufe fuer die Meldung im Chat.
+     * Den zuletzt bekannten Ueberschuss dieses Pets festhalten.
      *
+     * Gilt nur fuer Zahlen groesser null: eine Null waere keine Auskunft, sondern das
+     * Fehlen einer - und wuerde die gemerkte Zahl zerstoeren.
+     *
+     * @param petKey   der Schluessel des Pets (Name, Skin, Item) - nicht der blosse Name: Zwei Golden Dragons teilten
+     *                 sich sonst eine Zahl, und der Wechsel zwischen ihnen galt als Aufstieg
+     * @param petName  der Name fuer die Meldung im Chat
      * @param combined Stufe plus Ueberschuss - dieselbe Zahl, die im Kasten steht.
      *                 Null heisst: unbekannt, dann nennt die Meldung den Ueberschuss
      */
-    public static void rememberOverflow(String petName, int level, double xp, int combined) {
-        if (petName == null || petName.isBlank() || level <= 0) return;
+    public static void rememberOverflow(String petKey, String petName, int level, double xp, int combined) {
+        if (petKey == null || petKey.isBlank() || level <= 0) return;
         load();
-        String key = key(petName);
+        String key = key(petKey);
         Recipe vorher = recipes.get(key);
         Recipe recipe = (vorher == null ? new Recipe("", "") : vorher).withOverflow(level, xp);
         if (recipe.equals(vorher)) return;
@@ -163,8 +191,19 @@ public final class PetIcons {
         // Blick auf ein Pet steht dort noch nichts, und ohne sie meldete die Mod
         // beim Einloggen jedes Mal "Golden Dragon hat Stufe 332 erreicht" - fuer
         // etwas, das seit Wochen so ist
-        boolean gestiegen = vorher != null && vorher.overflowLevel() > 0
-                && level > vorher.overflowLevel();
+        //
+        // Und nur ein Schritt, der einer sein kann: ein bis drei Stufen. Alles darueber ist eine andere Zahl - ein
+        // anderes Pet, das hier fuer dasselbe gehalten wurde, oder ein Stand von frueher. Die Erfahrung kostet
+        // 1.886.700 je Stufe; Dutzende Stufen kommen nicht zwischen zwei Blicken in die Tab-Liste zusammen
+        boolean sprung = vorher != null && vorher.overflowLevel() > 0 && level > vorher.overflowLevel();
+        boolean gestiegen = sprung && PetIdentity.plausibleLevelUp(vorher.overflowLevel(), level);
+        if (sprung && !gestiegen) {
+            PetLog.line("LEVEL", "no message for " + key + ": overflow " + vorher.overflowLevel() + " -> " + level
+                    + " is no single step, taken over silently");
+        } else if (gestiegen) {
+            PetLog.line("LEVEL", key + ": overflow " + vorher.overflowLevel() + " -> " + level + ", total " + combined
+                    + (combined > 0 ? ", message" : ", no message (total unknown)"));
+        }
 
         recipes.put(key, recipe);
         dirty = true;
@@ -174,7 +213,7 @@ public final class PetIcons {
         // der blosse Ueberschuss - eine andere Zahl als im Kasten, und beim Lesen sucht
         // man erst, was gemeint ist
         if (gestiegen && combined > 0) {
-            announceOverflow(petName, combined);
+            announceOverflow(petName == null || petName.isBlank() ? PetIdentity.nameOf(key) : petName, combined);
         }
     }
 
@@ -222,18 +261,18 @@ public final class PetIcons {
     }
 
     /** Die zuletzt bekannte Ueberschuss-Stufe, oder 0 */
-    public static int overflowLevelFor(String petName) {
-        if (petName == null || petName.isBlank()) return 0;
+    public static int overflowLevelFor(String petKey) {
+        if (petKey == null || petKey.isBlank()) return 0;
         load();
-        Recipe recipe = recipes.get(key(petName));
+        Recipe recipe = recipes.get(key(petKey));
         return recipe == null ? 0 : recipe.overflowLevel();
     }
 
     /** Die zuletzt bekannte Ueberschuss-Erfahrung, oder 0 */
-    public static double overflowXpFor(String petName) {
-        if (petName == null || petName.isBlank()) return 0d;
+    public static double overflowXpFor(String petKey) {
+        if (petKey == null || petKey.isBlank()) return 0d;
         load();
-        Recipe recipe = recipes.get(key(petName));
+        Recipe recipe = recipes.get(key(petKey));
         return recipe == null ? 0d : recipe.overflowXp();
     }
 
@@ -263,7 +302,10 @@ public final class PetIcons {
         load();
         String key = key(petName);
         Recipe recipe = recipes.get(key);
-        if (recipe == null) return "\"" + key + "\" not in the file at all";
+        if (recipe == null) {
+            return "\"" + key + "\" not in the file at all (image searched under "
+                    + PetIdentity.iconKeys(key) + ")";
+        }
         if (recipe.item().isBlank()) {
             return "\"" + key + "\" has no image, only overflow "
                     + recipe.overflowLevel();
@@ -275,8 +317,9 @@ public final class PetIcons {
                 + ", builds to " + (build(recipe).isEmpty() ? "NOTHING" : "an item");
     }
 
+    /** Ein blosser Name wird gross geschrieben, ein Schluessel mit Skin und Item behaelt sein Item - siehe PetIdentity */
     private static String key(String petName) {
-        return petName.trim().toUpperCase(java.util.Locale.ROOT);
+        return PetIdentity.canon(petName);
     }
 
     private static String itemId(ItemStack stack) {
