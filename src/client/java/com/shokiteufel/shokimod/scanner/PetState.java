@@ -58,6 +58,10 @@ public final class PetState {
     /**
      * Der Name eines Feldes im Pet-Menue: "[Lvl 87] Enderman".
      *
+     * Ein Favorit (Shift-Linksklick im Menue) traegt vorn einen Stern: "★ [Lvl 100] Ammonite ✦". Das Muster erwartete bis
+     * 1.19.8 den Namen gleich mit "[Lvl" - Favoriten wurden uebersehen: kein Bild, kein Item, nicht einmal im Protokoll.
+     * So fehlten bei ShokiTeufels Ammonite mit Skin (ein Favorit) Skin-Bild und Item im Kasten.
+     *
      * Zwischen Zahl und Klammer darf noch etwas stehen. Bei Pets auf Hoechststufe
      * setzen Hypixel und andere Mods dort ein Zeichen ("[Lvl 100\u2726]"), und ein
      * Muster, das nur Ziffern duldet, uebersprang das Feld stillschweigend. Getroffen
@@ -67,7 +71,7 @@ public final class PetState {
      * das Menue blieb streng, obwohl es dieselben Namen liest.
      */
     private static final Pattern MENU_NAME = Pattern.compile(
-            "^\\[Lvl (?<lvl>\\d+)[^\\]]*\\]\\s*(?<name>.+)$");
+            "^(?:\\W{1,3}\\s*)?\\[Lvl (?<lvl>\\d+)[^\\]]*\\]\\s*(?<name>.+)$");
     /** "Progress to Level 41: 79.9%" */
     private static final Pattern PROGRESS = Pattern.compile(
             "^Progress to Level (?<next>\\d+): (?<percent>[\\d.,]+)%$", Pattern.CASE_INSENSITIVE);
