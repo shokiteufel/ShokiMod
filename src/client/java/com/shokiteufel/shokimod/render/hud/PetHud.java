@@ -219,7 +219,8 @@ public final class PetHud {
                 return;
             }
         }
-        panel.pair(vorne, name, LABEL_COLOUR, VALUE_COLOUR);
+        // Buendig mit dem Namen des Pets, nicht am rechten Rand - ShokiTeufel: "das item soll buendig wie der pet name sein"
+        panel.aligned(vorne, name, LABEL_COLOUR, VALUE_COLOUR);
     }
 
     /** Das Bild zum Namen des Pet-Items, oder ein leerer Stapel */
