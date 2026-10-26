@@ -14,6 +14,7 @@ import com.shokiteufel.shokimod.util.PetIcons;
 import com.shokiteufel.shokimod.util.PetIdentity;
 import com.shokiteufel.shokimod.util.PetLevels;
 import com.shokiteufel.shokimod.util.PetLog;
+import com.shokiteufel.shokimod.util.ScoreboardUtils;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -161,7 +162,15 @@ public final class PetState {
     private static final long TAB_DELAY_MILLIS = 5000L;
     /** Fuer das Protokoll: was zuletzt aus der Tab-Liste gelesen und entschieden wurde */
     private static String lastTabSignature = "";
+    private static String lastTabBlock = "";
     private static long lastTabXpLog = 0L;
+    /**
+     * Wann zuletzt etwas am Pet geschah (Autopet-Zeile, Menue, Wechsel des Schluessels). Nach einem Ereignis schreibt das
+     * Protokoll zwanzig Sekunden lang jeden neuen Stand der Tab-Liste mit - genau dort laesst sich ablesen, wie lange sie
+     * hinterherhinkt und in welcher Reihenfolge ihre Zeilen umspringen.
+     */
+    private static volatile long lastPetEventAt = 0L;
+    private static final long TAB_BURST_MILLIS = 20_000L;
     private static boolean menuOpen = false;
     private static final Set<String> menuLogged = new HashSet<>();
     private static volatile String rarity = "";
@@ -281,6 +290,8 @@ public final class PetState {
         assertedAt = 0L;
         assertedKey = "";
         lastTabSignature = "";
+        lastTabBlock = "";
+        lastPetEventAt = 0L;
         menuOpen = false;
         menuLogged.clear();
         level = 0;
@@ -347,7 +358,10 @@ public final class PetState {
      */
     public static void onChatMessage(Component message, String plain) {
         String line = plain.trim();
-        if (isPetLine(line)) logChatLine(message, line);
+        if (isPetLine(line)) {
+            lastPetEventAt = System.currentTimeMillis();
+            logChatLine(message, line);
+        }
         Matcher m = AUTOPET.matcher(line);
         if (!m.matches()) return;
         String neu = cleanName(m.group("name"));
@@ -381,23 +395,32 @@ public final class PetState {
         PetLog.line("ID", "autopet says " + neu + (neuSkin ? " (skin)" : "") + (stufe > 0 ? " [Lvl " + stufe + "]" : " (no level given)") + ", hover item "
                 + (hoverItem == null ? "not given" : hoverItem.isEmpty() ? "none" : "'" + hoverItem + "'")
                 + " -> key " + res.key() + (res.known() ? "" : " (new)") + (res.ambiguous() ? " (guessed)" : "")
-                + (wechsel ? ", pet changed" : ", same pet") + ", tab ignored for " + (sicher ? TAB_DELAY_MILLIS + " ms" : "0 ms"));
+                + (wechsel ? ", pet changed" : ", same pet") + ", tab ignored for " + (sicher ? TAB_DELAY_MILLIS + " ms" : "0 ms")
+                + " | shown now: level " + level + ", overflow " + overflowLevel + ", item '" + heldItem + "', "
+                + (icon.isEmpty() ? "no picture" : "picture"));
     }
 
     /** Zeilen, die das Protokoll sehen soll: alles, was ein Pet wechselt oder ein Item aendert */
     private static boolean isPetLine(String line) {
         return line.startsWith("Autopet") || line.startsWith("You summoned your")
+                || line.startsWith("You despawned your")
                 || line.startsWith("Your pet is now holding")
-                || (line.startsWith("You removed ") && line.endsWith(" from your pet!"));
+                || (line.startsWith("You removed ") && line.endsWith(" from your pet!"))
+                // Hypixels eigene Aufstiegsmeldung: Daneben laesst sich pruefen, ob die Mod dasselbe gemeldet haette.
+                // Nur die eigene Zeile ("Your ..."), keine Chatzeile eines anderen
+                || (line.startsWith("Your ") && line.contains(" leveled up to level "));
     }
 
     private static void logChatLine(Component message, String line) {
         StringBuilder out = new StringBuilder("'").append(line).append('\'');
+        // Mit den Farbcodes: Die Farbe hinter dem Namen sagt, welcher Skin es ist, und die Muster der Mod lesen sie mit
+        out.append(" colours='").append(ScoreboardUtils.toLegacyString(message).replace('\u00a7', '&')).append('\'');
         List<String> hover = hoverLines(message);
         if (!hover.isEmpty()) out.append(" hover=").append(hover);
         String click = clickOf(message);
         if (!click.isEmpty()) out.append(" click=").append(click);
-        PetLog.line("CHAT", out.toString());
+        // Die Aufstiegszeile der Mod selbst kommt durch dieselben Ereignisse - sie soll nicht fuer Hypixels gehalten werden
+        PetLog.line(PetIcons.isOwnAnnouncement(line) ? "CHAT (written by the mod itself)" : "CHAT", out.toString());
     }
 
     /**
@@ -457,6 +480,7 @@ public final class PetState {
      */
     private static void switchTo(String newKey, boolean fromMemory) {
         key = newKey;
+        lastPetEventAt = System.currentTimeMillis();
         percent = -1.0;
         xpHave = -1.0;
         xpNeed = -1.0;
@@ -626,20 +650,25 @@ public final class PetState {
                                int stufe, PetIdentity.Resolution res, boolean wartet) {
         String signature = petName + "|" + petSkin + "|" + item + "|" + stufe + "|" + res.key() + "|" + wartet;
         long now = System.currentTimeMillis();
-        boolean changed = !signature.equals(lastTabSignature);
-        if (!changed && now - lastTabXpLog < 60_000L) return;
-        lastTabSignature = signature;
-        lastTabXpLog = now;
         StringBuilder block = new StringBuilder();
         for (int j = at; j < lines.size() && j <= at + 4; j++) {
             if (j > at) block.append(" | ");
             block.append(clean(lines.get(j)));
         }
-        PetLog.line("TAB", "[" + block + "] -> " + petName + (petSkin ? " (skin)" : "") + ", item "
+        boolean changed = !signature.equals(lastTabSignature);
+        // Gleich nach einem Wechsel zaehlt jeder neue Stand der Zeilen, auch wenn die Entscheidung dieselbe bleibt
+        boolean burst = lastPetEventAt > 0 && now - lastPetEventAt < TAB_BURST_MILLIS;
+        boolean neuerStand = !block.toString().equals(lastTabBlock);
+        if (!changed && !(burst && neuerStand) && now - lastTabXpLog < 60_000L) return;
+        lastTabSignature = signature;
+        lastTabBlock = block.toString();
+        lastTabXpLog = now;
+        String seit = lastPetEventAt > 0 ? " +" + (now - lastPetEventAt) + " ms after the last pet event" : "";
+        PetLog.line("TAB", "[" + block + "]" + seit + " -> " + petName + (petSkin ? " (skin)" : "") + ", item "
                 + (item == null ? "unknown (list not complete)" : item.isEmpty() ? "none" : "'" + item + "'")
                 + ", key " + res.key() + (res.known() ? "" : " (new)") + (res.ambiguous() ? " (guessed)" : "")
                 + (wartet ? " - NOT taken over, autopet/menu said " + assertedKey + " " + (now - assertedAt) + " ms ago"
-                        : (changed ? " - taken over" : " - xp sample")));
+                        : (changed ? " - taken over" : (burst ? " - new state" : " - xp sample"))));
     }
 
     /** Der Blick ins offene Pet-Menue: nur dort steht der Fortschritt */
@@ -816,6 +845,7 @@ public final class PetState {
         long jetzt = System.currentTimeMillis();
         assertedAt = jetzt;
         assertedKey = feldKey;
+        lastPetEventAt = jetzt;
         if (wechsel) PetLog.line("ID", "menu says the pet out is " + feldKey);
         skin = feldSkin;
         name = cleanName(named.group("name"));
