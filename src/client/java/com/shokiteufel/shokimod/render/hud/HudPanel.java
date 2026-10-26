@@ -40,7 +40,7 @@ public class HudPanel {
     /** Feine helle Kante oben, damit der Kasten eine Form hat statt zu verlaufen */
     private static final int TOP_EDGE = 0x50FFFFFF;
 
-    private enum Kind { TITLE, TEXT, PAIR, BAR, BLANK, ICON, TABLE, SEGMENTS, ALIGNED }
+    private enum Kind { TITLE, TEXT, PAIR, BAR, BLANK, ICON, TABLE, SEGMENTS, ALIGNED, SUBICON }
 
     /** Ein Stueck einer Segment-Zeile: ein Text in einer eigenen Farbe */
     public record Segment(String text, int colour) {
@@ -230,6 +230,22 @@ public class HudPanel {
         return this;
     }
 
+    /**
+     * Eine Zeile mit einem kleineren Bild, wie das Pet-Item unter dem Pet: Das Bild steht mittig unter dem grossen Bild der Bild-Zeile
+     * darueber, der Text - falls einer da ist - beginnt buendig mit dem Text der Bild-Zeile (siehe {@link #aligned}).
+     *
+     * @param scale wie gross, im Verhaeltnis zum Bild der Bild-Zeile: 1.0 gleich gross, 0.75 ein Viertel kleiner
+     */
+    public HudPanel subIcon(net.minecraft.world.item.ItemStack stack, float scale, String label, String value,
+                            int labelColour, int valueColour) {
+        rows.add(new Row(Kind.SUBICON, label, value, labelColour, valueColour, 0, 0,
+                stack == null ? net.minecraft.world.item.ItemStack.EMPTY : stack, "", List.of(),
+                Math.max(0.25f, Math.min(1.0f, scale))));
+        hasAligned = true;
+        measuredWidth = -1;
+        return this;
+    }
+
     public HudPanel blank() {
         rows.add(new Row(Kind.BLANK, "", "", 0, 0, 0, 0));
         return this;
@@ -255,7 +271,13 @@ public class HudPanel {
     }
 
     private int rowHeight(Row row) {
+        if (row.kind() == Kind.SUBICON) return Math.max(subSize(row), LINE_HEIGHT);
         return row.kind() == Kind.ICON ? Math.max(iconSize(), LINE_HEIGHT) : LINE_HEIGHT;
+    }
+
+    /** Kantenlaenge des kleineren Bildes: im Verhaeltnis zum Bild der Bild-Zeile */
+    private int subSize(Row row) {
+        return Math.max(4, Math.round(iconSize() * row.scale()));
     }
 
     private int contentWidth(Font font) {
@@ -312,6 +334,11 @@ public class HudPanel {
                               + (secondColumn == 0 ? 0 : GUTTER + secondColumn);
                 case ICON -> iconSize() + GUTTER + font.width(row.label())
                              + (valueWidths[i] == 0 ? 0 : GUTTER + valueWidths[i]);
+                case SUBICON -> {
+                    int text = font.width(row.label())
+                            + (row.label().isEmpty() || valueWidths[i] == 0 ? 0 : font.width(" ")) + valueWidths[i];
+                    yield alignX > 0 ? alignX + text : subSize(row) + (text == 0 ? 0 : GUTTER + text);
+                }
                 case ALIGNED -> alignX > 0
                         ? alignX + font.width(row.label())
                           + (row.label().isEmpty() || valueWidths[i] == 0 ? 0 : font.width(" ")) + valueWidths[i]
@@ -489,6 +516,28 @@ public class HudPanel {
                     // Mit einer buendigen Zeile darunter beginnt der Wert links, wo sie beginnt
                     int valueX = hasAligned ? textX + font.width(row.label()) + GUTTER : x + content - valueWidth;
                     text(graphics, font, row.value(), valueOutline[index], valueX, textY, row.valueColour());
+                }
+            }
+            case SUBICON -> {
+                int sub = subSize(row);
+                int rowH = rowHeight(row);
+                // Mittig unter dem grossen Bild; ohne Bild-Zeile darueber links
+                int ix = x + (alignX > 0 ? Math.max(0, (iconSize() - sub) / 2) : 0);
+                if (!row.icon().isEmpty()) {
+                    graphics.pose().pushMatrix();
+                    graphics.pose().translate(ix, y + (rowH - sub) / 2f);
+                    graphics.pose().scale(sub / (float) ICON_SIZE, sub / (float) ICON_SIZE);
+                    graphics.fakeItem(row.icon(), 0, 0);
+                    graphics.pose().popMatrix();
+                }
+                int textY = y + (rowH - LINE_HEIGHT) / 2 + 1;
+                int tx = alignX > 0 ? x + alignX : x + sub + GUTTER;
+                if (!row.label().isEmpty()) {
+                    text(graphics, font, row.label(), labelOutline[index], tx, textY, row.labelColour());
+                }
+                if (!row.value().isEmpty()) {
+                    int vx = tx + (row.label().isEmpty() ? 0 : font.width(row.label()) + font.width(" "));
+                    text(graphics, font, row.value(), valueOutline[index], vx, textY, row.valueColour());
                 }
             }
             case ALIGNED -> {
