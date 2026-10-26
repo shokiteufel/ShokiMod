@@ -280,6 +280,7 @@ public class ModConfig extends Config {
         if (INSTANCE.fishing.air == null) INSTANCE.fishing.air = new OutOfAirCategory();
         if (INSTANCE.fishing.air.bannerDesign == null) INSTANCE.fishing.air.bannerDesign = "Feesh";
         if (INSTANCE.fishing.air.soundFile == null) INSTANCE.fishing.air.soundFile = "";
+        if (INSTANCE.logs == null) INSTANCE.logs = new LogsCategory();
         if (INSTANCE.mining.cold == null) INSTANCE.mining.cold = new ColdAlertCategory();
         if (INSTANCE.mining.cold.bannerDesign == null) INSTANCE.mining.cold.bannerDesign = BannerDesign.ALERT_BAND;
         if (INSTANCE.mining.cold.soundFile == null) INSTANCE.mining.cold.soundFile = "";
@@ -491,7 +492,7 @@ public class ModConfig extends Config {
                         picked -> INSTANCE.chat.rareLoot.tier4Sound = picked,
                         1.0f)));
         INSTANCE.chat.rareLoot.testTier4 = () -> RareLootHandler.test(4);
-        INSTANCE.chat.rareLoot.openDiagnostics = () -> Minecraft.getInstance().execute(RareLootHandler::writeDiagnostics);
+        INSTANCE.logs.openDiagnostics = () -> Minecraft.getInstance().execute(RareLootHandler::writeDiagnostics);
         INSTANCE.fishing.rareCatch.openSound = () -> Minecraft.getInstance().execute(() ->
                 Minecraft.getInstance().setScreen(new SoundPickerScreen(
                         Minecraft.getInstance().screen,
@@ -524,7 +525,7 @@ public class ModConfig extends Config {
                                 com.shokiteufel.shokimod.util.AlertVolume.factor())));
         INSTANCE.bugHunt.soundSummary = () -> Minecraft.getInstance().execute(
                 com.shokiteufel.shokimod.handler.SoundTracer::summary);
-        INSTANCE.particles.particleSummary = () -> Minecraft.getInstance().execute(
+        INSTANCE.logs.particleSummary = () -> Minecraft.getInstance().execute(
                 com.shokiteufel.shokimod.handler.ParticleTracer::summary);
         INSTANCE.odin.playerSize.reset = () -> {
             INSTANCE.odin.playerSize.sizeX = 1.0f;
@@ -798,7 +799,7 @@ public class ModConfig extends Config {
             visuals.customTargets.addAll(old.customTargets);
         }
         if (old.pickRadius != null) visuals.pickRadius = old.pickRadius;
-        if (old.debugLogging != null) visuals.debugLogging = old.debugLogging;
+        if (old.debugLogging != null) INSTANCE.logs.mobGlowDiagnostics = old.debugLogging;
 
         if (old.chatRules != null && chat.chatRules.isEmpty()) chat.chatRules.addAll(old.chatRules);
         if (old.discoveredAreas != null && chat.discoveredAreas.isEmpty()) {
@@ -970,6 +971,14 @@ public class ModConfig extends Config {
     @Expose
     @Category(name = "Bug hunt", desc = "Tools for tracking down something odd. Nothing here is saved - every start begins with everything off.")
     public BugHuntCategory bugHunt = new BugHuntCategory();
+
+    /**
+     * Alles, was in eine Datei oder ins Log schreibt. Steht nicht in der Liste: Sichtbar wird der Reiter, wenn im Suchfeld "log" steht
+     * (siehe ShokiConfigEditor). Von Haus aus ist alles darin aus.
+     */
+    @Expose
+    @Category(name = "Logs", desc = "Everything that writes into the log or a file. All off from the start.")
+    public LogsCategory logs = new LogsCategory();
 
     @Expose
     @Category(name = "Guild", desc = "Guild events from the ShokiTeufelBot: a banner when one starts, the live ranking in a panel.")
@@ -1158,11 +1167,6 @@ public class ModConfig extends Config {
         @ConfigOption(name = "Announce overflow", desc = "Writes a line into your own chat when the pet gains an overflow level. Nobody else sees it.")
         @ConfigEditorBoolean
         public boolean announceOverflow = true;
-
-        @Expose
-        @ConfigOption(name = "Pet log", desc = "Writes what the mod reads and decides about your pets - the Autopet line with its hover text, the tab list, the pet menu - into logs/shokimod-pet.log, next to latest.log. Small, pets only. Hand the file over when the panel shows the wrong pet.")
-        @ConfigEditorBoolean
-        public boolean petLog = true;
 
         @Expose
         @ConfigOption(name = "Icon position", desc = "Where the pet image sits: in front of the first line, behind it, or on a line of its own.")
@@ -3603,6 +3607,60 @@ public class ModConfig extends Config {
     }
 
     /**
+     * Alles, was in eine Datei oder ins Log schreibt - gesammelt an einer Stelle und von Haus aus aus.
+     *
+     * Steht nicht in der Liste: Sichtbar wird der Reiter, wenn im Suchfeld "log" steht (siehe ShokiConfigEditor, wie der Reiter "Bug hunt"
+     * bei "bug"). Das Pet-Protokoll stand bis 1.19.12 im Pet-Kasten und war von Haus aus an; die Diagnose-Schalter lagen verstreut bei
+     * Profit, Mob Visuals, Rare Loot und Particles. Wer sie braucht, tippt "log" ins Suchfeld.
+     */
+    public static class LogsCategory {
+
+        @ConfigOption(name = "Logs", desc = "Everything that writes into the log or into a file, for tracking down something odd. All off from the start - switch one on for one run, then send the file. The sound tracer of Bug hunt (search 'bug') shows here too.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Pet log", desc = "Writes what the mod reads and decides about your pets - the Autopet line with its hover text, the tab list, the pet menu - into logs/shokimod-pet.log, next to latest.log. Small, pets only. Hand the file over when the panel shows the wrong pet.")
+        @ConfigEditorBoolean
+        public boolean petLog = false;
+
+        @Expose
+        @ConfigOption(name = "Profit diagnostics", desc = "Writes every counted find, every suppressed one and every batch that came in through a window into the log. Only for troubleshooting - switch it on for one run, then send the log.")
+        @ConfigEditorBoolean
+        public boolean profitDiagnostics = false;
+
+        @Expose
+        @ConfigOption(name = "Mob glow log", desc = "Writes into the log why a custom mob does or does not glow. Only for troubleshooting.")
+        @ConfigEditorBoolean
+        public boolean mobGlowDiagnostics = false;
+
+        @ConfigOption(name = "Rare loot diagnostics", desc = "Writes what the mod saw and decided into logs/shokimod-diagnostics.txt and opens that folder. Send that file together with latest.log when something did not fire.")
+        @ConfigEditorButton(buttonText = "Open")
+        public transient Runnable openDiagnostics = () -> {
+        };
+
+        @ConfigOption(name = "Particle tracer", desc = "For finding out which particles an item makes: it writes what reaches you into a file. Send the file to get a new item into the list in Particles.")
+        @ConfigEditorAccordion(id = 82)
+        public transient boolean tracerFolder = false;
+
+        @ConfigOption(name = "Particle tracer", desc = "Writes the particles that reach you into its own file, logs/shokimod-particles.log (next to latest.log), grouped by kind - type, colour, count, speed, offset, distance - with the item in your hand, the armour you wear and whether they came right after a right-click. The path shows up in the chat when you switch it on. To tell two sources apart (say armour and an item): wear the armour without using the item, switch the tracer off and send the file; then use the item without the armour and send the file again.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 82)
+        public transient boolean particleTracer = false;
+
+        @ConfigOption(name = "Particle radius", desc = "Only particles this close to you go into the file, in blocks (1 - 64). Only the file: hiding has its own distances. A beam or a trail that reaches further than this shows up cut off in the table - raise it when you measure something long.")
+        @ConfigEditorText
+        @ConfigAccordionId(id = 82)
+        public transient String particleRadius = "16";
+
+        @ConfigOption(name = "Particle summary", desc = "Writes the particle table since the last one to the file and into the chat, the most frequent kind first, and starts counting again.")
+        @ConfigEditorButton(buttonText = "Show")
+        @ConfigAccordionId(id = 82)
+        public transient Runnable particleSummary = () -> {
+        };
+    }
+
+    /**
      * Fehlersuche: was sich nur im laufenden Spiel klaeren laesst.
      *
      * Nichts davon wird gespeichert - ein vergessener Schalter soll nicht beim naechsten Start
@@ -3692,25 +3750,6 @@ public class ModConfig extends Config {
         @ConfigEditorDropdown
         public HideMode hyperionMode = HideMode.SHOW;
 
-        @ConfigOption(name = "Tracer", desc = "For finding out which particles an item makes: it writes what reaches you into a file. Send the file to get a new item into the list above.")
-        @ConfigEditorAccordion(id = 82)
-        public transient boolean tracerFolder = false;
-
-        @ConfigOption(name = "Particle tracer", desc = "Writes the particles that reach you into its own file, logs/shokimod-particles.log (next to latest.log), grouped by kind - type, colour, count, speed, offset, distance - with the item in your hand, the armour you wear and whether they came right after a right-click. The path shows up in the chat when you switch it on. To tell two sources apart (say armour and an item): wear the armour without using the item, switch the tracer off and send the file; then use the item without the armour and send the file again.")
-        @ConfigEditorBoolean
-        @ConfigAccordionId(id = 82)
-        public transient boolean particleTracer = false;
-
-        @ConfigOption(name = "Particle radius", desc = "Only particles this close to you go into the file, in blocks (1 - 64). Only the file: hiding has its own distances. A beam or a trail that reaches further than this shows up cut off in the table - raise it when you measure something long.")
-        @ConfigEditorText
-        @ConfigAccordionId(id = 82)
-        public transient String particleRadius = "16";
-
-        @ConfigOption(name = "Particle summary", desc = "Writes the particle table since the last one to the file and into the chat, the most frequent kind first, and starts counting again.")
-        @ConfigEditorButton(buttonText = "Show")
-        @ConfigAccordionId(id = 82)
-        public transient Runnable particleSummary = () -> {
-        };
     }
 
     /**
@@ -3828,11 +3867,6 @@ public class ModConfig extends Config {
         @ConfigOption(name = "Rows", desc = "How many items the panel lists, most valuable first.")
         @ConfigEditorSlider(minValue = 1f, maxValue = 20f, minStep = 1f)
         public int maxRows = 8;
-
-        @Expose
-        @ConfigOption(name = "Diagnostics", desc = "Writes every counted find, every suppressed one and every batch that came in through a window into the log. Only for troubleshooting - switch it on for one run, then send the log.")
-        @ConfigEditorBoolean
-        public boolean debugLogging = false;
 
         @ConfigOption(name = "Reset", desc = "Clears the count and the timer. Your item choices stay.")
         @ConfigEditorButton(buttonText = "Reset")
@@ -4485,11 +4519,6 @@ public class ModConfig extends Config {
         @Expose
         public boolean shinyMoved = false;
 
-        @Expose
-        @ConfigOption(name = "Debug Logging", desc = "Writes into the log why a custom mob does or does not glow. Only for troubleshooting.")
-        @ConfigEditorBoolean
-        public boolean debugLogging = false;
-
         public static class MineshaftSecretCategory {
 
             @ConfigOption(name = "Mineshaft extras", desc = "Normally a corpse is only marked once you are close enough to recognise it yourself. This lifts that limit.")
@@ -4896,11 +4925,6 @@ public class ModConfig extends Config {
         @ConfigOption(name = "Watch inventory", desc = "Also alert on items that simply appear in your inventory, without a chat line - the same way the profit tracker sees them. Catches the finds Hypixel never announces, like a fished Moby-Duck. The tier thresholds still decide, and party sharing stays off for these.")
         @ConfigEditorBoolean
         public boolean watchInventory = true;
-
-        @ConfigOption(name = "Diagnostics", desc = "Writes what the mod saw and decided into logs/shokimod-diagnostics.txt and opens that folder. Send that file together with latest.log when something did not fire.")
-        @ConfigEditorButton(buttonText = "Open")
-        public transient Runnable openDiagnostics = () -> {
-        };
 
         @Expose
         @ConfigOption(name = "Shard price", desc = "Which bazaar price counts for shards (SHARD_...). Instant Sell is what selling right now pays; Sell Order is what a listed order brings once it fills.")

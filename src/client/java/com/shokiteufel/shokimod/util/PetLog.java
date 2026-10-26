@@ -39,9 +39,9 @@ public final class PetLog {
     private PetLog() {
     }
 
-    /** Ist das Protokoll an? Von Haus aus ja - es ist klein und nur fuer Pets */
+    /** Ist das Protokoll an? Von Haus aus nein (seit 1.19.13); der Schalter steht im verborgenen Reiter "Logs" - Suchwort "log" */
     public static boolean enabled() {
-        return ModConfig.INSTANCE.hud.pet.petLog;
+        return ModConfig.INSTANCE.logs.petLog;
     }
 
     /** Wo die Datei liegt - fuer die Diagnose */
