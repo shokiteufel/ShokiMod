@@ -409,6 +409,15 @@ public class ModConfig extends Config {
             INSTANCE.hud.performance.showHud = true;
         }
 
+        // Das Pet-Item steht seit 1.19.4 von Haus aus in einer eigenen Zeile unter dem Namen. Einmal auch fuer
+        // alle, die es bisher nicht eingeschaltet hatten - der Schalter bleibt, wer es danach abschaltet, behaelt das
+        if (INSTANCE.hud.pet != null && INSTANCE.hud.pet.heldItemLineVersion < 1) {
+            INSTANCE.hud.pet.showHeldItem = true;
+            INSTANCE.hud.pet.heldItemOwnLine = true;
+            INSTANCE.hud.pet.heldItemLineVersion = 1;
+            INSTANCE.saveNow();
+        }
+
         // Die Farbe eines Shards kam bis 1.6.14 aus der falschen Haelfte der CHARM-Zeile
         // und stand deshalb rot im Kasten. Gespeichert ist sie trotzdem - einmal leeren,
         // der naechste Fund traegt sie richtig ein
@@ -1077,17 +1086,25 @@ public class ModConfig extends Config {
         public boolean showOverflowXp = true;
 
         @Expose
-        @ConfigOption(name = "Held item", desc = "The item the pet carries, if it has one.")
+        @ConfigOption(name = "Held item", desc = "The item the pet carries, if it has one. On from the start: with two pets of the same kind it is the quickest way to see which one is out.")
         @ConfigEditorBoolean
         @ConfigAccordionId(id = 79)
-        public boolean showHeldItem = false;
+        public boolean showHeldItem = true;
 
         @Expose
         @ConfigOption(name = "Held item on its own line",
-                desc = "Put it under the pet instead of behind it - with \"Held Item:\" in front, like SkyblockAddons does. Only matters while the lines are joined.")
+                desc = "Put it on the line under the pet instead of behind it - with \"Held Item:\" in front, like SkyblockAddons does. On from the start. Only matters while the lines are joined.")
         @ConfigEditorBoolean
         @ConfigAccordionId(id = 79)
-        public boolean heldItemOwnLine = false;
+        public boolean heldItemOwnLine = true;
+
+        /**
+         * Bis 1.19.3 war das Item von Haus aus aus und stand, wenn es an war, hinter dem Namen. Wer zwei Pets mit
+         * verschiedenen Items hat, sieht ohne die Zeile nicht, welches draussen ist - ShokiTeufel wollte sie fuer
+         * alle. 1 heisst: einmal umgestellt; danach gilt, was jemand selbst einstellt.
+         */
+        @Expose
+        public int heldItemLineVersion = 0;
 
         @Expose
         @ConfigOption(name = "Held item as image",
