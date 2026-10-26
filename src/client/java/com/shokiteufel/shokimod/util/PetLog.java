@@ -20,6 +20,11 @@ import java.time.format.DateTimeFormatter;
  * warum - damit sich ein falsches Bild oder eine falsche Zahl beim naechsten Mal nachvollziehen laesst, statt sie
  * raten zu muessen.
  *
+ * Zeilen: CHAT (Zeilen zum Pet-Wechsel mit Farbcodes, Mauszeiger-Text und Klick-Ziel, dazu Hypixels eigene Aufstiegsmeldung),
+ * ID (was die Mod daraus macht und was danach im Kasten steht), TAB (der Pet-Block der Tab-Liste: nach jedem Ereignis zwanzig
+ * Sekunden lang jeder neue Stand mit den Millisekunden seit dem Ereignis, sonst bei Aenderung und einmal je Minute), MENU,
+ * LEVEL.
+ *
  * Gespeichert wird nur, was die Pets betrifft: keine Chatzeilen anderer Spieler, keine Zugangsdaten. Die Datei bleibt
  * unter {@link #MAX_BYTES}; wird sie groesser, faellt die aelteste Haelfte weg.
  */
