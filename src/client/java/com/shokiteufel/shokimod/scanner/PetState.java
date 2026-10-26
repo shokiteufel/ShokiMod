@@ -10,6 +10,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.component.ItemLore;
 
+import com.shokiteufel.shokimod.util.PetBook;
 import com.shokiteufel.shokimod.util.PetIcons;
 import com.shokiteufel.shokimod.util.PetIdentity;
 import com.shokiteufel.shokimod.util.PetLevels;
@@ -115,7 +116,8 @@ public final class PetState {
      * steht. Solange das Item nicht angezeigt wurde, fiel es nicht auf.
      */
     private static final Pattern TAB_PROGRESS = Pattern.compile(
-            "^[0-9][0-9,.]*[kKmMbB]?\\s*/\\s*[0-9][0-9,.]*[kKmMbB]?\\s*XP(?:\\s*\\([0-9.]+%\\))?$", Pattern.CASE_INSENSITIVE);
+            "^(?<have>[0-9][0-9,.]*[kKmMbB]?)\\s*/\\s*(?<need>[0-9][0-9,.]*[kKmMbB]?)\\s*XP(?:\\s*\\((?<pct>[0-9.]+)%\\))?$",
+            Pattern.CASE_INSENSITIVE);
     /** Der Mauszeiger-Text der Autopet-Zeile nennt das Item: "Held Item: Poignant Lucky Clover" */
     private static final Pattern HOVER_ITEM = Pattern.compile(
             "Held Item:\\s*(?<item>.+?)\\s*$", Pattern.CASE_INSENSITIVE);
@@ -558,6 +560,7 @@ public final class PetState {
             // Unter der Hoechststufe steht dort statt der Zahl der Fortschritt ("33,915/179.7k XP (18.9%)") und auf
             // der Hoechststufe "MAX LEVEL". Beides ist kein Item - bis 1.19.4 wurde es dafuer gehalten
             double gefundeneXp = -1.0;
+            double fortschrittHat = -1.0;
             String gefundenesItem = "";
             boolean abgeschlossen = false;
             for (int j = i + 2; j <= i + 4; j++) {
@@ -576,7 +579,13 @@ public final class PetState {
                     abgeschlossen = true;
                     break;
                 }
-                if (TAB_PROGRESS.matcher(zeile).matches() || MAX_LEVEL.matcher(zeile).matches()) {
+                Matcher fort = TAB_PROGRESS.matcher(zeile);
+                if (fort.matches()) {
+                    fortschrittHat = parseAmount(fort.group("have"));
+                    abgeschlossen = true;
+                    break;
+                }
+                if (MAX_LEVEL.matcher(zeile).matches()) {
                     abgeschlossen = true;
                     break;
                 }
@@ -588,17 +597,37 @@ public final class PetState {
             // Bis 1.19.6 wurde sie als "kein Item" gelesen - und fuenf Sekunden nach jeder Autopet-Zeile sprang der Kasten
             // auf das Pet ohne Item: Die Zeile "Held Item" verschwand, Bild und Erfahrung gehoerten zum falschen Eintrag
             String itemGesehen = !gefundenesItem.isEmpty() ? gefundenesItem : null;
+            // Welches Pet es ist, sagt sonst die Erfahrung: Sie steht in der Tab-Liste und im Menue auf die Stelle genau (siehe
+            // PetBook) - auch bei drei Ammonites mit demselben Namen und ohne Skin
+            String tabSeltenheit = rarityFromColour(formatted.get(i + 1), gezeigt);
+            double gesamt = tabTotalExp(neuerName, tabSeltenheit, stufe, gefundeneXp, fortschrittHat);
+            PetBook.Match nachErfahrung = gesamt > 0 ? PetBook.match(neuerName, neuSkin, tabSeltenheit, gesamt) : null;
             // Zeigt die Tab-Liste dasselbe Pet (Name und Skin) wie das, was Chat oder Menue gemeldet haben, bleibt es dabei
             String aktuelleBasis = key.isEmpty() ? "" : PetIdentity.baseKey(PetIdentity.nameOf(key), PetIdentity.skinOf(key));
             boolean gleichesPet = itemGesehen == null && !aktuelleBasis.isEmpty()
                     && aktuelleBasis.equals(PetIdentity.baseKey(neuerName, neuSkin));
-            PetIdentity.Resolution res = gleichesPet ? new PetIdentity.Resolution(key, true, false)
-                    : PetIdentity.resolve(PetIcons.knownKeys(), neuerName, neuSkin, itemGesehen);
+            PetIdentity.Resolution res;
+            String wie;
+            if (itemGesehen != null) {
+                res = PetIdentity.resolve(PetIcons.knownKeys(), neuerName, neuSkin, itemGesehen);
+                wie = "item line";
+            } else if (nachErfahrung != null) {
+                res = new PetIdentity.Resolution(nachErfahrung.entry().key(), true, false);
+                wie = String.format(Locale.US, "by experience: %.1f = pet %s (menu said %.1f) + %.1f", gesamt,
+                        shortId(nachErfahrung.entry().uid()), nachErfahrung.entry().exp(), nachErfahrung.gain());
+            } else if (gleichesPet) {
+                res = new PetIdentity.Resolution(key, true, false);
+                wie = gesamt > 0 ? String.format(Locale.US, "same pet as before (xp %.1f matches no remembered pet)", gesamt)
+                        : "same pet as before";
+            } else {
+                res = PetIdentity.resolve(PetIcons.knownKeys(), neuerName, neuSkin, null);
+                wie = gesamt > 0 ? String.format(Locale.US, "by name (xp %.1f matches no remembered pet)", gesamt) : "by name";
+            }
             long now = System.currentTimeMillis();
             boolean anderes = !res.key().equalsIgnoreCase(key);
             boolean wartet = anderes && assertedAt > 0 && now - assertedAt < TAB_DELAY_MILLIS
                     && !res.key().equalsIgnoreCase(assertedKey);
-            logTab(lines, i, neuerName, neuSkin, itemGesehen, stufe, res, wartet);
+            logTab(lines, i, neuerName, neuSkin, itemGesehen, stufe, res, wartet, wie);
             if (wartet) return;
 
             // Ein anderes Pet heisst: alles Gemerkte gehoert nicht mehr dazu
@@ -667,11 +696,49 @@ public final class PetState {
     }
 
     /**
+     * Die gesamte Erfahrung des Pets aus seiner Tab-Zeile, oder -1.
+     *
+     * Ueber der Hoechststufe nennt die Tab-Liste nur, was darueber liegt ("+171,772.5 XP"): Dazu kommt, was bis zur Hoechststufe gesammelt
+     * sein muss. Darunter nennt sie, wie weit das Pet in seiner Stufe ist ("33,915/179.7k XP"): Dazu kommt, was bis zu dieser Stufe
+     * gesammelt sein muss. Beides braucht die Tabelle zur Seltenheit - fehlt sie noch (nicht geladen) oder ist die Farbe des Namens
+     * unbekannt, gibt es keine Zahl.
+     */
+    private static double tabTotalExp(String petName, String rarityName, int stufe, double ueberXp, double fortschrittHat) {
+        if (rarityName == null || rarityName.isEmpty() || (ueberXp <= 0 && fortschrittHat < 0)) return -1.0;
+        PetLevels.Table table = PetLevels.tableFor(PetLevels.idFor(petName), rarityName);
+        if (table == null) return -1.0;
+        if (ueberXp > 0) return table.totalTo(table.maxLevel()) + ueberXp;
+        return table.totalTo(stufe) + fortschrittHat;
+    }
+
+    private static String shortId(String uid) {
+        return uid == null ? "?" : uid.length() > 8 ? uid.substring(0, 8) : uid;
+    }
+
+    /**
+     * Ein Pet des Menues im PetBook festhalten: Kennung, genaue Erfahrung und Seltenheit aus seinen eigenen Daten ("petInfo").
+     * Damit laesst sich spaeter aus der Erfahrung der Tab-Liste sagen, welches von mehreren gleichnamigen Pets draussen ist.
+     */
+    private static void observePetBook(ItemStack stack, String petKey) {
+        String info = petInfoRaw(stack);
+        if (info.isEmpty()) return;
+        try {
+            com.google.gson.JsonObject pet = com.google.gson.JsonParser.parseString(info).getAsJsonObject();
+            String uid = pet.has("uniqueId") ? pet.get("uniqueId").getAsString()
+                    : pet.has("uuid") ? pet.get("uuid").getAsString() : "";
+            if (uid.isEmpty() || !pet.has("exp")) return;
+            PetBook.observe(uid, petKey, pet.get("exp").getAsDouble(), pet.has("tier") ? pet.get("tier").getAsString() : "");
+        } catch (RuntimeException e) {
+            // Ein Pet mit unlesbaren Daten bleibt einfach aussen vor
+        }
+    }
+
+    /**
      * Was die Tab-Liste gesagt und die Mod daraus gemacht hat - ins Protokoll, aber nur bei einer Aenderung: Die
      * Erfahrung wandert mit jedem Kill und gehoert nicht in jede Zeile (ein Stand je Minute reicht).
      */
     private static void logTab(java.util.List<String> lines, int at, String petName, boolean petSkin, String item,
-                               int stufe, PetIdentity.Resolution res, boolean wartet) {
+                               int stufe, PetIdentity.Resolution res, boolean wartet, String wie) {
         String signature = petName + "|" + petSkin + "|" + item + "|" + stufe + "|" + res.key() + "|" + wartet;
         long now = System.currentTimeMillis();
         StringBuilder block = new StringBuilder();
@@ -690,7 +757,7 @@ public final class PetState {
         String seit = lastPetEventAt > 0 ? " +" + (now - lastPetEventAt) + " ms after the last pet event" : "";
         PetLog.line("TAB", "[" + block + "]" + seit + " -> " + petName + (petSkin ? " (skin)" : "") + ", item "
                 + (item == null ? "not shown by the tab list" : item.isEmpty() ? "none" : "'" + item + "'")
-                + ", key " + res.key() + (res.known() ? "" : " (new)") + (res.ambiguous() ? " (guessed)" : "")
+                + ", key " + res.key() + (res.known() ? "" : " (new)") + (res.ambiguous() ? " (guessed)" : "") + " [" + wie + "]"
                 + (wartet ? " - NOT taken over, autopet/menu said " + assertedKey + " " + (now - assertedAt) + " ms ago"
                         : (changed ? " - taken over" : (burst ? " - new state" : " - xp sample"))));
     }
@@ -741,6 +808,7 @@ public final class PetState {
             String feldKey = PetIdentity.resolve(PetIcons.knownKeys(), feldName, feldSkin, feldItem).key();
             PetIcons.remember(feldKey, stack);
             logMenuPet(slot.index, feldText, feldItem, feldKey, stack, lore);
+            observePetBook(stack, feldKey);
 
             // Rueckfall fuer das Bild: Traegt ein Feld den Schluessel des getragenen Pets und
             // fehlt uns noch ein Bild, wird es genommen - auch ohne den Hinweis auf das
