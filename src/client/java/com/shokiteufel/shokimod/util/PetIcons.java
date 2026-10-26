@@ -71,6 +71,14 @@ public final class PetIcons {
         }
     }
 
+    /** Die letzte Aufstiegszeile, die die Mod selbst in den Chat geschrieben hat - sie laeuft durch dieselben Ereignisse wie die des Servers */
+    private static volatile String lastAnnounced = "";
+
+    /** Ist das die Zeile, die die Mod selbst geschrieben hat, und nicht eine von Hypixel? Fuer das Protokoll */
+    public static boolean isOwnAnnouncement(String plainLine) {
+        return plainLine != null && plainLine.equals(lastAnnounced);
+    }
+
     private static final Map<String, Recipe> recipes = new ConcurrentHashMap<>();
     private static final Map<String, ItemStack> built = new ConcurrentHashMap<>();
     private static volatile boolean loaded = false;
@@ -225,6 +233,7 @@ public final class PetIcons {
      */
     private static void announceOverflow(String petName, int level) {
         if (!ModConfig.INSTANCE.hud.pet.announceOverflow) return;
+        lastAnnounced = "Your " + petName + " leveled up to level " + level + "!";
         net.minecraft.client.Minecraft client = net.minecraft.client.Minecraft.getInstance();
         if (client == null) return;   // ohne laufendes Spiel gibt es niemanden zu benachrichtigen
         client.execute(() -> {
