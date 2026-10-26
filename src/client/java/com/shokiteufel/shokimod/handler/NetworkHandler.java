@@ -92,7 +92,8 @@ public class NetworkHandler {
             com.shokiteufel.shokimod.handler.DeployableReminder.onChatMessage(unformattedMsg);
             // Der Wechsel per Autopet ist die einzige Meldung ueber das aktive Pet,
             // die ohne offenes Menue kommt
-            com.shokiteufel.shokimod.scanner.PetState.onChatMessage(unformattedMsg);
+            // (mit der Komponente: der Mauszeiger-Text der Zeile nennt das Pet-Item)
+            com.shokiteufel.shokimod.scanner.PetState.onChatMessage(message, unformattedMsg);
 
             // Der Sky-Mall-Buff wird nur einmal am Tag angekuendigt - diese Zeile ist
             // die einzige Gelegenheit, ihn mitzubekommen

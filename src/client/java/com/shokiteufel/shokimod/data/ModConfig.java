@@ -1142,6 +1142,11 @@ public class ModConfig extends Config {
         public boolean announceOverflow = true;
 
         @Expose
+        @ConfigOption(name = "Pet log", desc = "Writes what the mod reads and decides about your pets - the Autopet line with its hover text, the tab list, the pet menu - into logs/shokimod-pet.log, next to latest.log. Small, pets only. Hand the file over when the panel shows the wrong pet.")
+        @ConfigEditorBoolean
+        public boolean petLog = true;
+
+        @Expose
         @ConfigOption(name = "Icon position", desc = "Where the pet image sits: in front of the first line, behind it, or on a line of its own.")
         @ConfigEditorDropdown
         public IconPlace iconPlace = IconPlace.LEFT;

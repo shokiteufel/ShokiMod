@@ -505,6 +505,12 @@ drinsteckt.
   schickt, und kein Code: Das Muster ist hier selbst hingeschrieben (`FrozenBlaze.hidesDamage`), nur die Zeichen sind dieselben. Anders: SkyHanni blendet die
   Zahlen immer aus, wenn man es einschaltet; hier nur, solange man das ganze Frozen-Blaze-Set trägt (Fishing > Frozen Blaze > Hide damage numbers).
   *Korrektur:* An dieser Stelle stand bisher "AGPL-3.0". Die `LICENSE` im Repository ist die GNU Lesser General Public License v2.1 (am 24.10.2026 gelesen).
+- **SkyHanni** (LGPL-2.1) — das Vorgehen, ein Pet zu erkennen (Version 1.19.5, `PetStorageApi`, `CurrentPetApi`): Das
+  Pet-Item im Menü trägt `petInfo` mit Kennung, Erfahrung, Item und Skin; die Autopet-Zeile nennt das Item im
+  Mauszeiger-Text ("Held Item: ..."); gleich nach einem Wechsel gilt die Tab-Liste fünf Sekunden lang weniger als Chat und Menü,
+  weil sie hinterherhinkt; eine Zuordnung zählt nur, wenn genau ein gemerktes Pet passt (Name, Seltenheit, Skin, Item).
+  Hier ist es eigener Code (`PetIdentity`, `PetState`): der Schlüssel besteht aus Name, Skin-Zeichen und Item, weil Tab-Liste,
+  Chatzeile und Menü diese drei alle nennen, die Kennung aber nur das Menü. Die Kennung wird erst ins Protokoll geschrieben (`shokimod-pet.log`).
 - **SkyHanni** (LGPL-2.1) — dagegen gegengeprüft wurden: die Sky-Mall-Platzierung, die
   Mengen in der Hunting Box, das Whale-Bait-Rezept und die vier Helme, an denen eine
   gefrorene Leiche zu erkennen ist (`LAPIS_ARMOR_HELMET`, `ARMOR_OF_YOG_HELMET`,
