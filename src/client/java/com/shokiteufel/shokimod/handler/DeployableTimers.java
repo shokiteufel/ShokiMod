@@ -1,0 +1,214 @@
+package com.shokiteufel.shokimod.handler;
+
+import com.shokiteufel.shokimod.data.FeatureGate;
+import com.shokiteufel.shokimod.data.GameState;
+import com.shokiteufel.shokimod.data.ModConfig;
+import com.shokiteufel.shokimod.data.ModConfig.DeployableHudCategory;
+import com.shokiteufel.shokimod.handler.DeployableCountdown.Reading;
+import com.shokiteufel.shokimod.handler.DeployableReminder.Kind;
+
+import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.decoration.ArmorStand;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.regex.Pattern;
+
+/**
+ * Die Restzeit der Deployables in der Naehe, fuer den Zeitkasten - und zwar so, dass sie gleichmaessig herunterlaeuft.
+ *
+ * <p>Hypixel schreibt die Zeit in den Namen des Ruestungsstaenders ("Plasmaflux 28s") und aendert den Namen nicht jede Sekunde:
+ * Wer die Zahl so anzeigt, wie sie ankommt, sieht sie in Spruengen von drei, vier Sekunden springen. Hier wird die Zahl nur als
+ * Messwert genommen: Jeder neue Wert legt fest, wann das Deployable endet, und die Anzeige rechnet zwischen den Messwerten selbst
+ * herunter, nach der Uhr. Jeden Tick wird nachgesehen, ob der Staender eine neue Zahl traegt; die Suche nach neuen Staendern
+ * (DeployableCountdown) laeuft alle zehn Ticks.
+ *
+ * <p>Die Zahl ist auf eine Sekunde gerundet; ob Hypixel auf- oder abrundet, ist nicht bekannt. Das Ende wird deshalb eine halbe
+ * Sekunde hinter die Zahl gelegt (die Mitte zwischen beiden Moeglichkeiten): Der Fehler ist hoechstens eine halbe Sekunde, in
+ * keiner Richtung mehr. Weicht ein neuer Messwert weniger als anderthalb Sekunden vom Ende ab, ist das Rundung - dann ruckt die
+ * Anzeige nicht, die Schaetzung wandert nur zur Haelfte hin. Weicht er mehr ab, gilt der neue Wert.
+ *
+ * <p>Der Flare traegt keine Zeit im Namen; sein Ende folgt aus dem Alter des Staenders in Ticks (wie bei der Warnung).
+ *
+ * <p>Eigene Deployables laufen weiter, auch wenn der Staender nicht mehr zu sehen ist (man ist weit weg gegangen): Das Ende steht
+ * ja fest. Die anderer Spieler verschwinden mit ihrem Staender.
+ */
+public final class DeployableTimers {
+
+    /** Ein Flare haelt drei Minuten, in Ticks */
+    private static final int FLARE_TICKS = 180 * 20;
+    /** Mehr als so viel weichen zwei Messwerte nur ab, wenn sich wirklich etwas geaendert hat - sonst ist es Rundung */
+    private static final long ROUNDING_MILLIS = 1_500L;
+    /** Das Ende liegt hinter der Zahl: die Mitte zwischen Auf- und Abrunden */
+    private static final long HALF_SECOND = 500L;
+    /** So lange bleibt ein abgelaufenes oder verschwundenes Deployable in der Liste, bevor es ausgetragen wird */
+    private static final long GRACE_MILLIS = 1_500L;
+    private static final Pattern COLOUR_CODE = Pattern.compile("§[0-9a-fk-or]");
+
+    /** Eine Zeile des Zeitkastens */
+    public record Row(String name, long remainingMs, boolean mine, double distance) {
+    }
+
+    private static final class Timer {
+        final int id;
+        final Kind kind;
+        final String name;
+        boolean mine;
+        double distance;
+        long expiryAt;
+        int lastSeconds = -1;
+        boolean lost = false;
+
+        Timer(int id, Kind kind, String name) {
+            this.id = id;
+            this.kind = kind;
+            this.name = name;
+        }
+    }
+
+    private static final Map<Integer, Timer> timers = new HashMap<>();
+    /** Die Uhr des letzten Ticks - der Zeitkasten wird mit jedem neuen Tick neu gebaut (siehe SafariHud) */
+    private static volatile long tickTime = 0L;
+
+    private DeployableTimers() {
+    }
+
+    private static DeployableHudCategory cfg() {
+        return ModConfig.INSTANCE.deployables.hud;
+    }
+
+    public static long tickTime() {
+        return tickTime;
+    }
+
+    public static void reset() {
+        timers.clear();
+    }
+
+    /** Gibt es etwas zu zeigen? */
+    public static boolean hasRows() {
+        return !rows(tickTime).isEmpty();
+    }
+
+    // ==========================================
+    // Messwerte
+    // ==========================================
+
+    /** Ein neuer Messwert: Die Zahl, wie der Staender sie zeigt, legt das Ende fest */
+    static void anchor(Timer t, int seconds, long now) {
+        long target = now + seconds * 1000L + HALF_SECOND;
+        if (t.lastSeconds < 0) {
+            t.expiryAt = target;
+        } else {
+            long diff = target - t.expiryAt;
+            t.expiryAt = Math.abs(diff) <= ROUNDING_MILLIS ? t.expiryAt + diff / 2 : target;
+        }
+        t.lastSeconds = seconds;
+    }
+
+    /**
+     * Die Suche hat einen Staender gefunden (alle zehn Ticks). Legt ihn an oder frischt Besitz und Abstand auf.
+     *
+     * @param mine ob das Deployable von mir ist (siehe DeployableCountdown.owned)
+     */
+    static void seen(ArmorStand stand, Reading reading, boolean mine, double distance, long now) {
+        Timer t = timers.get(stand.getId());
+        if (t == null) {
+            t = new Timer(stand.getId(), reading.kind(), reading.name());
+            timers.put(stand.getId(), t);
+        }
+        t.mine = mine;
+        t.distance = distance;
+        t.lost = false;
+        if (reading.kind() == Kind.FLARE) {
+            t.expiryAt = now + Math.max(0, FLARE_TICKS - stand.tickCount) * 50L;
+        } else if (reading.seconds() != t.lastSeconds) {
+            anchor(t, reading.seconds(), now);
+        }
+    }
+
+    // ==========================================
+    // Jeden Tick
+    // ==========================================
+
+    /** Jeden Tick: neue Zahlen der bekannten Staender lesen, Abgelaufene austragen */
+    static void tick(Minecraft client, long now) {
+        tickTime = now;
+        if (client.level == null || client.player == null || !FeatureGate.deployableHud() || !GameState.Server.isSkyblock()) {
+            if (!timers.isEmpty()) timers.clear();
+            return;
+        }
+        if (timers.isEmpty()) return;
+
+        for (Iterator<Timer> it = timers.values().iterator(); it.hasNext(); ) {
+            Timer t = it.next();
+            Entity entity = client.level.getEntity(t.id);
+            if (entity instanceof ArmorStand stand && !stand.isRemoved()) {
+                t.lost = false;
+                t.distance = Math.sqrt(stand.distanceToSqr(client.player));
+                refresh(t, stand, now);
+            } else {
+                t.lost = true;
+            }
+            // Abgelaufen, oder verschwunden und nicht mein eigenes (das zaehlt weiter, bis es ablaeuft)
+            boolean over = now > t.expiryAt + GRACE_MILLIS;
+            if (over || (t.lost && !t.mine)) it.remove();
+        }
+    }
+
+    private static void refresh(Timer t, ArmorStand stand, long now) {
+        if (t.kind == Kind.FLARE) {
+            t.expiryAt = now + Math.max(0, FLARE_TICKS - stand.tickCount) * 50L;
+            return;
+        }
+        Component name = stand.getCustomName();
+        if (name == null) return;
+        String text = COLOUR_CODE.matcher(name.getString()).replaceAll("").trim();
+        int seconds;
+        if (t.kind == Kind.TOTEM) {
+            seconds = DeployableCountdown.remainingSeconds(text);
+        } else {
+            Reading reading = DeployableCountdown.parse(text);
+            seconds = reading == null ? -1 : reading.seconds();
+        }
+        if (seconds >= 0 && seconds != t.lastSeconds) anchor(t, seconds, now);
+    }
+
+    // ==========================================
+    // Die Zeilen
+    // ==========================================
+
+    /** Was der Kasten zeigt: nach Einstellung die eigenen oder alle in der Naehe, das nahste Ende zuerst */
+    public static List<Row> rows(long now) {
+        DeployableHudCategory c = cfg();
+        List<Row> out = new ArrayList<>();
+        if (c == null || !c.enabled) return out;
+        boolean own = c.mode == ModConfig.DeployableHudMode.OWN;
+        for (Timer t : timers.values()) {
+            if (own ? !t.mine : (!t.mine && t.distance > c.nearbyRange)) continue;
+            long left = t.expiryAt - now;
+            if (left < -200L) continue;
+            out.add(new Row(t.name, Math.max(0L, left), t.mine, t.distance));
+        }
+        out.sort((a, b) -> Long.compare(a.remainingMs(), b.remainingMs()));
+        int max = Math.max(1, Math.min(10, c.maxRows));
+        return out.size() > max ? new ArrayList<>(out.subList(0, max)) : out;
+    }
+
+    /** "2:07" ab einer Minute, darunter "27.4s" (oder "28s" ohne Zehntel) - aufgerundet, damit die Anzeige erst bei 0 auf 0 steht */
+    public static String format(long ms, boolean tenths) {
+        long left = Math.max(0L, ms);
+        if (left >= 60_000L) {
+            long s = (left + 999L) / 1000L;
+            return String.format(Locale.ROOT, "%d:%02d", s / 60L, s % 60L);
+        }
+        if (tenths) return String.format(Locale.ROOT, "%.1fs", left / 1000.0);
+        return ((left + 999L) / 1000L) + "s";
+    }
+}

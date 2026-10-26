@@ -241,6 +241,7 @@ public final class DeployableCountdown {
     }
 
     static void reset() {
+        DeployableTimers.reset();
         seen.clear();
         heads.clear();
         known.clear();
@@ -257,11 +258,14 @@ public final class DeployableCountdown {
     // ==========================================
 
     static void tick(Minecraft client, long now) {
+        // Jeden Tick: neue Zahlen der Staender, die der Zeitkasten kennt - er soll gleichmaessig herunterlaufen
+        DeployableTimers.tick(client, now);
         if (++ticks < SCAN_TICKS) return;
         ticks = 0;
         if (client.level == null || client.player == null) return;
-        if (!FeatureGate.deployables() || !GameState.Server.isSkyblock()
-                || (cfgMain() <= 0 && cfgUmberella() <= 0)) {
+        boolean warnings = FeatureGate.deployables() && (cfgMain() > 0 || cfgUmberella() > 0);
+        boolean panel = FeatureGate.deployableHud();
+        if (!GameState.Server.isSkyblock() || (!warnings && !panel)) {
             if (!seen.isEmpty()) seen.clear();
             return;
         }
@@ -282,7 +286,7 @@ public final class DeployableCountdown {
                 String text = COLOUR_CODE.matcher(customName.getString()).replaceAll("").trim();
                 Reading reading = parse(text);
                 if (reading != null) {
-                    watch(stand, reading, me, present, now);
+                    watch(stand, reading, me, present, now, warnings, panel);
                     continue;
                 }
                 if (remainingSeconds(text) >= 0) {
@@ -301,15 +305,20 @@ public final class DeployableCountdown {
             }
 
             Reading flare = flare(stand);
-            if (flare != null) watch(stand, flare, me, present, now);
+            if (flare != null) watch(stand, flare, me, present, now, warnings, panel);
         }
 
         // Das Totem: "Remaining" gehoert zu dem Totem-Staender, der fast darunter oder darueber steht
         for (Part time : remaining) {
             if (next(time, totems) == null) continue;
             Part owner = next(time, owners);
-            if (owner != null && !OWNER.matcher(owner.text).replaceFirst("$1").trim().equalsIgnoreCase(myName)) continue;
-            watch(time.stand, new Reading(Kind.TOTEM, TOTEM_NAME, remainingSeconds(time.text), TOTEM_RANGE), me, present, now);
+            Reading totem = new Reading(Kind.TOTEM, TOTEM_NAME, remainingSeconds(time.text), TOTEM_RANGE);
+            if (owner != null && !OWNER.matcher(owner.text).replaceFirst("$1").trim().equalsIgnoreCase(myName)) {
+                // Das Totem eines anderen: keine Warnung, aber der Zeitkasten im Modus "alle in der Naehe" zeigt es
+                if (panel) DeployableTimers.seen(time.stand, totem, false, Math.sqrt(time.stand.distanceToSqr(me)), now);
+                continue;
+            }
+            watch(time.stand, totem, me, present, now, warnings, panel);
         }
 
         seen.keySet().retainAll(present);
@@ -339,8 +348,13 @@ public final class DeployableCountdown {
         return best;
     }
 
-    private static void watch(ArmorStand stand, Reading reading, Vec3 me, Set<Integer> present, long now) {
-        if (!isMine(stand, reading, me, now)) return;
+    private static void watch(ArmorStand stand, Reading reading, Vec3 me, Set<Integer> present, long now,
+                              boolean warnings, boolean panel) {
+        // Wem es gehoert, wird einmal beim Auftauchen entschieden - fuer die Warnung ("Only my own") wie fuer den Zeitkasten
+        boolean mine = owned(stand, reading, me, now);
+        if (panel) DeployableTimers.seen(stand, reading, mine, Math.sqrt(stand.distanceToSqr(me)), now);
+        if (!warnings) return;
+        if (ModConfig.INSTANCE.deployables.ownOnly && !mine) return;
         if (stand.distanceToSqr(me) > reading.range() * reading.range()) return;
 
         present.add(stand.getId());
@@ -351,12 +365,13 @@ public final class DeployableCountdown {
     }
 
     /**
-     * Gehoert der Staender mir? Entschieden wird einmal, wenn er zum ersten Mal auftaucht.
+     * Gehoert der Staender mir? Entschieden wird einmal, wenn er zum ersten Mal auftaucht - unabhaengig davon, ob die Warnung nur die
+     * eigenen will ("Only my own"): Auch der Zeitkasten im Modus "nur meine" fragt danach.
      *
-     * Aus ("Only my own" aus) und beim Totem (das den Besitzer nennt und anderswo geprueft wird) zaehlt jeder.
+     * Beim Totem, das den Besitzer nennt und anderswo geprueft wird, zaehlt jeder, der hier ankommt.
      */
-    private static boolean isMine(ArmorStand stand, Reading reading, Vec3 me, long now) {
-        if (!ModConfig.INSTANCE.deployables.ownOnly || reading.kind() == Kind.TOTEM) return true;
+    private static boolean owned(ArmorStand stand, Reading reading, Vec3 me, long now) {
+        if (reading.kind() == Kind.TOTEM) return true;
         int id = stand.getId();
         scanned.add(id);
         if (mine.containsKey(id)) {
