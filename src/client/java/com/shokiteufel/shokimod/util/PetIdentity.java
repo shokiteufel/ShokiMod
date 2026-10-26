@@ -124,10 +124,15 @@ public final class PetIdentity {
 
         if (item == null) {
             if (same.isEmpty()) return new Resolution(base, false, false);
-            if (same.size() == 1) return new Resolution(same.get(0), true, false);
-            // Mehrere Pets dieser Art: ohne das Item laesst sich nicht sagen, welches. Das ohne Item gilt als das
-            // Naechstliegende, sonst das erste in fester Reihenfolge
-            return new Resolution(same.contains(base) ? base : same.get(0), true, true);
+            // Ein Eintrag ohne Item ist oft nur ein Platzhalter (das gemerkte Bild des Pets, ein Ueberschuss ohne Pet-Item): Gibt
+            // es Pets mit Item, zaehlen nur die - sonst waere ein einziges Pet mit Item schon mehrdeutig
+            List<String> mitItem = new ArrayList<>();
+            for (String k : same) if (!itemOf(k).isEmpty()) mitItem.add(k);
+            List<String> pool = mitItem.isEmpty() ? same : mitItem;
+            if (pool.size() == 1) return new Resolution(pool.get(0), true, false);
+            // Mehrere Pets dieser Art: ohne das Item laesst sich nicht sagen, welches. Dann lieber keines zeigen als ein falsches
+            // Item: der Schluessel ohne Item, bis die Erfahrung aus der Tab-Liste das Pet nennt (siehe PetBook)
+            return new Resolution(base, true, true);
         }
 
         String clean = item.trim();
