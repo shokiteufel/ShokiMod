@@ -410,6 +410,9 @@ public class ModConfig extends Config {
 
         // Das Pet-Item steht seit 1.19.4 von Haus aus in einer eigenen Zeile unter dem Namen. Einmal auch fuer
         // alle, die es bisher nicht eingeschaltet hatten - der Schalter bleibt, wer es danach abschaltet, behaelt das
+        if (INSTANCE.hud.pet != null && (INSTANCE.hud.pet.heldItemIconScale < 0.4f || INSTANCE.hud.pet.heldItemIconScale > 1.0f)) {
+            INSTANCE.hud.pet.heldItemIconScale = 0.75f;
+        }
         if (INSTANCE.hud.pet != null && INSTANCE.hud.pet.heldItemLineVersion < 1) {
             INSTANCE.hud.pet.showHeldItem = true;
             INSTANCE.hud.pet.heldItemOwnLine = true;
@@ -1107,10 +1110,24 @@ public class ModConfig extends Config {
 
         @Expose
         @ConfigOption(name = "Held item as image",
-                desc = "Show the item's picture instead of its name. Saves the width of a long name like Burnt Texts.")
+                desc = "Show the item's picture, a bit smaller than the pet's, under the pet's picture - instead of its name. Saves the width of a long name like Burnt Texts.")
         @ConfigEditorBoolean
         @ConfigAccordionId(id = 79)
         public boolean heldItemIcon = false;
+
+        @Expose
+        @ConfigOption(name = "Name next to the held item image",
+                desc = "Keep the item's name beside its picture, in line with the pet's name. Only matters with \"Held item as image\".")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 79)
+        public boolean heldItemIconWithName = false;
+
+        @Expose
+        @ConfigOption(name = "Held item image size",
+                desc = "How big the item's picture is compared with the pet's picture. 1.0 is as big, 0.75 a quarter smaller.")
+        @ConfigEditorSlider(minValue = 0.4f, maxValue = 1.0f, minStep = 0.05f)
+        @ConfigAccordionId(id = 79)
+        public float heldItemIconScale = 0.75f;
 
         @Expose
         @ConfigOption(name = "Progress bar", desc = "How far it is to the next level. Only shown below the maximum level.")

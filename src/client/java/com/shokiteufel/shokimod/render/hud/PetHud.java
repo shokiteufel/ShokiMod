@@ -215,7 +215,8 @@ public final class PetHud {
         if (c.heldItemIcon) {
             ItemStack stack = heldItemStack(name);
             if (!stack.isEmpty()) {
-                panel.icon(stack, vorne, "", LABEL_COLOUR, VALUE_COLOUR);
+                // Kleiner als das Bild des Pets, mittig darunter; auf Wunsch mit dem Namen daneben, buendig mit dem Namen des Pets
+                panel.subIcon(stack, c.heldItemIconScale, vorne, c.heldItemIconWithName ? name : "", LABEL_COLOUR, VALUE_COLOUR);
                 return;
             }
         }
