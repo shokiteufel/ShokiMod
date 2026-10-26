@@ -103,8 +103,17 @@ public class HudPanel {
      * und beide waeren nicht mehr buendig.
      */
     private boolean hasAligned = false;
-    /** Wo der Text der Bild-Zeile beginnt, vom linken Rand des Inhalts gerechnet; 0, wenn es keine gibt */
-    private int alignX = 0;
+    /** Gibt es eine Bild-Zeile mit Text, an der sich buendige Zeilen ausrichten koennen? */
+    private boolean anchored = false;
+    /** Wo der Text der Bild-Zeile beginnt (die Beschriftung), vom linken Rand des Inhalts gerechnet */
+    private int labelX = 0;
+    /**
+     * Wo die Werte beginnen, wenn die Bild-Zeile Beschriftung UND Wert hat ("Pet:" und der Name): hinter der breitesten Beschriftung. So
+     * stehen "Pet:" und "Held Item:" untereinander, und der Name des Pets und der des Items beginnen in einer Spalte.
+     */
+    private int valueX = 0;
+    /** Zwei Spalten (Beschriftung, Wert) oder eine (nur Text, wie bei "Bild rechts")? */
+    private boolean twoColumns = false;
 
     /**
      * Einmal ausgemessen, dann behalten.
@@ -289,12 +298,26 @@ public class HudPanel {
         if (measuredWidth >= 0) return;
 
         valueWidths = new int[rows.size()];
-        alignX = 0;
+        anchored = false;
+        twoColumns = false;
+        labelX = 0;
+        valueX = 0;
         if (hasAligned) {
             for (Row row : rows) {
                 if (row.kind() != Kind.ICON || (row.label().isEmpty() && row.value().isEmpty())) continue;
-                // Steht ein Wert in der Bild-Zeile, ist er der Name - die Beschriftung davor ("Pet:") geht ihm voraus
-                alignX = iconSize() + GUTTER + (row.value().isEmpty() ? 0 : font.width(row.label()) + GUTTER);
+                anchored = true;
+                labelX = iconSize() + GUTTER;
+                // Steht ein Wert in der Bild-Zeile, ist er der Name - die Beschriftung davor ("Pet:") geht ihm voraus. Die
+                // Beschriftungen der buendigen Zeilen stehen darunter in derselben Spalte ("Held Item:" unter "Pet:"), die Werte
+                // beginnen hinter der breitesten von ihnen
+                twoColumns = !row.value().isEmpty();
+                int labelWidth = font.width(row.label());
+                for (Row other : rows) {
+                    if (other.kind() == Kind.ALIGNED || other.kind() == Kind.SUBICON) {
+                        labelWidth = Math.max(labelWidth, font.width(other.label()));
+                    }
+                }
+                valueX = labelX + (labelWidth > 0 ? labelWidth + GUTTER : GUTTER);
                 break;
             }
         }
@@ -332,22 +355,31 @@ public class HudPanel {
                 case BLANK -> 0;
                 case TABLE -> font.width(row.label()) + GUTTER + firstColumn
                               + (secondColumn == 0 ? 0 : GUTTER + secondColumn);
-                case ICON -> iconSize() + GUTTER + font.width(row.label())
-                             + (valueWidths[i] == 0 ? 0 : GUTTER + valueWidths[i]);
+                case ICON -> anchored && twoColumns && valueWidths[i] > 0
+                        ? valueX + valueWidths[i]
+                        : iconSize() + GUTTER + font.width(row.label())
+                          + (valueWidths[i] == 0 ? 0 : GUTTER + valueWidths[i]);
                 case SUBICON -> {
-                    int text = font.width(row.label())
-                            + (row.label().isEmpty() || valueWidths[i] == 0 ? 0 : font.width(" ")) + valueWidths[i];
-                    yield alignX > 0 ? alignX + text : subSize(row) + (text == 0 ? 0 : GUTTER + text);
+                    int text = alignedTextWidth(font, row, valueWidths[i]);
+                    yield anchored ? text : subSize(row) + (text == 0 ? 0 : GUTTER + text);
                 }
-                case ALIGNED -> alignX > 0
-                        ? alignX + font.width(row.label())
-                          + (row.label().isEmpty() || valueWidths[i] == 0 ? 0 : font.width(" ")) + valueWidths[i]
+                case ALIGNED -> anchored ? alignedTextWidth(font, row, valueWidths[i])
                         : font.width(row.label()) + GUTTER + valueWidths[i];
                 case SEGMENTS -> (int) Math.ceil(segmentsWidth(font, row) * row.scale());
             };
             widest = Math.max(widest, width);
         }
         measuredWidth = widest;
+    }
+
+    /**
+     * Wie weit der Text einer buendigen Zeile vom linken Rand des Inhalts reicht. Zwei Spalten: die Beschriftung beginnt in der Spalte der
+     * Beschriftung, der Wert in der Spalte der Werte; eine Spalte: beides hintereinander ab dem Text der Bild-Zeile.
+     */
+    private int alignedTextWidth(Font font, Row row, int valueWidth) {
+        int labelWidth = font.width(row.label());
+        if (twoColumns) return valueWidth > 0 ? valueX + valueWidth : labelX + labelWidth;
+        return labelX + labelWidth + (row.label().isEmpty() || valueWidth == 0 ? 0 : font.width(" ")) + valueWidth;
     }
 
     /** Die Breite einer Segment-Zeile in ihren eigenen Massen, vor dem Verkleinern */
@@ -513,16 +545,16 @@ public class HudPanel {
                 int textX = x + size + GUTTER;
                 text(graphics, font, row.label(), labelOutline[index], textX, textY, row.labelColour());
                 if (!row.value().isEmpty()) {
-                    // Mit einer buendigen Zeile darunter beginnt der Wert links, wo sie beginnt
-                    int valueX = hasAligned ? textX + font.width(row.label()) + GUTTER : x + content - valueWidth;
-                    text(graphics, font, row.value(), valueOutline[index], valueX, textY, row.valueColour());
+                    // Mit einer buendigen Zeile darunter beginnt der Wert links, in der Spalte der Werte
+                    int wertX = anchored && twoColumns ? x + valueX : x + content - valueWidth;
+                    text(graphics, font, row.value(), valueOutline[index], wertX, textY, row.valueColour());
                 }
             }
             case SUBICON -> {
                 int sub = subSize(row);
                 int rowH = rowHeight(row);
                 // Mittig unter dem grossen Bild; ohne Bild-Zeile darueber links
-                int ix = x + (alignX > 0 ? Math.max(0, (iconSize() - sub) / 2) : 0);
+                int ix = x + (anchored ? Math.max(0, (iconSize() - sub) / 2) : 0);
                 if (!row.icon().isEmpty()) {
                     graphics.pose().pushMatrix();
                     graphics.pose().translate(ix, y + (rowH - sub) / 2f);
@@ -531,21 +563,23 @@ public class HudPanel {
                     graphics.pose().popMatrix();
                 }
                 int textY = y + (rowH - LINE_HEIGHT) / 2 + 1;
-                int tx = alignX > 0 ? x + alignX : x + sub + GUTTER;
+                int tx = anchored ? x + labelX : x + sub + GUTTER;
                 if (!row.label().isEmpty()) {
                     text(graphics, font, row.label(), labelOutline[index], tx, textY, row.labelColour());
                 }
                 if (!row.value().isEmpty()) {
-                    int vx = tx + (row.label().isEmpty() ? 0 : font.width(row.label()) + font.width(" "));
+                    int vx = anchored && twoColumns ? x + valueX
+                            : tx + (row.label().isEmpty() ? 0 : font.width(row.label()) + font.width(" "));
                     text(graphics, font, row.value(), valueOutline[index], vx, textY, row.valueColour());
                 }
             }
             case ALIGNED -> {
-                if (alignX > 0) {
-                    int ax = x + alignX;
+                if (anchored) {
+                    int ax = x + labelX;
                     text(graphics, font, row.label(), labelOutline[index], ax, y, row.labelColour());
                     if (!row.value().isEmpty()) {
-                        int vx = ax + (row.label().isEmpty() ? 0 : font.width(row.label()) + font.width(" "));
+                        int vx = twoColumns ? x + valueX
+                                : ax + (row.label().isEmpty() ? 0 : font.width(row.label()) + font.width(" "));
                         text(graphics, font, row.value(), valueOutline[index], vx, y, row.valueColour());
                     }
                 } else {
