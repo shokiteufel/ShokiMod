@@ -91,7 +91,7 @@ public final class PetIcons {
      * Das gemerkte Bild zu diesem Pet, oder ein leerer Gegenstand.
      *
      * Gesucht wird erst unter dem Schluessel des Pets (Name, Skin, Item - siehe PetIdentity), dann ohne das Item: Das
-     * Item aendert das Bild nicht. Ein Pet mit Skin faellt nie auf das ohne Skin zurueck, das war der Fehler.
+     * Item aendert das Bild nicht. Ein Pet mit Skin nimmt das Bild des Pets ohne Skin nur ersatzweise, solange das Menue es nie gezeigt hat.
      */
     public static ItemStack iconFor(String petKey) {
         if (petKey == null || petKey.isBlank()) return ItemStack.EMPTY;
@@ -106,6 +106,22 @@ public final class PetIcons {
             if (!stack.isEmpty()) {
                 built.put(key, stack);
                 return stack;
+            }
+        }
+        // Ein Pet mit Skin, das das Menue noch nie gezeigt hat (ein Favorit bis 1.19.8, eine Seite, die nie aufgeschlagen
+        // wurde): ersatzweise das Bild des Pets ohne Skin. Ein Bild vom richtigen Pet mit womoeglich falschem Skin ist besser
+        // als ein Kasten ohne Bild - und sobald das Menue das Pet gezeigt hat, gilt sein eigenes
+        String plain = PetIdentity.nameOf(petKey);
+        if (PetIdentity.skinOf(petKey) && !plain.isEmpty()) {
+            ItemStack fertig = built.get(plain);
+            if (fertig != null) return fertig;
+            Recipe recipe = recipes.get(plain);
+            if (recipe != null) {
+                ItemStack stack = build(recipe);
+                if (!stack.isEmpty()) {
+                    built.put(plain, stack);
+                    return stack;
+                }
             }
         }
         return ItemStack.EMPTY;
