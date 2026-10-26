@@ -161,6 +161,11 @@ public final class FeatureGate {
         return ModConfig.INSTANCE.fishing.air.enabled;
     }
 
+    /** Die Kaelte-Warnung liest viermal je Sekunde die Seitenleiste - nur wenn sie an ist. Braucht den Ort (nur in SkyBlock) */
+    public static boolean coldAlert() {
+        return ModConfig.INSTANCE.mining.cold.enabled;
+    }
+
     /** Der Teilen-Vorschlag sucht alle halbe Sekunde den naechsten Hotspot, die Taste fragt jeden Tick - nur wenn eines an ist */
     public static boolean hotspotShare() {
         ModConfig.HotspotCategory c = ModConfig.INSTANCE.fishing.hotspot;
@@ -212,7 +217,7 @@ public final class FeatureGate {
 
     public static boolean location() {
         return contest() || safari() || nearbyPanel() || rareLoot() || huntingTracker() || mobMarkers() || chatRules()
-                || cakeReminder() || hotspots() || collectionTracker() || pestTraps() || gardenVisitors() || seaHp() || mute() || outOfAir() || hotspotShare()
+                || cakeReminder() || hotspots() || collectionTracker() || pestTraps() || gardenVisitors() || seaHp() || mute() || outOfAir() || coldAlert() || hotspotShare()
                 || slayerSpawn() || darkAuction() || darkAuctionTimer() || hidePlayersDungeon() || nearbyRare() || ModConfig.INSTANCE.effects.enabled;
     }
 }
