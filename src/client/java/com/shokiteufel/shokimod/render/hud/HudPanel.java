@@ -40,7 +40,7 @@ public class HudPanel {
     /** Feine helle Kante oben, damit der Kasten eine Form hat statt zu verlaufen */
     private static final int TOP_EDGE = 0x50FFFFFF;
 
-    private enum Kind { TITLE, TEXT, PAIR, BAR, BLANK, ICON, TABLE, SEGMENTS }
+    private enum Kind { TITLE, TEXT, PAIR, BAR, BLANK, ICON, TABLE, SEGMENTS, ALIGNED }
 
     /** Ein Stueck einer Segment-Zeile: ein Text in einer eigenen Farbe */
     public record Segment(String text, int colour) {
@@ -96,6 +96,15 @@ public class HudPanel {
     }
 
     private final List<Row> rows = new ArrayList<>();
+
+    /**
+     * Gibt es eine Zeile, die buendig unter dem Text einer Bild-Zeile beginnt? Dann steht auch der Wert der Bild-Zeile
+     * links an dieser Stelle statt am rechten Rand - sonst wanderte er bei einer langen Zeile darunter nach rechts,
+     * und beide waeren nicht mehr buendig.
+     */
+    private boolean hasAligned = false;
+    /** Wo der Text der Bild-Zeile beginnt, vom linken Rand des Inhalts gerechnet; 0, wenn es keine gibt */
+    private int alignX = 0;
 
     /**
      * Einmal ausgemessen, dann behalten.
@@ -209,6 +218,18 @@ public class HudPanel {
         return this;
     }
 
+    /**
+     * Eine Zeile, die buendig mit dem Text der Bild-Zeile beginnt - das Pet-Item steht so genau unter dem Namen des
+     * Pets, nicht am rechten Rand (wo eine Paar-Zeile ihren Wert hinsetzt) und nicht unter dem Bild. Beschriftung und
+     * Wert stehen hintereinander, linksbuendig. Gibt es keine Bild-Zeile mit Text, ist es eine gewoehnliche Paar-Zeile.
+     */
+    public HudPanel aligned(String label, String value, int labelColour, int valueColour) {
+        rows.add(new Row(Kind.ALIGNED, label, value, labelColour, valueColour, 0, 0));
+        hasAligned = true;
+        measuredWidth = -1;
+        return this;
+    }
+
     public HudPanel blank() {
         rows.add(new Row(Kind.BLANK, "", "", 0, 0, 0, 0));
         return this;
@@ -246,6 +267,15 @@ public class HudPanel {
         if (measuredWidth >= 0) return;
 
         valueWidths = new int[rows.size()];
+        alignX = 0;
+        if (hasAligned) {
+            for (Row row : rows) {
+                if (row.kind() != Kind.ICON || (row.label().isEmpty() && row.value().isEmpty())) continue;
+                // Steht ein Wert in der Bild-Zeile, ist er der Name - die Beschriftung davor ("Pet:") geht ihm voraus
+                alignX = iconSize() + GUTTER + (row.value().isEmpty() ? 0 : font.width(row.label()) + GUTTER);
+                break;
+            }
+        }
         labelOutline = new String[rows.size()];
         valueOutline = new String[rows.size()];
         int widest = 0;
@@ -282,6 +312,10 @@ public class HudPanel {
                               + (secondColumn == 0 ? 0 : GUTTER + secondColumn);
                 case ICON -> iconSize() + GUTTER + font.width(row.label())
                              + (valueWidths[i] == 0 ? 0 : GUTTER + valueWidths[i]);
+                case ALIGNED -> alignX > 0
+                        ? alignX + font.width(row.label())
+                          + (row.label().isEmpty() || valueWidths[i] == 0 ? 0 : font.width(" ")) + valueWidths[i]
+                        : font.width(row.label()) + GUTTER + valueWidths[i];
                 case SEGMENTS -> (int) Math.ceil(segmentsWidth(font, row) * row.scale());
             };
             widest = Math.max(widest, width);
@@ -452,8 +486,23 @@ public class HudPanel {
                 int textX = x + size + GUTTER;
                 text(graphics, font, row.label(), labelOutline[index], textX, textY, row.labelColour());
                 if (!row.value().isEmpty()) {
-                    text(graphics, font, row.value(), valueOutline[index],
-                         x + content - valueWidth, textY, row.valueColour());
+                    // Mit einer buendigen Zeile darunter beginnt der Wert links, wo sie beginnt
+                    int valueX = hasAligned ? textX + font.width(row.label()) + GUTTER : x + content - valueWidth;
+                    text(graphics, font, row.value(), valueOutline[index], valueX, textY, row.valueColour());
+                }
+            }
+            case ALIGNED -> {
+                if (alignX > 0) {
+                    int ax = x + alignX;
+                    text(graphics, font, row.label(), labelOutline[index], ax, y, row.labelColour());
+                    if (!row.value().isEmpty()) {
+                        int vx = ax + (row.label().isEmpty() ? 0 : font.width(row.label()) + font.width(" "));
+                        text(graphics, font, row.value(), valueOutline[index], vx, y, row.valueColour());
+                    }
+                } else {
+                    // Kein Bild, an dem man sich ausrichten koennte: wie eine Paar-Zeile
+                    text(graphics, font, row.label(), labelOutline[index], x, y, row.labelColour());
+                    text(graphics, font, row.value(), valueOutline[index], x + content - valueWidth, y, row.valueColour());
                 }
             }
             case TITLE, TEXT -> text(graphics, font, row.label(), labelOutline[index],
