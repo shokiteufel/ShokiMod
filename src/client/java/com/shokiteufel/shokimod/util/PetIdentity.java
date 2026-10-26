@@ -12,8 +12,9 @@ import java.util.Locale;
  * oder mit verschiedenen Pet-Items -, hatte deshalb nur einen Eintrag fuer beide: dasselbe Bild, und die Erfahrung
  * des einen stand beim anderen, samt einer erfundenen Meldung "leveled up to level 532".
  *
- * Jetzt gehoert zu jedem Pet ein Schluessel aus drei Merkmalen, die jede Quelle (Tab-Liste, Chatzeile des Autopets,
- * Pet-Menue) nennt: der Name, ob ein Skin dran ist (das Zeichen hinter dem Namen) und das Pet-Item.
+ * Jetzt gehoert zu jedem Pet ein Schluessel aus drei Merkmalen: der Name, ob ein Skin dran ist (ein Zeichen hinter dem
+ * Namen oder in der Klammer davor) und das Pet-Item. Name und Skin nennen Tab-Liste, Chatzeile des Autopets und Pet-Menue;
+ * das Item nur die Chatzeile (im Mauszeiger-Text) und das Menue - die Tab-Liste zeigt es nicht (Protokoll vom 26.10.2026).
  *
  * <pre>
  *   GOLDEN DRAGON                  ohne Skin, ohne Item

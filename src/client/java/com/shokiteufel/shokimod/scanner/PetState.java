@@ -101,7 +101,7 @@ public final class PetState {
      * Menue-Besuchs stehen, waehrend im Chat weiter Stufen gemeldet wurden.
      */
     private static final Pattern TAB_PET = Pattern.compile(
-            "^\\[Lvl (?<lvl>\\d+)[^\\]]*\\]\\s*(?:\\[(?<over>\\d+)[^\\]]*\\]\\s*)?(?<name>.+)$");
+            "^\\[Lvl (?<lvl>\\d+)[^\\]]*\\]\\s*(?:\\[(?<over>\\d+)(?<altmark>[^\\]]*)\\]\\s*)?(?<name>.+)$");
     /** Die Erfahrung darunter: "+628,040,665.1 XP" */
     private static final Pattern TAB_XP = Pattern.compile(
             "^\\+?(?<xp>[0-9][0-9,.]*)\\s*XP$", Pattern.CASE_INSENSITIVE);
@@ -366,7 +366,7 @@ public final class PetState {
         if (!m.matches()) return;
         String neu = cleanName(m.group("name"));
         String neuGezeigt = displayName(m.group("name"));
-        boolean neuSkin = hasSkinMark(neuGezeigt);
+        boolean neuSkin = hasSkinMark(m.group("name"));
         int stufe = m.group("lvl") == null ? 0 : parseInt(m.group("lvl"));
         if (neu.isEmpty()) return;
 
@@ -495,9 +495,20 @@ public final class PetState {
         if (fromMemory) atMax = overflowLevel > 0;
     }
 
-    /** Steht ein Zeichen hinter dem Namen ("Ammonite ✦")? Hypixel setzt es bei einem Pet mit Skin */
-    private static boolean hasSkinMark(String displayName) {
-        return SKIN_MARK.matcher(displayName).find();
+    /** Das Skin-Zeichen in der Klammer vor dem Namen: "[438✦] Golden Dragon" */
+    private static final Pattern ALT_SKIN = Pattern.compile("^\\[\\s*\\d+\\s*\u2726[^\\]]*\\]");
+
+    /**
+     * Hat das Pet einen Skin? Hypixel setzt ein Zeichen: hinter den Namen ("Ammonite ✦") oder, bei einem Pet mit
+     * Ueberschuss-Stufe, in die Klammer davor ("[438✦] Golden Dragon"). Im Protokoll vom 26.10.2026 trugen alle 32 Pets
+     * mit Skin (laut petInfo) eines der beiden Zeichen und keines ohne Skin. Bis 1.19.6 zaehlte nur das hintere: Die
+     * Drachen hatten nie einen Skin, und ein Golden Dragon mit und einer ohne waeren ein Pet gewesen.
+     *
+     * @param rawName der Name, wie die Quelle ihn nennt - mit der Klammer, wenn sie dasteht
+     */
+    private static boolean hasSkinMark(String rawName) {
+        String text = clean(rawName);
+        return SKIN_MARK.matcher(displayName(text)).find() || ALT_SKIN.matcher(text).find();
     }
 
     /**
@@ -519,7 +530,9 @@ public final class PetState {
             if (!pet.matches()) return;
             String neuerName = cleanName(pet.group("name"));
             String gezeigt = displayName(pet.group("name"));
-            boolean neuSkin = hasSkinMark(gezeigt);
+            // Die Tab-Zeile zerlegt die Klammer in Zahl und Rest: Das Skin-Zeichen steht im Rest
+            boolean neuSkin = hasSkinMark(pet.group("name"))
+                    || (pet.group("altmark") != null && pet.group("altmark").contains("\u2726"));
             int stufe = parseInt(pet.group("lvl"));
             if (neuerName.isEmpty() || stufe <= 0) return;
 
@@ -566,10 +579,17 @@ public final class PetState {
                 // Weder Zahl noch Ueberschrift: das ist der Name des Items
                 if (gefundenesItem.isEmpty()) gefundenesItem = zeile;
             }
-            // null heisst: die Liste war an dieser Stelle noch nicht fertig aufgebaut - dann weiss sie zum Item nichts
-            String itemGesehen = !gefundenesItem.isEmpty() ? gefundenesItem : (abgeschlossen ? "" : null);
-
-            PetIdentity.Resolution res = PetIdentity.resolve(PetIcons.knownKeys(), neuerName, neuSkin, itemGesehen);
+            // Die Tab-Liste nennt das Item meist gar nicht: Im Protokoll vom 26.10.2026 steht unter dem Namen nie mehr als
+            // die Erfahrung, auch bei Pets mit Item. Eine fehlende Zeile heisst also "weiss nicht", nicht "kein Item".
+            // Bis 1.19.6 wurde sie als "kein Item" gelesen - und fuenf Sekunden nach jeder Autopet-Zeile sprang der Kasten
+            // auf das Pet ohne Item: Die Zeile "Held Item" verschwand, Bild und Erfahrung gehoerten zum falschen Eintrag
+            String itemGesehen = !gefundenesItem.isEmpty() ? gefundenesItem : null;
+            // Zeigt die Tab-Liste dasselbe Pet (Name und Skin) wie das, was Chat oder Menue gemeldet haben, bleibt es dabei
+            String aktuelleBasis = key.isEmpty() ? "" : PetIdentity.baseKey(PetIdentity.nameOf(key), PetIdentity.skinOf(key));
+            boolean gleichesPet = itemGesehen == null && !aktuelleBasis.isEmpty()
+                    && aktuelleBasis.equals(PetIdentity.baseKey(neuerName, neuSkin));
+            PetIdentity.Resolution res = gleichesPet ? new PetIdentity.Resolution(key, true, false)
+                    : PetIdentity.resolve(PetIcons.knownKeys(), neuerName, neuSkin, itemGesehen);
             long now = System.currentTimeMillis();
             boolean anderes = !res.key().equalsIgnoreCase(key);
             boolean wartet = anderes && assertedAt > 0 && now - assertedAt < TAB_DELAY_MILLIS
@@ -665,7 +685,7 @@ public final class PetState {
         lastTabXpLog = now;
         String seit = lastPetEventAt > 0 ? " +" + (now - lastPetEventAt) + " ms after the last pet event" : "";
         PetLog.line("TAB", "[" + block + "]" + seit + " -> " + petName + (petSkin ? " (skin)" : "") + ", item "
-                + (item == null ? "unknown (list not complete)" : item.isEmpty() ? "none" : "'" + item + "'")
+                + (item == null ? "not shown by the tab list" : item.isEmpty() ? "none" : "'" + item + "'")
                 + ", key " + res.key() + (res.known() ? "" : " (new)") + (res.ambiguous() ? " (guessed)" : "")
                 + (wartet ? " - NOT taken over, autopet/menu said " + assertedKey + " " + (now - assertedAt) + " ms ago"
                         : (changed ? " - taken over" : (burst ? " - new state" : " - xp sample"))));
@@ -712,7 +732,7 @@ public final class PetState {
             // Unter seinem Schluessel: Zwei Pets gleichen Namens - eines mit Skin, oder mit anderem Item - sind zwei
             // Eintraege mit je eigenem Bild. Das Item steht in der Beschreibung des Feldes, das Skin-Zeichen im Namen
             String feldName = cleanName(named.group("name"));
-            boolean feldSkin = hasSkinMark(displayName(named.group("name")));
+            boolean feldSkin = hasSkinMark(named.group("name")) || petInfoHasSkin(stack);
             String feldItem = loreItem(lore);
             String feldKey = PetIdentity.resolve(PetIcons.knownKeys(), feldName, feldSkin, feldItem).key();
             PetIcons.remember(feldKey, stack);
@@ -770,10 +790,25 @@ public final class PetState {
      * sich belegen laesst, was Hypixel wirklich mitschickt.
      */
     private static String petInfoOf(ItemStack stack) {
-        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
-        if (data == null) return "";
-        String info = data.copyTag().getStringOr("petInfo", "");
+        String info = petInfoRaw(stack);
         return info.length() > 600 ? info.substring(0, 600) + "..." : info;
+    }
+
+    private static String petInfoRaw(ItemStack stack) {
+        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
+        return data == null ? "" : data.copyTag().getStringOr("petInfo", "");
+    }
+
+    /** Traegt das Pet laut seinen eigenen Daten einen Skin ("skin":"GOLDEN_DRAGON_ANCIENT")? */
+    private static boolean petInfoHasSkin(ItemStack stack) {
+        String info = petInfoRaw(stack);
+        if (info.isEmpty()) return false;
+        try {
+            com.google.gson.JsonObject pet = com.google.gson.JsonParser.parseString(info).getAsJsonObject();
+            return pet.has("skin") && !pet.get("skin").isJsonNull() && !pet.get("skin").getAsString().isBlank();
+        } catch (RuntimeException e) {
+            return false;
+        }
     }
 
     /** Liest ein Feld aus, wenn es das aktive Pet ist. Wahr, sobald es passt */
