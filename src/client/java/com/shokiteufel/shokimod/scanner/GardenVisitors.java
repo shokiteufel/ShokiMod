@@ -1,6 +1,7 @@
 package com.shokiteufel.shokimod.scanner;
 
 import com.shokiteufel.shokimod.ShokiMod;
+import com.shokiteufel.shokimod.data.ModConfig;
 
 import java.util.List;
 import java.util.Locale;
@@ -26,8 +27,11 @@ import java.util.regex.Pattern;
  */
 public final class GardenVisitors {
 
-    /** So viele Besucher passen in die Warteschlange - mehr kommen nicht */
-    public static final int MAXIMUM = 6;
+    /** So viele passten bisher in die Warteschlange: die Vorgabe der Einstellung */
+    public static final int DEFAULT_CAPACITY = 6;
+    /** Kleinste und groesste Warteschlange, die sich einstellen laesst */
+    public static final int MIN_CAPACITY = 5;
+    public static final int MAX_CAPACITY = 10;
 
     /** "Visitors: (3)" - wie viele gerade warten */
     private static final Pattern VISITORS = Pattern.compile("Visitors:\\s*\\((\\d+)\\)", Pattern.CASE_INSENSITIVE);
@@ -45,6 +49,16 @@ public final class GardenVisitors {
     private static boolean loggedOdd = false;
 
     private GardenVisitors() {
+    }
+
+    /** Der Platz in der Warteschlange laut Einstellung - mehr Besucher kommen nicht */
+    public static int capacity() {
+        return clampCapacity(ModConfig.INSTANCE.garden.visitors.queueSize);
+    }
+
+    /** Eine Zahl auf den Bereich zurechtruecken, den die Warteschlange haben kann */
+    public static int clampCapacity(int size) {
+        return Math.max(MIN_CAPACITY, Math.min(MAX_CAPACITY, size));
     }
 
     /** Wie viele Besucher gerade warten */
