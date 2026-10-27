@@ -12,6 +12,7 @@ import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -49,12 +50,53 @@ public class EffectsScreen extends Screen {
         return Math.max(1, (height - BOTTOM_SPACE - LIST_TOP) / ROW_HEIGHT);
     }
 
+    /** Eine Zeile der Liste: entweder die Ueberschrift einer Gruppe oder ein Effekt */
+    private record Row(String header, EffectEntry entry) {
+    }
+
     private List<EffectEntry> shown() {
         return showHidden ? EffectsTracker.hiddenEntries() : EffectsTracker.entries();
     }
 
+    /** So heisst eine Gruppe ohne Namen: Der Effekt stand noch auf keiner Filterseite von /effects */
+    private static final String UNSORTED = "Not sorted yet";
+
+    /**
+     * Die Seiten der Liste. Die Effekte stehen in den Gruppen von /effects, jede mit ihrer Ueberschrift; gibt es
+     * nur die Gruppe ohne Namen, bleibt die Liste ohne Ueberschriften. Eine Ueberschrift steht nie als letzte Zeile
+     * einer Seite, und eine Gruppe, die auf der naechsten Seite weitergeht, bekommt dort ihre Ueberschrift noch einmal.
+     */
+    private List<List<Row>> pages() {
+        List<EffectsTracker.Group> groups = EffectsTracker.groups(showHidden);
+        boolean headers = groups.stream().anyMatch(g -> !g.name().isEmpty());
+        int per = rowsPerPage();
+
+        List<List<Row>> pages = new ArrayList<>();
+        List<Row> page = new ArrayList<>();
+        for (EffectsTracker.Group group : groups) {
+            String title = group.name().isEmpty() ? UNSORTED : group.name();
+            if (headers) {
+                if (page.size() >= per - 1 && per > 1) {
+                    pages.add(page);
+                    page = new ArrayList<>();
+                }
+                page.add(new Row(title, null));
+            }
+            for (EffectEntry e : group.entries()) {
+                if (page.size() >= per) {
+                    pages.add(page);
+                    page = new ArrayList<>();
+                    if (headers && per > 1) page.add(new Row(title + " (cont.)", null));
+                }
+                page.add(new Row(null, e));
+            }
+        }
+        if (!page.isEmpty() || pages.isEmpty()) pages.add(page);
+        return pages;
+    }
+
     private int pageCount() {
-        return Math.max(1, (shown().size() + rowsPerPage() - 1) / rowsPerPage());
+        return Math.max(1, pages().size());
     }
 
     private void rebuild() {
@@ -69,13 +111,15 @@ public class EffectsScreen extends Screen {
 
     @Override
     protected void init() {
-        page = Math.clamp(page, 0, pageCount() - 1);
-        List<EffectEntry> liste = shown();
+        List<List<Row>> pages = pages();
+        page = Math.clamp(page, 0, pages.size() - 1);
+        List<Row> rows = pages.get(page);
         int left = width / 2 - GRID_WIDTH / 2;
 
-        int start = page * rowsPerPage();
-        for (int i = 0; i < rowsPerPage() && start + i < liste.size(); i++) {
-            EffectEntry e = liste.get(start + i);
+        for (int i = 0; i < rows.size(); i++) {
+            EffectEntry e = rows.get(i).entry();
+            // Eine Ueberschrift hat keine Knoepfe
+            if (e == null) continue;
             int y = LIST_TOP + i * ROW_HEIGHT;
             int x = left + NAME_WIDTH + TIME_WIDTH + 8;
 
@@ -202,7 +246,7 @@ public class EffectsScreen extends Screen {
                 .withStyle(ChatFormatting.GOLD), centerX, 14, 0xFFFFAA00);
         graphics.centeredText(font, Component.literal(showHidden
                         ? "Hidden effects stay out of the list, the panel and the alerts"
-                        : "Open /effects once - every effect in it is remembered here")
+                        : "Cycle the Filter in /effects - effects are sorted by it")
                 .withStyle(ChatFormatting.DARK_GRAY), centerX, 26, 0xFF888888);
         if (!ModConfig.INSTANCE.effects.enabled) {
             graphics.centeredText(font, Component.literal(
@@ -220,11 +264,19 @@ public class EffectsScreen extends Screen {
             return;
         }
         int left = width / 2 - GRID_WIDTH / 2;
-        int start = page * rowsPerPage();
-        for (int i = 0; i < rowsPerPage() && start + i < liste.size(); i++) {
-            EffectEntry e = liste.get(start + i);
+        List<List<Row>> pages = pages();
+        List<Row> rows = pages.get(Math.clamp(page, 0, pages.size() - 1));
+        for (int i = 0; i < rows.size(); i++) {
+            Row row = rows.get(i);
             int y = LIST_TOP + i * ROW_HEIGHT + 6;
-            graphics.text(font, e.name, left, y, 0xFFFFFFFF, false);
+            if (row.entry() == null) {
+                // Die Ueberschrift einer Gruppe, mit einem Strich darunter
+                graphics.text(font, row.header(), left, y, 0xFFFFAA00, false);
+                graphics.fill(left, y + 10, left + GRID_WIDTH, y + 11, 0x66FFAA00);
+                continue;
+            }
+            EffectEntry e = row.entry();
+            graphics.text(font, e.name, left + 6, y, 0xFFFFFFFF, false);
             Long rest = EffectsTracker.remaining(e);
             String time = rest == null ? "?" : rest <= 0L ? "off" : EffectsHud.format(rest);
             int colour = rest == null ? 0xFFAAAAAA : rest <= 0L ? 0xFFFF5555 : 0xFF55FF55;

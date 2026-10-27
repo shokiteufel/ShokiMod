@@ -54,6 +54,7 @@ public final class EffectsTracker {
     private static long lastMenuLook = 0L;
     private static long lastSecond = 0L;
     private static String lastOddTitle = "";
+    private static String lastFilterLogged = "";
 
     /** Der Vorab-Alarm ("noch x Minuten") ist fuer diesen Effekt schon gekommen */
     private static final Set<String> earlyFired = new HashSet<>();
@@ -88,6 +89,99 @@ public final class EffectsTracker {
         }
         out.sort(Comparator.comparing((EffectEntry e) -> e.name.toLowerCase(Locale.ROOT)));
         return out;
+    }
+
+    /** Eine Gruppe von /effects: der Name des Filters und die Effekte darunter. Leerer Name: noch nicht eingeordnet */
+    public record Group(String name, List<EffectEntry> entries) {
+    }
+
+    /**
+     * Die Effekte in den Gruppen, die /effects selbst macht: je Filter eine, in der Reihenfolge des Menues.
+     * Was noch auf keiner Filterseite gesehen wurde, steht zuletzt in der Gruppe ohne Namen.
+     */
+    public static List<Group> groups(boolean hidden) {
+        List<EffectEntry> all = sorted(hidden);
+        List<String> order = cfg().categoryOrder;
+        Map<String, List<EffectEntry>> byKey = new HashMap<>();
+        Map<String, String> shown = new HashMap<>();
+        for (EffectEntry e : all) {
+            String category = e.category == null ? "" : e.category.trim();
+            String k = category.toLowerCase(Locale.ROOT);
+            byKey.computeIfAbsent(k, x -> new ArrayList<>()).add(e);
+            shown.putIfAbsent(k, category);
+        }
+
+        List<Group> out = new ArrayList<>();
+        // Zuerst die Filter in der Reihenfolge des Menues, danach alles Uebrige nach Namen, zuletzt die Ungeordneten
+        for (String name : order) {
+            List<EffectEntry> found = byKey.remove(name.toLowerCase(Locale.ROOT).trim());
+            if (found != null) out.add(new Group(name, found));
+        }
+        byKey.entrySet().stream()
+                .filter(entry -> !entry.getKey().isEmpty())
+                .sorted(Map.Entry.comparingByKey())
+                .forEach(entry -> out.add(new Group(shown.get(entry.getKey()), entry.getValue())));
+        List<EffectEntry> rest = byKey.get("");
+        if (rest != null) out.add(new Group("", rest));
+        return out;
+    }
+
+    /** Der Filter-Knopf von /effects: welche Zeile gewaehlt ist und welche Zeilen es insgesamt gibt */
+    record Filter(String selected, List<String> options) {
+
+        /** "All Effects" ordnet nichts ein: dort stehen die Effekte aller Filter */
+        boolean isUmbrella() {
+            return selected.toLowerCase(Locale.ROOT).startsWith("all");
+        }
+    }
+
+    /**
+     * Liest den Filter-Knopf: die Zeile mit dem Pfeil davor ist gewaehlt, die Zeilen im selben Absatz sind
+     * die Auswahl. Null, wenn keine Zeile einen Pfeil hat.
+     */
+    static Filter parseFilter(List<String> lore) {
+        int at = -1;
+        for (int i = 0; i < lore.size(); i++) {
+            if (lore.get(i).startsWith("▶")) {
+                at = i;
+                break;
+            }
+        }
+        if (at < 0) return null;
+
+        int from = at;
+        int to = at;
+        while (from > 0 && !lore.get(from - 1).isBlank()) from--;
+        while (to < lore.size() - 1 && !lore.get(to + 1).isBlank()) to++;
+
+        List<String> options = new ArrayList<>();
+        for (int i = from; i <= to; i++) {
+            String line = lore.get(i).startsWith("▶") ? lore.get(i).substring(1) : lore.get(i);
+            line = line.trim();
+            if (!line.isEmpty()) options.add(line);
+        }
+        String selected = lore.get(at).substring(1).trim();
+        return selected.isEmpty() ? null : new Filter(selected, options);
+    }
+
+    /** Merkt sich die Filter in der Reihenfolge des Menues. Wahr, wenn dabei etwas dazukam */
+    private static boolean learnOrder(Filter filter) {
+        List<String> order = cfg().categoryOrder;
+        boolean grew = false;
+        for (String option : filter.options()) {
+            boolean known = false;
+            for (String existing : order) {
+                if (existing.equalsIgnoreCase(option)) {
+                    known = true;
+                    break;
+                }
+            }
+            if (!known) {
+                order.add(option);
+                grew = true;
+            }
+        }
+        return grew;
     }
 
     /** Wie lange der Effekt noch laeuft, in Millisekunden - negativ, wenn er aus ist; null, wenn unbekannt */
@@ -219,7 +313,15 @@ public final class EffectsTracker {
             }
         }
 
-        boolean changed = false;
+        // Der Filter ist auch die Einteilung des Menues: Was unter "X" steht, gehoert in die Gruppe "X"
+        Filter chosen = parseFilter(filter);
+        boolean changed = chosen != null && learnOrder(chosen);
+        String category = chosen == null || chosen.isUmbrella() ? "" : chosen.selected();
+        if (chosen != null && !chosen.selected().equals(lastFilterLogged)) {
+            lastFilterLogged = chosen.selected();
+            ShokiMod.LOGGER.info("[Effects] filter: '{}' selected, options {}", chosen.selected(), chosen.options());
+        }
+
         for (Slot slot : screen.getMenu().slots) {
             ItemStack stack = slot.getItem();
             if (stack.isEmpty()) continue;
@@ -232,10 +334,15 @@ public final class EffectsTracker {
             if (entry == null) {
                 entry = new EffectEntry();
                 entry.name = name;
+                entry.category = category;
                 cfg().list.put(key(name), entry);
                 // Der Filter steht mit im Log: Fuellt sich die Liste mit Effekten, die man dort nicht
                 // erwartet, sieht man hier, was die Filterzeilen gesagt haben
-                ShokiMod.LOGGER.info("[Effects] remembered {} (filter lines: {})", name, filter);
+                ShokiMod.LOGGER.info("[Effects] remembered {} (category: '{}', filter lines: {})", name, category, filter);
+                changed = true;
+            } else if (!category.isEmpty() && !category.equals(entry.category)) {
+                // Die Seite eines Filters ordnet ein; die Seite "alle" tut es nicht und laesst die Gruppe stehen
+                entry.category = category;
                 changed = true;
             }
             long end = now + ms;
