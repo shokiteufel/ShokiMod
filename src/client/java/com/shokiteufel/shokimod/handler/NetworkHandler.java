@@ -46,6 +46,8 @@ public class NetworkHandler {
             HotspotTracker.reset();
             com.shokiteufel.shokimod.scanner.PetState.reset();
             com.shokiteufel.shokimod.scanner.PerformanceState.reset();
+            // Beim Betreten eines Mineshafts setzt Hypixel die Abklingzeit der Faehigkeit zurueck: das ist keine Bereitschaft
+            com.shokiteufel.shokimod.scanner.MiningState.worldJoined();
         });
 
         ClientReceiveMessageEvents.ALLOW_GAME.register((message, overlay) -> {
