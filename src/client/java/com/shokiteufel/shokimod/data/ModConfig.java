@@ -1944,6 +1944,11 @@ public class ModConfig extends Config {
         public boolean hideLootshare = false;
 
         @Expose
+        @ConfigOption(name = "Hide Tribe Member", desc = "Hides the chat lines of the NPC \"[NPC] Tribe Member: ...\" while you wear the full Frozen Blaze armor. Only these lines go; every other NPC and all other chat stays. It does what a chat rule with the text \"[NPC] Tribe Member:\" and Hide message on does, but without a rule to set up.")
+        @ConfigEditorBoolean
+        public boolean hideTribeMember = false;
+
+        @Expose
         @ConfigOption(name = "Hide damage numbers", desc = "Hides the floating damage numbers (like 1,234 with its little stars and swords) while you wear the full Frozen Blaze armor. The aura hits every mob around you every second, and the numbers would cover the screen. All damage numbers are hidden, yours and the others'. Nothing else changes: the mobs are still hit, and the numbers are only not drawn. The look of the numbers is taken from SkyHanni's Hide Damage Splash.")
         @ConfigEditorBoolean
         public boolean hideDamage = false;
