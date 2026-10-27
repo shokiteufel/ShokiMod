@@ -187,6 +187,7 @@ public final class ParticleTracer {
     public static void noteUse(ItemStack stack) {
         lastUseAt = System.currentTimeMillis();
         lastUseItem = idOf(stack);
+        DeployableCountdown.noteUse(lastUseItem);
         if (!ModConfig.INSTANCE.logs.particleTracer) return;
         ensureSession(Minecraft.getInstance());
         write("you used " + lastUseItem);

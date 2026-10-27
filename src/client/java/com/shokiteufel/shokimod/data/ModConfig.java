@@ -2203,7 +2203,7 @@ public class ModConfig extends Config {
         public transient String about = "";
 
         @Expose
-        @ConfigOption(name = "Show panel", desc = "The time panel. Off from the start.")
+        @ConfigOption(name = "Show panel", desc = "The time panel. Off from the start. It shows up only while there is a deployable to list - with \"Only my own\" that means one you put down yourself (right-click with it in your hand); in /shoki hud it always shows two example lines. If it stays empty although one is standing, switch on \"Deployable log\" (search \"log\") and send logs/shokimod-deployables.log.")
         @ConfigEditorBoolean
         public boolean enabled = false;
 
@@ -3702,6 +3702,11 @@ public class ModConfig extends Config {
         @ConfigOption(name = "Mob glow log", desc = "Writes into the log why a custom mob does or does not glow. Only for troubleshooting.")
         @ConfigEditorBoolean
         public boolean mobGlowDiagnostics = false;
+
+        @Expose
+        @ConfigOption(name = "Deployable log", desc = "Writes what the mod reads from the armor stands around you and decides about your deployables - their texts, whether they count as yours, how the number changes - into logs/shokimod-deployables.log, next to latest.log. Switch it on, put a deployable down, wait until its time should show, then hand the file over.")
+        @ConfigEditorBoolean
+        public boolean deployableLog = false;
 
         @ConfigOption(name = "Rare loot diagnostics", desc = "Writes what the mod saw and decided into logs/shokimod-diagnostics.txt and opens that folder. Send that file together with latest.log when something did not fire.")
         @ConfigEditorButton(buttonText = "Open")
