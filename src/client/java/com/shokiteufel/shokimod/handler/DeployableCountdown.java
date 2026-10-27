@@ -82,6 +82,12 @@ public final class DeployableCountdown {
     /** Wie nah am Spieler ein Staender stehen muss, damit er beim Aufstellen als der eigene gilt */
     private static final double PLACE_RANGE = 8.0;
     /**
+     * Ein Flare wird in den Himmel geschossen: sein Staender taucht gut eine Sekunde nach dem Rechtsklick auf und steht dann hoch
+     * ueber dem Spieler (gemessen: 10,3 Bloecke Abstand, zuerst gesehen 1,65 s nach dem Rechtsklick). Fuer ihn zaehlt deshalb der
+     * Abstand auf dem Boden (wie bei den anderen), und nach oben darf er so weit weg sein.
+     */
+    private static final double FLARE_SHOT_HEIGHT = 40.0;
+    /**
      * Ohne erkennbares Deployable in der Hand zaehlt nur, was fast an der eigenen Stelle und fast sofort erscheint.
      * Das faengt Deployables ab, deren Item-Kennung die Liste unten nicht kennt - und ist eng genug, dass der
      * Rechtsklick mit der Angel (mehrmals je Minute) nicht jeden Staender neben einem zum eigenen macht.
@@ -467,21 +473,26 @@ public final class DeployableCountdown {
         String item = ParticleTracer.lastUseItem();
         double distance = Math.sqrt(stand.distanceToSqr(me));
         boolean deployableItem = item != null && DEPLOYABLE_ITEM.matcher(item).find();
+        boolean flareShot = deployableItem && reading.kind() == Kind.FLARE && item.contains("FLARE");
+        double flat = Math.hypot(stand.getX() - me.x, stand.getZ() - me.z);
+        double up = stand.getY() - me.y;
+        boolean near = flareShot ? flat <= PLACE_RANGE && Math.abs(up) <= FLARE_SHOT_HEIGHT : distance <= PLACE_RANGE;
         boolean placed = since >= 0 && since <= PLACE_WINDOW_MILLIS
-                && ((deployableItem && distance <= PLACE_RANGE)
+                && ((deployableItem && near)
                 || (since <= PLACE_STRICT_WINDOW_MILLIS && distance <= PLACE_STRICT_RANGE));
         // Nur was nah genug zum Aufstellen war, ist ein Eintrag wert - fremde Deployables in der Ferne sind Rauschen
-        if (distance <= 12.0 && decisionsLogged < DECISION_LOG_LIMIT) {
+        if ((distance <= 12.0 || flareShot) && decisionsLogged < DECISION_LOG_LIMIT) {
             decisionsLogged++;
             ShokiMod.LOGGER.info("[Deployables] {} ({}): {} - right-click {} ms ago with {}, {} blocks away",
                     reading.name(), reading.kind(), placed ? "MINE" : "not mine", since, item,
                     String.format(Locale.ROOT, "%.1f", distance));
         }
         if (DeployableLog.enabled()) {
-            DeployableLog.line("OWNER", String.format(Locale.ROOT, "id=%d %s (%s): %s - right-click %s with %s, %.1f blocks away (deployable item: %s; window %d ms, range %.0f - or %d ms / %.1f when the item is not known)",
+            DeployableLog.line("OWNER", String.format(Locale.ROOT, "id=%d %s (%s): %s - right-click %s with %s, %.1f blocks away (%.1f on the ground, %+.1f up; deployable item: %s; window %d ms, range %.0f%s - or %d ms / %.1f when the item is not known)",
                     stand.getId(), reading.name(), reading.kind(), placed ? "MINE" : "not mine",
-                    ParticleTracer.lastUseAt() == 0L ? "never" : since + " ms ago", item, distance, deployableItem,
-                    PLACE_WINDOW_MILLIS, PLACE_RANGE, PLACE_STRICT_WINDOW_MILLIS, PLACE_STRICT_RANGE));
+                    ParticleTracer.lastUseAt() == 0L ? "never" : since + " ms ago", item, distance, flat, up, deployableItem,
+                    PLACE_WINDOW_MILLIS, PLACE_RANGE, flareShot ? " on the ground, up to " + (int) FLARE_SHOT_HEIGHT + " up (flare)" : "",
+                    PLACE_STRICT_WINDOW_MILLIS, PLACE_STRICT_RANGE));
         }
         return placed;
     }
