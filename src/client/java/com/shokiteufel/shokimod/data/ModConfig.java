@@ -1631,7 +1631,7 @@ public class ModConfig extends Config {
         public boolean showAbility = true;
 
         @Expose
-        @ConfigOption(name = "Ability cooldown", desc = "How long until the pickaxe ability is ready again.")
+        @ConfigOption(name = "Ability cooldown", desc = "How long until the pickaxe ability is ready again. In a Glacite Mineshaft it is always ready, so \"Ready\" is not shown there.")
         @ConfigEditorBoolean
         @ConfigAccordionId(id = 80)
         public boolean showCooldown = true;
@@ -1649,7 +1649,7 @@ public class ModConfig extends Config {
         public CorpseFilter corpses = CorpseFilter.OFF;
 
         @Expose
-        @ConfigOption(name = "Ready alert", desc = "Shows a banner the moment the pickaxe ability comes off cooldown, so you do not have to watch the panel. Its design is picked in Alerts > Banner > Sandbox.")
+        @ConfigOption(name = "Ready alert", desc = "Shows a banner the moment the pickaxe ability comes off cooldown, so you do not have to watch the panel. Not in a Glacite Mineshaft: Hypixel resets the cooldown when you enter, so the ability is always ready there. Its design is picked in Alerts > Banner > Sandbox.")
         @ConfigEditorBoolean
         public boolean readyAlert = false;
 

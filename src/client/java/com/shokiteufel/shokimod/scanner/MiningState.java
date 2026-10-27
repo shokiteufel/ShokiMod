@@ -2,6 +2,7 @@ package com.shokiteufel.shokimod.scanner;
 
 import com.shokiteufel.shokimod.data.GameState;
 import com.shokiteufel.shokimod.data.ModConfig;
+import com.shokiteufel.shokimod.data.ModConstants;
 import com.shokiteufel.shokimod.ShokiMod;
 import com.shokiteufel.shokimod.render.DropBanner;
 import net.minecraft.client.Minecraft;
@@ -143,6 +144,17 @@ public final class MiningState {
      * kurzen Abstand faellt er auf.
      */
     private static final long READY_ALERT_DELAY_MILLIS = 500L;
+
+    /**
+     * Im Mineshaft ist die Faehigkeit immer bereit: Beim Betreten setzt Hypixel die Abklingzeit zurueck. Eine Bereitschaft
+     * sagt dort nichts, also wird sie weder gezeigt noch gemeldet.
+     *
+     * Ein "Ready", das mehr als so viel vor dem erwarteten Ende kommt, ist ein Zuruecksetzen und kein Ablauf. Gilt es kurz
+     * nach dem Betreten einer Welt, wird es nicht gemeldet, auch wenn das Gebiet in der Tab-Liste noch nicht nachgekommen ist.
+     */
+    private static final long RESET_EARLY_MILLIS = 3_000L;
+    private static final long JOIN_WINDOW_MILLIS = 20_000L;
+    private static long joinedAt = 0L;
 
     private static long readyAt = 0L;
     /**
@@ -421,6 +433,11 @@ public final class MiningState {
     public static void tick() {
         if (!ModConfig.INSTANCE.mining.hud.readyAlert) return;
         if (readyAnnounced || readyAt <= 0L) return;
+        // Im Mineshaft ist sie immer bereit - das soll kein Banner sein
+        if (inShaft()) {
+            readyAnnounced = true;
+            return;
+        }
         if (System.currentTimeMillis() < readyAt + READY_ALERT_DELAY_MILLIS) return;
 
         readyAnnounced = true;
@@ -429,11 +446,21 @@ public final class MiningState {
                 "Mining Ability Ready!!!", name.isBlank() ? "" : name, "", READY_ALERT_COLOUR, ItemStack.EMPTY);
     }
 
-    /** Die Restzeit, laufend gerechnet: "26s", "1m 20s" oder "Ready" */
+    /** Ein Serverwechsel: Betritt man einen Mineshaft, setzt Hypixel die Abklingzeit zurueck (siehe RESET_EARLY_MILLIS) */
+    public static void worldJoined() {
+        joinedAt = System.currentTimeMillis();
+    }
+
+    /** Steht man in einem Glacite Mineshaft? Das Gebiet kommt aus der Tab-Liste, der Schacht aus der Seitenleiste */
+    private static boolean inShaft() {
+        return ModConstants.MAP_GLACITE_MINESHAFTS.equals(GameState.Server.map) || MineshaftState.inMineshaft();
+    }
+
+    /** Die Restzeit, laufend gerechnet: "26s", "1m 20s" oder "Ready" - im Mineshaft ohne das "Ready", das dort nichts sagt */
     public static String cooldown() {
         if (readyAt <= 0L) return "";
         long left = (readyAt - System.currentTimeMillis() + 999L) / 1000L;
-        if (left <= 0L) return "Ready";
+        if (left <= 0L) return inShaft() ? "" : "Ready";
         if (left < 60L) return left + "s";
         return (left / 60L) + "m " + (left % 60L) + "s";
     }
@@ -449,9 +476,14 @@ public final class MiningState {
         if (seconds < 0L) return;
         if (seconds == lastStatedSeconds) return;
         lastStatedSeconds = seconds;
-        readyAt = System.currentTimeMillis() + seconds * 1000L;
+        long now = System.currentTimeMillis();
+        // Zu frueh bereit: zurueckgesetzt, nicht abgelaufen - im Mineshaft, oder kurz nach dem Betreten einer Welt
+        boolean reset = seconds == 0L && readyAt > now + RESET_EARLY_MILLIS
+                && (inShaft() || now - joinedAt < JOIN_WINDOW_MILLIS);
+        readyAt = now + seconds * 1000L;
         // Ein neuer Cooldown heisst: die naechste Bereitschaft ist wieder eine Meldung wert
         if (seconds > 0L) readyAnnounced = false;
+        else if (reset) readyAnnounced = true;
     }
 
     /** "26s", "1m 20s", "2m" oder "Ready" in Sekunden. -1, wenn nichts davon passt */
