@@ -48,6 +48,8 @@ public class NetworkHandler {
             com.shokiteufel.shokimod.scanner.PerformanceState.reset();
             // Beim Betreten eines Mineshafts setzt Hypixel die Abklingzeit der Faehigkeit zurueck: das ist keine Bereitschaft
             com.shokiteufel.shokimod.scanner.MiningState.worldJoined();
+            // Jeder Mineshaft ist eine eigene Welt: Die Meldung, in welchem man steht, kommt in jedem neuen einmal
+            com.shokiteufel.shokimod.scanner.MineshaftState.worldJoined();
         });
 
         ClientReceiveMessageEvents.ALLOW_GAME.register((message, overlay) -> {
