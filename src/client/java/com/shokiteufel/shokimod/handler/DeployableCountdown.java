@@ -6,7 +6,9 @@ import com.shokiteufel.shokimod.ShokiMod;
 import com.shokiteufel.shokimod.data.FeatureGate;
 import com.shokiteufel.shokimod.data.GameState;
 import com.shokiteufel.shokimod.data.ModConfig;
+import com.shokiteufel.shokimod.data.ModConfig.DeployableHudCategory;
 import com.shokiteufel.shokimod.handler.DeployableReminder.Kind;
+import com.shokiteufel.shokimod.util.DeployableLog;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.component.DataComponents;
@@ -247,6 +249,7 @@ public final class DeployableCountdown {
         known.clear();
         mine.clear();
         scanned.clear();
+        textsLogged.clear();
     }
 
     static int watching() {
@@ -265,8 +268,10 @@ public final class DeployableCountdown {
         if (client.level == null || client.player == null) return;
         boolean warnings = FeatureGate.deployables() && (cfgMain() > 0 || cfgUmberella() > 0);
         boolean panel = FeatureGate.deployableHud();
+        boolean log = DeployableLog.enabled();
         if (!GameState.Server.isSkyblock() || (!warnings && !panel)) {
             if (!seen.isEmpty()) seen.clear();
+            if (log) logStatus("skipped: skyblock=" + GameState.Server.isSkyblock() + " warnings=" + warnings + " panel=" + panel, "", now);
             return;
         }
 
@@ -277,15 +282,21 @@ public final class DeployableCountdown {
         List<Part> remaining = new ArrayList<>();
         List<Part> totems = new ArrayList<>();
         List<Part> owners = new ArrayList<>();
+        int stands = 0;
+        int named = 0;
+        int understood = 0;
 
         for (Entity entity : client.level.entitiesForRendering()) {
             if (!(entity instanceof ArmorStand stand)) continue;
+            stands++;
 
             Component customName = stand.getCustomName();
             if (customName != null) {
+                named++;
                 String text = COLOUR_CODE.matcher(customName.getString()).replaceAll("").trim();
                 Reading reading = parse(text);
                 if (reading != null) {
+                    understood++;
                     watch(stand, reading, me, present, now, warnings, panel);
                     continue;
                 }
@@ -302,10 +313,14 @@ public final class DeployableCountdown {
                     continue;
                 }
                 logNotUnderstood(text);
+                if (log) logTextNearUse(stand, text, me, now);
             }
 
             Reading flare = flare(stand);
-            if (flare != null) watch(stand, flare, me, present, now, warnings, panel);
+            if (flare != null) {
+                understood++;
+                watch(stand, flare, me, present, now, warnings, panel);
+            }
         }
 
         // Das Totem: "Remaining" gehoert zu dem Totem-Staender, der fast darunter oder darueber steht
@@ -325,6 +340,57 @@ public final class DeployableCountdown {
         // Wer nicht mehr zu sehen ist, wird vergessen - ausser meinen: Sie kommen wieder, wenn man zurueckgeht
         known.retainAll(scanned);
         mine.values().removeIf(lastSeen -> now - lastSeen > MINE_KEEP_MILLIS);
+
+        if (log) {
+            DeployableHudCategory hud = ModConfig.INSTANCE.deployables.hud;
+            long sinceUse = now - ParticleTracer.lastUseAt();
+            logStatus(String.format(Locale.ROOT, "panel=%s mode=%s warnings=%s stands=%d named=%d read=%d totem parts=%d/%d/%d timers=%d rows=%d",
+                            panel, hud.mode, warnings, stands, named, understood, totems.size(), remaining.size(), owners.size(),
+                            DeployableTimers.count(), DeployableTimers.rows(now).size()),
+                    String.format(Locale.ROOT, " | last right-click: %s, %s | %s", ParticleTracer.lastUseItem(),
+                            ParticleTracer.lastUseAt() == 0L ? "never" : (sinceUse / 1000) + " s ago", DeployableTimers.describe(now)), now);
+        }
+    }
+
+    // ==========================================
+    // Protokoll (Einstellung "Deployable log")
+    // ==========================================
+
+    private static String lastStatus = "";
+    private static long lastStatusAt = 0L;
+    /** Texte in der Naehe eines Rechtsklicks, die schon im Protokoll stehen */
+    private static final Set<String> textsLogged = new HashSet<>();
+    private static final long STATUS_REPEAT_MILLIS = 15_000L;
+    /** So lange nach einem Rechtsklick mit einem Deployable wird jeder Staendertext nahe bei mir ins Protokoll geschrieben */
+    private static final long TEXT_WINDOW_MILLIS = 6_000L;
+    private static final double TEXT_RANGE = 5.0;
+    private static final int TEXT_LIMIT = 200;
+
+    /** Eine Zeile mit dem Stand der Dinge: nur wenn sich die Zahlen geaendert haben, sonst alle fuenfzehn Sekunden */
+    private static void logStatus(String signature, String extra, long now) {
+        if (signature.equals(lastStatus) && now - lastStatusAt < STATUS_REPEAT_MILLIS) return;
+        lastStatus = signature;
+        lastStatusAt = now;
+        DeployableLog.line("STATUS", signature + extra);
+    }
+
+    /**
+     * Staendertexte dicht bei mir, kurz nachdem ich ein Deployable benutzt habe, auch wenn sie nicht gelesen werden: Ein Power Orb
+     * besteht aus mehreren Staendern, und gerade der, dessen Text die Mod nicht kennt, soll im Protokoll stehen.
+     */
+    private static void logTextNearUse(ArmorStand stand, String text, Vec3 me, long now) {
+        if (text.isEmpty() || textsLogged.size() >= TEXT_LIMIT) return;
+        long since = now - ParticleTracer.lastUseAt();
+        if (since < 0 || since > TEXT_WINDOW_MILLIS || !DEPLOYABLE_ITEM.matcher(String.valueOf(ParticleTracer.lastUseItem())).find()) return;
+        double distance = Math.sqrt(stand.distanceToSqr(me));
+        if (distance > TEXT_RANGE || !textsLogged.add(text)) return;
+        DeployableLog.line("TEXT", String.format(Locale.ROOT, "near stand, not read: \"%s\" (%.1f blocks away, %d ms after the right-click)", text, distance, since));
+    }
+
+    /** Ein Rechtsklick mit diesem Item (SkyBlock-Kennung) in der Haupthand - nur Deployables kommen ins Protokoll */
+    static void noteUse(String item) {
+        if (!DeployableLog.enabled() || item == null || !DEPLOYABLE_ITEM.matcher(item).find()) return;
+        DeployableLog.line("USE", "right-click with " + item + " (panel=" + FeatureGate.deployableHud() + ", skyblock=" + GameState.Server.isSkyblock() + ")");
     }
 
     private record Part(ArmorStand stand, String text) {
@@ -352,7 +418,11 @@ public final class DeployableCountdown {
                               boolean warnings, boolean panel) {
         // Wem es gehoert, wird einmal beim Auftauchen entschieden - fuer die Warnung ("Only my own") wie fuer den Zeitkasten
         boolean mine = owned(stand, reading, me, now);
-        if (panel) DeployableTimers.seen(stand, reading, mine, Math.sqrt(stand.distanceToSqr(me)), now);
+        if (panel && DeployableTimers.seen(stand, reading, mine, Math.sqrt(stand.distanceToSqr(me)), now) && !mine) {
+            // Der Ersatz fuer einen meiner Staender, den Hypixel neu gesetzt hat: er ist auch meiner, die Warnung soll ihm weiter folgen
+            DeployableCountdown.mine.put(stand.getId(), now);
+            mine = true;
+        }
         if (!warnings) return;
         if (ModConfig.INSTANCE.deployables.ownOnly && !mine) return;
         if (stand.distanceToSqr(me) > reading.range() * reading.range()) return;
@@ -407,6 +477,12 @@ public final class DeployableCountdown {
                     reading.name(), reading.kind(), placed ? "MINE" : "not mine", since, item,
                     String.format(Locale.ROOT, "%.1f", distance));
         }
+        if (DeployableLog.enabled()) {
+            DeployableLog.line("OWNER", String.format(Locale.ROOT, "id=%d %s (%s): %s - right-click %s with %s, %.1f blocks away (deployable item: %s; window %d ms, range %.0f - or %d ms / %.1f when the item is not known)",
+                    stand.getId(), reading.name(), reading.kind(), placed ? "MINE" : "not mine",
+                    ParticleTracer.lastUseAt() == 0L ? "never" : since + " ms ago", item, distance, deployableItem,
+                    PLACE_WINDOW_MILLIS, PLACE_RANGE, PLACE_STRICT_WINDOW_MILLIS, PLACE_STRICT_RANGE));
+        }
         return placed;
     }
 
@@ -442,6 +518,7 @@ public final class DeployableCountdown {
         if (text.isEmpty() || !LOOKS_LIKE.matcher(text).find()) return;
         if (notUnderstood.size() < LOG_LIMIT && notUnderstood.add(text.toLowerCase(Locale.ROOT))) {
             ShokiMod.LOGGER.info("[Deployables] stand text not understood: \"{}\"", text);
+            DeployableLog.line("TEXT", "looks like a deployable but is not read: \"" + text + "\"");
         }
     }
 }

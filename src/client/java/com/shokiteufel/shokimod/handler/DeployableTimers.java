@@ -6,6 +6,7 @@ import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.data.ModConfig.DeployableHudCategory;
 import com.shokiteufel.shokimod.handler.DeployableCountdown.Reading;
 import com.shokiteufel.shokimod.handler.DeployableReminder.Kind;
+import com.shokiteufel.shokimod.util.DeployableLog;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -64,6 +65,9 @@ public final class DeployableTimers {
         long expiryAt;
         int lastSeconds = -1;
         boolean lost = false;
+        /** Wann sich die Zahl zuletzt geaendert hat - fuer das Protokoll: wie oft schreibt Hypixel den Namen um */
+        long changedAt = 0L;
+        double x, y, z;
 
         Timer(int id, Kind kind, String name) {
             this.id = id;
@@ -71,6 +75,9 @@ public final class DeployableTimers {
             this.name = name;
         }
     }
+
+    /** Hoechstens so weit liegt ein neuer Staender vom alten entfernt, damit er als dessen Ersatz gilt (Bloecke) */
+    private static final double RESPAWN_REACH = 2.0;
 
     private static final Map<Integer, Timer> timers = new HashMap<>();
     /** Die Uhr des letzten Ticks - der Zeitkasten wird mit jedem neuen Tick neu gebaut (siehe SafariHud) */
@@ -91,6 +98,11 @@ public final class DeployableTimers {
         timers.clear();
     }
 
+    /** Wie viele Deployables der Zeitkasten kennt - gezeigt oder nicht */
+    static int count() {
+        return timers.size();
+    }
+
     /** Gibt es etwas zu zeigen? */
     public static boolean hasRows() {
         return !rows(tickTime).isEmpty();
@@ -109,21 +121,47 @@ public final class DeployableTimers {
             long diff = target - t.expiryAt;
             t.expiryAt = Math.abs(diff) <= ROUNDING_MILLIS ? t.expiryAt + diff / 2 : target;
         }
+        if (DeployableLog.enabled()) {
+            DeployableLog.line("TIME", String.format(Locale.ROOT, "id=%d %s %s -> %ds, %s, ends in %.1f s", t.id, t.kind,
+                    t.lastSeconds < 0 ? "first reading" : t.lastSeconds + "s", seconds,
+                    t.changedAt == 0L ? "first change" : (now - t.changedAt) + " ms after the last", (t.expiryAt - now) / 1000.0));
+        }
+        t.changedAt = now;
         t.lastSeconds = seconds;
     }
 
     /**
      * Die Suche hat einen Staender gefunden (alle zehn Ticks). Legt ihn an oder frischt Besitz und Abstand auf.
      *
+     * Taucht statt eines Staenders, der gerade verschwunden ist, einer derselben Sorte an derselben Stelle auf (Hypixel schreibt
+     * den Namen dann nicht um, sondern setzt einen neuen Staender), erbt er dessen Besitz und loest ihn ab: Sonst waere das eigene
+     * Deployable nach dem ersten Wechsel keins mehr.
+     *
      * @param mine ob das Deployable von mir ist (siehe DeployableCountdown.owned)
+     * @return ob es von mir ist - auch dann, wenn es der Ersatz eines meiner Staender ist und owned() ihn nicht kennt
      */
-    static void seen(ArmorStand stand, Reading reading, boolean mine, double distance, long now) {
+    static boolean seen(ArmorStand stand, Reading reading, boolean mine, double distance, long now) {
         Timer t = timers.get(stand.getId());
         if (t == null) {
             t = new Timer(stand.getId(), reading.kind(), reading.name());
+            Timer before = replacedBy(stand, reading.kind());
+            if (before != null) {
+                mine |= before.mine;
+                timers.remove(before.id);
+            }
             timers.put(stand.getId(), t);
+            if (DeployableLog.enabled()) {
+                DeployableLog.line("STAND", String.format(Locale.ROOT, "id=%d %s \"%s\" %ds, %.1f blocks away at %.1f %.1f %.1f, %s%s",
+                        t.id, t.kind, reading.name(), reading.seconds(), distance, stand.getX(), stand.getY(), stand.getZ(),
+                        mine ? "counts as mine" : "not mine",
+                        before == null ? "" : ", replaces id " + before.id + (before.mine ? " (was mine)" : "")));
+            }
         }
-        t.mine = mine;
+        t.x = stand.getX();
+        t.y = stand.getY();
+        t.z = stand.getZ();
+        // Wer einmal meiner war, bleibt es: owned() kennt einen Ersatzstaender nicht, und beim naechsten Durchgang soll er nicht wieder fremd sein
+        t.mine |= mine;
         t.distance = distance;
         t.lost = false;
         if (reading.kind() == Kind.FLARE) {
@@ -131,6 +169,7 @@ public final class DeployableTimers {
         } else if (reading.seconds() != t.lastSeconds) {
             anchor(t, reading.seconds(), now);
         }
+        return t.mine;
     }
 
     // ==========================================
@@ -154,12 +193,46 @@ public final class DeployableTimers {
                 t.distance = Math.sqrt(stand.distanceToSqr(client.player));
                 refresh(t, stand, now);
             } else {
+                if (!t.lost && DeployableLog.enabled()) {
+                    DeployableLog.line("GONE", String.format(Locale.ROOT, "id=%d %s \"%s\": stand no longer there, %s, %.1f s left by my count",
+                            t.id, t.kind, t.name, t.mine ? "mine - keeps counting" : "not mine - dropped", (t.expiryAt - now) / 1000.0));
+                }
                 t.lost = true;
             }
             // Abgelaufen, oder verschwunden und nicht mein eigenes (das zaehlt weiter, bis es ablaeuft)
             boolean over = now > t.expiryAt + GRACE_MILLIS;
             if (over || (t.lost && !t.mine)) it.remove();
         }
+    }
+
+    /** Ein Staender derselben Sorte an der Stelle eines gerade verschwundenen - dessen Ersatz ist der neue (siehe seen) */
+    private static Timer replacedBy(ArmorStand stand, Kind kind) {
+        Timer best = null;
+        double bestDistance = RESPAWN_REACH * RESPAWN_REACH;
+        for (Timer t : timers.values()) {
+            if (!t.lost || t.kind != kind) continue;
+            double dx = t.x - stand.getX();
+            double dy = t.y - stand.getY();
+            double dz = t.z - stand.getZ();
+            double d = dx * dx + dy * dy + dz * dz;
+            if (d <= bestDistance) {
+                bestDistance = d;
+                best = t;
+            }
+        }
+        return best;
+    }
+
+    /** Was der Zeitkasten gerade weiss, in einer Zeile - fuer das Protokoll */
+    static String describe(long now) {
+        if (timers.isEmpty()) return "no timers";
+        StringBuilder out = new StringBuilder();
+        for (Timer t : timers.values()) {
+            if (out.length() > 0) out.append("; ");
+            out.append(String.format(Locale.ROOT, "id=%d %s %s%s %.1fm %.1fs", t.id, t.kind, t.mine ? "mine" : "other",
+                    t.lost ? " lost" : "", t.distance, (t.expiryAt - now) / 1000.0));
+        }
+        return out.toString();
     }
 
     private static void refresh(Timer t, ArmorStand stand, long now) {
