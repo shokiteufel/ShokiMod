@@ -108,6 +108,19 @@ public final class FrozenBlaze {
         return unformatted != null && LOOTSHARE_ASSIST.matcher(unformatted.trim()).matches();
     }
 
+    /** Der Anfang jeder Zeile des NPC "Tribe Member": "[NPC] Tribe Member: ..." - klein geschrieben, verglichen wird ohne Beachtung der Schreibweise */
+    private static final String TRIBE_MEMBER = "[npc] tribe member:";
+
+    /**
+     * Soll diese Chatzeile ausgeblendet werden, weil der NPC "Tribe Member" spricht? Der Aufruf kommt fuer jede Zeile - erst die billigen
+     * Schalter, dann der Text. Die Zeile ist ohne Farbcodes zu uebergeben. Gemeint ist die Zeile, die auch eine Chat-Regel mit dem Filter
+     * "[NPC] Tribe Member:" trifft; gesucht wird aber nur am Zeilenanfang, damit ein Spieler, der den Satz im Chat anfuehrt, nicht verschwindet.
+     */
+    public static boolean hidesTribeMember(String unformatted) {
+        if (!wearing || !ModConfig.INSTANCE.fishing.frozenBlaze.hideTribeMember) return false;
+        return unformatted != null && unformatted.trim().toLowerCase(Locale.ROOT).startsWith(TRIBE_MEMBER);
+    }
+
     static boolean fullSet(Player player) {
         for (EquipmentSlot slot : SLOTS) {
             if (!isPiece(player.getItemBySlot(slot))) return false;
