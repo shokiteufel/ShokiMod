@@ -40,6 +40,11 @@ public final class MineshaftState {
     private static int ticks = 0;
     /** Hoechstens eine Erklaerung je Schacht - sie soll helfen, nicht zutexten */
     private static boolean explained = false;
+    /** Ob in dieser Welt schon gesagt wurde, in welchem Schacht man steht */
+    private static boolean announced = false;
+    /** Wie viele Durchgaenge in Folge (je etwa eine Sekunde) die Zeile des Schachts fehlte */
+    private static int missingScans = 0;
+    private static final int MISSING_SCANS_BEFORE_LEFT = 5;
     /** Wie oft in diesem Schacht schon keine Leichen-Zeilen in der Tab-Liste standen */
     private static int blindScans = 0;
     /** So viele Durchgaenge (je etwa eine Sekunde) ohne Zeilen, bevor es als Fehlen gilt */
@@ -153,8 +158,87 @@ public final class MineshaftState {
                         .withStyle(net.minecraft.ChatFormatting.GRAY)));
     }
 
+    /** Ein Serverwechsel: Jeder Schacht ist eine eigene Welt, und in jeder kommt die Meldung einmal */
+    public static void worldJoined() {
+        announced = false;
+    }
+
+    /**
+     * "Tungsten", "Vanguard", "Topaz 2", "Ruby Crystal" - so, wie ihn auch SkyHanni nennt. Die Seitenleiste kuerzt auf vier
+     * Buchstaben und eine Ausfuehrung; hier wird daraus der Name. Der Fairy-Schacht heisst im Spiel Vanguard.
+     */
+    public static String displayName(String shaft, String variant) {
+        if (shaft == null) return "";
+        String code = shaft.toUpperCase(java.util.Locale.ROOT);
+        if (code.equals("LITT")) return "Littlefoot's Den";
+        String name = code.equals("FAIR") ? "Vanguard" : readable(code);
+        if ("C".equalsIgnoreCase(variant)) return name + " Crystal";
+        // Diese Bauplaene gibt es nur in einer Ausfuehrung, dort steht keine Zahl
+        boolean single = switch (code) {
+            case "TITA", "UMBE", "TUNG", "FAIR", "JASP", "OPAL" -> true;
+            default -> false;
+        };
+        return single || variant == null || variant.isEmpty() ? name : name + " " + variant;
+    }
+
+    /** Die Farbe des Schachts in der Meldung - dieselbe, die SkyHanni nimmt (Onyx nicht in Schwarz: das ist im Chat nicht zu lesen) */
+    private static net.minecraft.ChatFormatting colour(String shaft) {
+        return switch (shaft == null ? "" : shaft.toUpperCase(java.util.Locale.ROOT)) {
+            case "TOPA", "CITR" -> net.minecraft.ChatFormatting.YELLOW;
+            case "SAPP" -> net.minecraft.ChatFormatting.BLUE;
+            case "AMET" -> net.minecraft.ChatFormatting.DARK_PURPLE;
+            case "AMBE", "UMBE" -> net.minecraft.ChatFormatting.GOLD;
+            case "JADE" -> net.minecraft.ChatFormatting.GREEN;
+            case "TITA" -> net.minecraft.ChatFormatting.GRAY;
+            case "TUNG", "ONYX" -> net.minecraft.ChatFormatting.DARK_GRAY;
+            case "RUBY" -> net.minecraft.ChatFormatting.RED;
+            case "AQUA" -> net.minecraft.ChatFormatting.DARK_AQUA;
+            case "PERI" -> net.minecraft.ChatFormatting.DARK_GREEN;
+            case "JASP" -> net.minecraft.ChatFormatting.LIGHT_PURPLE;
+            case "LITT" -> net.minecraft.ChatFormatting.AQUA;
+            default -> net.minecraft.ChatFormatting.WHITE;
+        };
+    }
+
+    /**
+     * Sagt, in welchem Schacht man ist - einmal je Welt, im Chat, als Banner oder beides (Einstellung "Announce the shaft").
+     *
+     * Wird bei jedem Lesen der Seitenleiste gerufen, solange man im Schacht steht; das Merkzeichen {@link #announced} haelt es auf
+     * einmal. Es faellt erst beim Serverwechsel, nicht wenn die Zeile in der Seitenleiste einen Augenblick fehlt.
+     */
+    private static void announce(Minecraft client, String shaft, String shaftVariant) {
+        ModConfig.MineshaftCategory cfg = ModConfig.INSTANCE.mining.mineshaft;
+        if (announced || cfg.announce == ModConfig.ShaftAnnounce.OFF || client.player == null) return;
+        announced = true;
+
+        String name = displayName(shaft, shaftVariant);
+        net.minecraft.ChatFormatting colour = colour(shaft);
+        ShokiMod.LOGGER.info("[Mineshaft] entered {} ({}_{}), announced as {}", name, shaft, shaftVariant, cfg.announce);
+        if (cfg.announce.chat()) {
+            net.minecraft.network.chat.MutableComponent line = net.minecraft.network.chat.Component.literal("[ShokiMod] ")
+                    .withStyle(net.minecraft.ChatFormatting.DARK_AQUA);
+            if (shaft.equalsIgnoreCase("LITT")) {
+                line.append(net.minecraft.network.chat.Component.literal("You entered ").withStyle(net.minecraft.ChatFormatting.GRAY))
+                        .append(net.minecraft.network.chat.Component.literal(name).withStyle(colour))
+                        .append(net.minecraft.network.chat.Component.literal("!").withStyle(net.minecraft.ChatFormatting.GRAY));
+            } else {
+                line.append(net.minecraft.network.chat.Component.literal("You entered a ").withStyle(net.minecraft.ChatFormatting.GRAY))
+                        .append(net.minecraft.network.chat.Component.literal(name).withStyle(colour))
+                        .append(net.minecraft.network.chat.Component.literal(" mineshaft!").withStyle(net.minecraft.ChatFormatting.GRAY));
+            }
+            client.player.sendSystemMessage(line);
+        }
+        if (cfg.announce.banner()) {
+            Integer rgb = colour.getColor();
+            com.shokiteufel.shokimod.render.DropBanner.show(
+                    ModConfig.INSTANCE.chat.banner.designOrDefault(cfg.announceBannerDesign),
+                    "Mineshaft", name, "", "", rgb == null ? 0xFFFFFF : rgb, net.minecraft.world.item.ItemStack.EMPTY, 0d);
+        }
+    }
+
     private static void tick(Minecraft client) {
-        if (!FeatureGate.mineshaftKnown()) {
+        boolean known = FeatureGate.mineshaftKnown();
+        if (!known && !FeatureGate.mineshaftAnnounce()) {
             forget();
             return;
         }
@@ -179,6 +263,16 @@ public final class MineshaftState {
         }
 
         if (foundType == null) {
+            // Fehlt die Zeile eine Weile, ist man draussen: der naechste Schacht bekommt seine Meldung, auch wenn kein Serverwechsel
+            // bemerkt wurde. Ein einzelner Durchgang ohne Zeile ist noch kein Verlassen
+            if (++missingScans >= MISSING_SCANS_BEFORE_LEFT) announced = false;
+            forget();
+            return;
+        }
+        missingScans = 0;
+        // Die Meldung hat ihren eigenen Schalter: Wer nur sie anhat, bekommt nichts von dem, was sonst am Schacht haengt
+        announce(client, foundType, foundVariant);
+        if (!known) {
             forget();
             return;
         }
