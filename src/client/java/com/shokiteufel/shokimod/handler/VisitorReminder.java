@@ -38,8 +38,8 @@ public final class VisitorReminder extends GardenReminder {
     public static void test() {
         Minecraft client = Minecraft.getInstance();
         if (client.player == null) return;
-        client.player.sendSystemMessage(INSTANCE.message(GardenVisitors.MAXIMUM, false));
-        client.player.sendSystemMessage(INSTANCE.awayMessage(AWAY_MINUTES, 3, GardenVisitors.MAXIMUM));
+        client.player.sendSystemMessage(INSTANCE.message(GardenVisitors.capacity(), false));
+        client.player.sendSystemMessage(INSTANCE.awayMessage(AWAY_MINUTES, 3, GardenVisitors.capacity()));
         INSTANCE.sound(client);
     }
 
@@ -66,14 +66,18 @@ public final class VisitorReminder extends GardenReminder {
     /** Der Platz in der Warteschlange. Ohne freigeschaltete Besucher gibt es nichts, was voll werden koennte */
     @Override
     int total() {
-        return GardenVisitors.notUnlocked() ? 0 : GardenVisitors.MAXIMUM;
+        return GardenVisitors.notUnlocked() ? 0 : GardenVisitors.capacity();
     }
 
-    /** "Queue Full!" zaehlt immer: Dann ist sie voll, auch wenn "Warn at" hoeher steht */
+    /**
+     * "Queue Full!" zaehlt immer: Dann ist sie voll, auch wenn "Warn at" hoeher steht. Das gilt auch fuer eine
+     * Zahl ueber dem Platz der Warteschlange: Mehr als voll gibt es nicht, also reicht dann die volle.
+     */
     @Override
     boolean reached() {
         if (GardenVisitors.notUnlocked()) return false;
-        return GardenVisitors.queueFull() || GardenVisitors.count() >= Math.max(1, cfg().warnAt);
+        int needed = Math.max(1, Math.min(cfg().warnAt, GardenVisitors.capacity()));
+        return GardenVisitors.queueFull() || GardenVisitors.count() >= needed;
     }
 
     @Override
@@ -126,7 +130,7 @@ public final class VisitorReminder extends GardenReminder {
     @Override
     Component message(int count, boolean afterLeaving) {
         StringBuilder hover = new StringBuilder("Visitors waiting: ").append(count)
-                .append(" of ").append(GardenVisitors.MAXIMUM);
+                .append(" of ").append(GardenVisitors.capacity());
         if (afterLeaving && lastSeenAt > 0) hover.append(readAt());
 
         String text = afterLeaving

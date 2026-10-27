@@ -22,6 +22,7 @@ import com.shokiteufel.shokimod.handler.PestReminder;
 import com.shokiteufel.shokimod.handler.ProfitTracker;
 import com.shokiteufel.shokimod.handler.RareLootHandler;
 import com.shokiteufel.shokimod.handler.VisitorReminder;
+import com.shokiteufel.shokimod.scanner.GardenVisitors;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.annotations.Expose;
@@ -154,9 +155,10 @@ public class ModConfig extends Config {
     }
 
     /**
-     * "Warn at" kann nicht mehr verlangen, als es gibt: drei Fallen stehen im Garten, sechs Besucher
-     * passen in die Schlange. Bis 1.15.14 liess sich der Regler fuer die Fallen auf vier ziehen - mit
-     * vier kam die Warnung nie.
+     * "Warn at" kann nicht mehr verlangen, als es gibt: drei Fallen stehen im Garten, bis zu zehn Besucher
+     * passen in die Schlange (die Groesse stellt man selbst auf 5 bis 10; der Besucher-Regler darf ueber
+     * ihr stehen, die Warnung rechnet dann mit der vollen Schlange). Bis 1.15.14 liess sich der Regler
+     * fuer die Fallen auf vier ziehen - mit vier kam die Warnung nie.
      *
      * @return ob ein Wert zurechtgerueckt wurde (dann ist zu speichern)
      */
@@ -168,7 +170,12 @@ public class ModConfig extends Config {
             garden.traps.warnAt = traps;
             changed = true;
         }
-        int visitors = Math.max(1, Math.min(6, garden.visitors.warnAt));
+        int queue = GardenVisitors.clampCapacity(garden.visitors.queueSize);
+        if (queue != garden.visitors.queueSize) {
+            garden.visitors.queueSize = queue;
+            changed = true;
+        }
+        int visitors = Math.max(1, Math.min(GardenVisitors.MAX_CAPACITY, garden.visitors.warnAt));
         if (visitors != garden.visitors.warnAt) {
             garden.visitors.warnAt = visitors;
             changed = true;
@@ -2036,8 +2043,13 @@ public class ModConfig extends Config {
         public boolean alert = false;
 
         @Expose
-        @ConfigOption(name = "Warn at", desc = "How many visitors it takes. One warns at the first, six only once the queue is full. \"Queue Full!\" in the tab list always counts.")
-        @ConfigEditorSlider(minValue = 1f, maxValue = 6f, minStep = 1f)
+        @ConfigOption(name = "Queue size", desc = "How many visitors fit in the queue of your garden, 5 to 10. A full queue is where no new visitor arrives.")
+        @ConfigEditorSlider(minValue = 5f, maxValue = 10f, minStep = 1f)
+        public int queueSize = GardenVisitors.DEFAULT_CAPACITY;
+
+        @Expose
+        @ConfigOption(name = "Warn at", desc = "How many visitors it takes. One warns at the first, the queue size only once the queue is full. \"Queue Full!\" in the tab list always counts.")
+        @ConfigEditorSlider(minValue = 1f, maxValue = 10f, minStep = 1f)
         public int warnAt = 6;
 
         @Expose
