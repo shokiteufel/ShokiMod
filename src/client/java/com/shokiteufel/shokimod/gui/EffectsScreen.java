@@ -58,35 +58,28 @@ public class EffectsScreen extends Screen {
         return showHidden ? EffectsTracker.hiddenEntries() : EffectsTracker.entries();
     }
 
-    /** So heisst eine Gruppe ohne Namen: Der Effekt stand noch auf keiner Filterseite von /effects */
-    private static final String UNSORTED = "Not sorted yet";
-
     /**
-     * Die Seiten der Liste. Die Effekte stehen in den Gruppen von /effects, jede mit ihrer Ueberschrift; gibt es
-     * nur die Gruppe ohne Namen, bleibt die Liste ohne Ueberschriften. Eine Ueberschrift steht nie als letzte Zeile
-     * einer Seite, und eine Gruppe, die auf der naechsten Seite weitergeht, bekommt dort ihre Ueberschrift noch einmal.
+     * Die Seiten der Liste. Die Effekte stehen in zwei Gruppen (ohne God Potion, God Potion), jede mit ihrer
+     * Ueberschrift. Eine Ueberschrift steht nie als letzte Zeile einer Seite, und eine Gruppe, die auf der
+     * naechsten Seite weitergeht, bekommt dort ihre Ueberschrift noch einmal.
      */
     private List<List<Row>> pages() {
         List<EffectsTracker.Group> groups = EffectsTracker.groups(showHidden);
-        boolean headers = groups.stream().anyMatch(g -> !g.name().isEmpty());
         int per = rowsPerPage();
 
         List<List<Row>> pages = new ArrayList<>();
         List<Row> page = new ArrayList<>();
         for (EffectsTracker.Group group : groups) {
-            String title = group.name().isEmpty() ? UNSORTED : group.name();
-            if (headers) {
-                if (page.size() >= per - 1 && per > 1) {
-                    pages.add(page);
-                    page = new ArrayList<>();
-                }
-                page.add(new Row(title, null));
+            if (page.size() >= per - 1 && per > 1) {
+                pages.add(page);
+                page = new ArrayList<>();
             }
+            page.add(new Row(group.name(), null));
             for (EffectEntry e : group.entries()) {
                 if (page.size() >= per) {
                     pages.add(page);
                     page = new ArrayList<>();
-                    if (headers && per > 1) page.add(new Row(title + " (cont.)", null));
+                    if (per > 1) page.add(new Row(group.name() + " (cont.)", null));
                 }
                 page.add(new Row(null, e));
             }
@@ -246,7 +239,7 @@ public class EffectsScreen extends Screen {
                 .withStyle(ChatFormatting.GOLD), centerX, 14, 0xFFFFAA00);
         graphics.centeredText(font, Component.literal(showHidden
                         ? "Hidden effects stay out of the list, the panel and the alerts"
-                        : "Cycle the Filter in /effects - effects are sorted by it")
+                        : "God Potion effects are listed apart from the rest")
                 .withStyle(ChatFormatting.DARK_GRAY), centerX, 26, 0xFF888888);
         if (!ModConfig.INSTANCE.effects.enabled) {
             graphics.centeredText(font, Component.literal(
