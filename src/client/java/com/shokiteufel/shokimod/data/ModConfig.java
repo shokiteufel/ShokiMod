@@ -1345,6 +1345,33 @@ public class ModConfig extends Config {
         }
     }
 
+    /** Wie die Meldung kommt, in welchem Mineshaft man gelandet ist */
+    public enum ShaftAnnounce {
+        OFF("Off"),
+        CHAT("Chat"),
+        BANNER("Banner"),
+        BOTH("Chat and banner");
+
+        private final String label;
+
+        ShaftAnnounce(String label) {
+            this.label = label;
+        }
+
+        public boolean chat() {
+            return this == CHAT || this == BOTH;
+        }
+
+        public boolean banner() {
+            return this == BANNER || this == BOTH;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
+    }
+
     /** Ab wie vielen Lapis-Leichen die Party benachrichtigt wird */
     public enum CorpseCall {
         OFF("Off"),
@@ -1407,6 +1434,15 @@ public class ModConfig extends Config {
         @ConfigOption(name = "Mineshaft", desc = "A Glacite Mineshaft is always one of sixteen fixed layouts, and in each layout the corpses can only stand in a handful of spots. Which layout you are in is written in the sidebar - so the spots can be shown.")
         @ConfigEditorInfoText
         public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Announce the shaft", desc = "Tells you which Glacite Mineshaft you entered - \"You entered a Tungsten mineshaft!\" - once per shaft, the way SkyHanni does. Chat writes the line into your chat, Banner shows it across the screen, Chat and banner does both. The banner's design is picked in Alerts > Banner > Sandbox (list \"Use for\").")
+        @ConfigEditorDropdown
+        public ShaftAnnounce announce = ShaftAnnounce.CHAT;
+
+        /** Das Design des Banners "Mineshaft" - gewaehlt im Sandkasten (Liste "Use for") */
+        @Expose
+        public String announceBannerDesign = BannerDesign.ALERT_BAND;
 
         @Expose
         @ConfigOption(name = "Corpse spots", desc = "Marks every spot where a corpse can stand in this shaft. Not every spot has one - it is where to look, not where one is.")

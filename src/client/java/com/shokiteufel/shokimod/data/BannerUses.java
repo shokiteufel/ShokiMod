@@ -145,6 +145,11 @@ public final class BannerUses {
                 name -> ModConfig.INSTANCE.mining.hud.readyBannerDesign = name,
                 BannerDesign.ALERT_BAND,
                 () -> resolved(ModConfig.INSTANCE.mining.hud.readyBannerDesign)));
+        out.add(new Use("Mineshaft", "Shaft", "Which Glacite Mineshaft you entered",
+                () -> ModConfig.INSTANCE.mining.mineshaft.announceBannerDesign,
+                name -> ModConfig.INSTANCE.mining.mineshaft.announceBannerDesign = name,
+                BannerDesign.ALERT_BAND,
+                () -> resolved(ModConfig.INSTANCE.mining.mineshaft.announceBannerDesign)));
         out.add(new Use("Slayer boss", "Slayer", "Your Slayer boss has spawned",
                 () -> ModConfig.INSTANCE.slayer.spawnBannerDesign,
                 name -> ModConfig.INSTANCE.slayer.spawnBannerDesign = name,

@@ -131,6 +131,15 @@ public final class FeatureGate {
                 || ModConfig.INSTANCE.mining.mineshaft.veins != ModConfig.VeinFilter.OFF;
     }
 
+    /**
+     * Die Meldung, in welchem Schacht man gelandet ist, liest die Seitenleiste mit - nur wenn sie an ist.
+     * Sie braucht den Ort (nur in SkyBlock), aber nicht die Leichen und Adern: Wer nur sie anhat, bekommt
+     * weder deren Abruf noch die Schacht-Bilanz (siehe mineshaftKnown).
+     */
+    public static boolean mineshaftAnnounce() {
+        return ModConfig.INSTANCE.mining.mineshaft.announce != ModConfig.ShaftAnnounce.OFF;
+    }
+
     /** Die Erinnerung an volle Pest-Fallen liest die Tab-Liste mit */
     public static boolean pestTraps() {
         return ModConfig.INSTANCE.garden.traps.alert;
@@ -232,6 +241,6 @@ public final class FeatureGate {
     public static boolean location() {
         return contest() || safari() || nearbyPanel() || rareLoot() || huntingTracker() || mobMarkers() || chatRules()
                 || cakeReminder() || hotspots() || collectionTracker() || pestTraps() || gardenVisitors() || seaHp() || mute() || outOfAir() || coldAlert() || petHud() || deployableHud() || hotspotShare()
-                || slayerSpawn() || darkAuction() || darkAuctionTimer() || hidePlayersDungeon() || nearbyRare() || ModConfig.INSTANCE.effects.enabled;
+                || slayerSpawn() || darkAuction() || darkAuctionTimer() || hidePlayersDungeon() || nearbyRare() || ModConfig.INSTANCE.effects.enabled || mineshaftAnnounce();
     }
 }
