@@ -10,7 +10,10 @@ import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -26,6 +29,9 @@ import java.util.regex.Pattern;
  *
  * Einladen: Schreibt jemand im Gildenchat genau das eingestellte Wort (Vorgabe "+"), kommt eine Zeile mit einem Klick, der ihn in die Party
  * einlaedt - wie beim Vanguard-Ruf, nur ohne den Ruf und ohne die 30 Sekunden. Nur aus dem Gildenchat; aus ist die Vorgabe.
+ *
+ * Alle einladen: Eine zweite Taste (auch ohne Vorgabe) laedt jeden ein, der in den letzten 30 Sekunden dieses Wort im Gildenchat geschrieben hat -
+ * mit einem Befehl "/party Name1 Name2 ...". Die Taste hoert dem Gildenchat selbst zu und braucht den Vorschlag nicht.
  */
 public final class PartyInvites {
 
@@ -61,7 +67,24 @@ public final class PartyInvites {
     private static long pendingUntil = 0L;
 
     private static final Map<String, Long> suggested = new HashMap<>();
-    private static boolean keyWasDown = false;
+
+    /** So lange nach seinem Wort zaehlt jemand fuer die Einladen-Taste */
+    static final long WRITER_WINDOW_MILLIS = 30_000L;
+    /**
+     * So viele Namen gehen in einen Befehl. "/party Name1 Name2 ..." laedt alle auf einmal ein (so geht es auf Hypixel); eine Chatzeile fasst
+     * etwa 250 Zeichen, zehn Namen zu je hoechstens 16 Zeichen bleiben weit darunter. Wer darueber hinaus geschrieben hat, wartet auf den
+     * naechsten Druck.
+     */
+    static final int INVITE_MAX = 10;
+    private static final int WRITERS_MAX = 50;
+
+    /** Wer das Wort geschrieben hat, und wann - fuer die Einladen-Taste, in der Reihenfolge des Schreibens */
+    private record Writer(String name, long at) {
+    }
+
+    private static final Map<String, Writer> writers = new LinkedHashMap<>();
+    private static boolean acceptWasDown = false;
+    private static boolean inviteWasDown = false;
 
     private PartyInvites() {
     }
@@ -78,7 +101,9 @@ public final class PartyInvites {
         // Schickt Hypixel die Zeilen einer Einladung einzeln, steht der Klick erst in der zweiten ("... to accept. Click here to join!")
         boolean maybeClick = pendingUntil > 0L && plain.contains("to accept");
         boolean maybeJoined = pendingUntil > 0L && plain.contains("You have joined");
-        boolean maybeGuild = plain.startsWith("Guild >") && ModConfig.INSTANCE.guild.party.suggestInvites;
+        // Der Gildenchat wird gelesen, wenn der Vorschlag oder die Einladen-Taste das Wort braucht
+        ModConfig.PartyInvitesCategory party = ModConfig.INSTANCE.guild.party;
+        boolean maybeGuild = plain.startsWith("Guild >") && (party.suggestInvites || party.hasInviteKey());
         if (!maybeInvite && !maybeClick && !maybeJoined && !maybeGuild) return;
 
         Minecraft client = Minecraft.getInstance();
@@ -127,11 +152,14 @@ public final class PartyInvites {
         }
     }
 
-    /** Ein Wort im Gildenchat, das einen Einladen-Knopf bekommt */
+    /**
+     * Ein Wort im Gildenchat: Wer es schreibt, wird fuer die Einladen-Taste gemerkt (30 Sekunden) und bekommt - wenn der Vorschlag an ist -
+     * einen Einladen-Knopf.
+     */
     private static void suggest(Minecraft client, String line, long now) {
         ModConfig.PartyInvitesCategory cfg = ModConfig.INSTANCE.guild.party;
         String trigger = cfg.inviteText == null ? "" : cfg.inviteText.trim();
-        if (!cfg.suggestInvites || trigger.isEmpty()) return;
+        if (trigger.isEmpty()) return;
 
         Matcher m = GUILD_LINE.matcher(line);
         if (!m.matches()) return;
@@ -139,6 +167,12 @@ public final class PartyInvites {
         String text = m.group("text").trim();
         if (!text.equalsIgnoreCase(trigger)) return;
         if (name.equalsIgnoreCase(client.player.getName().getString())) return;
+
+        // Fuer die Taste: auch im Vanguard-Fenster und auch ohne den Vorschlag - sie hoert dem Gildenchat selbst zu. Wer ein zweites Mal
+        // schreibt, rueckt mit der neuen Zeit ans Ende
+        if (cfg.hasInviteKey()) remember(name, now);
+
+        if (!cfg.suggestInvites) return;
         // Im Fenster des Vanguard-Rufs gibt es fuer das Plus schon eine Zeile, mit dem passenderen Text
         if (text.equals("+") && VanguardGuildCall.windowOpen()) return;
 
@@ -155,6 +189,29 @@ public final class PartyInvites {
                         .withClickEvent(new ClickEvent.RunCommand(run))
                         .withHoverEvent(new HoverEvent.ShowText(Component.literal("Click to run " + run))));
         chat(client, Component.literal(name + " wrote \"" + text + "\" in the guild chat ").withStyle(ChatFormatting.YELLOW).append(click));
+    }
+
+    /** Merkt einen Schreiber fuer die Einladen-Taste; alte Eintraege fallen dabei heraus */
+    private static void remember(String name, long now) {
+        prune(now);
+        String key = name.toLowerCase(Locale.ROOT);
+        // Neu eintragen statt ersetzen: Wer noch einmal schreibt, steht wieder hinten (LinkedHashMap behaelt sonst die alte Stelle)
+        writers.remove(key);
+        if (writers.size() >= WRITERS_MAX) writers.remove(writers.keySet().iterator().next());
+        writers.put(key, new Writer(name, now));
+    }
+
+    /** Wirft die Schreiber hinaus, deren Wort laenger als 30 Sekunden her ist */
+    private static void prune(long now) {
+        writers.values().removeIf(w -> now - w.at() > WRITER_WINDOW_MILLIS);
+    }
+
+    /** Wer in den letzten 30 Sekunden das Wort geschrieben hat, in der Reihenfolge des Schreibens. Fuer die Pruefung */
+    static List<String> writerNames(long now) {
+        prune(now);
+        List<String> names = new ArrayList<>();
+        for (Writer w : writers.values()) names.add(w.name());
+        return names;
     }
 
     /**
@@ -182,23 +239,63 @@ public final class PartyInvites {
         return c.hasAcceptKey() ? c.acceptKey : 0;
     }
 
+    /** Die gewaehlte Einladen-Taste, ein GLFW-Code; 0 heisst: keine */
+    private static int inviteKey() {
+        ModConfig.PartyInvitesCategory c = ModConfig.INSTANCE.guild.party;
+        return c.hasInviteKey() ? c.inviteKey : 0;
+    }
+
     private static void tick(Minecraft client) {
-        int key = acceptKey();
-        if (key <= 0) {
-            keyWasDown = false;
-            return;
-        }
-        boolean down = ShortcutHandler.isDown(key);
+        int acceptKey = acceptKey();
+        int inviteKey = inviteKey();
+        boolean acceptDown = acceptKey > 0 && ShortcutHandler.isDown(acceptKey);
+        boolean inviteDown = inviteKey > 0 && ShortcutHandler.isDown(inviteKey);
         if (client.player == null) {
-            // Auch ausserhalb zaehlt der Stand der Taste weiter, damit eine gehaltene Taste beim Betreten nicht als Druck zaehlt
-            keyWasDown = down;
+            // Auch ausserhalb zaehlt der Stand der Tasten weiter, damit eine gehaltene Taste beim Betreten nicht als Druck zaehlt
+            acceptWasDown = acceptDown;
+            inviteWasDown = inviteDown;
             return;
         }
         // Nur wenn das Spiel die Maus haelt und im Vordergrund ist: Wer im Chat tippt, loest nichts aus
         boolean canFire = client.mouseHandler.isMouseGrabbed() && client.isWindowActive();
-        boolean fire = down && !keyWasDown && canFire;
-        keyWasDown = down;
-        if (fire) accept(client, System.currentTimeMillis());
+        boolean fireAccept = acceptDown && !acceptWasDown && canFire;
+        boolean fireInvite = inviteDown && !inviteWasDown && canFire;
+        acceptWasDown = acceptDown;
+        inviteWasDown = inviteDown;
+
+        long now = System.currentTimeMillis();
+        if (fireAccept) accept(client, now);
+        if (fireInvite) inviteWriters(client, now);
+    }
+
+    /**
+     * Die Einladen-Taste wurde gedrueckt: alle, die in den letzten 30 Sekunden das Wort geschrieben haben, in die Party einladen - ein Befehl
+     * "/party Name1 Name2 ...". Wer eingeladen ist, wird vergessen: Ein zweiter Druck laedt ihn nicht noch einmal ein, es sei denn, er schreibt
+     * das Wort erneut.
+     */
+    static void inviteWriters(Minecraft client, long now) {
+        if (client.getConnection() == null || client.player == null) return;
+        prune(now);
+        String trigger = ModConfig.INSTANCE.guild.party.inviteText == null ? "" : ModConfig.INSTANCE.guild.party.inviteText.trim();
+        if (writers.isEmpty()) {
+            chat(client, Component.literal("Nobody wrote \"" + trigger + "\" in the guild chat in the last 30 seconds.").withStyle(ChatFormatting.GRAY));
+            return;
+        }
+
+        List<String> names = new ArrayList<>();
+        for (Writer w : writers.values()) {
+            if (names.size() >= INVITE_MAX) break;
+            names.add(w.name());
+        }
+        for (String name : names) writers.remove(name.toLowerCase(Locale.ROOT));
+
+        String command = "party " + String.join(" ", names);
+        ShokiMod.LOGGER.info("[Party] inviting the writers of \"{}\": /{}", trigger, command);
+        client.getConnection().sendCommand(command);
+
+        String more = writers.isEmpty() ? "" : " " + writers.size() + " more are waiting - press again.";
+        chat(client, Component.literal("Inviting " + String.join(", ", names) + " (wrote \"" + trigger + "\" in the last 30 seconds)." + more)
+                .withStyle(ChatFormatting.WHITE));
     }
 
     /** Die Taste wurde gedrueckt: die wartende Einladung annehmen - oder sagen, dass keine wartet */
@@ -229,7 +326,9 @@ public final class PartyInvites {
         pendingTarget = "";
         pendingUntil = 0L;
         suggested.clear();
-        keyWasDown = false;
+        writers.clear();
+        acceptWasDown = false;
+        inviteWasDown = false;
     }
 
     private static void chat(Minecraft client, Component text) {

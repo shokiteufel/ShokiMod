@@ -199,7 +199,8 @@ die Spielversion beim Start — die falsche Datei laedt der Loader gar nicht ers
 - Gilden-Events aus dem ShokiTeufelBot: Banner zum Start, laufende Rangliste im Kasten.
 - Party-Einladungen (Rubrik Guild / Party): eine Taste nimmt die wartende Einladung an (ohne
   Vorgabe, 60 Sekunden gueltig), und ein einstellbares Wort im Gildenchat (Vorgabe `+`, aus)
-  bekommt einen Einladen-Knopf.
+  bekommt einen Einladen-Knopf. Eine zweite Taste (`Invite key`, ohne Vorgabe) laedt alle
+  auf einmal ein, die das Wort in den letzten 30 Sekunden geschrieben haben.
 </details>
 
 ## Befehle
