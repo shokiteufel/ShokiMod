@@ -1140,18 +1140,6 @@ public final class ProfitTracker {
     }
 
     /**
-     * Welche Ware gerade zum Entfernen ansteht - die Rueckfrage im Chat ist noch offen.
-     *
-     * Das rote Kreuz an einer Ware nimmt sie mit einem einzigen Klick aus dem Kasten. Eine Rueckfrage im Chat kostet einen
-     * zweiten Klick und rettet eine Ware, die sonst mit einem Danebengreifen weg waere. Der Reset-Knopf fragt in einem eigenen
-     * Fenster, wie alle Tracker (siehe {@link com.shokiteufel.shokimod.gui.ResetConfirm}).
-     */
-    private static String pending = null;
-    private static long pendingAt = 0L;
-    /** So lange gilt eine Frage. Danach ist sie keine Frage mehr, sondern ein Klick von gestern */
-    private static final long CONFIRM_MILLIS = 30_000L;
-
-    /**
      * Alle Waren, die der Kasten kennt - fuer die Vorschlagsliste des Befehls.
      *
      * Aus allen drei Zeitraeumen, denn wer eine Zahl geradezieht, meint die Ware und
@@ -1702,16 +1690,24 @@ public final class ProfitTracker {
                 .withStyle(ChatFormatting.DARK_AQUA).append(text));
     }
 
-    /** Das [X] an einer Ware: erst fragen */
+    /**
+     * Das [X] an einer Ware: erst fragen.
+     *
+     * Das rote Kreuz nimmt die Ware mit einem einzigen Klick aus dem Kasten; die Frage rettet eine Ware, die sonst mit einem
+     * Danebengreifen weg waere. Sie steht in einem Fenster wie beim Reset (siehe {@link com.shokiteufel.shokimod.gui.ResetConfirm}) und
+     * nicht im Chat: Der Klick geschieht im eigenen Inventar, und dort liegt der Chat hinter dem Fenster.
+     */
     public static void askRemove(String itemId) {
         if (itemId == null || countOf(itemId) == 0) return;
 
-        pending = itemId;
-        pendingAt = System.currentTimeMillis();
-        ask(Component.literal("Remove ").withStyle(ChatFormatting.YELLOW)
-                .append(Component.literal(nameOf(itemId) + " x" + countOf(itemId))
-                        .withStyle(ChatFormatting.WHITE))
-                .append(Component.literal(" from the tracker?").withStyle(ChatFormatting.YELLOW)));
+        String name = nameOf(itemId);
+        com.shokiteufel.shokimod.gui.ResetConfirm.confirm("Remove " + name + " x" + countOf(itemId) + "?",
+                "Takes " + name + " out of the session, day and total count of the Profit tracker.",
+                () -> {
+                    remove(itemId);
+                    say(Component.literal(name).withStyle(ChatFormatting.WHITE)
+                            .append(Component.literal(" is out of the tracker.").withStyle(ChatFormatting.YELLOW)));
+                });
     }
 
     /** Der Reset-Knopf, im Kasten wie in den Einstellungen: erst fragen (Schalter "Ask before reset" im Reiter HUD) */
@@ -1723,48 +1719,6 @@ public final class ProfitTracker {
                     reset();
                     say(Component.literal(was + " is back to zero.").withStyle(ChatFormatting.YELLOW));
                 });
-    }
-
-    /** Die Frage samt Knopf - der Knopf fuehrt den Befehl aus, der hier wieder ankommt */
-    private static void ask(Component frage) {
-        Minecraft client = Minecraft.getInstance();
-        if (client == null || client.player == null) return;
-
-        client.player.sendSystemMessage(Component.literal("[ShokiMod] ")
-                .withStyle(ChatFormatting.DARK_AQUA)
-                .append(frage)
-                .append(Component.literal(" [ Yes ]")
-                        .withStyle(style -> style.withColor(ChatFormatting.GREEN)
-                                .withBold(true)
-                                .withClickEvent(new net.minecraft.network.chat.ClickEvent.RunCommand("/shoki confirm"))
-                                .withHoverEvent(new net.minecraft.network.chat.HoverEvent.ShowText(
-                                        Component.literal("Click within 30 seconds")))))); 
-    }
-
-    /** Der Knopf aus der Frage, ueber /shoki confirm */
-    public static void confirm() {
-        Minecraft client = Minecraft.getInstance();
-        if (client == null || client.player == null) return;
-
-        String was = pending;
-        boolean abgelaufen = was != null && System.currentTimeMillis() - pendingAt > CONFIRM_MILLIS;
-        pending = null;
-        if (was == null || abgelaufen) {
-            client.player.sendSystemMessage(Component.literal("[ShokiMod] ")
-                    .withStyle(ChatFormatting.DARK_AQUA)
-                    .append(Component.literal(abgelaufen
-                                    ? "That question is too old - click the button again."
-                                    : "Nothing to confirm.")
-                            .withStyle(ChatFormatting.GRAY)));
-            return;
-        }
-
-        String name = nameOf(was);
-        remove(was);
-        client.player.sendSystemMessage(Component.literal("[ShokiMod] ")
-                .withStyle(ChatFormatting.DARK_AQUA)
-                .append(Component.literal(name).withStyle(ChatFormatting.WHITE))
-                .append(Component.literal(" is out of the tracker.").withStyle(ChatFormatting.YELLOW)));
     }
 
     /**

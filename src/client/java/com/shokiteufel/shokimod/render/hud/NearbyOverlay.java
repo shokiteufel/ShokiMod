@@ -203,7 +203,7 @@ public final class NearbyOverlay {
                 int direction = ProfitHud.buttonAt(Minecraft.getInstance().font, localX);
                 if (direction == 2) {
                     // Das rote Kreuz nimmt die Ware ganz heraus - aber erst nach der
-                    // Rueckfrage im Chat
+                    // Rueckfrage im Fenster
                     com.shokiteufel.shokimod.handler.ProfitTracker.askRemove(itemId);
                     return true;
                 }
