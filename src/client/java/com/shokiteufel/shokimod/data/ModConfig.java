@@ -297,6 +297,8 @@ public class ModConfig extends Config {
         if (INSTANCE.garden.traps == null) INSTANCE.garden.traps = new GardenTrapsCategory();
         if (INSTANCE.garden.visitors == null) INSTANCE.garden.visitors = new GardenVisitorsCategory();
         if (INSTANCE.garden.pests == null) INSTANCE.garden.pests = new GardenPestsCategory();
+        // Eine Config aus 2.0.11 kennt die Reichweite noch nicht
+        if (INSTANCE.garden.pests.range == null) INSTANCE.garden.pests.range = PestRange.PLOT;
         if (INSTANCE.deployables == null) INSTANCE.deployables = new DeployablesCategory();
         if (INSTANCE.deployables.umberellaAlert == null) INSTANCE.deployables.umberellaAlert = new UmberellaCategory();
         if (INSTANCE.deployables.endings == null) INSTANCE.deployables.endings = new DeployableEndingsCategory();
@@ -2053,6 +2055,11 @@ public class ModConfig extends Config {
         public boolean enabled = true;
 
         @Expose
+        @ConfigOption(name = "Range", desc = "Current plot: only the pests on the plot you are standing on - a garden plot is 96 x 96 blocks, the garden is a 5 x 5 grid of them. Whole garden: every pest your game knows about. Standing outside the plot grid, every pest is marked. Pests the server does not send to you cannot be marked either way.")
+        @ConfigEditorDropdown
+        public PestRange range = PestRange.PLOT;
+
+        @Expose
         @ConfigOption(name = "Highlight", desc = "Outlines every pest with a glow.")
         @ConfigEditorBoolean
         public boolean highlight = true;
@@ -2323,6 +2330,23 @@ public class ModConfig extends Config {
          */
         @Expose
         public Boolean umberella = null;
+    }
+
+    /** Wie weit die Pest-Markierung im Garden reicht */
+    public enum PestRange {
+        PLOT("Current plot"),
+        GARDEN("Whole garden");
+
+        private final String label;
+
+        PestRange(String label) {
+            this.label = label;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
     }
 
     /** Welche Deployables der Zeitkasten zeigt */
