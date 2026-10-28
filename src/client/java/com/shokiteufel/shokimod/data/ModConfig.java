@@ -3474,6 +3474,12 @@ public class ModConfig extends Config {
          */
         @Expose
         public boolean hidden = false;
+        /**
+         * Kommt aus der Liste der bekannten Mixins (siehe EffectsTracker.seedCatalogue) und wurde im Spiel noch nie gesehen.
+         * Beim ersten Mal, dass /effects oder die Tab-Liste ihn nennt, wird daraus ein gewoehnlicher Eintrag mit dem echten Namen.
+         */
+        @Expose
+        public boolean seeded = false;
     }
 
     public static class EffectsCategory {
@@ -3562,6 +3568,10 @@ public class ModConfig extends Config {
         /** Die gemerkten Effekte: kleingeschriebener Name -> Eintrag */
         @Expose
         public Map<String, EffectEntry> list = new java.util.LinkedHashMap<>();
+
+        /** Welche Fassung der Liste bekannter Mixins schon eingetragen wurde - so kommt ein vergessener Eintrag nicht von selbst zurueck */
+        @Expose
+        public int catalogueVersion = 0;
 
         @Expose
         public float hudX = 0.02f;

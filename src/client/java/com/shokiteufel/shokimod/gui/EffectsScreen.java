@@ -30,7 +30,10 @@ public class EffectsScreen extends Screen {
     private static final int TIME_WIDTH = 74;
     private static final int TOGGLE_WIDTH = 62;
     private static final int HIDE_WIDTH = 36;
-    private static final int LIST_TOP = 50;
+    /** Die Reiter sitzen unter der Ueberschrift, die Liste darunter */
+    private static final int TAB_Y = 46;
+    private static final int TAB_WIDTH = 84;
+    private static final int LIST_TOP = 70;
     /** Unten bleiben zwei Knopfleisten frei: Auswahl und Seiten, darunter die Schalter */
     private static final int BOTTOM_SPACE = 84;
     private static final int GRID_WIDTH = NAME_WIDTH + TIME_WIDTH + 2 * TOGGLE_WIDTH + HIDE_WIDTH + 16;
@@ -39,11 +42,15 @@ public class EffectsScreen extends Screen {
     private static int page = 0;
     /** Zeigt die Liste die versteckten Effekte statt der gemerkten? */
     private static boolean showHidden = false;
+    /** Welcher Reiter gilt - ueberdauert das Schliessen, wer bei den Mixins war, will dort weitermachen */
+    private static EffectsTracker.Tab tab = EffectsTracker.Tab.ALL;
 
     public EffectsScreen(Screen parent) {
         super(Component.literal("Effects"));
         this.parent = parent;
         showHidden = false;
+        // Die bekannten Mixins stehen im Reiter, bevor man sie getrunken hat
+        EffectsTracker.seedCatalogue();
     }
 
     private int rowsPerPage() {
@@ -59,12 +66,12 @@ public class EffectsScreen extends Screen {
     }
 
     /**
-     * Die Seiten der Liste. Die Effekte stehen in zwei Gruppen (ohne God Potion, God Potion), jede mit ihrer
-     * Ueberschrift. Eine Ueberschrift steht nie als letzte Zeile einer Seite, und eine Gruppe, die auf der
+     * Die Seiten der Liste. "All" zeigt zwei Gruppen (ohne God Potion, God Potion), jede mit ihrer Ueberschrift; die anderen Reiter
+     * zeigen eine Art (Mixins, der Rest, God Potion). Eine Ueberschrift steht nie als letzte Zeile einer Seite, und eine Gruppe, die auf der
      * naechsten Seite weitergeht, bekommt dort ihre Ueberschrift noch einmal.
      */
     private List<List<Row>> pages() {
-        List<EffectsTracker.Group> groups = EffectsTracker.groups(showHidden);
+        List<EffectsTracker.Group> groups = EffectsTracker.groups(showHidden, tab);
         int per = rowsPerPage();
 
         List<List<Row>> pages = new ArrayList<>();
@@ -108,6 +115,21 @@ public class EffectsScreen extends Screen {
         page = Math.clamp(page, 0, pages.size() - 1);
         List<Row> rows = pages.get(page);
         int left = width / 2 - GRID_WIDTH / 2;
+
+        // Die Reiter: derselbe Knopf, der gerade gilt, ist abgeschaltet; die Zahl sagt, wie viele Effekte darin stehen
+        int tabX = left;
+        for (EffectsTracker.Tab eintrag : EffectsTracker.Tab.values()) {
+            Button knopf = Button.builder(
+                    Component.literal(eintrag.label + " (" + EffectsTracker.count(showHidden, eintrag) + ")"),
+                    button -> {
+                        tab = eintrag;
+                        page = 0;
+                        rebuild();
+                    }).bounds(tabX, TAB_Y, TAB_WIDTH, 18).build();
+            knopf.active = tab != eintrag;
+            addRenderableWidget(knopf);
+            tabX += TAB_WIDTH + 4;
+        }
 
         for (int i = 0; i < rows.size(); i++) {
             EffectEntry e = rows.get(i).entry();
@@ -239,7 +261,7 @@ public class EffectsScreen extends Screen {
                 .withStyle(ChatFormatting.GOLD), centerX, 14, 0xFFFFAA00);
         graphics.centeredText(font, Component.literal(showHidden
                         ? "Hidden effects stay out of the list, the panel and the alerts"
-                        : "God Potion effects are listed apart from the rest")
+                        : "Tabs sort the list - the known Mixins are listed before you have used them")
                 .withStyle(ChatFormatting.DARK_GRAY), centerX, 26, 0xFF888888);
         if (!ModConfig.INSTANCE.effects.enabled) {
             graphics.centeredText(font, Component.literal(
@@ -247,9 +269,9 @@ public class EffectsScreen extends Screen {
                     .withStyle(ChatFormatting.RED), centerX, 38, 0xFFFF5555);
         }
 
-        List<EffectEntry> liste = shown();
-        if (liste.isEmpty()) {
+        if (EffectsTracker.count(showHidden, tab) == 0) {
             String empty = showHidden ? "Nothing hidden"
+                    : tab != EffectsTracker.Tab.ALL && EffectsTracker.count(false, EffectsTracker.Tab.ALL) > 0 ? "Nothing in this tab"
                     : EffectsTracker.hiddenEntries().isEmpty() ? "Nothing remembered yet"
                     : "Everything is hidden - see Hidden below";
             graphics.centeredText(font, Component.literal(empty).withStyle(ChatFormatting.GRAY),
