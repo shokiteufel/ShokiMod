@@ -725,6 +725,8 @@ public class ModConfig extends Config {
         if (rare.tier1Design == null || rare.tier1Design.isBlank()) rare.tier1Design = "Classic band";
         if (rare.tier2Design == null || rare.tier2Design.isBlank()) rare.tier2Design = "Classic band";
         if (rare.tier3Design == null || rare.tier3Design.isBlank()) rare.tier3Design = "Classic band";
+        // Eine Config von vor 2.1.7 kennt die Reihenfolge der Toene noch nicht
+        if (rare.soundOrder == null) rare.soundOrder = RareLootCategory.SoundOrder.RICH_FIRST;
     }
 
     /**
@@ -5350,6 +5352,34 @@ public class ModConfig extends Config {
         @ConfigOption(name = "Live bazaar prices", desc = "Fetches the bazaar straight from Hypixel every 15 seconds instead of every 10 minutes - for everything, not just the profit screens. Costs about 100 MB per hour. Off means the profit screens still do it while they are open.")
         @ConfigEditorBoolean
         public boolean liveBazaarAlways = false;
+
+        /**
+         * Was geschieht, wenn zwei Funde fast zugleich einen Ton ausloesen (ein Beutebuendel, zwei Zeilen hintereinander).
+         *
+         * Seit 2.1.6 hat jede Stufe ihren eigenen Kanal, die Toene liegen also uebereinander; frueher schnitt der zweite den ersten ab.
+         * Nacheinander heisst: die Schlange sammelt kurz, spielt die hoechste Stufe zuerst und die naechste erst, wenn die laufende
+         * zu Ende ist. Der Farb-Alarm geht allen Stufen vor.
+         */
+        public enum SoundOrder {
+            TOGETHER("All at once"),
+            RICH_FIRST("One by one, rich first");
+
+            private final String label;
+
+            SoundOrder(String label) {
+                this.label = label;
+            }
+
+            @Override
+            public String toString() {
+                return label;
+            }
+        }
+
+        @Expose
+        @ConfigOption(name = "Several sounds", desc = "What happens when two finds ring at about the same time (a bundle, two lines in a row): one after the other with the richest tier first - the dye alert goes before every tier, and the same tier twice rings once - or all at once on top of each other.")
+        @ConfigEditorDropdown
+        public SoundOrder soundOrder = SoundOrder.RICH_FIRST;
 
         /**
          * Nur zum Auf- und Zuklappen. MoulConfig haelt den Zustand selbst und schreibt
