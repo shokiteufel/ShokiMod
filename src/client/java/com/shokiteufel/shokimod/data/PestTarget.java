@@ -44,6 +44,11 @@ public final class PestTarget implements MobVisual {
         return lower.equals("garden") || lower.equals("the garden");
     }
 
+    /** Auch Silverfische und Fledermaeuse markieren, deren Name noch nicht angekommen ist? */
+    public static boolean byType() {
+        return cfg().byType;
+    }
+
     /** Lohnt sich der Durchgang durch die Mobs: an, im Garden, und wenigstens eine Anzeige gewaehlt */
     public static boolean scanning() {
         return enabled() && INSTANCE.anyEnabled() && inGarden();
