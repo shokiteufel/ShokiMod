@@ -3340,10 +3340,12 @@ public class ModConfig extends Config {
     /**
      * Ein abgeschlossener Tag des Profit-Trackers.
      *
-     * Gespeichert werden die Stueckzahlen, nicht die Coins: Was ein Fund wert ist,
-     * entscheidet der Markt von heute, und eine eingefrorene Zahl von vorgestern waere
-     * beim Verkaufen die falsche. Die Zeit steht daneben, damit "Profit je Stunde" auch
-     * rueckwirkend stimmt.
+     * Gespeichert werden die Stueckzahlen und, seit 2.0.6, was sie zu den Preisen von damals wert waren
+     * ({@link #coins}). Die Zeit steht daneben, damit "Profit je Stunde" auch rueckwirkend stimmt.
+     *
+     * Die abgeschlossenen Tage stehen nicht mehr in der Config, sondern in einer eigenen Textdatei
+     * (siehe {@link com.shokiteufel.shokimod.handler.ProfitLog}); ein Satz gilt dort als fertig und wird nicht mehr
+     * veraendert - zusammengelegt wird, indem ein neuer Satz entsteht.
      */
     public static class DayRecord {
         /** Anfang des Tages, in Millisekunden - die eingestellte Stunde, nicht Mitternacht */
@@ -3353,6 +3355,17 @@ public class ModConfig extends Config {
         public long uptimeMillis;
         @Expose
         public Map<String, Integer> counts = new HashMap<>();
+        /**
+         * Was die Funde dieses Tages wert waren, in Coins je Ware, zu den Preisen von damals.
+         *
+         * Eine Ware ohne Eintrag hat keinen festgehaltenen Preis (Tage aus der Zeit vor dem Log, oder zum Zeitpunkt kein
+         * Preis bekannt) und wird mit dem heutigen bewertet.
+         */
+        @Expose
+        public Map<String, Long> coins = new HashMap<>();
+        /** Woher die Preise stammen, wenn nicht aus dem Tag selbst: "migrated 2026-10-28" fuer Tage von vor dem Log */
+        @Expose
+        public String note = "";
         /**
          * Wer an diesem Tag regiert hat.
          *
@@ -3384,6 +3397,32 @@ public class ModConfig extends Config {
             this.uptimeMillis = uptimeMillis;
             this.counts = new HashMap<>(counts);
             this.mayor = mayor == null ? "" : mayor;
+        }
+
+        public DayRecord(long start, long uptimeMillis, Map<String, Integer> counts, String mayor, Map<String, Long> coins) {
+            this(start, uptimeMillis, counts, mayor);
+            if (coins != null) this.coins = new HashMap<>(coins);
+        }
+
+        /** Einen anderen Satz auf diesen draufrechnen: Stueckzahlen, Coins und Zeit werden summiert */
+        public void add(DayRecord other) {
+            uptimeMillis += other.uptimeMillis;
+            for (Map.Entry<String, Integer> entry : other.counts.entrySet()) {
+                counts.merge(entry.getKey(), entry.getValue(), Integer::sum);
+            }
+            for (Map.Entry<String, Long> entry : other.coins.entrySet()) {
+                coins.merge(entry.getKey(), entry.getValue(), Long::sum);
+            }
+            if ((mayor == null || mayor.isBlank()) && other.mayor != null) mayor = other.mayor;
+            if ((note == null || note.isBlank()) && other.note != null) note = other.note;
+        }
+
+        /** Eine Kopie, die niemand sonst anfasst - zum Zusammenlegen, ohne den gespeicherten Satz zu aendern */
+        public DayRecord copy() {
+            DayRecord out = new DayRecord(start, uptimeMillis, counts, mayor, coins);
+            out.note = note == null ? "" : note;
+            out.ende = ende;
+            return out;
         }
     }
 
@@ -4126,17 +4165,30 @@ public class ModConfig extends Config {
         public long dayStartedAt = 0L;
 
         /**
-         * Die abgeschlossenen Tage, neuester zuerst.
+         * Was der laufende Tag wert ist, zu den Preisen im Augenblick der Funde: Ware -> Coins.
          *
-         * Beim Tageswechsel wandert der Stand hierher, statt ersatzlos zu verschwinden -
-         * die Frage "was habe ich gestern gemacht" ist die haeufigste, die ein Tageswert
-         * aufwirft, und sie war bisher nicht zu beantworten.
+         * Beim Fund kommt Stueckzahl mal Preis dazu; beim Tageswechsel wandert das mit den Stueckzahlen ins Log, und
+         * dort bleibt der Preis von damals stehen.
+         */
+        @Expose
+        public Map<String, Double> dayCoins = new HashMap<>();
+
+        /**
+         * Ob die abgeschlossenen Tage schon im Log stehen: 0 = noch in {@link #history}, 1 = im Log.
+         * Das Umschreiben passiert von selbst, sobald Preise da sind, oder auf Befehl (/shoki profitlog migrate).
+         */
+        @Expose
+        public int dayLogVersion = 0;
+
+        /**
+         * Die abgeschlossenen Tage, neuester zuerst - nur noch die Altlast aus der Zeit vor 2.0.6.
+         *
+         * Neue Tage kommen nicht mehr hierher, sondern in das Log (config/shokimod/profit-days.log). Was hier noch
+         * steht, wird beim ersten Start mit Preisen dorthin umgeschrieben und danach geleert. Das Feld bleibt, damit
+         * eine alte Config gelesen werden kann.
          */
         @Expose
         public List<DayRecord> history = new ArrayList<>();
-
-        /** Mehr als einen Monat hebt niemand auf, und die Datei soll klein bleiben */
-        public static final int MAX_HISTORY = 30;
 
         @Expose
         @ConfigOption(name = "Count reward chests (loot)",

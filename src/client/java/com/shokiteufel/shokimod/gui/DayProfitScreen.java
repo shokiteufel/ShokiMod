@@ -2,6 +2,7 @@ package com.shokiteufel.shokimod.gui;
 
 import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.data.ModConfig.DayRecord;
+import com.shokiteufel.shokimod.handler.ProfitLog;
 import com.shokiteufel.shokimod.handler.ProfitTracker;
 import com.shokiteufel.shokimod.util.ItemValue;
 
@@ -27,9 +28,9 @@ import java.util.Map;
  * ein Verlust: Wer wissen wollte, ob die gestrige Runde sich gelohnt hat, konnte nur
  * raten. Beim Tageswechsel wandert der Stand jetzt ins Archiv, und hier steht er.
  *
- * Gerechnet wird mit den Preisen von heute, nicht mit denen von damals. Gespeichert sind
- * Stueckzahlen; was sie wert sind, entscheidet der Markt, auf dem man sie verkauft - und
- * das ist der von jetzt.
+ * Gerechnet wird mit den Preisen von damals: Das Log (siehe ProfitLog) haelt zu jeder Ware fest, was sie am
+ * Tag der Funde wert war. Nur wo kein Preis festgehalten ist - Tage von vor dem Log, oder kein Preis bekannt -,
+ * gilt der von heute. Bis 2.0.5 galt fuer alle Tage der von heute.
  */
 public class DayProfitScreen extends Screen {
 
@@ -84,8 +85,10 @@ public class DayProfitScreen extends Screen {
         List<DayRecord> out = new ArrayList<>();
         ModConfig.ProfitCategory cfg = ProfitTracker.cfg();
         if (!cfg.dayCounts.isEmpty()) {
+            // Mit den Preisen, die der Tag beim Abschluss festhaelt - damit die Zahl um sechs Uhr nicht springt
             out.add(new DayRecord(cfg.dayStartedAt, cfg.dayUptimeMillis, cfg.dayCounts,
-                    com.shokiteufel.shokimod.util.SkyBlockYear.mayor()));
+                    com.shokiteufel.shokimod.util.SkyBlockYear.mayor(),
+                    ProfitTracker.frozenCoins(cfg.dayCounts, cfg.dayCoins)));
         }
         out.addAll(ProfitTracker.history());
         return out;
@@ -119,8 +122,35 @@ public class DayProfitScreen extends Screen {
      * wie es war.
      */
     private List<DayRecord> rows() {
-        return group(days(), tab);
+        long now = System.currentTimeMillis();
+        if (rowsMemo != null && rowsMemoTab == tab && rowsMemoVersion == ProfitLog.version()
+                && now - rowsMemoAt < ROWS_MEMO_MILLIS) {
+            return rowsMemo;
+        }
+        List<DayRecord> fresh = group(days(), tab);
+        java.util.IdentityHashMap<DayRecord, Double> werte = new java.util.IdentityHashMap<>();
+        for (DayRecord tag : fresh) werte.put(tag, ProfitTracker.worthOf(tag));
+        rowsMemo = fresh;
+        rowsWorth = werte;
+        rowsMemoTab = tab;
+        rowsMemoVersion = ProfitLog.version();
+        rowsMemoAt = now;
+        return fresh;
     }
+
+    /**
+     * Die Zeilen, kurz gemerkt.
+     *
+     * Das Bild fragt mehrmals je Bild danach, und jede Frage legte alle Tage mit allen Waren neu zusammen - bei dreissig
+     * Tagen mit hunderten Waren mehrere Tausend Rechnungen je Bild. Eine Sekunde ist genug: Der laufende Tag aendert sich
+     * langsam, und ein Reiterwechsel leert den Merker.
+     */
+    private List<DayRecord> rowsMemo = null;
+    private java.util.IdentityHashMap<DayRecord, Double> rowsWorth = new java.util.IdentityHashMap<>();
+    private Tab rowsMemoTab = null;
+    private int rowsMemoVersion = -1;
+    private long rowsMemoAt = 0L;
+    private static final long ROWS_MEMO_MILLIS = 1_000L;
 
     /** Dieselbe Rechnung ohne Fenster - so laesst sie sich ohne laufendes Spiel pruefen */
     static List<DayRecord> group(List<DayRecord> tage, Tab welcher) {
@@ -165,11 +195,7 @@ public class DayProfitScreen extends Screen {
 
     /** Einen Tag auf eine Zeile draufrechnen */
     private static void dazu(DayRecord ziel, DayRecord tag) {
-        ziel.uptimeMillis += tag.uptimeMillis;
-        for (Map.Entry<String, Integer> entry : tag.counts.entrySet()) {
-            ziel.counts.merge(entry.getKey(), entry.getValue(), Integer::sum);
-        }
-        if ((ziel.mayor == null || ziel.mayor.isBlank()) && tag.mayor != null) ziel.mayor = tag.mayor;
+        ziel.add(tag);
     }
 
     private int pageCount() {
@@ -188,6 +214,7 @@ public class DayProfitScreen extends Screen {
             Button knopf = Button.builder(Component.literal(eintrag.label), button -> {
                 tab = eintrag;
                 page = 0;
+                rowsMemo = null;
                 rebuild();
             }).bounds(x, 40, 130, 20).build();
             knopf.active = tab != eintrag;
@@ -243,7 +270,7 @@ public class DayProfitScreen extends Screen {
         graphics.centeredText(font, Component.literal("Day profit").withStyle(ChatFormatting.GOLD),
                 centerX, 14, 0xFFFFAA00);
         graphics.centeredText(font, Component.literal(
-                        "Priced as of now - each find counts 30 s of Active - click a row for its items")
+                        "Day's own prices - each find counts 30 s of Active - click a row for its items")
                 .withStyle(ChatFormatting.DARK_GRAY), centerX, 28, 0xFF888888);
 
         graphics.text(font, switch (tab) {
@@ -273,7 +300,7 @@ public class DayProfitScreen extends Screen {
                     left + 4, y, laeuft ? 0xFFFFAA00 : 0xFFFFFFFF, false);
             graphics.text(font, String.valueOf(tag.counts.size()), left + 170, y, 0xFFCCCCCC, false);
             graphics.text(font, clock(tag.uptimeMillis), left + 240, y, 0xFF55FFFF, false);
-            graphics.text(font, ItemValue.format(ProfitTracker.worthOf(tag)), left + 320, y, 0xFF55FF55, false);
+            graphics.text(font, ItemValue.format(rowsWorth.getOrDefault(tag, 0.0)), left + 320, y, 0xFF55FF55, false);
 
             // Im Jahres-Reiter darunter die beguenstigten Farben. Sie stehen in keiner
             // Schnittstelle, nur in der Kiste von /dyes - wer sie einmal im Jahr
