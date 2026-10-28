@@ -106,6 +106,7 @@ public class ShokiMod implements ClientModInitializer {
         com.shokiteufel.shokimod.handler.OutOfAirAlert.register();
         com.shokiteufel.shokimod.handler.ColdAlert.register();
         com.shokiteufel.shokimod.handler.HotspotShare.register();
+        com.shokiteufel.shokimod.handler.PartyInvites.register();
         com.shokiteufel.shokimod.handler.ShortcutHandler.register();
         com.shokiteufel.shokimod.scanner.MineshaftState.register();
         com.shokiteufel.shokimod.scanner.CorpseFinder.register();

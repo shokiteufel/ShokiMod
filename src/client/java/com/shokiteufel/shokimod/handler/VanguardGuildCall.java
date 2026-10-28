@@ -49,6 +49,11 @@ public final class VanguardGuildCall {
     private VanguardGuildCall() {
     }
 
+    /** Laeuft gerade das Fenster nach einem Vanguard-Ruf? Dann hat ein Plus im Gildenchat dort schon seine eigene Zeile */
+    public static boolean windowOpen() {
+        return System.currentTimeMillis() <= windowUntil;
+    }
+
     /** Der Schacht hat eine Vanguard-Leiche: einmal je Schacht die Gilde rufen */
     public static void onVanguardShaft() {
         if (!ModConfig.INSTANCE.mining.mineshaft.vanguardGuildCall) return;
