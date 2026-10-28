@@ -147,6 +147,8 @@ public final class RareLootHandler {
         com.shokiteufel.shokimod.scanner.ItemChanges.listen(RareLootHandler::onInventoryGains);
         // Der Ausgang der geteilten Zeilen: eine je Pause
         ClientTickEvents.END_CLIENT_TICK.register(RareLootHandler::drainOutbox);
+        // Die Toene, die nacheinander laufen sollen (Einstellung "Several sounds")
+        ClientTickEvents.END_CLIENT_TICK.register(client -> RareLootSounds.tick());
     }
 
     private static RareLootCategory cfg() {
@@ -169,6 +171,7 @@ public final class RareLootHandler {
         sharedFromInventory.clear();
         // Eine Zeile, die auf einen anderen Server wartet, gehoert dort nicht mehr hin
         outbox.clear();
+        RareLootSounds.clear();
     }
 
     /**
@@ -385,7 +388,7 @@ public final class RareLootHandler {
             // Farb-Alarm immer, und der Preis ist nur noch eine Zeile im Banner
             note("  dye alert" + (value == null ? " (no price known - showing it anyway)" : ""));
             rememberAnnounced(candidates, now);
-            announce(client, cfg.dyeBanner, cfg.dyeDesign, cfg.dyeToast, cfg.dyeChat, cfg.dyeSound,
+            announce(client, cfg.dyeBanner, cfg.dyeDesign, cfg.dyeToast, cfg.dyeChat, cfg.dyeSound, DYE_SOUND_RANK,
                     "Dye", DYE_COLOUR, headline(drop),
                     value == null ? -1 : value.coins(),
                     value == null ? firstId(candidates) : value.itemId());
@@ -532,16 +535,21 @@ public final class RareLootHandler {
         RareLootCategory cfg = cfg();
         Minecraft client = Minecraft.getInstance();
         client.execute(() -> announce(client, cfg.dyeBanner, cfg.dyeDesign, cfg.dyeToast,
-                cfg.dyeChat, cfg.dyeSound, "Dye", DYE_COLOUR,
+                cfg.dyeChat, cfg.dyeSound, DYE_SOUND_RANK, "Dye", DYE_COLOUR,
                 "Emerald Dye", 65_000_000d, "DYE_EMERALD"));
     }
 
     /** Davor kommt der Name der Stufe ("Tier 1", "Dye") - das ist der Kanal im CustomSoundPlayer */
     private static final String SOUND_CHANNEL_PREFIX = "rare-loot/";
+    /**
+     * Der Rang des Farb-Alarms, wenn Toene nacheinander laufen: vor jeder Stufe. Sein Preis sagt wenig (eine Tentacle Dye kann heute keinen haben) -
+     * dafuer gibt es den eigenen Alarm, und den will man als Erstes hoeren
+     */
+    private static final double DYE_SOUND_RANK = Double.POSITIVE_INFINITY;
 
     private static void announce(Minecraft client, Tier tier, String headline, double coins, String itemId) {
         announce(client, tier.banner(), tier.design(), tier.toast(), tier.chat(), tier.sound(),
-                "Tier " + tier.number(),
+                ItemValue.parseAmount(tier.threshold()), "Tier " + tier.number(),
                 TIER_COLOURS[Math.min(Math.max(tier.number() - 1, 0), TIER_COLOURS.length - 1)],
                 headline, coins, itemId);
     }
@@ -553,11 +561,13 @@ public final class RareLootHandler {
      * deshalb die vier Reaktionen und das, was im Banner steht - so gibt es weiter
      * genau einen Weg zur Einblendung, statt zweier, die auseinanderlaufen koennen.
      *
+     * @param soundRank wonach die Toene gereiht werden, wenn sie nacheinander laufen: die Schwelle der Stufe;
+     *                  der Farb-Alarm geht allen Stufen vor
      * @param coins ein Betrag unter null heisst: kein Preis bekannt. Dann bleibt die
      *              Wertzeile leer, statt eine Null zu behaupten
      */
     private static void announce(Minecraft client, boolean banner, String design, boolean toast,
-                                 boolean chat, String sound, String label, int colour,
+                                 boolean chat, String sound, double soundRank, String label, int colour,
                                  String headline, double coins, String itemId) {
         String worth = coins < 0 ? "" : ItemValue.format(coins);
 
@@ -585,7 +595,13 @@ public final class RareLootHandler {
             // Ein Kanal je Stufe (und fuer den Farb-Alarm): Zwei Funde fast zugleich - Tier 1 und Tier 2 - sollen beide zu hoeren sein. Mit einem
             // gemeinsamen Kanal ersetzt der spaetere Sound den fruehren sofort, und man hoert nur einen von beiden. Dieselbe Stufe zweimal
             // startet weiter neu, statt sich auf sich selbst zu legen
-            CustomSoundPlayer.play(sound, AlertVolume.factor(), SOUND_CHANNEL_PREFIX + label);
+            String channel = SOUND_CHANNEL_PREFIX + label;
+            if (cfg().soundOrder == RareLootCategory.SoundOrder.RICH_FIRST) {
+                // Nacheinander: die Schlange sammelt einen Augenblick und spielt dann die hoechste Stufe zuerst
+                RareLootSounds.add(sound, channel, soundRank, Math.max(coins, 0));
+            } else {
+                CustomSoundPlayer.play(sound, AlertVolume.factor(), channel);
+            }
         }
     }
 
