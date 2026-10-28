@@ -262,7 +262,14 @@ public final class DeployableReminder {
     }
 
     static void onChatMessage(String message, long now) {
-        if (!FeatureGate.deployables() || !GameState.Server.isSkyblock()) return;
+        if (!GameState.Server.isSkyblock()) return;
+
+        // Der Zeitkasten folgt Hypixels Zeilen, auch wenn kein Alarm an ist: Ein ersetztes oder zurueckgelassenes Deployable steht nicht mehr da
+        if (FeatureGate.deployableHud()) {
+            Hit ended = readCached(message);
+            if (ended != null) DeployableTimers.ended(ended.kind(), ended.ending(), now);
+        }
+        if (!FeatureGate.deployables()) return;
 
         Hit hit = readCached(message);
         if (hit == null) return;
