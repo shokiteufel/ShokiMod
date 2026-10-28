@@ -196,7 +196,6 @@ die Spielversion beim Start — die falsche Datei laedt der Loader gar nicht ers
 | `/shoki pet` | Pet-HUD bauen |
 | `/shoki hub` | Zurueck in den Hub |
 | `/shoki update` | Neueste Fassung von GitHub holen; eingesetzt wird sie beim Beenden des Spiels |
-| `/shoki confirm` | Die Rueckfrage im Chat bejahen — dahinter haengt der Knopf in der Zeile |
 | `/shoki profittracker <Ware> set\|add\|remove <Zahl>` | Eine Zahl im Profit-Kasten geradeziehen; der Name wird vorgeschlagen |
 | `/shoki profittracker <Ware> countas <Ziel>` | Die Ware als ihre hochgecraftete Fassung zaehlen (`none` hebt es auf) |
 

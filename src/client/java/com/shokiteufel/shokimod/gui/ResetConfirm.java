@@ -14,7 +14,8 @@ import net.minecraft.network.chat.Component;
  * Klicks nur im eigenen Inventar an, die Knoepfe sitzen im Einstellungsfenster - in beiden Faellen liegt der Chat hinter dem Fenster,
  * eine Frage dort waere nicht zu erreichen. Nach der Antwort geht es dorthin zurueck, wo der Klick herkam.
  *
- * Ausschalten laesst sich die Frage mit "Ask before reset" im Reiter HUD - dann geschieht der Reset wieder sofort.
+ * Ausschalten laesst sich die Frage mit "Ask before reset" im Reiter HUD - dann geschieht der Reset wieder sofort. Die Frage vor dem
+ * Entfernen einer einzelnen Ware ({@link #confirm}) laesst sich nicht abschalten.
  *
  * Alle Tracker gehen durch diese eine Stelle: Ein neuer braucht nur den Aufruf, keine eigene Frage und keinen eigenen Schalter.
  */
@@ -34,12 +35,31 @@ public final class ResetConfirm {
             reset.run();
             return;
         }
+        show(client, "Reset the " + tracker + "?", effect, reset);
+    }
+
+    /**
+     * Die Frage vor einer einzelnen Sache, die ein Klick aus einem Tracker nimmt - etwa das rote Kreuz an einer Ware im Profit Tracker.
+     * Dasselbe Fenster wie beim Reset, aber ohne Schalter: Diese Frage gab es schon, bevor es "Ask before reset" gab, und sie
+     * ging nie ab - ein Klick daneben soll die Ware nicht kosten.
+     *
+     * @param question die Frage als Ueberschrift, etwa "Remove Enchanted Hay Bale x120?"
+     * @param effect   was verschwindet - ein Satz, hinter den "This cannot be undone." kommt
+     * @param yes      was bei "Yes" geschieht
+     */
+    public static void confirm(String question, String effect, Runnable yes) {
+        Minecraft client = Minecraft.getInstance();
+        if (client == null) return;
+        show(client, question, effect, yes);
+    }
+
+    private static void show(Minecraft client, String title, String effect, Runnable yes) {
         Screen back = currentScreen(client);
-        client.setScreenAndShow(new ConfirmScreen(yes -> {
-            // Erst zurueck, dann der Reset: So steht der Kasten schon wieder da, wenn er auf null springt
+        client.setScreenAndShow(new ConfirmScreen(answer -> {
+            // Erst zurueck, dann die Tat: So steht der Kasten schon wieder da, wenn sich sein Stand aendert
             client.setScreenAndShow(back);
-            if (yes) reset.run();
-        }, Component.literal("Reset the " + tracker + "?"), Component.literal(effect + " This cannot be undone.")));
+            if (answer) yes.run();
+        }, Component.literal(title), Component.literal(effect + " This cannot be undone.")));
     }
 
     /** Das Fenster, in dem der Klick geschah - oder null, wenn gerade keines offen ist */
