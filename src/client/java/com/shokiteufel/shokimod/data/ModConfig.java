@@ -852,6 +852,60 @@ public class ModConfig extends Config {
     // ==========================================
     @Override
     public synchronized void saveNow() {
+        // Der Text wird hier gebaut, auf dem Faden des Aufrufers: Nur so haelt er einen in sich stimmigen Stand, waehrend
+        // anderswo weitergezaehlt wird. Die Platte dagegen macht ein eigener Faden. Auf die Platte zu zwingen (fsync), die
+        // Sicherung zu kopieren und die Datei auszutauschen kostet je nach Rechner zehn bis mehrere hundert Millisekunden - und
+        // der Aufrufer ist oft der Tick des Spiels: Der Profit Tracker speichert alle 15 Sekunden, der Sea-Creature-Tracker
+        // bei jedem Fang. Das war das kleine Standbild, das im Gesamtstand alle paar Sekunden auffiel.
+        //
+        // Schreibt der Faden noch, ersetzt der neuere Text den wartenden: Es kommt immer der letzte Stand auf die Platte,
+        // und beim Beenden des Spiels wird er in jedem Fall noch geschrieben (flush)
+        String json;
+        try {
+            json = GSON.toJson(this);
+        } catch (Exception e) {
+            System.err.println("Failed to save ShokiMod config!");
+            e.printStackTrace();
+            return;
+        }
+        PENDING_JSON.set(json);
+        WRITER.execute(ModConfig::writePending);
+    }
+
+    /** Der Text, der als Naechstes auf die Platte soll - null, wenn nichts wartet */
+    private static final java.util.concurrent.atomic.AtomicReference<String> PENDING_JSON =
+            new java.util.concurrent.atomic.AtomicReference<>();
+    /** Ein Schreiber, nie zwei zugleich: sonst traefen sich zwei in der Nebendatei */
+    private static final Object WRITE_LOCK = new Object();
+    private static final java.util.concurrent.ExecutorService WRITER =
+            java.util.concurrent.Executors.newSingleThreadExecutor(task -> {
+                Thread thread = new Thread(task, "ShokiMod config writer");
+                thread.setDaemon(true);
+                return thread;
+            });
+
+    static {
+        // Beim Beenden darf nichts verloren gehen, was noch wartet
+        Runtime.getRuntime().addShutdownHook(new Thread(ModConfig::flush, "ShokiMod config flush"));
+    }
+
+    private static void writePending() {
+        String json = PENDING_JSON.getAndSet(null);
+        if (json == null) return; // ein neuerer Auftrag hat den Text schon mitgenommen
+        synchronized (WRITE_LOCK) {
+            writeFile(json);
+        }
+    }
+
+    /** Schreibt, was noch wartet, und kehrt erst zurueck, wenn es auf der Platte liegt - fuer das Beenden und fuer Proben */
+    public static void flush() {
+        String json = PENDING_JSON.getAndSet(null);
+        synchronized (WRITE_LOCK) {
+            if (json != null) writeFile(json);
+        }
+    }
+
+    private static void writeFile(String json) {
         // Nie direkt in die Datei: Ein Absturz oder Stromausfall mitten im Schreiben liesse sie
         // leer zurueck, und die Mod finge mit Standardwerten an - Tagesprofit und alle Zaehler weg.
         // Deshalb erst in eine Nebendatei, auf die Platte zwingen und dann in einem Zug austauschen;
@@ -861,7 +915,6 @@ public class ModConfig extends Config {
         java.nio.file.Path temp = target.resolveSibling(file.getName() + ".tmp");
         java.nio.file.Path backup = target.resolveSibling(file.getName() + ".bak");
         try {
-            String json = GSON.toJson(this);
             try (java.io.FileOutputStream out = new java.io.FileOutputStream(temp.toFile())) {
                 out.write(json.getBytes(java.nio.charset.StandardCharsets.UTF_8));
                 out.getFD().sync();
