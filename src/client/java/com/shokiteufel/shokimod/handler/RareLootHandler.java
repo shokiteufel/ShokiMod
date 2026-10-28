@@ -536,6 +536,9 @@ public final class RareLootHandler {
                 "Emerald Dye", 65_000_000d, "DYE_EMERALD"));
     }
 
+    /** Davor kommt der Name der Stufe ("Tier 1", "Dye") - das ist der Kanal im CustomSoundPlayer */
+    private static final String SOUND_CHANNEL_PREFIX = "rare-loot/";
+
     private static void announce(Minecraft client, Tier tier, String headline, double coins, String itemId) {
         announce(client, tier.banner(), tier.design(), tier.toast(), tier.chat(), tier.sound(),
                 "Tier " + tier.number(),
@@ -579,7 +582,10 @@ public final class RareLootHandler {
         }
 
         if (sound != null && !sound.isBlank()) {
-            CustomSoundPlayer.play(sound, AlertVolume.factor(), RareLootHandler.class);
+            // Ein Kanal je Stufe (und fuer den Farb-Alarm): Zwei Funde fast zugleich - Tier 1 und Tier 2 - sollen beide zu hoeren sein. Mit einem
+            // gemeinsamen Kanal ersetzt der spaetere Sound den fruehren sofort, und man hoert nur einen von beiden. Dieselbe Stufe zweimal
+            // startet weiter neu, statt sich auf sich selbst zu legen
+            CustomSoundPlayer.play(sound, AlertVolume.factor(), SOUND_CHANNEL_PREFIX + label);
         }
     }
 
