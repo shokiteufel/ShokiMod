@@ -182,6 +182,9 @@ die Spielversion beim Start — die falsche Datei laedt der Loader gar nicht ers
 
 - Chat-Regeln: ausblenden, ersetzen, Action Bar, Einblendung, Toast — mit eigenen
   Audiodateien.
+- Sound Settings (Alerts): die Lautstaerke jeder Datei im Sound-Ordner einzeln, von 0 bis
+  100. Sie gehoert zur Datei und gilt, wo immer sie gespielt wird - zusaetzlich zum Alert
+  Volume und zur Lautstaerke der Regel.
 - Kuchen-Erinnerung mit einem Klick zum Nachholen.
 - Pest-Fallen: Warnung, sobald genug Fallen voll sind, und beim Verlassen des
   Gartens mit vollen Fallen. Der Stand kommt aus Hypixels Tab-Widget.

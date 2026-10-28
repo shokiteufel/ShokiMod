@@ -292,6 +292,10 @@ public class ModConfig extends Config {
         if (INSTANCE.mining.cold.soundFile == null) INSTANCE.mining.cold.soundFile = "";
         INSTANCE.mining.cold.atCold = Math.max(10, Math.min(99, INSTANCE.mining.cold.atCold));
         if (INSTANCE.chat.reminder == null) INSTANCE.chat.reminder = new ReminderCategory();
+        if (INSTANCE.chat.soundVolumes == null) INSTANCE.chat.soundVolumes = new HashMap<>();
+        // Von Hand geaenderte Datei: nur 0 bis 99 sind Eintraege, alles andere ist "wie immer"
+        INSTANCE.chat.soundVolumes.values().removeIf(v -> v == null || v >= 100);
+        INSTANCE.chat.soundVolumes.replaceAll((k, v) -> Math.max(0, v));
         if (INSTANCE.garden == null) INSTANCE.garden = new GardenCategory();
         if (INSTANCE.garden.traps == null) INSTANCE.garden.traps = new GardenTrapsCategory();
         if (INSTANCE.garden.visitors == null) INSTANCE.garden.visitors = new GardenVisitorsCategory();
@@ -579,6 +583,9 @@ public class ModConfig extends Config {
                 Minecraft.getInstance().setScreenAndShow(new com.shokiteufel.shokimod.gui.TrashBooksScreen(
                         Minecraft.getInstance().gui.screen())));
         INSTANCE.chat.testAlertVolume = () -> Minecraft.getInstance().execute(AlertVolume::test);
+        INSTANCE.chat.openSoundSettings = () -> Minecraft.getInstance().execute(() ->
+                Minecraft.getInstance().setScreenAndShow(new com.shokiteufel.shokimod.gui.SoundSettingsScreen(
+                        Minecraft.getInstance().gui.screen())));
         INSTANCE.hunting.tracker.resetTracker = () -> Minecraft.getInstance().execute(HuntingTracker::askReset);
         INSTANCE.guild.events.testBanner = () -> Minecraft.getInstance().execute(GuildEvents::testBanner);
         INSTANCE.slayer.test = () -> Minecraft.getInstance().execute(
@@ -4931,6 +4938,15 @@ public class ModConfig extends Config {
         @ConfigEditorButton(buttonText = "Test")
         public transient Runnable testAlertVolume = () -> {
         };
+
+        @ConfigOption(name = "Sound Settings", desc = "Opens a window with every sound file in your sounds folder and a volume for each one. The volume belongs to the file, so it counts wherever the file is used - chat rules, rare loot, reminders. It comes on top of the Alert Volume above and of a rule's own volume.")
+        @ConfigEditorButton(buttonText = "Open")
+        public transient Runnable openSoundSettings = () -> {
+        };
+
+        /** Dateiname -> Lautstaerke in Prozent (0 bis 99). Nur Dateien, die von 100 abweichen; siehe SoundVolumes */
+        @Expose
+        public Map<String, Integer> soundVolumes = new HashMap<>();
 
         // ==========================================
         // Seltene Funde als eigener Reiter unter Alerts. Gelesen wird Hypixels
