@@ -143,7 +143,9 @@ die Spielversion beim Start — die falsche Datei laedt der Loader gar nicht ers
   die Zahl hineinzaehlen oder ob nur Lapis zaehlt.
 - Party: eine gesehene Leiche mit Koordinaten teilen (nur Lapis oder alle ausser Vanguard),
   und ein Ruf, wenn eine Vanguard-Leiche im Schacht ist. Wer die Mod ebenfalls hat, bekommt
-  aus der Meldung einen Marker in der Farbe der Sorte.
+  aus der Meldung einen Marker in der Farbe der Sorte. Koordinaten stehen in allen Meldungen
+  als `x: -158, y: 10, z: -165` - diese Form erkennt Skyblocker im Chat und bietet den
+  Wegpunkt per Klick an. Die alte Form (`-158 10 -165`) liest die Mod weiter.
 - Sagt im Chat, warum nichts angezeigt wird — unbekannter Bauplan oder Regel nicht
   erfuellt — statt stumm zu bleiben.
 - Beim Verlassen eine Chatzeile, was der Schacht an Coins gebracht hat, zur Verkaufsorder
