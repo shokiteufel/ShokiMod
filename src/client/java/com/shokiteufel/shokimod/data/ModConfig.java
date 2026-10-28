@@ -295,6 +295,7 @@ public class ModConfig extends Config {
         if (INSTANCE.garden == null) INSTANCE.garden = new GardenCategory();
         if (INSTANCE.garden.traps == null) INSTANCE.garden.traps = new GardenTrapsCategory();
         if (INSTANCE.garden.visitors == null) INSTANCE.garden.visitors = new GardenVisitorsCategory();
+        if (INSTANCE.garden.pests == null) INSTANCE.garden.pests = new GardenPestsCategory();
         if (INSTANCE.deployables == null) INSTANCE.deployables = new DeployablesCategory();
         if (INSTANCE.deployables.umberellaAlert == null) INSTANCE.deployables.umberellaAlert = new UmberellaCategory();
         if (INSTANCE.deployables.endings == null) INSTANCE.deployables.endings = new DeployableEndingsCategory();
@@ -2027,6 +2028,48 @@ public class ModConfig extends Config {
         @Expose
         @Category(name = "Visitors", desc = "Warns once the visitors in your garden are queued up. With a full queue no new visitor arrives.")
         public GardenVisitorsCategory visitors = new GardenVisitorsCategory();
+
+        @Expose
+        @Category(name = "Pests", desc = "Marks every pest that spawns in your garden: an outline and a line to each one.")
+        public GardenPestsCategory pests = new GardenPestsCategory();
+    }
+
+    /**
+     * Die Pests im Garden: ein Umriss und eine Linie zu jedem.
+     *
+     * Eigenstaendig, ohne die Schalter der Mob-Liste: Die Linie dort geht je Eintrag nur zum naechsten Mob, hier bekommt jeder Pest
+     * seine. Laeuft nur im Garden (Gebiet aus der Tab-Liste).
+     */
+    public static class GardenPestsCategory {
+
+        @ConfigOption(name = "Pests", desc = "Marks every pest that spawns in your garden - an outline and a line to each one, so you do not have to hunt for them. It only runs in the Garden and does not need the switches of Mob Visuals.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Mark pests", desc = "Switches the marking on.")
+        @ConfigEditorBoolean
+        public boolean enabled = true;
+
+        @Expose
+        @ConfigOption(name = "Highlight", desc = "Outlines every pest with a glow.")
+        @ConfigEditorBoolean
+        public boolean highlight = true;
+
+        @Expose
+        @ConfigOption(name = "Line", desc = "Draws a line from the crosshair to every pest - not only to the nearest one.")
+        @ConfigEditorBoolean
+        public boolean line = true;
+
+        @Expose
+        @ConfigOption(name = "Name", desc = "Writes the pest's name over it, in the marking colour. The pests carry a name tag of their own, so this is off by default.")
+        @ConfigEditorBoolean
+        public boolean nameplate = false;
+
+        @Expose
+        @ConfigOption(name = "Box", desc = "Draws a box around every pest.")
+        @ConfigEditorBoolean
+        public boolean box = false;
     }
 
     /** Die Pest-Fallen: gelesen aus dem Widget der Tab-Liste */
