@@ -39,7 +39,9 @@ die Spielversion beim Start — die falsche Datei laedt der Loader gar nicht ers
 - Vier Stufen mit eigener Schwelle, jede mit eigenem Banner, Toast, Chatzeile und Ton.
 - Eigener Dye-Alarm, der auch dann kommt, wenn die Farbe gerade keinen Preis hat — und
   auf Wunsch ein Dye-Teilen, das die Schwelle nicht fragt.
-- Teilen in Party und Gilde ab einer eigenen Schwelle.
+- Teilen in Party und Gilde ab einer eigenen Schwelle - auch fuer Funde, die nur im Inventar
+  auftauchen (`Share inventory finds`). Ein Fund steht nie doppelt da, und mehrere auf einmal
+  gehen im Abstand von anderthalb Sekunden hinaus.
 - Diagnose-Knopf: schreibt fuer jeden Fund mit, was die Mod gesehen und entschieden hat.
 </details>
 

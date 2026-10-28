@@ -111,6 +111,27 @@ public final class RareLootHandler {
     private static final Map<String, Long> announced = new HashMap<>();
     private static final long DOUBLE_WINDOW_MILLIS = 20_000L;
 
+    /**
+     * Was schon in einen Chat gegangen ist, getrennt nach dem Weg, auf dem der Fund kam.
+     *
+     * Ein Fund kommt oft zweimal: als Chatzeile und kurz darauf als Zugang im Inventar. Geteilt wird auf beiden Wegen - damit er nicht zweimal
+     * in der Party steht, merkt sich jeder Weg seine Meldungen, und der andere uebergeht, was dort schon steht.
+     */
+    private static final Map<String, Long> sharedFromChat = new HashMap<>();
+    private static final Map<String, Long> sharedFromInventory = new HashMap<>();
+
+    /**
+     * Zwischen zwei Zeilen an den Chat liegt mindestens diese Pause.
+     *
+     * Ein Beutebuendel oder ein Sack bringt mehrere wertvolle Funde im selben Tick. Als /pc hintereinander abgeschickt, bremst Hypixel die
+     * Zeilen (oder schluckt sie). Die erste geht sofort, die weiteren warten im Ausgang.
+     */
+    private static final long SEND_GAP_MILLIS = 1500L;
+    /** Mehr als so viele Zeilen warten nicht; was darueber hinausgeht, wird nicht mehr geteilt */
+    private static final int OUTBOX_MAX = 10;
+    private static final Deque<String> outbox = new ArrayDeque<>();
+    private static long lastSentAt = 0L;
+
     private RareLootHandler() {
     }
 
@@ -124,6 +145,8 @@ public final class RareLootHandler {
         });
         // Der zweite Weg zum Fund: was ohne Chatzeile im Inventar landet
         com.shokiteufel.shokimod.scanner.ItemChanges.listen(RareLootHandler::onInventoryGains);
+        // Der Ausgang der geteilten Zeilen: eine je Pause
+        ClientTickEvents.END_CLIENT_TICK.register(RareLootHandler::drainOutbox);
     }
 
     private static RareLootCategory cfg() {
@@ -142,6 +165,10 @@ public final class RareLootHandler {
         bundleUntil = 0L;
         bundleLines = 0;
         announced.clear();
+        sharedFromChat.clear();
+        sharedFromInventory.clear();
+        // Eine Zeile, die auf einen anderen Server wartet, gehoert dort nicht mehr hin
+        outbox.clear();
     }
 
     /**
@@ -151,13 +178,17 @@ public final class RareLootHandler {
      * Was unter der niedrigsten Stufe liegt, loest nichts aus - und das ist der
      * Normalfall, denn hier kommt auch jeder Kieselstein vorbei.
      *
-     * Geteilt wird von hier aus nichts. "SHOKI hat X gefunden" in den Party-Chat zu
-     * schreiben, weil etwas im Inventar auftauchte, waere eine Behauptung ueber
-     * einen Fund, den niemand sonst gesehen hat.
+     * Geteilt wird von hier aus seit 2.0.16 auch - wenn "Share inventory finds" an ist, mit
+     * denselben Kanaelen, Schwellen und Vorlagen wie ein Fund aus dem Chat. Bis 2.0.15 blieb
+     * es beim Banner: Hypixel sagt zu manchen Funden gar nichts im Stil von "RARE DROP!"
+     * (eine "VERY RARE CROP!"-Zeile etwa liest der Parser nicht), und gerade die gingen
+     * mit ihrem Wert an der Party vorbei, obwohl Kasten und Alarm sie zaehlten.
      */
     public static void onInventoryGains(Map<String, Integer> gains) {
         RareLootCategory cfg = cfg();
-        if (!cfg.watchInventory || !cfg.enabled) return;
+        // Alarm und Teilen sind zwei Gruende, hinzusehen; es genuegt einer
+        boolean sharing = cfg.shareEnabled && cfg.shareInventory;
+        if (!cfg.watchInventory || (!cfg.enabled && !sharing)) return;
         if (!GameState.Server.isSkyblock()) return;
 
         long now = System.currentTimeMillis();
@@ -377,11 +408,38 @@ public final class RareLootHandler {
             }
         }
 
-        // Nur, was im Chat stand, wird weitergegeben - siehe onInventoryGains. Farben sind
-        // oben schon durch, wenn ihr Schalter an ist: zweimal dieselbe Zeile ist Spam
+        // Ein Fund aus dem Inventar wird nur geteilt, wenn "Share inventory finds" an ist - siehe
+        // onInventoryGains. Farben sind oben schon durch, wenn ihr Schalter an ist: zweimal dieselbe
+        // Zeile ist Spam
         boolean farbeSchonGeteilt = dye && cfg.dyeAlert && cfg.dyeShare;
-        if (cfg.shareEnabled && !fromInventory && !farbeSchonGeteilt) {
-            share(client, drop, value, lootshare);
+        if (cfg.shareEnabled && (!fromInventory || cfg.shareInventory) && !farbeSchonGeteilt) {
+            // Derselbe Fund steht oft als Chatzeile und als Zugang im Inventar da. Was der andere Weg
+            // schon geteilt hat, teilt dieser nicht noch einmal
+            Map<String, Long> other = fromInventory ? sharedFromChat : sharedFromInventory;
+            if (anyRecent(other, candidates, now)) {
+                note("  not shared: the same find was already shared from the "
+                        + (fromInventory ? "chat line" : "inventory"));
+            } else if (share(client, drop, value, lootshare)) {
+                remember(fromInventory ? sharedFromInventory : sharedFromChat, candidates, now);
+            }
+        }
+    }
+
+    /** Steht eine dieser Schreibweisen in dieser Liste, und ist der Eintrag noch frisch? */
+    private static boolean anyRecent(Map<String, Long> list, List<String> candidates, long now) {
+        for (int i = 0; i < candidates.size(); i++) {
+            String id = candidates.get(i);
+            if (id == null) continue;
+            Long at = list.get(id);
+            if (at != null && now - at <= DOUBLE_WINDOW_MILLIS) return true;
+        }
+        return false;
+    }
+
+    private static void remember(Map<String, Long> list, List<String> candidates, long now) {
+        if (list.size() > 200) list.clear();
+        for (int i = 0; i < candidates.size(); i++) {
+            if (candidates.get(i) != null) list.put(candidates.get(i), now);
         }
     }
 
@@ -537,14 +595,15 @@ public final class RareLootHandler {
      * es einen Wert - ein Fund ohne Preis ist nicht "wertlos", nur unbekannt, und
      * wird deshalb nicht geteilt.
      */
-    private static void share(Minecraft client, Drop drop, Value value, boolean lootshare) {
-        share(client, drop, value, lootshare, false);
+    private static boolean share(Minecraft client, Drop drop, Value value, boolean lootshare) {
+        return share(client, drop, value, lootshare, false);
     }
 
     /**
      * @param dye eine Farbe geht an der Schwelle vorbei
+     * @return ob der Fund in mindestens einen Chat ging (oder im Ausgang darauf wartet)
      */
-    private static void share(Minecraft client, Drop drop, Value value, boolean lootshare, boolean dye) {
+    private static boolean share(Minecraft client, Drop drop, Value value, boolean lootshare, boolean dye) {
         RareLootCategory cfg = cfg();
         // Die Vorlage der erreichten Stufe, damit ein 50M-Fund anders klingt als ein 1M-Fund
         Tier reached = value == null ? null : tierFor(value.coins());
@@ -558,23 +617,60 @@ public final class RareLootHandler {
         }
         if (blocked != null) {
             note("  not shared: " + blocked);
-            return;
+            return false;
         }
 
         ClientPacketListener connection = client.getConnection();
         if (connection == null) {
             note("  not shared: no connection");
-            return;
+            return false;
         }
 
+        boolean sent = false;
         if (channels.party()) {
             note("  sharing to party: " + message);
-            connection.sendCommand("pc " + message);
+            sent |= send(connection, "pc " + message);
         }
         if (channels.guild()) {
             note("  sharing to guild: " + message);
-            connection.sendCommand("gc " + message);
+            sent |= send(connection, "gc " + message);
         }
+        return sent;
+    }
+
+    /**
+     * Schickt eine Zeile an einen Chat - sofort, wenn die Pause seit der letzten um ist und nichts wartet, sonst in den Ausgang.
+     *
+     * @return false, wenn der Ausgang voll ist und die Zeile deshalb verworfen wurde
+     */
+    private static boolean send(ClientPacketListener connection, String command) {
+        long now = System.currentTimeMillis();
+        if (outbox.isEmpty() && now - lastSentAt >= SEND_GAP_MILLIS) {
+            connection.sendCommand(command);
+            lastSentAt = now;
+            return true;
+        }
+        if (outbox.size() >= OUTBOX_MAX) {
+            note("  not shared: " + outbox.size() + " lines are already waiting to be sent");
+            return false;
+        }
+        outbox.add(command);
+        note("  waiting to be sent (" + outbox.size() + " in line): " + command);
+        return true;
+    }
+
+    /** Pro Tick hoechstens eine wartende Zeile, und erst nach der Pause */
+    private static void drainOutbox(Minecraft client) {
+        if (outbox.isEmpty()) return;
+        ClientPacketListener connection = client.getConnection();
+        if (connection == null) {
+            outbox.clear();
+            return;
+        }
+        long now = System.currentTimeMillis();
+        if (now - lastSentAt < SEND_GAP_MILLIS) return;
+        connection.sendCommand(outbox.poll());
+        lastSentAt = now;
     }
 
     /** In welchen Chat ein Fund geht - und, wenn in keinen, warum nicht */
@@ -754,6 +850,7 @@ public final class RareLootHandler {
                     .append(" sound=").append(tier.sound()).append('\n');
         }
         out.append("share: enabled=").append(cfg.shareEnabled)
+                .append(" inventory=").append(cfg.shareInventory)
                 .append(" party=").append(cfg.shareParty)
                 .append(" guild=").append(cfg.shareGuild)
                 .append(" party-from=").append(cfg.shareThreshold)
