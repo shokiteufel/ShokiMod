@@ -188,7 +188,7 @@ public class CustomMobScreen extends Screen {
                     Component.literal("Match"));
             matchBox.setMaxLength(64);
             matchBox.setValue(mob.pattern);
-            matchBox.setHint(Component.literal("part of the name"));
+            matchBox.setHint(Component.literal("word(s) of the name"));
             matchBox.setResponder(value -> mob.pattern = value);
             addRenderableWidget(matchBox);
         } else {

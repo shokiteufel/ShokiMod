@@ -15,7 +15,8 @@ import java.util.Locale;
  * Highlight / Tracer / Nameplate に流れる。
  *
  * 判定は2通り。
- *   NAME … ネームタグの部分一致。体力表示が変わり続けるので完全一致にはしない
+ *   NAME … ネームタグの語単位の一致(2.0.12〜)。体力表示が変わり続けるので完全一致にはしない。
+ *          "Rat" は "Lift Operator" には当たらない
  *   TYPE … エンティティ型。Critter Safari のように名前を持たないモブ用
  */
 public class CustomMob implements MobVisual {
@@ -236,7 +237,23 @@ public class CustomMob implements MobVisual {
         if (needle.isEmpty()) {
             return false;
         }
-        return normalize(rawName).toLowerCase(Locale.ROOT).contains(needle);
+        String hay = normalize(rawName).toLowerCase(Locale.ROOT);
+
+        // Ganze Woerter, nicht Teile davon: "Rat" ist die Ratte, nicht der "Lift Operator" (ope-rat-or). Die Regel "Rat" hatte im Garden
+        // einen Besucher mit Namensschild und Kasten versehen. Zaehlt nur an den Raendern des Musters, die selbst Buchstabe oder Ziffer sind:
+        // ein Muster, das mit einer Klammer oder einem Satzzeichen anfaengt oder aufhoert, bleibt, wie es war
+        char first = needle.charAt(0);
+        char last = needle.charAt(needle.length() - 1);
+        int from = 0;
+        while (true) {
+            int at = hay.indexOf(needle, from);
+            if (at < 0) return false;
+            int end = at + needle.length();
+            boolean startOk = at == 0 || !Character.isLetterOrDigit(first) || !Character.isLetterOrDigit(hay.charAt(at - 1));
+            boolean endOk = end >= hay.length() || !Character.isLetterOrDigit(last) || !Character.isLetterOrDigit(hay.charAt(end));
+            if (startOk && endOk) return true;
+            from = at + 1;
+        }
     }
 
     /** Das eigene Muster, normalisiert und kleingeschrieben - gemerkt, bis es sich aendert */
