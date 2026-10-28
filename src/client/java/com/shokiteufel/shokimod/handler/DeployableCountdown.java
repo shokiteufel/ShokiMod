@@ -477,24 +477,47 @@ public final class DeployableCountdown {
         double flat = Math.hypot(stand.getX() - me.x, stand.getZ() - me.z);
         double up = stand.getY() - me.y;
         boolean near = flareShot ? flat <= PLACE_RANGE && Math.abs(up) <= FLARE_SHOT_HEIGHT : distance <= PLACE_RANGE;
-        boolean placed = since >= 0 && since <= PLACE_WINDOW_MILLIS
+        // Ein Item stellt nur seine eigene Sorte auf. Wer einen SOS Flare schiesst, hat keine Laterne hingestellt, auch wenn
+        // eine fremde gerade neben ihm erscheint (gemessen: Will-o'-wisp 1,2 s nach dem Flare, 6 Bloecke weit - fuer den Kasten
+        // "nur meine" war das ein fremdes Deployable, das als meines galt). Gilt auch fuer den engen Weg ohne bekanntes Item
+        Kind itemKind = deployableKind(item);
+        boolean wrongKind = itemKind != null && itemKind != reading.kind();
+        boolean placed = !wrongKind && since >= 0 && since <= PLACE_WINDOW_MILLIS
                 && ((deployableItem && near)
                 || (since <= PLACE_STRICT_WINDOW_MILLIS && distance <= PLACE_STRICT_RANGE));
         // Nur was nah genug zum Aufstellen war, ist ein Eintrag wert - fremde Deployables in der Ferne sind Rauschen
         if ((distance <= 12.0 || flareShot) && decisionsLogged < DECISION_LOG_LIMIT) {
             decisionsLogged++;
-            ShokiMod.LOGGER.info("[Deployables] {} ({}): {} - right-click {} ms ago with {}, {} blocks away",
+            ShokiMod.LOGGER.info("[Deployables] {} ({}): {} - right-click {} ms ago with {}, {} blocks away{}",
                     reading.name(), reading.kind(), placed ? "MINE" : "not mine", since, item,
-                    String.format(Locale.ROOT, "%.1f", distance));
+                    String.format(Locale.ROOT, "%.1f", distance),
+                    wrongKind ? " (the item makes " + itemKind + ", not " + reading.kind() + ")" : "");
         }
         if (DeployableLog.enabled()) {
-            DeployableLog.line("OWNER", String.format(Locale.ROOT, "id=%d %s (%s): %s - right-click %s with %s, %.1f blocks away (%.1f on the ground, %+.1f up; deployable item: %s; window %d ms, range %.0f%s - or %d ms / %.1f when the item is not known)",
+            DeployableLog.line("OWNER", String.format(Locale.ROOT, "id=%d %s (%s): %s - right-click %s with %s, %.1f blocks away (%.1f on the ground, %+.1f up; deployable item: %s%s; window %d ms, range %.0f%s - or %d ms / %.1f when the item is not known)",
                     stand.getId(), reading.name(), reading.kind(), placed ? "MINE" : "not mine",
                     ParticleTracer.lastUseAt() == 0L ? "never" : since + " ms ago", item, distance, flat, up, deployableItem,
+                    wrongKind ? ", wrong kind: the item makes " + itemKind + ", this stand is " + reading.kind() : "",
                     PLACE_WINDOW_MILLIS, PLACE_RANGE, flareShot ? " on the ground, up to " + (int) FLARE_SHOT_HEIGHT + " up (flare)" : "",
                     PLACE_STRICT_WINDOW_MILLIS, PLACE_STRICT_RANGE));
         }
         return placed;
+    }
+
+    /**
+     * Welche Sorte stellt dieses Item auf? Null, wenn es kein Deployable ist oder die Kennung keiner Sorte zugeordnet werden kann -
+     * dann bleibt es bei den Fenstern oben, ohne Pruefung der Sorte.
+     */
+    static Kind deployableKind(String item) {
+        if (item == null) return null;
+        String id = item.toUpperCase(Locale.ROOT);
+        if (id.contains("FLARE")) return Kind.FLARE;
+        if (id.contains("POWER_ORB") || id.contains("FLUX") || id.contains("RADIANT")) return Kind.POWER_ORB;
+        if (id.contains("UMBERELLA") || id.contains("UMBRELLA")) return Kind.UMBERELLA;
+        if (id.contains("LANTERN") || id.contains("WISP")) return Kind.LANTERN;
+        if (id.contains("BLACK_HOLE")) return Kind.BLACK_HOLE;
+        if (id.contains("TOTEM")) return Kind.TOTEM;
+        return null;
     }
 
     /** Ein Flare: Kopf mit der Textur eines der drei, Zeit aus dem Alter des Staenders */
