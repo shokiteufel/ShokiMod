@@ -49,6 +49,34 @@ public final class PestTarget implements MobVisual {
         return enabled() && INSTANCE.anyEnabled() && inGarden();
     }
 
+    /**
+     * Die Plots des Gartens: ein Raster aus 5 x 5 Feldern zu je 96 Bloecken, von -240 bis 240 (so rechnet auch SkyHanni, GardenPlotApi).
+     * Die Mitte des Rasters ist der Hof mit der Scheune; sie ist ein Feld wie die anderen.
+     */
+    private static final double PLOT_SIZE = 96.0;
+    private static final double GRID_MIN = -240.0;
+    private static final double GRID_MAX = 240.0;
+    private static final int GRID_LAST = 4;
+
+    /** Das Feld des Rasters, in dem diese Koordinate liegt (0 bis 4); -1, wenn sie ausserhalb des Gartens liegt */
+    static int plotCell(double v) {
+        if (v < GRID_MIN || v > GRID_MAX) return -1;
+        return Math.min(GRID_LAST, (int) Math.floor((v - GRID_MIN) / PLOT_SIZE));
+    }
+
+    /**
+     * Gehoert ein Pest an dieser Stelle zur Markierung? Bei "Whole garden" immer. Bei "Current plot" nur, wenn er auf dem Plot steht, auf dem
+     * man selbst steht. Steht man ausserhalb des Rasters, gibt es keinen eigenen Plot - dann zaehlt jeder, statt alle zu verschlucken.
+     * Die Hoehe zaehlt nicht: Ein Plot ist eine Saeule.
+     */
+    public static boolean inRange(double playerX, double playerZ, double x, double z) {
+        if (cfg().range != ModConfig.PestRange.PLOT) return true;
+        int mineX = plotCell(playerX);
+        int mineZ = plotCell(playerZ);
+        if (mineX < 0 || mineZ < 0) return true;
+        return plotCell(x) == mineX && plotCell(z) == mineZ;
+    }
+
     /** Der Name, den das Spiel dem Pest gibt, ohne Beiwerk ("Mite", nicht "§cMite 100/100") */
     public static String displayName(String rawName) {
         return CustomMob.cleanPattern(rawName);

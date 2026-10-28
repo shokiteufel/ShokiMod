@@ -98,6 +98,8 @@ public class EntityHighlightManager {
     /** Die Koerper, die in diesem Durchgang schon zu einem Pest gehoeren - zwei Namensschilder dicht beieinander teilen sich keinen */
     private static final Set<Entity> pestClaimed = new HashSet<>();
     private static final Set<Integer> pestLogged = new HashSet<>();
+    /** Die Pests, die ausserhalb des eigenen Plots standen und deshalb nicht markiert wurden - einmal je Pest im Protokoll */
+    private static final Set<Integer> pestSkipped = new HashSet<>();
     private static final int PEST_LOG_MAX = 60;
     /** So weit (Bloecke, in jede Richtung) um das Namensschild wird nach dem Koerper des Pests gesucht */
     private static final double PEST_SEARCH_RADIUS = 3.0;
@@ -289,7 +291,14 @@ public class EntityHighlightManager {
 
             // Die Pests im Garden: jeder bekommt Umriss und Linie
             if (scanPests && PestTarget.isPest(nameStr)) {
-                markPest(client, entity, nameStr);
+                if (PestTarget.inRange(client.player.getX(), client.player.getZ(), entity.getX(), entity.getZ())) {
+                    markPest(client, entity, nameStr);
+                } else if (pestSkipped.size() < PEST_LOG_MAX && pestSkipped.add(entity.getId())) {
+                    // Einmal je Pest: sonst fragt man sich auf Hypixel, warum einer fehlt
+                    com.shokiteufel.shokimod.ShokiMod.LOGGER.info("[Pests] {} ({} #{}) at {} {} not marked: not on your plot (you are at {} {}, Range = {})",
+                            PestTarget.displayName(nameStr), entity.getType().getDescriptionId(), entity.getId(), (int) entity.getX(),
+                            (int) entity.getZ(), (int) client.player.getX(), (int) client.player.getZ(), ModConfig.INSTANCE.garden.pests.range);
+                }
             }
 
             // Sparkling(レア個体)。接頭辞と、その後ろの種名の両方で判定する
