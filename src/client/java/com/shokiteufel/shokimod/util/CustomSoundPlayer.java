@@ -121,6 +121,26 @@ public final class CustomSoundPlayer {
 	 * @param channel  who is asking - a sound replaces only what the same channel is playing
 	 */
 	public static void play(String fileName, float volume, Object channel) {
+		start(fileName, effective(fileName, volume), channel);
+	}
+
+	/**
+	 * Die Lautstaerke, mit der {@link #play} eine Datei wirklich spielt: die des Aufrufers mal die der Datei selbst
+	 * (Alerts > Sound Settings, siehe {@link SoundVolumes}).
+	 */
+	public static float effective(String fileName, float volume) {
+		return volume * SoundVolumes.factor(fileName);
+	}
+
+	/**
+	 * Wie {@link #play}, aber genau in dieser Lautstaerke: Die Lautstaerke der Datei aus Sound Settings wird nicht noch einmal
+	 * dazugerechnet. Fuer das Fenster selbst, in dem der Regler die Lautstaerke ist.
+	 */
+	public static void playAt(String fileName, float volume, Object channel) {
+		start(fileName, volume, channel);
+	}
+
+	private static void start(String fileName, float volume, Object channel) {
 		if (fileName == null || fileName.isBlank()) return;
 
 		File file = SOUND_DIRECTORY.resolve(fileName).toFile();
