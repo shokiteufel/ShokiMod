@@ -5269,7 +5269,7 @@ public class ModConfig extends Config {
         public int watchVersion = 0;
 
         @Expose
-        @ConfigOption(name = "Watch inventory", desc = "Also alert on items that simply appear in your inventory, without a chat line - the same way the profit tracker sees them. Catches the finds Hypixel never announces, like a fished Moby-Duck. The tier thresholds still decide, and party sharing stays off for these.")
+        @ConfigOption(name = "Watch inventory", desc = "Also alert on items that simply appear in your inventory, without a chat line - the same way the profit tracker sees them. Catches the finds Hypixel never announces, like a fished Moby-Duck. The tier thresholds still decide. Sharing these finds to your chats is its own switch under Share drops (Share inventory finds).")
         @ConfigEditorBoolean
         public boolean watchInventory = true;
 
@@ -5652,6 +5652,12 @@ public class ModConfig extends Config {
         @ConfigEditorText
         @ConfigAccordionId(id = 24)
         public String shareGuildThreshold = "";
+
+        @Expose
+        @ConfigOption(name = "Share inventory finds", desc = "Also shares valuable finds that Hypixel did not announce with a RARE DROP! line but that showed up in your inventory - crop drops, sack and bundle drops. Same chats, same thresholds, same message. A find that was already shared from its chat line is not sent twice, and several finds at once go out one by one, a second and a half apart. Needs Watch inventory.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 24)
+        public boolean shareInventory = true;
 
         @Expose
         @ConfigOption(name = "Share dyes", desc = "Posts a dye into the chats picked right below, whatever it is worth - and even when sharing drops is off. A dye without a price would never clear a threshold, and that is exactly the find worth telling. Dyes have their own two switches: they do not follow Party and Guild above.")
