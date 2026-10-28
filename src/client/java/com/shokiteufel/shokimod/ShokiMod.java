@@ -350,6 +350,17 @@ public class ShokiMod implements ClientModInitializer {
                                     openDayProfitNextTick = true;
                                     return 1;
                                 }))
+                        // /shoki profitlog -> wo die abgeschlossenen Tage des Profit-Trackers liegen und wie viele es sind
+                        // /shoki profitlog migrate -> die Tage, die noch in der Config stehen, ins Log schreiben
+                        .then(ClientCommands.literal("profitlog")
+                                .then(ClientCommands.literal("migrate").executes(context -> {
+                                    com.shokiteufel.shokimod.handler.ProfitLog.migrateNow();
+                                    return 1;
+                                }))
+                                .executes(context -> {
+                                    com.shokiteufel.shokimod.handler.ProfitLog.sayStatus();
+                                    return 1;
+                                }))
                         // /shoki ignorevein -> die naechste angezeigte Ader (der Kristall im
                         // Schacht) kuenftig nicht mehr anschreiben; "clear" nimmt es zurueck
                         .then(ClientCommands.literal("ignorevein")
