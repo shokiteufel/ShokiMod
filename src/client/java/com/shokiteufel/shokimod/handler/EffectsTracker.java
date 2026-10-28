@@ -210,8 +210,10 @@ public final class EffectsTracker {
     private static EffectEntry adoptSeeded(String realName) {
         String base = baseOf(realName);
         for (java.util.Iterator<Map.Entry<String, EffectEntry>> it = cfg().list.entrySet().iterator(); it.hasNext(); ) {
-            EffectEntry e = it.next().getValue();
+            Map.Entry<String, EffectEntry> found = it.next();
+            EffectEntry e = found.getValue();
             if (!e.seeded || !baseOf(e.name).equals(base)) continue;
+            String oldKey = found.getKey();
             it.remove();
             boolean untouched = !e.hud && !e.alert && !e.hidden;
             e.name = realName;
@@ -221,6 +223,9 @@ public final class EffectsTracker {
                 e.alert = true;
             }
             cfg().list.put(key(realName), e);
+            // Die Voreinstellungen kennen den Effekt unter dem alten Namen; und ein neu gesehener Mixin ist in keinem Platz angehakt
+            renameInPresets(oldKey, key(realName));
+            if (untouched) captureQuiet();
             return e;
         }
         return null;
@@ -285,6 +290,7 @@ public final class EffectsTracker {
      */
     public static void hide(EffectEntry entry) {
         hideQuietly(entry);
+        captureQuiet();
         ModConfig.INSTANCE.saveNow();
     }
 
@@ -298,6 +304,7 @@ public final class EffectsTracker {
     /** Holt einen versteckten Effekt zurueck. HUD und Alarm bleiben aus, bis man sie wieder anhakt */
     public static void unhide(EffectEntry entry) {
         entry.hidden = false;
+        captureQuiet();
         ModConfig.INSTANCE.saveNow();
     }
 
@@ -314,19 +321,137 @@ public final class EffectsTracker {
             hideQuietly(e);
             hidden++;
         }
-        if (hidden > 0) ModConfig.INSTANCE.saveNow();
+        if (hidden > 0) {
+            captureQuiet();
+            ModConfig.INSTANCE.saveNow();
+        }
         return hidden;
     }
 
     public static void toggleHud(EffectEntry entry) {
         entry.hud = !entry.hud;
+        captureQuiet();
         ModConfig.INSTANCE.saveNow();
     }
 
     public static void toggleAlert(EffectEntry entry) {
         entry.alert = !entry.alert;
         forget(key(entry.name));
+        captureQuiet();
         ModConfig.INSTANCE.saveNow();
+    }
+
+    // ------------------------------------------------------------------ Voreinstellungen
+
+    /** So viele Plaetze gibt es von Anfang an */
+    public static final int PRESET_SLOTS = 5;
+    /** So viele werden es hoechstens - mehr passen nicht in die Spalte links im Fenster */
+    public static final int PRESET_MAX = 8;
+    public static final int PRESET_NAME_MAX = 14;
+
+    /**
+     * Die Plaetze der Voreinstellungen, mindestens fuenf. Beim ersten Mal wird der laufende Stand der erste Platz: Wer schon Haken gesetzt
+     * hat, verliert sie nicht.
+     */
+    public static List<ModConfig.EffectPreset> presets() {
+        ModConfig.EffectsCategory c = cfg();
+        boolean first = c.presets.isEmpty();
+        while (c.presets.size() < PRESET_SLOTS) {
+            ModConfig.EffectPreset p = new ModConfig.EffectPreset();
+            p.name = "Preset " + (c.presets.size() + 1);
+            c.presets.add(p);
+        }
+        c.activePreset = Math.clamp(c.activePreset, 0, c.presets.size() - 1);
+        if (first) snapshot(c.presets.get(c.activePreset));
+        return c.presets;
+    }
+
+    public static int activePreset() {
+        presets();
+        return cfg().activePreset;
+    }
+
+    /** Der laufende Stand (Kasten und Alarm je Effekt) in einen Platz schreiben. Versteckte Effekte gehoeren zu keinem Platz */
+    private static void snapshot(ModConfig.EffectPreset p) {
+        p.hud.clear();
+        p.alert.clear();
+        for (EffectEntry e : cfg().list.values()) {
+            if (e.hidden) continue;
+            String k = key(e.name);
+            if (e.hud) p.hud.add(k);
+            if (e.alert) p.alert.add(k);
+        }
+        p.used = true;
+    }
+
+    /** Haken oder Verstecken haben sich geaendert: der gewaehlte Platz folgt. Gibt es noch keine Plaetze, ist nichts zu sichern */
+    private static void captureQuiet() {
+        ModConfig.EffectsCategory c = cfg();
+        if (c.presets.isEmpty()) return;
+        snapshot(presets().get(c.activePreset));
+    }
+
+    /** Den gewaehlten Platz sichern, zum Beispiel beim Schliessen des Fensters */
+    public static void captureActive() {
+        snapshot(presets().get(cfg().activePreset));
+        ModConfig.INSTANCE.saveNow();
+    }
+
+    /**
+     * Einen anderen Platz waehlen: Der bisherige sichert den laufenden Stand, dann gelten die Haken des neuen. Ein Platz, der noch nie
+     * benutzt wurde, schaltet erst einmal alles ab - wer fuer Mining andere Effekte sehen will, fuellt ihn von da aus.
+     */
+    public static void selectPreset(int index) {
+        List<ModConfig.EffectPreset> slots = presets();
+        if (index < 0 || index >= slots.size() || index == cfg().activePreset) return;
+
+        snapshot(slots.get(cfg().activePreset));
+        ModConfig.EffectPreset target = slots.get(index);
+        cfg().activePreset = index;
+        for (EffectEntry e : cfg().list.values()) {
+            if (e.hidden) continue;
+            String k = key(e.name);
+            boolean hud = target.hud.contains(k);
+            boolean alert = target.alert.contains(k);
+            // Ein Alarm, der neu eingeschaltet wird, darf gleich wieder losgehen
+            if (e.alert != alert) forget(k);
+            e.hud = hud;
+            e.alert = alert;
+        }
+        target.used = true;
+        ModConfig.INSTANCE.saveNow();
+        ShokiMod.LOGGER.info("[Effects] preset {} \"{}\" selected: {} in the panel, {} with alert", index + 1, target.name,
+                target.hud.size(), target.alert.size());
+    }
+
+    /** Einen weiteren Platz anlegen und waehlen. False, wenn es schon so viele sind, wie in die Spalte passen */
+    public static boolean addPreset() {
+        List<ModConfig.EffectPreset> slots = presets();
+        if (slots.size() >= PRESET_MAX) return false;
+        ModConfig.EffectPreset p = new ModConfig.EffectPreset();
+        p.name = "Preset " + (slots.size() + 1);
+        slots.add(p);
+        selectPreset(slots.size() - 1);
+        return true;
+    }
+
+    /** Den Namen eines Platzes aendern - gespeichert wird beim Schliessen des Fensters (der Name wird beim Tippen laufend gemeldet) */
+    public static void renamePreset(int index, String name) {
+        List<ModConfig.EffectPreset> slots = presets();
+        if (index < 0 || index >= slots.size()) return;
+        String clean = name == null ? "" : name.trim();
+        if (clean.length() > PRESET_NAME_MAX) clean = clean.substring(0, PRESET_NAME_MAX);
+        slots.get(index).name = clean.isEmpty() ? "Preset " + (index + 1) : clean;
+    }
+
+    /** Ein Effekt bekommt einen anderen Namen (ein Mixin aus der Liste wird zum ersten Mal gesehen): Die Plaetze folgen ihm */
+    private static void renameInPresets(String from, String to) {
+        for (ModConfig.EffectPreset p : cfg().presets) {
+            for (List<String> names : List.of(p.hud, p.alert)) {
+                int i = names.indexOf(from);
+                if (i >= 0) names.set(i, to);
+            }
+        }
     }
 
     private static void forget(String key) {
@@ -428,7 +553,10 @@ public final class EffectsTracker {
                 changed = true;
             }
         }
-        if (changed) ModConfig.INSTANCE.saveNow();
+        if (changed) {
+            captureQuiet();
+            ModConfig.INSTANCE.saveNow();
+        }
     }
 
     /** Die Tab-Liste: nur bei Effekten, die schon gemerkt sind. Die Zeit dort ist auf die letzte Einheit gekuerzt */
@@ -465,7 +593,10 @@ public final class EffectsTracker {
                 changed = true;
             }
         }
-        if (changed) ModConfig.INSTANCE.saveNow();
+        if (changed) {
+            captureQuiet();
+            ModConfig.INSTANCE.saveNow();
+        }
     }
 
     /** "Remaining: 105:01:34" aus der Beschreibung, in Millisekunden */
