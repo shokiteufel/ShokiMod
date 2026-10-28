@@ -44,6 +44,11 @@ public final class PestTarget implements MobVisual {
         return lower.equals("garden") || lower.equals("the garden");
     }
 
+    /** Geht die Linie zu jedem Pest (Vorgabe) - oder nur zum naechsten? */
+    public static boolean lineToAll() {
+        return cfg().lineMode != ModConfig.PestLineMode.NEAREST;
+    }
+
     /** Auch Silverfische und Fledermaeuse markieren, deren Name noch nicht angekommen ist? */
     public static boolean byType() {
         return cfg().byType;

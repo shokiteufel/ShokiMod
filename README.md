@@ -195,7 +195,8 @@ Voraussetzungen: Fabric Loader 0.19.3+ und Fabric API.
   ohne die Schalter der Mob-Liste; die Linie dort geht je Eintrag nur zum naechsten Mob.
   Reichweite ist immer der ganze Plot (96 x 96), auf dem man steht - nicht einstellbar.
   Auch ein Pest, dessen Name noch nicht angekommen ist, wird gleich markiert (Silverfisch
-  oder Fledermaus; `Catch unnamed pests`).
+  oder Fledermaus; `Catch unnamed pests`). Die Linie geht zu allen Pests oder nur zum
+  naechsten (Ausklappfeld `Line to pest`).
 - Gilden-Events aus dem ShokiTeufelBot: Banner zum Start, laufende Rangliste im Kasten.
 - Party-Einladungen (Rubrik Guild / Party): eine Taste nimmt die wartende Einladung an (ohne
   Vorgabe, 60 Sekunden gueltig), und ein einstellbares Wort im Gildenchat (Vorgabe `+`, aus)
