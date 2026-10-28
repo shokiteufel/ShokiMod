@@ -146,8 +146,9 @@ public final class MiningState {
     private static final long READY_ALERT_DELAY_MILLIS = 500L;
 
     /**
-     * Im Mineshaft ist die Faehigkeit immer bereit: Beim Betreten setzt Hypixel die Abklingzeit zurueck. Eine Bereitschaft
-     * sagt dort nichts, also wird sie weder gezeigt noch gemeldet.
+     * Im Mineshaft ist die Faehigkeit beim Betreten immer bereit: Hypixel setzt die Abklingzeit zurueck. Diese Bereitschaft
+     * sagt nichts, also wird sie weder gezeigt noch gemeldet - bis die Faehigkeit dort einmal eingesetzt wurde. Ab dann
+     * laeuft eine echte Abklingzeit, und sie gilt wie ueberall: Zahl, "Ready" und Banner.
      *
      * Ein "Ready", das mehr als so viel vor dem erwarteten Ende kommt, ist ein Zuruecksetzen und kein Ablauf. Gilt es kurz
      * nach dem Betreten einer Welt, wird es nicht gemeldet, auch wenn das Gebiet in der Tab-Liste noch nicht nachgekommen ist.
@@ -155,6 +156,15 @@ public final class MiningState {
     private static final long RESET_EARLY_MILLIS = 3_000L;
     private static final long JOIN_WINDOW_MILLIS = 20_000L;
     private static long joinedAt = 0L;
+    /**
+     * Einsatz im Mineshaft: Eine Abklingzeit, die in den ersten Sekunden nach dem Betreten steht, ist noch der Rest von
+     * draussen, danach (und wenn sie nicht einfach weiterlaeuft) ist es ein Einsatz.
+     */
+    private static final long ENTRY_SETTLE_MILLIS = 3_000L;
+    /** Wie weit eine Zahl von der laufenden Rechnung abweichen darf und noch dieselbe Abklingzeit ist */
+    private static final long SAME_COUNTDOWN_SLACK_SECONDS = 3L;
+    /** Ob die Faehigkeit in diesem Schacht schon eingesetzt wurde. Faellt mit jeder neuen Welt */
+    private static boolean usedInShaft = false;
 
     private static long readyAt = 0L;
     /**
@@ -195,6 +205,7 @@ public final class MiningState {
                 + " commissions=" + commissions().size()
                 + " ability=" + (ability().isBlank() ? "-" : ability())
                 + " cooldown=" + (cooldown().isBlank() ? "-" : cooldown())
+                + " shaft=" + (inShaft() ? (usedInShaft ? "used" : "fresh") : "no")
                 + " skymall=" + (skyMall().isBlank() ? "-" : skyMall());
     }
 
@@ -433,8 +444,8 @@ public final class MiningState {
     public static void tick() {
         if (!ModConfig.INSTANCE.mining.hud.readyAlert) return;
         if (readyAnnounced || readyAt <= 0L) return;
-        // Im Mineshaft ist sie immer bereit - das soll kein Banner sein
-        if (inShaft()) {
+        // Im Mineshaft ist sie beim Betreten immer bereit - das soll kein Banner sein, solange sie dort nicht eingesetzt wurde
+        if (readyMeansNothing()) {
             readyAnnounced = true;
             return;
         }
@@ -449,6 +460,7 @@ public final class MiningState {
     /** Ein Serverwechsel: Betritt man einen Mineshaft, setzt Hypixel die Abklingzeit zurueck (siehe RESET_EARLY_MILLIS) */
     public static void worldJoined() {
         joinedAt = System.currentTimeMillis();
+        usedInShaft = false;
     }
 
     /** Steht man in einem Glacite Mineshaft? Das Gebiet kommt aus der Tab-Liste, der Schacht aus der Seitenleiste */
@@ -456,11 +468,16 @@ public final class MiningState {
         return ModConstants.MAP_GLACITE_MINESHAFTS.equals(GameState.Server.map) || MineshaftState.inMineshaft();
     }
 
-    /** Die Restzeit, laufend gerechnet: "26s", "1m 20s" oder "Ready" - im Mineshaft ohne das "Ready", das dort nichts sagt */
+    /** Im Mineshaft, bevor die Faehigkeit dort eingesetzt wurde: Die Bereitschaft ist dann nur der Zustand nach dem Betreten */
+    private static boolean readyMeansNothing() {
+        return !usedInShaft && inShaft();
+    }
+
+    /** Die Restzeit, laufend gerechnet: "26s", "1m 20s" oder "Ready" - im frischen Mineshaft ohne das "Ready", das dort nichts sagt */
     public static String cooldown() {
         if (readyAt <= 0L) return "";
         long left = (readyAt - System.currentTimeMillis() + 999L) / 1000L;
-        if (left <= 0L) return inShaft() ? "" : "Ready";
+        if (left <= 0L) return readyMeansNothing() ? "" : "Ready";
         if (left < 60L) return left + "s";
         return (left / 60L) + "m " + (left % 60L) + "s";
     }
@@ -477,9 +494,14 @@ public final class MiningState {
         if (seconds == lastStatedSeconds) return;
         lastStatedSeconds = seconds;
         long now = System.currentTimeMillis();
-        // Zu frueh bereit: zurueckgesetzt, nicht abgelaufen - im Mineshaft, oder kurz nach dem Betreten einer Welt
+        // Eine Abklingzeit im Mineshaft, die nicht einfach die von draussen ist, die weiterlaeuft: dort eingesetzt
+        if (seconds > 0L && inShaft() && now - joinedAt > ENTRY_SETTLE_MILLIS
+                && (readyAt <= now || seconds > (readyAt - now) / 1000L + SAME_COUNTDOWN_SLACK_SECONDS)) {
+            usedInShaft = true;
+        }
+        // Zu frueh bereit: zurueckgesetzt, nicht abgelaufen - im frischen Mineshaft, oder kurz nach dem Betreten einer Welt
         boolean reset = seconds == 0L && readyAt > now + RESET_EARLY_MILLIS
-                && (inShaft() || now - joinedAt < JOIN_WINDOW_MILLIS);
+                && (readyMeansNothing() || now - joinedAt < JOIN_WINDOW_MILLIS);
         readyAt = now + seconds * 1000L;
         // Ein neuer Cooldown heisst: die naechste Bereitschaft ist wieder eine Meldung wert
         if (seconds > 0L) readyAnnounced = false;
