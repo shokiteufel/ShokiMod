@@ -121,16 +121,150 @@ public final class EffectsTracker {
 
     /** Die Effekte in zwei Gruppen: was die God Potion verleiht und alles andere. Eine leere Gruppe fehlt */
     public static List<Group> groups(boolean hidden) {
+        return groups(hidden, Tab.ALL);
+    }
+
+    /** Die Reiter der Liste. "All" ist die Liste mit beiden Gruppen, die anderen zeigen je eine Art */
+    public enum Tab {
+        ALL("All"),
+        MIXINS("Mixins"),
+        OTHER("Other"),
+        GOD("God Potion");
+
+        public final String label;
+
+        Tab(String label) {
+            this.label = label;
+        }
+    }
+
+    /**
+     * Die Mixins, wie das Wiki sie fuehrt (hypixelskyblock.minecraft.wiki/w/Mixins), samt den Tonics, Glaesern, Flaschen und Flasks, die es dort
+     * mit aufzaehlt, und was SkyHanni als Mixin fuehrt. Das Menue /effects schreibt die Namen mit Stufe ("Spider Egg Mixin I"); verglichen wird
+     * ohne Stufe und ohne das Wort "Mixin" (siehe baseOf), denn nicht jeder Name traegt es.
+     */
+    private static final List<String> MIXINS = List.of(
+            "Zombie Brain Mixin", "Spider Egg Mixin", "Wolf Fur Mixin", "End Portal Fumes", "Gabagoey", "Deepterror",
+            "Glowing Mush Mixin", "Hot Chocolate Mixin", "Blended Fish Mixin", "Pig Brain Mixin", "Melon Juice Mixin",
+            "Hotspot Tonic", "Scatha-in-a-Bottle", "Blizzard in a Bottle", "Celestial Mason Jar", "Fiesta Flask");
+
+    private static final Set<String> MIXIN_BASES = new HashSet<>();
+
+    static {
+        for (String name : MIXINS) MIXIN_BASES.add(baseOf(name));
+    }
+
+    /** Welche Fassung der Liste oben gilt: Kommen Mixins dazu, wird sie hochgezaehlt, und die neuen werden einmal eingetragen */
+    private static final int CATALOGUE_VERSION = 1;
+
+    /** Der Name ohne Stufe ("I", "IV") und ohne das Wort "Mixin", kleingeschrieben: "Spider Egg Mixin I" und "Spider Egg" sind derselbe Effekt */
+    static String baseOf(String name) {
+        if (name == null) return "";
+        String s = name.toLowerCase(Locale.ROOT).trim().replaceAll("\\s+", " ");
+        s = s.replaceAll(" [ivxlc]+$", "");
+        s = s.replaceAll(" mixin$", "");
+        return s;
+    }
+
+    /**
+     * Ist das ein Mixin? Die Liste oben entscheidet; was sie nicht kennt, aber "Mixin" im Namen traegt oder ein Glas, eine Flasche, eine
+     * Flasche ist, zaehlt mit - Hypixel bringt neue, und sie gehoeren in denselben Reiter.
+     */
+    public static boolean isMixin(String name) {
+        if (name == null) return false;
+        if (MIXIN_BASES.contains(baseOf(name))) return true;
+        String n = name.toLowerCase(Locale.ROOT);
+        return n.contains("mixin") || n.contains(" jar") || n.contains("in-a-bottle") || n.contains("in a bottle") || n.contains(" flask");
+    }
+
+    /**
+     * Die Mixins der Liste eintragen, damit sie im Reiter stehen, bevor man sie getrunken hat: Ein Eintrag je Mixin, ohne Haken (weder Kasten
+     * noch Alarm), mit Zeit "?" - bis /effects oder die Tab-Liste ihn zum ersten Mal nennt. Einmal je Fassung der Liste.
+     */
+    public static void seedCatalogue() {
+        ModConfig.EffectsCategory c = cfg();
+        if (c.catalogueVersion >= CATALOGUE_VERSION) return;
+
+        Set<String> have = new HashSet<>();
+        for (EffectEntry e : c.list.values()) have.add(baseOf(e.name));
+        int added = 0;
+        for (String name : MIXINS) {
+            if (have.contains(baseOf(name))) continue;
+            EffectEntry e = new EffectEntry();
+            e.name = name + " I";
+            e.hud = false;
+            e.alert = false;
+            e.seeded = true;
+            c.list.put(key(e.name), e);
+            added++;
+        }
+        c.catalogueVersion = CATALOGUE_VERSION;
+        ModConfig.INSTANCE.saveNow();
+        ShokiMod.LOGGER.info("[Effects] {} known mixins listed from the start", added);
+    }
+
+    /**
+     * Das Spiel nennt einen Effekt, der in der Liste schon als Mixin steht (noch nie gesehen): Er bekommt den echten Namen. Wer ihn vorher
+     * weder angehakt noch versteckt hat, bekommt ihn wie jeden neu gemerkten Effekt mit Kasten und Alarm.
+     */
+    private static EffectEntry adoptSeeded(String realName) {
+        String base = baseOf(realName);
+        for (java.util.Iterator<Map.Entry<String, EffectEntry>> it = cfg().list.entrySet().iterator(); it.hasNext(); ) {
+            EffectEntry e = it.next().getValue();
+            if (!e.seeded || !baseOf(e.name).equals(base)) continue;
+            it.remove();
+            boolean untouched = !e.hud && !e.alert && !e.hidden;
+            e.name = realName;
+            e.seeded = false;
+            if (untouched) {
+                e.hud = true;
+                e.alert = true;
+            }
+            cfg().list.put(key(realName), e);
+            return e;
+        }
+        return null;
+    }
+
+    /** Die Effekte nach Reiter: "All" zeigt beide Gruppen, die anderen nur ihre Art. Eine leere Gruppe fehlt */
+    public static List<Group> groups(boolean hidden, Tab tab) {
         List<EffectEntry> god = new ArrayList<>();
+        List<EffectEntry> mixins = new ArrayList<>();
         List<EffectEntry> other = new ArrayList<>();
         for (EffectEntry e : sorted(hidden)) {
-            (isGodPotion(e.name) ? god : other).add(e);
+            if (isGodPotion(e.name)) god.add(e);
+            else {
+                (isMixin(e.name) ? mixins : other).add(e);
+            }
         }
         List<Group> out = new ArrayList<>();
-        // Zuerst die Effekte, um die es hier geht: die Traenke ohne God Potion
-        if (!other.isEmpty()) out.add(new Group(NON_GOD_GROUP, other));
-        if (!god.isEmpty()) out.add(new Group(GOD_GROUP, god));
+        switch (tab) {
+            case MIXINS -> {
+                if (!mixins.isEmpty()) out.add(new Group("Mixins", mixins));
+            }
+            case OTHER -> {
+                if (!other.isEmpty()) out.add(new Group("Other effects", other));
+            }
+            case GOD -> {
+                if (!god.isEmpty()) out.add(new Group(GOD_GROUP, god));
+            }
+            default -> {
+                // Zuerst die Effekte, um die es hier geht: die Traenke ohne God Potion
+                List<EffectEntry> nonGod = new ArrayList<>(mixins);
+                nonGod.addAll(other);
+                nonGod.sort(Comparator.comparing((EffectEntry e) -> e.name.toLowerCase(Locale.ROOT)));
+                if (!nonGod.isEmpty()) out.add(new Group(NON_GOD_GROUP, nonGod));
+                if (!god.isEmpty()) out.add(new Group(GOD_GROUP, god));
+            }
+        }
         return out;
+    }
+
+    /** Wie viele Effekte in einem Reiter stehen */
+    public static int count(boolean hidden, Tab tab) {
+        int n = 0;
+        for (Group g : groups(hidden, tab)) n += g.entries().size();
+        return n;
     }
 
     /** Wie lange der Effekt noch laeuft, in Millisekunden - negativ, wenn er aus ist; null, wenn unbekannt */
@@ -213,6 +347,7 @@ public final class EffectsTracker {
     public static void tick(Minecraft client) {
         if (client == null || client.player == null || client.level == null) return;
         long now = System.currentTimeMillis();
+        if (cfg().enabled) seedCatalogue();
 
         if (client.gui.screen() instanceof AbstractContainerScreen<?> screen && now - lastMenuLook >= MENU_GAP_MILLIS) {
             lastMenuLook = now;
@@ -272,6 +407,14 @@ public final class EffectsTracker {
             if (name.isEmpty()) continue;
             EffectEntry entry = cfg().list.get(key(name));
             if (entry == null) {
+                // Ein Mixin, der schon aus der Liste dastand: Er bekommt den Namen, den das Spiel ihm gibt
+                entry = adoptSeeded(name);
+                if (entry != null) {
+                    ShokiMod.LOGGER.info("[Effects] remembered {} - it was listed from the start", name);
+                    changed = true;
+                }
+            }
+            if (entry == null) {
                 entry = new EffectEntry();
                 entry.name = name;
                 cfg().list.put(key(name), entry);
@@ -295,6 +438,11 @@ public final class EffectsTracker {
             Matcher m = TAB_EFFECT.matcher(line);
             if (!m.matches()) continue;
             EffectEntry entry = cfg().list.get(key(m.group("effect")));
+            // Ein Mixin aus der Liste, der in der Tab-Liste zum ersten Mal steht: ab jetzt mit dem Namen aus dem Spiel
+            if (entry == null && isMixin(m.group("effect"))) {
+                entry = adoptSeeded(m.group("effect"));
+                if (entry != null) changed = true;
+            }
             if (entry == null) continue;
 
             long shown = durationOf(m.group("time"));
