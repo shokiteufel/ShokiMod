@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Plays the user's own audio files for chat rules.
@@ -121,7 +122,16 @@ public final class CustomSoundPlayer {
 	 * @param channel  who is asking - a sound replaces only what the same channel is playing
 	 */
 	public static void play(String fileName, float volume, Object channel) {
-		start(fileName, effective(fileName, volume), channel);
+		start(fileName, effective(fileName, volume), channel, null);
+	}
+
+	/**
+	 * Wie {@link #play}, ruft aber danach {@code done} auf - genau einmal, wenn der Ton zu Ende ist, ersetzt wurde oder gar nicht
+	 * erst spielen konnte (Datei weg, Fehler). Fuer Aufrufer, die Toene nacheinander spielen wollen und wissen muessen, wann der
+	 * naechste dran ist. Der Rueckruf kommt von einem anderen Faden als dem des Spiels.
+	 */
+	public static void playThen(String fileName, float volume, Object channel, Runnable done) {
+		start(fileName, effective(fileName, volume), channel, done);
 	}
 
 	/**
@@ -137,21 +147,36 @@ public final class CustomSoundPlayer {
 	 * dazugerechnet. Fuer das Fenster selbst, in dem der Regler die Lautstaerke ist.
 	 */
 	public static void playAt(String fileName, float volume, Object channel) {
-		start(fileName, volume, channel);
+		start(fileName, volume, channel, null);
 	}
 
-	private static void start(String fileName, float volume, Object channel) {
-		if (fileName == null || fileName.isBlank()) return;
+	private static void start(String fileName, float volume, Object channel, Runnable done) {
+		Runnable once = once(done);
+		if (fileName == null || fileName.isBlank()) {
+			once.run();
+			return;
+		}
 
 		File file = SOUND_DIRECTORY.resolve(fileName).toFile();
 		if (!file.isFile()) {
 			LOGGER.warn("[ShokiMod Custom Sound] {} does not exist", file);
+			once.run();
 			return;
 		}
-		AUDIO_EXECUTOR.execute(() -> playBlocking(file, volume, channel));
+		AUDIO_EXECUTOR.execute(() -> playBlocking(file, volume, channel, once));
 	}
 
-	private static void playBlocking(File file, float volume, Object channel) {
+	/** Ein Rueckruf, der hoechstens einmal laeuft: Ende, Fehler und Ersetzen durch einen neuen Ton koennen ihn alle ausloesen */
+	private static Runnable once(Runnable done) {
+		if (done == null) return () -> {
+		};
+		AtomicBoolean called = new AtomicBoolean();
+		return () -> {
+			if (called.compareAndSet(false, true)) done.run();
+		};
+	}
+
+	private static void playBlocking(File file, float volume, Object channel, Runnable once) {
 		// The same source firing twice restarts rather than layering on itself
 		stop(channel);
 
@@ -167,12 +192,14 @@ public final class CustomSoundPlayer {
 				if (event.getType() == LineEvent.Type.STOP) {
 					clip.close();
 					ACTIVE_CLIPS.remove(channel, clip);
+					once.run();
 				}
 			});
 			ACTIVE_CLIPS.put(channel, clip);
 			clip.start();
 		} catch (Exception e) {
 			LOGGER.error("[ShokiMod Custom Sound] Failed to play {}", file.getName(), e);
+			once.run();
 		}
 	}
 
