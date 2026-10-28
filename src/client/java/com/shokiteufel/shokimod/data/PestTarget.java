@@ -11,7 +11,8 @@ import java.util.Set;
  * bekommt jeder Pest seine.
  *
  * Erkannt wird am Namen, genau und ohne Farbcodes, Lebensanzeige und Klammern: "Rat" ist ein Pest, "Rat Catcher" nicht. Die Namen sind
- * die der Pests im Spiel (Wiki und SkyHanni: PestType).
+ * die der Pests im Spiel (Wiki und SkyHanni: PestType). Der Name allein genuegt nicht: Zum Pest gehoert ein Silverfisch oder eine Fledermaus
+ * in der Naehe - das eigene Pet "Mosquito" traegt denselben Namen, hat aber keinen (EntityHighlightManager.markPests).
  */
 public final class PestTarget implements MobVisual {
 

@@ -194,7 +194,8 @@ die Spielversion beim Start — die falsche Datei laedt der Loader gar nicht ers
   ohne die Schalter der Mob-Liste; die Linie dort geht je Eintrag nur zum naechsten Mob.
   Reichweite ist immer der ganze Plot (96 x 96), auf dem man steht - nicht einstellbar.
   Die Linie geht zu allen Pests oder nur zum naechsten (Ausklappfeld `Line to pest`). Der Umriss sitzt auf dem sichtbaren Modell des
-  Pests, nicht auf dem unsichtbaren Silverfisch darunter.
+  Pests, nicht auf dem unsichtbaren Silverfisch darunter. Ein Pest braucht seinen Silverfisch oder seine Fledermaus in der Naehe -
+  das eigene Pet mit gleichem Namen (Mosquito, Rat, Slug) bekommt keine Linie.
 - Gilden-Events aus dem ShokiTeufelBot: Banner zum Start, laufende Rangliste im Kasten.
 - Party-Einladungen (Rubrik Guild / Party): eine Taste nimmt die wartende Einladung an (ohne
   Vorgabe, 60 Sekunden gueltig), und ein einstellbares Wort im Gildenchat (Vorgabe `+`, aus)
