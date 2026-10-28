@@ -22,6 +22,8 @@ public final class FeatureGate {
     public static boolean mobMarkers() {
         // Der Slayer-Reiter hat seine eigenen Schalter und haengt nicht am Hauptschalter der Mobs
         if (ModConfig.INSTANCE.slayer.anyMarker()) return true;
+        // Die Pests im Garden haben eigene Schalter und haengen nicht am Hauptschalter der Mobs
+        if (PestTarget.scanning()) return true;
         if (!ModConfig.INSTANCE.mobVisuals.masterEnabled) return false;
         if (ModConfig.INSTANCE.mobVisuals.safari.hideyhoFinder) return true;
         List<CustomMob> targets = ModConfig.INSTANCE.mobVisuals.customTargets;
