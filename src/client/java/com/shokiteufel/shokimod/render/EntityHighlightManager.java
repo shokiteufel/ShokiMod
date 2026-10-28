@@ -96,6 +96,8 @@ public class EntityHighlightManager {
     private static final Set<Entity> nametagClaimedEntities = new HashSet<>();
     /** Die Koerper, die in diesem Durchgang schon zu einem Pest gehoeren - zwei Namensschilder dicht beieinander teilen sich keinen */
     private static final Set<Entity> pestClaimed = new HashSet<>();
+    /** Die Modelle (Armor Stands mit Kopf, Displays), die in diesem Durchgang schon einen Pest tragen - dicht beieinander teilen sich zwei Pests keins */
+    private static final Set<Entity> pestModelClaimed = new HashSet<>();
     private static final Set<Integer> pestLogged = new HashSet<>();
     /** Die Pests, die ausserhalb des eigenen Plots standen und deshalb nicht markiert wurden - einmal je Pest im Protokoll */
     private static final Set<Integer> pestSkipped = new HashSet<>();
@@ -184,6 +186,7 @@ public class EntityHighlightManager {
         rebuiltVisuals.clear();
         nametagClaimedEntities.clear();
         pestClaimed.clear();
+        pestModelClaimed.clear();
         renderAnchors.clear();
         headOnlyGlowEntities.clear();
         tracerEntities.clear();
@@ -392,7 +395,7 @@ public class EntityHighlightManager {
             if (!PestTarget.inRange(player.getX(), player.getZ(), entity.getX(), entity.getZ())) continue;
 
             pestClaimed.add(entity);
-            if (target.highlight()) registerHighlight(entity, target);
+            highlightPest(client, entity, target);
             // Der Schluessel ist der Pest selbst: jeder bekommt seine Linie - oder alle zusammen einen, dann gilt nur der naechste
             if (target.tracer()) addTracer(entity, PestTarget.lineToAll() ? entity : target, target.tracerColorARGB());
             registerBox(entity, target);
@@ -402,6 +405,46 @@ public class EntityHighlightManager {
                         entity.getType().getDescriptionId(), entity.getId(), (int) entity.getX(), (int) entity.getZ());
             }
         }
+    }
+
+    /**
+     * Der Umriss eines Pests - auf dem, was man sieht.
+     *
+     * Hypixel baut das Aussehen eines Mobs oft aus einem eigenen Modell (ein Armor Stand mit Kopf, oder ein Display) und laesst den eigentlichen Mob,
+     * hier den Silverfisch oder die Fledermaus, unsichtbar als Trefferflaeche darunter stehen. Ein Umriss auf dieser Trefferflaeche zeigt den
+     * Silverfisch mitten im Modell - das ist es nicht, was man sehen will (so macht es auch die Mob-Liste: nametagVisual). Ist der Koerper
+     * unsichtbar, bekommt darum das Modell den Umriss; findet sich keins, gibt es keinen Umriss, Linie und Kasten bleiben. Ein sichtbarer Koerper
+     * traegt seinen Umriss selbst.
+     */
+    private static void highlightPest(Minecraft client, Entity body, PestTarget target) {
+        if (!target.highlight()) return;
+        if (!body.isInvisible()) {
+            registerHighlight(body, target);
+            return;
+        }
+        Entity model = pestModel(client, body);
+        if (model != null) {
+            pestModelClaimed.add(model);
+            registerHighlight(model, target);
+        }
+        if (pestLogged.size() < PEST_LOG_MAX && pestLogged.add(-body.getId() - 1)) {
+            com.shokiteufel.shokimod.ShokiMod.LOGGER.info("[Pests] {} #{} is invisible: outline on {}", body.getType().getDescriptionId(), body.getId(),
+                    model == null ? "nothing (no model found within " + (int) PEST_SEARCH_RADIUS + " blocks)"
+                            : model.getType().getDescriptionId() + " #" + model.getId());
+        }
+    }
+
+    /**
+     * Das sichtbare Modell zu einem unsichtbaren Pest-Koerper: der naechste Armor Stand mit einem Gegenstand auf dem Kopf (die Pests sind
+     * Kopf-Modelle), sonst ein Display. Den Namens-Armor-Stand traegt kein Kopf - er kommt nicht in Frage. Ein Modell, das schon einem anderen
+     * Pest gehoert, auch nicht.
+     */
+    private static Entity pestModel(Minecraft client, Entity body) {
+        AABB box = body.getBoundingBox().inflate(PEST_SEARCH_RADIUS);
+        Entity stand = headStandUnderNameTag(client.level.getEntitiesOfClass(ArmorStand.class, box,
+                s -> !s.getItemBySlot(EquipmentSlot.HEAD).isEmpty() && !pestModelClaimed.contains(s)), body);
+        if (stand != null) return stand;
+        return headStandUnderNameTag(client.level.getEntitiesOfClass(Display.class, box, d -> !pestModelClaimed.contains(d)), body);
     }
 
     /**
@@ -416,7 +459,7 @@ public class EntityHighlightManager {
         Entity visual = body != null ? body : named;
         if (body != null) {
             pestClaimed.add(body);
-            if (target.highlight()) registerHighlight(body, target);
+            highlightPest(client, body, target);
         }
         // Der Schluessel ist der Pest selbst, nicht die Art: So bekommt jeder seine Linie. Nur zum naechsten: ein gemeinsamer Schluessel,
         // dann behaelt addTracer die Linie zum Pest, der dem Spieler am naechsten ist
