@@ -195,7 +195,8 @@ die Spielversion beim Start — die falsche Datei laedt der Loader gar nicht ers
   Reichweite ist immer der ganze Plot (96 x 96), auf dem man steht - nicht einstellbar.
   Auch ein Pest, dessen Name noch nicht angekommen ist, wird gleich markiert (Silverfisch
   oder Fledermaus; `Catch unnamed pests`). Die Linie geht zu allen Pests oder nur zum
-  naechsten (Ausklappfeld `Line to pest`).
+  naechsten (Ausklappfeld `Line to pest`). Der Umriss sitzt auf dem sichtbaren Modell des
+  Pests, nicht auf dem unsichtbaren Silverfisch darunter.
 - Gilden-Events aus dem ShokiTeufelBot: Banner zum Start, laufende Rangliste im Kasten.
 - Party-Einladungen (Rubrik Guild / Party): eine Taste nimmt die wartende Einladung an (ohne
   Vorgabe, 60 Sekunden gueltig), und ein einstellbares Wort im Gildenchat (Vorgabe `+`, aus)
