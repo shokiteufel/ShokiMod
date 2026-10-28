@@ -36,7 +36,8 @@ die Spielversion beim Start — die falsche Datei laedt der Loader gar nicht ers
   trotzdem aus. Ein offener Behaelter sperrt ab, damit Gekauftes kein Fund wird.
 - Bewertet jeden Fund im Bazaar, sonst im Auktionshaus, sonst beim Haendler. Ein selbst
   eingetragener Preis geht allen vor.
-- Vier Stufen mit eigener Schwelle, jede mit eigenem Banner, Toast, Chatzeile und Ton.
+- Vier Stufen mit eigener Schwelle, jede mit eigenem Banner, Toast, Chatzeile und Ton. Fallen zwei Funde fast
+  zugleich an (etwa Tier 1 und Tier 2), sind beide Toene zu hoeren: jede Stufe hat ihren eigenen Kanal.
 - Eigener Dye-Alarm, der auch dann kommt, wenn die Farbe gerade keinen Preis hat — und
   auf Wunsch ein Dye-Teilen, das die Schwelle nicht fragt.
 - Teilen in Party und Gilde ab einer eigenen Schwelle - auch fuer Funde, die nur im Inventar
