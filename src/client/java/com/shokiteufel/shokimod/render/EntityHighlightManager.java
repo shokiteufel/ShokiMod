@@ -394,8 +394,8 @@ public class EntityHighlightManager {
 
             pestClaimed.add(entity);
             if (target.highlight()) registerHighlight(entity, target);
-            // Der Schluessel ist der Pest selbst: jeder bekommt seine Linie
-            if (target.tracer()) addTracer(entity, entity, target.tracerColorARGB());
+            // Der Schluessel ist der Pest selbst: jeder bekommt seine Linie - oder alle zusammen einen, dann gilt nur der naechste
+            if (target.tracer()) addTracer(entity, PestTarget.lineToAll() ? entity : target, target.tracerColorARGB());
             registerBox(entity, target);
 
             if (pestLogged.size() < PEST_LOG_MAX && pestLogged.add(entity.getId())) {
@@ -419,8 +419,9 @@ public class EntityHighlightManager {
             pestClaimed.add(body);
             if (target.highlight()) registerHighlight(body, target);
         }
-        // Der Schluessel ist der Pest selbst, nicht die Art: So bekommt jeder seine Linie
-        if (target.tracer()) addTracer(visual, visual, target.tracerColorARGB());
+        // Der Schluessel ist der Pest selbst, nicht die Art: So bekommt jeder seine Linie. Nur zum naechsten: ein gemeinsamer Schluessel,
+        // dann behaelt addTracer die Linie zum Pest, der dem Spieler am naechsten ist
+        if (target.tracer()) addTracer(visual, PestTarget.lineToAll() ? visual : target, target.tracerColorARGB());
         registerBox(visual, target);
         if (target.nameplate()) {
             nameplateEntities.put(visual, nameplateLabel(target, PestTarget.displayName(rawName)));

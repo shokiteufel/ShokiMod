@@ -303,6 +303,8 @@ public class ModConfig extends Config {
         if (INSTANCE.garden.traps == null) INSTANCE.garden.traps = new GardenTrapsCategory();
         if (INSTANCE.garden.visitors == null) INSTANCE.garden.visitors = new GardenVisitorsCategory();
         if (INSTANCE.garden.pests == null) INSTANCE.garden.pests = new GardenPestsCategory();
+        // Eine Config von vor 2.1.0 kennt die Wahl der Linie noch nicht
+        if (INSTANCE.garden.pests.lineMode == null) INSTANCE.garden.pests.lineMode = PestLineMode.ALL;
         if (INSTANCE.deployables == null) INSTANCE.deployables = new DeployablesCategory();
         if (INSTANCE.deployables.umberellaAlert == null) INSTANCE.deployables.umberellaAlert = new UmberellaCategory();
         if (INSTANCE.deployables.endings == null) INSTANCE.deployables.endings = new DeployableEndingsCategory();
@@ -2071,10 +2073,21 @@ public class ModConfig extends Config {
         @ConfigEditorBoolean
         public boolean highlight = true;
 
+        @ConfigOption(name = "Line to pest", desc = "The line from your crosshair to the pests. Open it to switch the line on or off and to choose whether it goes to every pest or only to the nearest one.")
+        @ConfigEditorAccordion(id = 98)
+        public transient boolean lineFolder = false;
+
         @Expose
-        @ConfigOption(name = "Line", desc = "Draws a line from the crosshair to every pest - not only to the nearest one.")
+        @ConfigOption(name = "Enabled", desc = "Draws a line from the crosshair to the pests on your plot.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 98)
         public boolean line = true;
+
+        @Expose
+        @ConfigOption(name = "Line to", desc = "Nearest pest: one line, to the pest closest to you. All pests: a line to each one. Only counts while the line is enabled.")
+        @ConfigEditorDropdown
+        @ConfigAccordionId(id = 98)
+        public PestLineMode lineMode = PestLineMode.ALL;
 
         @Expose
         @ConfigOption(name = "Name", desc = "Writes the pest's name over it, in the marking colour. The pests carry a name tag of their own, so this is off by default.")
@@ -2337,6 +2350,23 @@ public class ModConfig extends Config {
          */
         @Expose
         public Boolean umberella = null;
+    }
+
+    /** Wohin die Linie der Pest-Markierung im Garden geht */
+    public enum PestLineMode {
+        NEAREST("Nearest pest"),
+        ALL("All pests");
+
+        private final String label;
+
+        PestLineMode(String label) {
+            this.label = label;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
     }
 
     /** Welche Deployables der Zeitkasten zeigt */
