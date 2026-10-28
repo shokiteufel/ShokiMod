@@ -2065,11 +2065,6 @@ public class ModConfig extends Config {
         public boolean enabled = true;
 
         @Expose
-        @ConfigOption(name = "Catch unnamed pests", desc = "Also marks every silverfish and bat on your plot whose name has not reached you yet. Hypixel sends a pest's name separately from the pest itself, and the name often arrives later - so you could see a pest well before it was marked. Silverfish and bats are the pests, there are no others in the garden. Switch it off if something else gets marked by mistake.")
-        @ConfigEditorBoolean
-        public boolean byType = true;
-
-        @Expose
         @ConfigOption(name = "Highlight", desc = "Outlines every pest with a glow.")
         @ConfigEditorBoolean
         public boolean highlight = true;
