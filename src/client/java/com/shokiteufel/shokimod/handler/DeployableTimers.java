@@ -5,6 +5,7 @@ import com.shokiteufel.shokimod.data.GameState;
 import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.data.ModConfig.DeployableHudCategory;
 import com.shokiteufel.shokimod.handler.DeployableCountdown.Reading;
+import com.shokiteufel.shokimod.handler.DeployableReminder.Ending;
 import com.shokiteufel.shokimod.handler.DeployableReminder.Kind;
 import com.shokiteufel.shokimod.util.DeployableLog;
 
@@ -67,6 +68,8 @@ public final class DeployableTimers {
         boolean lost = false;
         /** Wann sich die Zahl zuletzt geaendert hat - fuer das Protokoll: wie oft schreibt Hypixel den Namen um */
         long changedAt = 0L;
+        /** Wann der Staender zum ersten Mal gesehen wurde - eine Chatzeile "previous ... removed" meint nie einen, der eben erst kam */
+        long bornAt = 0L;
         double x, y, z;
 
         Timer(int id, Kind kind, String name) {
@@ -149,6 +152,7 @@ public final class DeployableTimers {
                 mine |= before.mine;
                 timers.remove(before.id);
             }
+            t.bornAt = now;
             timers.put(stand.getId(), t);
             if (DeployableLog.enabled()) {
                 DeployableLog.line("STAND", String.format(Locale.ROOT, "id=%d %s \"%s\" %ds, %.1f blocks away at %.1f %.1f %.1f, %s%s",
@@ -156,6 +160,8 @@ public final class DeployableTimers {
                         mine ? "counts as mine" : "not mine",
                         before == null ? "" : ", replaces id " + before.id + (before.mine ? " (was mine)" : "")));
             }
+            // Man kann nur eines seiner Sorte draussen haben: Kommt ein neues, ist das alte weg - auch wenn sein Staender nur ausser Sicht ist
+            if (mine) dropOtherMine(reading.kind(), stand.getId(), "a new one of mine took its place");
         }
         t.x = stand.getX();
         t.y = stand.getY();
@@ -171,6 +177,50 @@ public final class DeployableTimers {
         }
         return t.mine;
     }
+
+    /** Ein Staender gilt doch nicht als meiner (siehe DeployableCountdown.placedByMe): bleibt im Kasten nur im Modus "alle in der Naehe" */
+    static void revoke(int id) {
+        Timer t = timers.get(id);
+        if (t != null) t.mine = false;
+    }
+
+    /**
+     * Meine anderen Deployables dieser Sorte austragen: Man kann nur eines seiner Sorte draussen haben (Feesh fuehrt je Sorte genau eines).
+     * Bis hierher blieben eigene, die nicht mehr zu sehen waren, bis zum Ablauf im Kasten stehen - auch wenn Hypixel sie beim Aufstellen eines
+     * neuen laengst entfernt hatte: vier SOS Flares im Kasten, obwohl nur einer draussen war.
+     */
+    private static void dropOtherMine(Kind kind, int keepId, String why) {
+        for (Iterator<Timer> it = timers.values().iterator(); it.hasNext(); ) {
+            Timer t = it.next();
+            if (t.id == keepId || !t.mine || t.kind != kind) continue;
+            if (DeployableLog.enabled()) {
+                DeployableLog.line("DROP", String.format(Locale.ROOT, "id=%d %s \"%s\": %s", t.id, t.kind, t.name, why));
+            }
+            DeployableCountdown.forgetMine(t.id);
+            it.remove();
+        }
+    }
+
+    /**
+     * Eine Zeile von Hypixel sagt, dass ein Deployable weg ist: "Your previous X was removed!" (ein neues hat es ersetzt),
+     * "Your flare disappeared because you were too far away!" oder "Your X despawned." Meine Deployables dieser Sorte fallen aus dem Kasten.
+     * Wer in den letzten 250 ms erst auftauchte, ist das neue und bleibt.
+     */
+    static void ended(Kind kind, Ending ending, long now) {
+        if (ending == Ending.SOON) return;
+        for (Iterator<Timer> it = timers.values().iterator(); it.hasNext(); ) {
+            Timer t = it.next();
+            if (!t.mine || t.kind != kind || now - t.bornAt < NEW_MILLIS) continue;
+            if (DeployableLog.enabled()) {
+                DeployableLog.line("DROP", String.format(Locale.ROOT, "id=%d %s \"%s\": Hypixel says it is gone (%s)", t.id, t.kind, t.name, ending));
+            }
+            DeployableCountdown.forgetMine(t.id);
+            it.remove();
+        }
+    }
+
+    /** So jung ist ein Staender "neu": eine Zeile, die zeitgleich kommt, meint den Vorgaenger */
+    private static final long NEW_MILLIS = 250L;
 
     // ==========================================
     // Jeden Tick
