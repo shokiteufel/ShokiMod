@@ -65,12 +65,12 @@ public final class PestTarget implements MobVisual {
     }
 
     /**
-     * Gehoert ein Pest an dieser Stelle zur Markierung? Bei "Whole garden" immer. Bei "Current plot" nur, wenn er auf dem Plot steht, auf dem
-     * man selbst steht. Steht man ausserhalb des Rasters, gibt es keinen eigenen Plot - dann zaehlt jeder, statt alle zu verschlucken.
-     * Die Hoehe zaehlt nicht: Ein Plot ist eine Saeule.
+     * Gehoert ein Pest an dieser Stelle zur Markierung? Nur, wenn er auf dem Plot steht, auf dem man selbst steht - die Reichweite ist immer
+     * der aktuelle Plot und nicht einstellbar (so wollte es der Auftrag; 2.0.13 bis 2.0.16 hatten dafuer eine Auswahl). Steht man ausserhalb
+     * des Rasters, gibt es keinen eigenen Plot - dann zaehlt jeder, statt alle zu verschlucken. Die Hoehe zaehlt nicht: Ein Plot ist eine
+     * Saeule.
      */
     public static boolean inRange(double playerX, double playerZ, double x, double z) {
-        if (cfg().range != ModConfig.PestRange.PLOT) return true;
         int mineX = plotCell(playerX);
         int mineZ = plotCell(playerZ);
         if (mineX < 0 || mineZ < 0) return true;

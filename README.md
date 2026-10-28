@@ -192,7 +192,7 @@ die Spielversion beim Start — die falsche Datei laedt der Loader gar nicht ers
   Gartens mit vollen Fallen. Der Stand kommt aus Hypixels Tab-Widget.
 - Pests im Garden: Umriss und Linie zu jedem Pest, der auftaucht (Garden > Pests). Eigenstaendig,
   ohne die Schalter der Mob-Liste; die Linie dort geht je Eintrag nur zum naechsten Mob.
-  Reichweite einstellbar: der ganze Plot (96 x 96), auf dem man steht, oder der ganze Garten.
+  Reichweite ist immer der ganze Plot (96 x 96), auf dem man steht - nicht einstellbar.
 - Gilden-Events aus dem ShokiTeufelBot: Banner zum Start, laufende Rangliste im Kasten.
 </details>
 

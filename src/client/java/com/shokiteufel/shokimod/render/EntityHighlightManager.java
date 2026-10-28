@@ -295,9 +295,9 @@ public class EntityHighlightManager {
                     markPest(client, entity, nameStr);
                 } else if (pestSkipped.size() < PEST_LOG_MAX && pestSkipped.add(entity.getId())) {
                     // Einmal je Pest: sonst fragt man sich auf Hypixel, warum einer fehlt
-                    com.shokiteufel.shokimod.ShokiMod.LOGGER.info("[Pests] {} ({} #{}) at {} {} not marked: not on your plot (you are at {} {}, Range = {})",
+                    com.shokiteufel.shokimod.ShokiMod.LOGGER.info("[Pests] {} ({} #{}) at {} {} not marked: not on your plot (you are at {} {})",
                             PestTarget.displayName(nameStr), entity.getType().getDescriptionId(), entity.getId(), (int) entity.getX(),
-                            (int) entity.getZ(), (int) client.player.getX(), (int) client.player.getZ(), ModConfig.INSTANCE.garden.pests.range);
+                            (int) entity.getZ(), (int) client.player.getX(), (int) client.player.getZ());
                 }
             }
 
