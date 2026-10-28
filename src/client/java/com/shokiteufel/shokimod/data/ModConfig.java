@@ -3305,6 +3305,16 @@ public class ModConfig extends Config {
         @ConfigOption(name = "Trigger text", desc = "What someone has to write, on its own, in the guild chat. Capital letters do not matter. Empty switches the suggestion off.")
         @ConfigEditorText
         public String inviteText = "+";
+
+        @Expose
+        @ConfigOption(name = "Invite key", desc = "Press this key to invite everyone who wrote the trigger text above in the guild chat during the last 30 seconds - one \"/party Name1 Name2 ...\" for all of them. Works with or without Suggest invites: the key listens to the guild chat on its own. Keyboard keys only. No key is set from the start.")
+        @ConfigEditorKeybind(defaultKey = -1)
+        public int inviteKey = -1;
+
+        /** Ist eine Tastaturtaste gewaehlt? Wie bei der Annehmen-Taste: MoulConfig fuehrt "keine" als -1, die Tastaturtasten beginnen bei 32 */
+        public boolean hasInviteKey() {
+            return inviteKey >= 32;
+        }
     }
 
     /**
