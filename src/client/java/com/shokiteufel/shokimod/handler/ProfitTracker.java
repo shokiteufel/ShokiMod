@@ -1343,10 +1343,30 @@ public final class ProfitTracker {
 
     private static final java.util.Set<String> tierLogged = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
+    /**
+     * Ein Zwischenstand: eine Ware, bei der noch nicht beide Stufen dastehen. Die meisten Waren haben nie zwei - ein Shard, ein
+     * Farbstoff, ein Pet - und fuer sie kam die Antwort bei jedem Aufruf neu: ein Gang durch alle Kennungen des Spiels. Mit einem
+     * Hochrechnen im Kasten fragt jede Ware im Gesamtstand alle drei Sekunden danach, bei siebenhundert Waren waren das 150 bis
+     * 570 Millisekunden auf dem Zeichenfaden - ein Standbild, das genau im Gesamtstand auffiel.
+     */
+    private record Partial(List<String> tiers, long at) {
+    }
+
+    private static final Map<String, Partial> partialTiers = new java.util.concurrent.ConcurrentHashMap<>();
+    /** So lange gilt ein Zwischenstand; danach wird neu gefragt, falls ein Bauplan inzwischen angekommen ist */
+    private static final long PARTIAL_MILLIS = 10_000L;
+
     public static List<String> upgradeTiers(String itemId) {
         if (itemId == null) return List.of();
         List<String> gemerkt = tierCache.get(itemId);
         if (gemerkt != null) return gemerkt;
+
+        // Die Frist je Ware um bis zu acht Sekunden versetzt: Laeuft sie fuer alle zugleich ab, rechnen alle zugleich neu
+        long jetzt = System.currentTimeMillis();
+        Partial zwischen = partialTiers.get(itemId);
+        if (zwischen != null && jetzt - zwischen.at() < PARTIAL_MILLIS + (itemId.hashCode() & 0x1FFF)) {
+            return zwischen.tiers();
+        }
 
         java.util.LinkedHashSet<String> kandidaten = new java.util.LinkedHashSet<>();
         kandidaten.add("ENCHANTED_" + itemId);
@@ -1403,10 +1423,10 @@ public final class ProfitTracker {
         // als die 160 fuer Enchanted Leather - also bot der Knopf Stiefel an
         java.util.LinkedHashSet<String> sekundaer = new java.util.LinkedHashSet<>();
         int weitere = 0;
-        for (String id : ItemNames.allIds()) {
+        // Aus dem Index statt aus allen Kennungen: Der Gang durch alle war der Teil, der pro Ware Millisekunden kostete
+        for (String id : namePrefixes().getOrDefault(itemId, List.of())) {
             if (weitere >= 8) break;
-            if (id.startsWith(itemId + "_") && !kandidaten.contains(id)
-                    && !EQUIPMENT.matcher(id).find() && sekundaer.add(id)) weitere++;
+            if (!kandidaten.contains(id) && !EQUIPMENT.matcher(id).find() && sekundaer.add(id)) weitere++;
         }
 
         // Erst die sicheren Wege. Nur wenn die gar nichts hergeben, kommen die
@@ -1420,7 +1440,13 @@ public final class ProfitTracker {
         // Gemerkt wird erst, wenn beide Stufen dastehen: Wer zu frueh merkt, merkt sich
         // die halbe Antwort - und die blieb dann stehen, obwohl die zweite Stufe kurz
         // darauf ankam
-        if (fertig.size() == 2) tierCache.put(itemId, fertig);
+        if (fertig.size() == 2) {
+            tierCache.put(itemId, fertig);
+            partialTiers.remove(itemId);
+        } else {
+            // Kurz gemerkt, nicht fuer immer - siehe Partial
+            partialTiers.put(itemId, new Partial(fertig, jetzt));
+        }
         // Einmal je Ware ins Log, was gefunden wurde: fehlt eine Stufe, steht hier warum
         if (tierLogged.add(itemId + "|" + fertig.size())) {
             ShokiMod.LOGGER.info("[Profit] crafted-up forms of {}: {} (from {} candidates)",
@@ -1441,6 +1467,31 @@ public final class ProfitTracker {
 
     /** Einmal gefundene Stufen bleiben - die Bauplaene aendern sich nicht im Spiel */
     private static final Map<String, List<String>> tierCache = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
+     * Welche Kennungen mit "<Vorsatz>_" anfangen, je Vorsatz: "BONE" -> BONE_BLOCK, BONE_MEAL ...; "ENCHANTED_BONE" -> ENCHANTED_BONE_BLOCK.
+     *
+     * Einmal aus der Item-Liste gebaut und neu gebaut, wenn sich ihre Groesse aendert (sie kommt erst nach dem Start und wird taeglich
+     * neu geholt). Die Reihenfolge in jeder Liste ist die der Item-Liste - dieselbe, in der der Gang durch alle Kennungen sie fand.
+     */
+    private static volatile Map<String, List<String>> prefixIndex = Map.of();
+    private static volatile int prefixIndexSize = -1;
+
+    private static Map<String, List<String>> namePrefixes() {
+        java.util.Set<String> alle = ItemNames.allIds();
+        int groesse = alle.size();
+        if (groesse == prefixIndexSize) return prefixIndex;
+
+        Map<String, List<String>> index = new java.util.HashMap<>();
+        for (String id : alle) {
+            for (int i = id.indexOf('_'); i > 0; i = id.indexOf('_', i + 1)) {
+                index.computeIfAbsent(id.substring(0, i), k -> new ArrayList<>()).add(id);
+            }
+        }
+        prefixIndex = index;
+        prefixIndexSize = groesse;
+        return index;
+    }
 
     /**
      * Vorschlaege, als was sich eine Ware zaehlen laesst.
