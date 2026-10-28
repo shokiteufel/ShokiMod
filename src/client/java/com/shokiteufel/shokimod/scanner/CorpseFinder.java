@@ -126,11 +126,21 @@ public final class CorpseFinder {
      */
     private static final java.util.Set<BlockPos> seen = new java.util.HashSet<>();
 
-    /** "Party > [MVP+] Name: Lapis corpse at -184 9 -178" - dieselbe Form, die die Mod schickt */
+    /** "Party > [MVP+] Name: Lapis corpse at x: -184, y: 9, z: -178" - die Form, die die Mod seit 2.0.14 schickt (siehe ChatCoords) */
     private static final java.util.regex.Pattern PARTY_CORPSE = java.util.regex.Pattern.compile(
+            "^Party > .*?: (?<type>Lapis|Umber|Tungsten|Vanguard) corpse at "
+                    + "x: (?<x>-?\\d{1,7}), y: (?<y>-?\\d{1,4}), z: (?<z>-?\\d{1,7})$",
+            java.util.regex.Pattern.CASE_INSENSITIVE);
+    /** "Party > [MVP+] Name: Lapis corpse at -184 9 -178" - die Form bis 2.0.13; wer die Mod noch nicht erneuert hat, schickt sie weiter */
+    private static final java.util.regex.Pattern PARTY_CORPSE_OLD = java.util.regex.Pattern.compile(
             "^Party > .*?: (?<type>Lapis|Umber|Tungsten|Vanguard) corpse at "
                     + "(?<x>-?\\d{1,7}) (?<y>-?\\d{1,4}) (?<z>-?\\d{1,7})$",
             java.util.regex.Pattern.CASE_INSENSITIVE);
+
+    /** Die Zeile fuer den Party-Chat: "Lapis corpse at x: -184, y: 9, z: -178" */
+    public static String shareText(String type, BlockPos pos) {
+        return type + " corpse at " + com.shokiteufel.shokimod.util.ChatCoords.format(pos);
+    }
     /** Zwischen zwei Meldungen liegt mindestens diese Pause */
     private static final long SHARE_GAP_MILLIS = 2500L;
     /** Mehr als das schickt niemand aus einem Schacht */
@@ -188,8 +198,12 @@ public final class CorpseFinder {
     public static void onChatMessage(String plain) {
         if (plain == null || !ModConfig.INSTANCE.mining.mineshaft.corpseFromParty) return;
 
-        java.util.regex.Matcher m = PARTY_CORPSE.matcher(plain.trim());
-        if (!m.matches()) return;
+        String line = plain.trim();
+        java.util.regex.Matcher m = PARTY_CORPSE.matcher(line);
+        if (!m.matches()) {
+            m = PARTY_CORPSE_OLD.matcher(line);
+            if (!m.matches()) return;
+        }
 
         try {
             BlockPos pos = new BlockPos(Integer.parseInt(m.group("x")),
@@ -337,8 +351,7 @@ public final class CorpseFinder {
         shared.add(corpse.pos());
         lastSharedAt = now;
 
-        String text = corpse.type() + " corpse at " + corpse.pos().getX() + " "
-                + corpse.pos().getY() + " " + corpse.pos().getZ();
+        String text = shareText(corpse.type(), corpse.pos());
         ShokiMod.LOGGER.info("[Mineshaft] telling the party: {}", text);
         connection.sendCommand("pc " + text);
     }

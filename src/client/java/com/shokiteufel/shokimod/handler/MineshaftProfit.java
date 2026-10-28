@@ -72,14 +72,22 @@ public final class MineshaftProfit {
         shareCampfire();
     }
 
-    /** "Campfire Placed! (x, y, z)" in den Partychat - dorthin, wo man gerade steht */
+    /**
+     * Die Zeile fuer den Party-Chat. Bis 2.0.13 "Campfire Placed! (x, y, z)"; jetzt in der Form, die Skyblocker im Chat erkennt
+     * und mit einem Klick auf einen Wegpunkt anbietet (ChatCoords)
+     */
+    public static String campfireText(net.minecraft.core.BlockPos at) {
+        return "Campfire Placed! " + com.shokiteufel.shokimod.util.ChatCoords.format(at);
+    }
+
+    /** "Campfire Placed! x: ..., y: ..., z: ..." in den Partychat - dorthin, wo man gerade steht */
     private static void shareCampfire() {
         if (!com.shokiteufel.shokimod.data.ModConfig.INSTANCE.mining.mineshaft.shareCampfire) return;
         Minecraft client = Minecraft.getInstance();
         if (client == null || client.player == null || client.getConnection() == null) return;
 
         net.minecraft.core.BlockPos at = client.player.blockPosition();
-        String text = "Campfire Placed! (" + at.getX() + ", " + at.getY() + ", " + at.getZ() + ")";
+        String text = campfireText(at);
         ShokiMod.LOGGER.info("[Mineshaft] telling the party: {}", text);
         client.getConnection().sendCommand("pc " + text);
     }

@@ -1656,7 +1656,7 @@ public class ModConfig extends Config {
         public boolean vanguardGuildCall = false;
 
         @Expose
-        @ConfigOption(name = "Share Campfire", desc = "When you place a Portable Campfire in a mineshaft, writes \"Campfire Placed! (x, y, z)\" with your position into the party chat, so the others can walk over and use it.")
+        @ConfigOption(name = "Share Campfire", desc = "When you place a Portable Campfire in a mineshaft, writes \"Campfire Placed! x: 1, y: 2, z: 3\" with your position into the party chat, so the others can walk over and use it. Skyblocker reads that form and offers a click-to-waypoint line.")
         @ConfigEditorBoolean
         @ConfigAccordionId(id = 42)
         public boolean shareCampfire = false;
