@@ -364,6 +364,45 @@ public class EntityHighlightManager {
                 break;
             }
         }
+
+        // Pests, deren Name noch nicht angekommen ist - erst nach den benannten, damit deren Koerper schon vergeben sind
+        if (scanPests && PestTarget.byType()) markUnnamedPests(client);
+    }
+
+    /** Ist das ein Silverfisch oder eine Fledermaus - die beiden Koerper, die Pests im Garden haben (so fuehrt SkyHanni sie) */
+    private static boolean isInsect(Entity entity) {
+        String type = entity.getType().getDescriptionId();
+        return type.equals("entity.minecraft.silverfish") || type.equals("entity.minecraft.bat");
+    }
+
+    /**
+     * Pests, deren Name noch nicht da ist: Silverfische und Fledermaeuse auf dem eigenen Plot, die keiner der Namen schon bekommen hat.
+     *
+     * Hypixel schickt den Namen eines Mobs als eigenen Armor Stand daneben, und der kommt oft spaeter als der Mob selbst (der Server zeigt ihn dem
+     * Spieler erst aus kuerzerer Entfernung). Wer den Pest laengst sehen kann, hat deshalb noch keinen Namen, an dem er ihn erkennen koennte - er
+     * sieht ihn, die Linie fehlt. Im Garden gibt es sonst weder Silverfische noch Fledermaeuse, also gilt der Koerper allein. Kommt der Name an,
+     * gehoert der Koerper zu ihm (pestClaimed): dasselbe Entity, derselbe Eintrag, dieselbe Linie - nichts wird doppelt gezeichnet.
+     */
+    private static void markUnnamedPests(Minecraft client) {
+        PestTarget target = PestTarget.INSTANCE;
+        Player player = client.player;
+        if (player == null) return;
+        for (Entity entity : client.level.entitiesForRendering()) {
+            if (!(entity instanceof LivingEntity) || entity instanceof ArmorStand || entity instanceof Player) continue;
+            if (entity.isRemoved() || !isInsect(entity) || pestClaimed.contains(entity)) continue;
+            if (!PestTarget.inRange(player.getX(), player.getZ(), entity.getX(), entity.getZ())) continue;
+
+            pestClaimed.add(entity);
+            if (target.highlight()) registerHighlight(entity, target);
+            // Der Schluessel ist der Pest selbst: jeder bekommt seine Linie
+            if (target.tracer()) addTracer(entity, entity, target.tracerColorARGB());
+            registerBox(entity, target);
+
+            if (pestLogged.size() < PEST_LOG_MAX && pestLogged.add(entity.getId())) {
+                com.shokiteufel.shokimod.ShokiMod.LOGGER.info("[Pests] unnamed {} #{} at {} {} marked by its type (no name seen for it yet)",
+                        entity.getType().getDescriptionId(), entity.getId(), (int) entity.getX(), (int) entity.getZ());
+            }
+        }
     }
 
     /**
@@ -412,8 +451,7 @@ public class EntityHighlightManager {
         for (LivingEntity candidate : client.level.getEntitiesOfClass(LivingEntity.class, box,
                 e -> !(e instanceof ArmorStand) && !(e instanceof Player))) {
             if (pestClaimed.contains(candidate)) continue;
-            String type = candidate.getType().getDescriptionId();
-            boolean insect = type.equals("entity.minecraft.silverfish") || type.equals("entity.minecraft.bat");
+            boolean insect = isInsect(candidate);
             double score = candidate.distanceToSqr(named) + (insect ? 0.0 : 16.0);
             if (score < bestScore) {
                 bestScore = score;
