@@ -19,8 +19,8 @@ import java.util.Map;
  * Woraus ein einzelner Tag bestand - eine Zeile je Ware, die wertvollste zuerst.
  *
  * Dasselbe Bild wie im Kasten, nur fuer einen Tag, der schon vorbei ist. Gerechnet wird
- * mit den Preisen von heute: Gespeichert sind Stueckzahlen, und was sie einbringen,
- * entscheidet der Markt, auf dem man sie verkauft.
+ * mit den Preisen von damals, wo das Log sie festhaelt (siehe ProfitLog); eine Ware ohne
+ * festgehaltenen Preis zaehlt mit dem von heute.
  */
 public class DayItemScreen extends Screen {
 
@@ -52,18 +52,30 @@ public class DayItemScreen extends Screen {
         return Math.max(1, (height - 60 - LIST_TOP) / ROW_HEIGHT);
     }
 
+    /**
+     * Die Zeilen, kurz gemerkt: Name und Preis je Ware und eine Sortierung bei jedem Bild waeren bei hunderten Waren
+     * Millisekunden auf dem Zeichenfaden. Der Tag, der schon vorbei ist, aendert sich nicht; nur Preise von heute (fuer
+     * Waren ohne festgehaltenen) und Namen, die nachgeladen werden, koennen sich bewegen - eine Sekunde reicht dafuer.
+     */
+    private List<Row> rowsMemo = null;
+    private long rowsMemoAt = 0L;
+
     private List<Row> rows() {
+        long now = System.currentTimeMillis();
+        if (rowsMemo != null && now - rowsMemoAt < 1_000L) return rowsMemo;
+
         List<Row> out = new ArrayList<>();
         for (Map.Entry<String, Integer> entry : tag.counts.entrySet()) {
             int count = entry.getValue() == null ? 0 : entry.getValue();
             // Ein verbrauchter Koeder steht im Minus - das gehoert in die Liste
             if (count == 0 || (count < 0 && !ProfitTracker.isBait(entry.getKey()))) continue;
 
-            double unit = ProfitTracker.unitPrice(entry.getKey());
             out.add(new Row(entry.getKey(), ProfitTracker.nameOf(entry.getKey()), count,
-                    unit > 0 ? unit * count : 0));
+                    ProfitTracker.worthOf(tag, entry.getKey(), count)));
         }
         out.sort(Comparator.comparingDouble(Row::worth).reversed().thenComparing(Row::name));
+        rowsMemo = out;
+        rowsMemoAt = now;
         return out;
     }
 
@@ -111,7 +123,9 @@ public class DayItemScreen extends Screen {
                 centerX, 14, 0xFFFFAA00);
         graphics.centeredText(font, Component.literal(
                         ItemValue.format(gesamt) + " in " + DayProfitScreen.clock(tag.uptimeMillis)
-                        + " - priced as of now")
+                        + (tag.note == null || tag.note.isBlank()
+                                ? " - priced at the day's prices"
+                                : " - older days priced at update time"))
                 .withStyle(ChatFormatting.DARK_GRAY), centerX, 28, 0xFF888888);
 
         graphics.text(font, "Item", left + 4, LIST_TOP - 12, 0xFF888888, false);

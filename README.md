@@ -95,8 +95,11 @@ die Spielversion beim Start — die falsche Datei laedt der Loader gar nicht ers
   Zuruecksetzen fragen vorher im Chat nach. Zeit und Profit/h einzeln abschaltbar, die Uhr laeuft auf Wunsch durch.
   Drei Zeitraeume — Lauf, Tag und Gesamtstand; ein Klick auf die Ueberschrift wechselt.
   Der Tag faengt zur eingestellten Stunde an, voreingestellt sechs Uhr morgens. Beim
-  Tageswechsel wandert der Stand ins Archiv — die letzten dreissig Tage stehen unter
-  `/shoki dayprofit`, mit den Waren jedes einzelnen Tages. Die Zeit des Tages laeuft
+  Tageswechsel wandert der Stand ins Log `config/shokimod/profit-days.log` — eine lesbare Textdatei,
+  ein Block je Tag, eine Zeile je Ware mit Stueckzahl und dem Wert zu den Preisen des Tages. Die letzten
+  120 Tage stehen unter `/shoki dayprofit`, mit den Waren jedes einzelnen Tages. Tage aus der Zeit vor
+  dem Log werden beim ersten Start mit Preisen von selbst umgeschrieben (zum Preis von dann, nicht von
+  damals — den kennt keiner), oder auf Befehl mit `/shoki profitlog migrate`. Die Zeit des Tages laeuft
   immer mit, auch wenn der Kasten keine Uhr zeigt: Jeder Fund zaehlt dreissig Sekunden,
   dicht aufeinander folgende Funde lassen die Uhr durchlaufen.
   Wegwerfen und wieder aufheben zaehlt nicht mit, Umziehen ebenso wenig: Ruestung und
@@ -193,6 +196,7 @@ die Spielversion beim Start — die falsche Datei laedt der Loader gar nicht ers
 | `/shoki petprofit` | Gewinn je Pet; die Liste fuehrt je Pet das beste Angebot und das beste auf Stufe 1 |
 | `/shoki profit` | Liste des Profit-Trackers: welche Funde zaehlen und wie sie verkauft werden |
 | `/shoki dayprofit` | Was die vergangenen Tage gebracht haben, wahlweise je SkyBlock-Jahr oder Buergermeister; ein Klick zeigt die Waren |
+| `/shoki profitlog [migrate]` | Wo das Tages-Log liegt und wie viele Tage drinstehen; `migrate` schreibt Tage aus der Config ins Log |
 | `/shoki pet` | Pet-HUD bauen |
 | `/shoki hub` | Zurueck in den Hub |
 | `/shoki update` | Neueste Fassung von GitHub holen; eingesetzt wird sie beim Beenden des Spiels |

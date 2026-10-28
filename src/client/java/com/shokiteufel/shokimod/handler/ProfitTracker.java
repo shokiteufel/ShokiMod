@@ -85,6 +85,8 @@ public final class ProfitTracker {
     public static void register() {
         ItemChanges.listen(ProfitTracker::onGains);
         ClientTickEvents.END_CLIENT_TICK.register(ProfitTracker::tick);
+        // Die Tage lesen, bevor das Fenster sie braucht
+        ProfitLog.preload();
     }
 
     /** Ein Schwung Zugaenge aus dem Inventar oder aus einem Sack */
@@ -103,6 +105,10 @@ public final class ProfitTracker {
             cfg().counts.merge(itemId, amount, Integer::sum);
             cfg().dayCounts.merge(itemId, amount, Integer::sum);
             cfg().totalCounts.merge(itemId, amount, Integer::sum);
+            // Der Tag merkt sich, was der Fund zum Preis von jetzt wert ist - der bleibt im Log stehen. Ohne Preis kommt nichts dazu;
+            // beim Abschluss des Tages gilt fuer so eine Ware der Preis von dann (frozenCoins)
+            double unit = unitPrice(itemId);
+            if (unit > 0) cfg().dayCoins.merge(itemId, unit * amount, Double::sum);
             counted = true;
             // Die Namensfarbe wird nur im Augenblick des Fundes gesehen - festhalten,
             // solange sie da ist
@@ -168,6 +174,7 @@ public final class ProfitTracker {
         }
 
         rollDay(now);
+        ProfitLog.tick(now);
         retryPendingPets(now);
 
         // Bei 0 laeuft die Uhr durch: kein Anhalten bei Stille, und auch nicht, wenn das
@@ -358,6 +365,54 @@ public final class ProfitTracker {
         ShokiMod.LOGGER.info("[Profit] corpse key used: {} -{}", keyId, amount);
     }
 
+    /**
+     * Der Wert des Tages folgt einer Aenderung von Hand.
+     *
+     * Was weniger wird, schrumpft anteilig: Wer 30 von 100 abzieht, weil falsch gezaehlt, nimmt dem Tag 30 Prozent seines
+     * Werts - zum Preis von damals, nicht zu dem von jetzt. Was dazukommt, kommt zum Preis von jetzt dazu, wie ein Fund.
+     */
+    private static void bookDayCoins(String itemId, int before, int after) {
+        if (after == 0) {
+            cfg().dayCoins.remove(itemId);
+            return;
+        }
+        boolean shrinks = before != 0 && Integer.signum(before) == Integer.signum(after) && Math.abs(after) < Math.abs(before);
+        if (shrinks) {
+            Double old = cfg().dayCoins.get(itemId);
+            if (old != null) cfg().dayCoins.put(itemId, old * after / before);
+            return;
+        }
+        double unit = unitPrice(itemId);
+        if (unit > 0) cfg().dayCoins.merge(itemId, unit * (after - before), Double::sum);
+    }
+
+    /**
+     * Was der Tag zu den Preisen seiner Funde wert ist, in ganzen Coins je Ware.
+     *
+     * Eine Ware, zu der beim Fund kein Preis bekannt war, bekommt den von jetzt - ist auch der unbekannt, bleibt sie ohne Eintrag
+     * und wird spaeter wie bisher mit dem Preis des Tages bewertet, an dem man hinsieht.
+     */
+    public static Map<String, Long> frozenCoins(Map<String, Integer> counts, Map<String, Double> dayCoins) {
+        Map<String, Long> out = new java.util.HashMap<>();
+        for (Map.Entry<String, Integer> entry : counts.entrySet()) {
+            int count = entry.getValue() == null ? 0 : entry.getValue();
+            if (count == 0) continue;
+            Double known = dayCoins.get(entry.getKey());
+            if (known != null) {
+                out.put(entry.getKey(), Math.round(known));
+                continue;
+            }
+            double unit = unitPrice(entry.getKey());
+            if (unit > 0) out.put(entry.getKey(), Math.round(unit * count));
+        }
+        return out;
+    }
+
+    /** Dasselbe fuer alte Tage ohne eigene Preise: alles zum Preis von jetzt */
+    public static Map<String, Long> frozenFromNow(Map<String, Integer> counts) {
+        return frozenCoins(counts, Map.of());
+    }
+
     public static void adjust(String itemId, int delta) {
         if (itemId == null || delta == 0) return;
 
@@ -372,8 +427,10 @@ public final class ProfitTracker {
             // Ein Koeder darf unter null: Er ist Geld, das ausgegeben wurde, und der
             // Kasten zeigt dann das Minus, statt es zu verschweigen. Alles andere gibt
             // es nicht in negativer Menge - da waere es ein Zaehlfehler
-            if (neu > 0 || (neu < 0 && mayBeNegative(itemId))) zaehler.put(itemId, neu);
+            boolean bleibt = neu > 0 || (neu < 0 && mayBeNegative(itemId));
+            if (bleibt) zaehler.put(itemId, neu);
             else zaehler.remove(itemId);
+            if (zaehler == cfg().dayCounts) bookDayCoins(itemId, vorher == null ? 0 : vorher, bleibt ? neu : 0);
         }
         invalidateRows();
         ModConfig.INSTANCE.saveNow();
@@ -769,19 +826,32 @@ public final class ProfitTracker {
      * will, bekommt ihn vom Fenster vorangestellt.
      */
     public static List<ModConfig.DayRecord> history() {
-        return cfg().history;
+        return ProfitLog.days();
     }
 
-    /** Was ein abgeschlossener Tag heute wert waere */
+    /**
+     * Was ein abgeschlossener Tag wert war: zu den Preisen von damals, wo das Log sie fuehrt.
+     *
+     * Eine Ware ohne festgehaltenen Preis (kein Preis bekannt, als der Tag endete) zaehlt mit dem von heute, so wie vor dem Log
+     * alle Tage.
+     */
     public static double worthOf(ModConfig.DayRecord tag) {
         if (tag == null) return 0;
 
         double sum = 0;
         for (Map.Entry<String, Integer> entry : tag.counts.entrySet()) {
-            double unit = unitPrice(entry.getKey());
-            if (unit > 0) sum += unit * entry.getValue();
+            sum += worthOf(tag, entry.getKey(), entry.getValue() == null ? 0 : entry.getValue());
         }
         return sum;
+    }
+
+    /** Der Wert einer Ware an diesem Tag: der festgehaltene, sonst der von heute (0, wenn auch der fehlt) */
+    public static double worthOf(ModConfig.DayRecord tag, String itemId, int count) {
+        if (tag == null || count == 0) return 0;
+        Long frozen = tag.coins.get(itemId);
+        if (frozen != null) return frozen;
+        double unit = unitPrice(itemId);
+        return unit > 0 ? unit * count : 0;
     }
 
     /** Der Klick auf die Ueberschrift: Lauf, Tag, alles, wieder Lauf */
@@ -1103,16 +1173,16 @@ public final class ProfitTracker {
         if (cfg().dayStartedAt >= start) return;
 
         boolean stand = !cfg().dayCounts.isEmpty() || cfg().dayUptimeMillis > 0L;
-        // Der abgelaufene Tag wandert ins Archiv, statt ersatzlos zu verschwinden
+        // Der abgelaufene Tag wandert ins Log (config/shokimod/profit-days.log), statt ersatzlos zu verschwinden -
+        // mit dem, was er zu den Preisen seiner Funde wert war
         if (stand && cfg().dayStartedAt > 0L) {
-            cfg().history.add(0, new ModConfig.DayRecord(
+            ProfitLog.archive(new ModConfig.DayRecord(
                     cfg().dayStartedAt, cfg().dayUptimeMillis, cfg().dayCounts,
-                    com.shokiteufel.shokimod.util.SkyBlockYear.mayor()));
-            while (cfg().history.size() > ModConfig.ProfitCategory.MAX_HISTORY) {
-                cfg().history.remove(cfg().history.size() - 1);
-            }
+                    com.shokiteufel.shokimod.util.SkyBlockYear.mayor(),
+                    frozenCoins(cfg().dayCounts, cfg().dayCoins)));
         }
         cfg().dayCounts.clear();
+        cfg().dayCoins.clear();
         cfg().dayUptimeMillis = 0L;
         cfg().dayStartedAt = start;
         dirty = true;
@@ -1658,10 +1728,13 @@ public final class ProfitTracker {
             for (Map<String, Integer> zaehler : List.of(cfg().counts, cfg().dayCounts, cfg().totalCounts)) {
                 zaehler.remove(quelle);
             }
+            cfg().dayCoins.remove(quelle);
         }
         for (Map<String, Integer> zaehler : List.of(cfg().counts, cfg().dayCounts, cfg().totalCounts)) {
+            Integer vorher = zaehler.get(itemId);
             if (amount > 0) zaehler.put(itemId, amount);
             else zaehler.remove(itemId);
+            if (zaehler == cfg().dayCounts) bookDayCoins(itemId, vorher == null ? 0 : vorher, Math.max(0, amount));
         }
         invalidateRows();
         ModConfig.INSTANCE.saveNow();
@@ -1734,7 +1807,7 @@ public final class ProfitTracker {
     }
 
     /** Eine Zeile der Mod im Chat */
-    private static void say(Component text) {
+    static void say(Component text) {
         Minecraft client = Minecraft.getInstance();
         if (client == null || client.player == null) return;
         client.player.sendSystemMessage(Component.literal("[ShokiMod] ")
@@ -1782,6 +1855,7 @@ public final class ProfitTracker {
         if (itemId == null) return;
         cfg().counts.remove(itemId);
         cfg().dayCounts.remove(itemId);
+        cfg().dayCoins.remove(itemId);
         cfg().totalCounts.remove(itemId);
         invalidateRows();
         ModConfig.INSTANCE.saveNow();
@@ -1799,6 +1873,7 @@ public final class ProfitTracker {
         switch (view()) {
             case DAY -> {
                 cfg().dayCounts.clear();
+                cfg().dayCoins.clear();
                 cfg().dayUptimeMillis = 0L;
             }
             case TOTAL -> {
