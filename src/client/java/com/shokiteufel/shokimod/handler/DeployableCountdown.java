@@ -143,6 +143,23 @@ public final class DeployableCountdown {
     private static final Set<Integer> scanned = new HashSet<>();
     private static int decisionsLogged = 0;
 
+    /**
+     * Wo ich stand, als ich zuletzt ein Deployable-Item benutzt habe, und zu welchem Rechtsklick das gehoert (ParticleTracer.lastUseAt).
+     * Der Flare steigt senkrecht von dort auf; ein Orb oder eine Laterne erscheint in der Naehe dieses Punkts.
+     */
+    private static Vec3 clickPos = null;
+    private static long clickKey = 0L;
+    /**
+     * Wer fuer den letzten Rechtsklick den Zuschlag bekam. Ein Rechtsklick stellt hoechstens ein Deployable auf (man kann nur eines
+     * seiner Sorte draussen haben): Erscheinen im Fenster zwei Staender derselben Sorte, ist nur der meiner, der naeher am Klickpunkt steht.
+     */
+    private static long claimKey = 0L;
+    private static int claimId = -1;
+    private static Kind claimKind = null;
+    private static double claimScore = 0.0;
+    /** Um so viel muss ein zweiter Staender naeher am Klickpunkt stehen, um dem ersten den Zuschlag abzunehmen (Bloecke) */
+    private static final double CLAIM_MARGIN = 0.5;
+
     private DeployableCountdown() {
     }
 
@@ -256,6 +273,11 @@ public final class DeployableCountdown {
         mine.clear();
         scanned.clear();
         textsLogged.clear();
+        clickPos = null;
+        clickKey = 0L;
+        claimId = -1;
+        claimKind = null;
+        claimKey = 0L;
     }
 
     static int watching() {
@@ -395,8 +417,40 @@ public final class DeployableCountdown {
 
     /** Ein Rechtsklick mit diesem Item (SkyBlock-Kennung) in der Haupthand - nur Deployables kommen ins Protokoll */
     static void noteUse(String item) {
-        if (!DeployableLog.enabled() || item == null || !DEPLOYABLE_ITEM.matcher(item).find()) return;
+        if (item == null || !DEPLOYABLE_ITEM.matcher(item).find()) return;
+        // Der Klickpunkt gehoert zu jedem Rechtsklick mit einem Deployable, auch ohne Protokoll
+        Minecraft client = Minecraft.getInstance();
+        if (client != null && client.player != null) {
+            clickPos = client.player.position();
+            clickKey = ParticleTracer.lastUseAt();
+        }
+        if (!DeployableLog.enabled()) return;
         DeployableLog.line("USE", "right-click with " + item + " (panel=" + FeatureGate.deployableHud() + ", skyblock=" + GameState.Server.isSkyblock() + ")");
+    }
+
+    /**
+     * Wie weit steht der Staender vom Klickpunkt? Ein Flare steigt senkrecht auf, zaehlt also am Boden; alles andere im Raum. Ohne Klickpunkt
+     * (kein Rechtsklick mit einem Deployable gemerkt) der Abstand zu mir.
+     */
+    private static double clickScore(ArmorStand stand, Reading reading, double distanceToMe) {
+        if (clickPos == null || clickKey != ParticleTracer.lastUseAt()) return distanceToMe;
+        double flat = Math.hypot(stand.getX() - clickPos.x, stand.getZ() - clickPos.z);
+        if (reading.kind() == Kind.FLARE) return flat;
+        return Math.sqrt(flat * flat + Math.pow(stand.getY() - clickPos.y, 2));
+    }
+
+    /** Ein Staender gilt doch nicht als meiner (ein anderer passt besser zum Rechtsklick): Besitz und Zeitkasten zuruecknehmen */
+    private static void revokeMine(int id) {
+        mine.remove(id);
+        DeployableTimers.revoke(id);
+    }
+
+    /**
+     * Der Staender ist nicht mehr meiner, weil ein neues Deployable seiner Sorte ihn ersetzt oder Hypixel ihn fuer weg erklaert hat. Steht er noch
+     * ein, zwei Ticks da, darf er nicht als meiner wieder auftauchen und das neue verdraengen.
+     */
+    static void forgetMine(int id) {
+        mine.remove(id);
     }
 
     private record Part(ArmorStand stand, String text) {
@@ -485,19 +539,44 @@ public final class DeployableCountdown {
         boolean placed = !wrongKind && since >= 0 && since <= PLACE_WINDOW_MILLIS
                 && ((deployableItem && near)
                 || (since <= PLACE_STRICT_WINDOW_MILLIS && distance <= PLACE_STRICT_RANGE));
+        // Ein Rechtsklick stellt hoechstens eines auf: Wer zweimal derselben Sorte im Fenster steht, ist nur der naehere meiner.
+        // Gemessen: ein SOS Flare, zwei Flare-Staender im selben Durchgang, 4,8 und 0,5 Bloecke vom Standpunkt - der eine war der eines
+        // anderen Spielers daneben. Beide galten als meine
+        String contest = "";
+        if (placed) {
+            long key = ParticleTracer.lastUseAt();
+            double score = clickScore(stand, reading, distance);
+            if (claimId >= 0 && claimId != stand.getId() && claimKey == key && claimKind == reading.kind()) {
+                if (score < claimScore - CLAIM_MARGIN) {
+                    contest = String.format(Locale.ROOT, ", takes the right-click over from id %d (%.1f instead of %.1f blocks from where I clicked)",
+                            claimId, score, claimScore);
+                    revokeMine(claimId);
+                } else {
+                    placed = false;
+                    contest = String.format(Locale.ROOT, ", id %d fits the right-click better (%.1f instead of %.1f blocks from where I clicked)",
+                            claimId, claimScore, score);
+                }
+            }
+            if (placed) {
+                claimKey = key;
+                claimId = stand.getId();
+                claimKind = reading.kind();
+                claimScore = score;
+            }
+        }
         // Nur was nah genug zum Aufstellen war, ist ein Eintrag wert - fremde Deployables in der Ferne sind Rauschen
         if ((distance <= 12.0 || flareShot) && decisionsLogged < DECISION_LOG_LIMIT) {
             decisionsLogged++;
-            ShokiMod.LOGGER.info("[Deployables] {} ({}): {} - right-click {} ms ago with {}, {} blocks away{}",
+            ShokiMod.LOGGER.info("[Deployables] {} ({}): {} - right-click {} ms ago with {}, {} blocks away{}{}",
                     reading.name(), reading.kind(), placed ? "MINE" : "not mine", since, item,
                     String.format(Locale.ROOT, "%.1f", distance),
-                    wrongKind ? " (the item makes " + itemKind + ", not " + reading.kind() + ")" : "");
+                    wrongKind ? " (the item makes " + itemKind + ", not " + reading.kind() + ")" : "", contest);
         }
         if (DeployableLog.enabled()) {
-            DeployableLog.line("OWNER", String.format(Locale.ROOT, "id=%d %s (%s): %s - right-click %s with %s, %.1f blocks away (%.1f on the ground, %+.1f up; deployable item: %s%s; window %d ms, range %.0f%s - or %d ms / %.1f when the item is not known)",
+            DeployableLog.line("OWNER", String.format(Locale.ROOT, "id=%d %s (%s): %s - right-click %s with %s, %.1f blocks away (%.1f on the ground, %+.1f up; deployable item: %s%s%s; window %d ms, range %.0f%s - or %d ms / %.1f when the item is not known)",
                     stand.getId(), reading.name(), reading.kind(), placed ? "MINE" : "not mine",
                     ParticleTracer.lastUseAt() == 0L ? "never" : since + " ms ago", item, distance, flat, up, deployableItem,
-                    wrongKind ? ", wrong kind: the item makes " + itemKind + ", this stand is " + reading.kind() : "",
+                    wrongKind ? ", wrong kind: the item makes " + itemKind + ", this stand is " + reading.kind() : "", contest,
                     PLACE_WINDOW_MILLIS, PLACE_RANGE, flareShot ? " on the ground, up to " + (int) FLARE_SHOT_HEIGHT + " up (flare)" : "",
                     PLACE_STRICT_WINDOW_MILLIS, PLACE_STRICT_RANGE));
         }
