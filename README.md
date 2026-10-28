@@ -164,7 +164,8 @@ Voraussetzungen: Fabric Loader 0.19.3+ und Fabric API.
 <details>
 <summary><b>Mob Visuals</b></summary>
 
-- Eigene Mobs markieren: Hervorhebung, Tracer-Linie, Namensschild, Welttext.
+- Eigene Mobs markieren: Hervorhebung, Tracer-Linie, Namensschild, Welttext. Eine Namensregel
+  greift auf ganze Woerter im Namen ("Rat" trifft die Ratte, nicht den "Lift Operator").
 - Farbe und Stil je Marker frei waehlbar.
 </details>
 
