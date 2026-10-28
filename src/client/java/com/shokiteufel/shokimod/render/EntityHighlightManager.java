@@ -28,6 +28,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.phys.AABB;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -274,6 +275,8 @@ public class EntityHighlightManager {
             }
         }
 
+        // Die Pest-Namen dieses Durchgangs: welcher Koerper zu welchem Namen gehoert, laesst sich erst sagen, wenn alle da sind
+        List<PestName> pestNames = null;
         for (Entity entity : client.level.entitiesForRendering()) {
             Component customName = entity.getCustomName();
             if (customName == null) continue;
@@ -294,7 +297,8 @@ public class EntityHighlightManager {
             // Die Pests im Garden: jeder bekommt Umriss und Linie
             if (scanPests && PestTarget.isPest(nameStr)) {
                 if (PestTarget.inRange(client.player.getX(), client.player.getZ(), entity.getX(), entity.getZ())) {
-                    markPest(client, entity, nameStr);
+                    if (pestNames == null) pestNames = new ArrayList<>();
+                    pestNames.add(new PestName(entity, nameStr));
                 } else if (pestSkipped.size() < PEST_LOG_MAX && pestSkipped.add(entity.getId())) {
                     // Einmal je Pest: sonst fragt man sich auf Hypixel, warum einer fehlt
                     com.shokiteufel.shokimod.ShokiMod.LOGGER.info("[Pests] {} ({} #{}) at {} {} not marked: not on your plot (you are at {} {})",
@@ -366,6 +370,8 @@ public class EntityHighlightManager {
                 break;
             }
         }
+
+        if (pestNames != null) markPests(client, pestNames);
     }
 
     /** Ist das ein Silverfisch oder eine Fledermaus - die beiden Koerper, die Pests im Garden haben (so fuehrt SkyHanni sie) */
@@ -414,61 +420,83 @@ public class EntityHighlightManager {
         return headStandUnderNameTag(client.level.getEntitiesOfClass(Display.class, box, d -> !pestModelClaimed.contains(d)), body);
     }
 
-    /**
-     * Markiert einen Pest im Garden: Umriss auf seinem Koerper, eine Linie zu ihm - und zwar zu jedem, nicht nur zum naechsten.
-     *
-     * Der Name steht entweder am Mob selbst oder an einem Armor Stand ueber ihm (Hypixels uebliche Art, einen Namen zu schreiben). Wer ihn
-     * traegt, entscheidet pestBody. Wird kein Koerper gefunden, gilt der Name selbst: Eine Linie zu ihm ist besser als keine.
-     */
-    private static void markPest(Minecraft client, Entity named, String rawName) {
-        PestTarget target = PestTarget.INSTANCE;
-        Entity body = pestBody(client, named);
-        Entity visual = body != null ? body : named;
-        if (body != null) {
-            pestClaimed.add(body);
-            highlightPest(client, body, target);
-        }
-        // Der Schluessel ist der Pest selbst, nicht die Art: So bekommt jeder seine Linie. Nur zum naechsten: ein gemeinsamer Schluessel,
-        // dann behaelt addTracer die Linie zum Pest, der dem Spieler am naechsten ist
-        if (target.tracer()) addTracer(visual, PestTarget.lineToAll() ? visual : target, target.tracerColorARGB());
-        registerBox(visual, target);
-        if (target.nameplate()) {
-            nameplateEntities.put(visual, nameplateLabel(target, PestTarget.displayName(rawName)));
-        }
+    /** Ein Name aus dem Garden, der einem Pest gehoeren koennte: das Entity, das ihn traegt, und sein Text */
+    private record PestName(Entity named, String rawName) {
+    }
 
-        if (pestLogged.size() < PEST_LOG_MAX && pestLogged.add(named.getId())) {
-            com.shokiteufel.shokimod.ShokiMod.LOGGER.info("[Pests] {} ({} #{}) -> {}", PestTarget.displayName(rawName),
-                    named.getType().getDescriptionId(), named.getId(), body == null
-                            ? "no body found within " + (int) PEST_SEARCH_RADIUS + " blocks, marked at the name"
-                            : body.getType().getDescriptionId() + " #" + body.getId() + " "
-                                    + String.format(java.util.Locale.ROOT, "%.1f", body.distanceTo(named)) + " blocks from it");
-        }
+    /** Ein moeglicher Koerper zu einem Namen, mit dem Abstand zwischen beiden (im Quadrat) */
+    private record PestPairing(PestName name, LivingEntity body, double distanceSq) {
     }
 
     /**
-     * Der Koerper zu einem Pest-Namen. Traegt der Mob den Namen selbst (kein Armor Stand, kein Spieler), ist er es. Sonst steht der Name auf
-     * einem Armor Stand: dann der naechste Mob in der Naehe, der keinem anderen Pest schon gehoert - ein Silverfish oder eine Fledermaus
-     * (so fuehrt SkyHanni die Pests) vor allem anderen. Spieler zaehlen nie: Besucher sind Spieler-Modelle. Armor Stands mit Ausruestung zaehlen
-     * auch nicht, anders als bei den Mobs der Liste: Im Garden stehen Fallen und Schmuck in der Naehe, und der naechste von ihnen waere
-     * sonst der "Koerper".
+     * Markiert die Pests im Garden: Umriss auf ihrem Koerper, eine Linie zu jedem - und zwar zu jedem, nicht nur zum naechsten.
+     *
+     * Zu einem Pest gehoert immer ein Koerper, ein Silverfisch oder eine Fledermaus (so fuehrt SkyHanni sie). Das unterscheidet ihn von allem
+     * anderen, das denselben Namen traegt: Das eigene Pet "Mosquito" ist ein Armor Stand mit Kopf und einem Schild gleichen Namens, aber ohne
+     * Silverfisch darunter. Bis 2.1.3 galt ein Name ohne Koerper als "besser eine Linie als keine" - und das Pet bekam Linie und Namensschild.
+     * Jetzt wird ohne Koerper in der Naehe nichts markiert (und einmal je Schild ins Protokoll geschrieben).
+     *
+     * Der Name steht entweder am Koerper selbst oder an einem Armor Stand ueber ihm (Hypixels uebliche Art, einen Namen zu schreiben). Bei den
+     * Armor Stands bekommt jeder Name den naechsten freien Koerper, die dichtesten Paare zuerst: Steht ein Pet neben einem echten Pest, gehoert
+     * der Silverfisch dem Schild, das ihm am naechsten ist, und nicht dem, das zufaellig zuerst an die Reihe kommt.
      */
-    private static Entity pestBody(Minecraft client, Entity named) {
-        if (named instanceof LivingEntity && !(named instanceof ArmorStand) && !(named instanceof Player)) return named;
-
-        AABB box = named.getBoundingBox().inflate(PEST_SEARCH_RADIUS);
-        Entity best = null;
-        double bestScore = Double.MAX_VALUE;
-        for (LivingEntity candidate : client.level.getEntitiesOfClass(LivingEntity.class, box,
-                e -> !(e instanceof ArmorStand) && !(e instanceof Player))) {
-            if (pestClaimed.contains(candidate)) continue;
-            boolean insect = isInsect(candidate);
-            double score = candidate.distanceToSqr(named) + (insect ? 0.0 : 16.0);
-            if (score < bestScore) {
-                bestScore = score;
-                best = candidate;
+    private static void markPests(Minecraft client, List<PestName> names) {
+        Set<Entity> marked = new HashSet<>();
+        List<PestPairing> pairs = new ArrayList<>();
+        for (PestName pest : names) {
+            Entity named = pest.named();
+            if (named instanceof LivingEntity && !(named instanceof ArmorStand) && !(named instanceof Player)) {
+                // Der Mob traegt den Namen selbst: er ist der Koerper - wenn er ein Silverfisch oder eine Fledermaus ist
+                if (isInsect(named)) {
+                    markPest(client, named, named, pest.rawName());
+                    marked.add(named);
+                }
+                continue;
+            }
+            AABB box = named.getBoundingBox().inflate(PEST_SEARCH_RADIUS);
+            for (LivingEntity body : client.level.getEntitiesOfClass(LivingEntity.class, box, EntityHighlightManager::isInsect)) {
+                pairs.add(new PestPairing(pest, body, body.distanceToSqr(named)));
             }
         }
-        return best;
+
+        pairs.sort(Comparator.comparingDouble(PestPairing::distanceSq));
+        for (PestPairing pair : pairs) {
+            Entity named = pair.name().named();
+            if (marked.contains(named) || pestClaimed.contains(pair.body())) continue;
+            marked.add(named);
+            markPest(client, named, pair.body(), pair.name().rawName());
+        }
+
+        for (PestName pest : names) {
+            if (marked.contains(pest.named())) continue;
+            Entity named = pest.named();
+            // Einmal je Schild: sonst fragt man sich auf Hypixel, warum eines fehlt - und ob es ein Pet war
+            if (pestSkipped.size() < PEST_LOG_MAX && pestSkipped.add(-named.getId() - 1)) {
+                com.shokiteufel.shokimod.ShokiMod.LOGGER.info("[Pests] {} ({} #{}) at {} {} not marked: no free silverfish or bat within {} blocks"
+                        + " (a pet or a decoration with a pest's name?)", PestTarget.displayName(pest.rawName()),
+                        named.getType().getDescriptionId(), named.getId(), (int) named.getX(), (int) named.getZ(), (int) PEST_SEARCH_RADIUS);
+            }
+        }
+    }
+
+    /** Markiert einen Pest: Umriss und Kasten auf seinem Koerper, eine Linie zu ihm, das Namensschild an ihm */
+    private static void markPest(Minecraft client, Entity named, Entity body, String rawName) {
+        PestTarget target = PestTarget.INSTANCE;
+        pestClaimed.add(body);
+        highlightPest(client, body, target);
+        // Der Schluessel ist der Pest selbst, nicht die Art: So bekommt jeder seine Linie. Nur zum naechsten: ein gemeinsamer Schluessel,
+        // dann behaelt addTracer die Linie zum Pest, der dem Spieler am naechsten ist
+        if (target.tracer()) addTracer(body, PestTarget.lineToAll() ? body : target, target.tracerColorARGB());
+        registerBox(body, target);
+        if (target.nameplate()) {
+            nameplateEntities.put(body, nameplateLabel(target, PestTarget.displayName(rawName)));
+        }
+
+        if (pestLogged.size() < PEST_LOG_MAX && pestLogged.add(named.getId())) {
+            com.shokiteufel.shokimod.ShokiMod.LOGGER.info("[Pests] {} ({} #{}) -> {} #{} {} blocks from it", PestTarget.displayName(rawName),
+                    named.getType().getDescriptionId(), named.getId(), body.getType().getDescriptionId(), body.getId(),
+                    String.format(java.util.Locale.ROOT, "%.1f", body.distanceTo(named)));
+        }
     }
 
     /**
