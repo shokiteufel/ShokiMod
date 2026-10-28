@@ -183,6 +183,8 @@ Voraussetzungen: Fabric Loader 0.19.3+ und Fabric API.
 - Kuchen-Erinnerung mit einem Klick zum Nachholen.
 - Pest-Fallen: Warnung, sobald genug Fallen voll sind, und beim Verlassen des
   Gartens mit vollen Fallen. Der Stand kommt aus Hypixels Tab-Widget.
+- Pests im Garden: Umriss und Linie zu jedem Pest, der auftaucht (Garden > Pests). Eigenstaendig,
+  ohne die Schalter der Mob-Liste; die Linie dort geht je Eintrag nur zum naechsten Mob.
 - Gilden-Events aus dem ShokiTeufelBot: Banner zum Start, laufende Rangliste im Kasten.
 </details>
 

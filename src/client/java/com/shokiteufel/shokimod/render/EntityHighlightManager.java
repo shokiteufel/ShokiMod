@@ -6,6 +6,7 @@ import com.shokiteufel.shokimod.data.GameState;
 import com.shokiteufel.shokimod.data.HideyhoTarget;
 import com.shokiteufel.shokimod.data.MobVisual;
 import com.shokiteufel.shokimod.data.ModConfig;
+import com.shokiteufel.shokimod.data.PestTarget;
 import com.shokiteufel.shokimod.data.SlayerBossTarget;
 import com.shokiteufel.shokimod.data.SlayerMinibossTarget;
 import com.shokiteufel.shokimod.data.SlayerMobKind;
@@ -93,6 +94,12 @@ public class EntityHighlightManager {
 
     /** Damit ein Mob nicht zusätzlich über seinen Typ ein zweites Mal erfasst wird */
     private static final Set<Entity> nametagClaimedEntities = new HashSet<>();
+    /** Die Koerper, die in diesem Durchgang schon zu einem Pest gehoeren - zwei Namensschilder dicht beieinander teilen sich keinen */
+    private static final Set<Entity> pestClaimed = new HashSet<>();
+    private static final Set<Integer> pestLogged = new HashSet<>();
+    private static final int PEST_LOG_MAX = 60;
+    /** So weit (Bloecke, in jede Richtung) um das Namensschild wird nach dem Koerper des Pests gesucht */
+    private static final double PEST_SEARCH_RADIUS = 3.0;
 
     private static int debugNamedCount = 0;
     private static int debugMatchCount = 0;
@@ -174,6 +181,7 @@ public class EntityHighlightManager {
         highlightedEntities.removeAll(rebuiltVisuals);
         rebuiltVisuals.clear();
         nametagClaimedEntities.clear();
+        pestClaimed.clear();
         renderAnchors.clear();
         headOnlyGlowEntities.clear();
         tracerEntities.clear();
@@ -222,13 +230,15 @@ public class EntityHighlightManager {
         // レア個体は接頭辞つきの名前を持つので、名前ループの中で拾える
         boolean scanSparkling = SparklingTarget.INSTANCE.anyEnabled();
         boolean scanHideyho = HideyhoTarget.enabled();
+        // Die Pests im Garden: nur dort, mit eigenen Schaltern
+        boolean scanPests = PestTarget.scanning();
         // Der eigene Slayer-Boss: nur in SkyBlock und nur mit dem Schalter. Der eigene Name einmal je Tick
         boolean skyblock = GameState.Server.isSkyblock();
         boolean scanSlayer = SlayerBossTarget.scanning() && skyblock;
         boolean scanMiniboss = SlayerMinibossTarget.scanning() && skyblock;
         String ownName = scanSlayer && client.getUser() != null ? client.getUser().getName() : null;
 
-        if (!scanCustom && !scanSparkling && !scanHideyho && !scanSlayer && !scanMiniboss) return;
+        if (!scanCustom && !scanSparkling && !scanHideyho && !scanSlayer && !scanMiniboss && !scanPests) return;
 
         if (scanCustomType) {
             for (Entity entity : client.level.entitiesForRendering()) {
@@ -274,6 +284,11 @@ public class EntityHighlightManager {
             if (scanMiniboss && entity instanceof ArmorStand
                     && (SlayerMinibossTarget.matches(nameStr) || SlayerMinibossTarget.isLabel(nameStr))) {
                 markSlayerMiniboss(client, entity, nameStr);
+            }
+
+            // Die Pests im Garden: jeder bekommt Umriss und Linie
+            if (scanPests && PestTarget.isPest(nameStr)) {
+                markPest(client, entity, nameStr);
             }
 
             // Sparkling(レア個体)。接頭辞と、その後ろの種名の両方で判定する
@@ -339,6 +354,63 @@ public class EntityHighlightManager {
                 break;
             }
         }
+    }
+
+    /**
+     * Markiert einen Pest im Garden: Umriss auf seinem Koerper, eine Linie zu ihm - und zwar zu jedem, nicht nur zum naechsten.
+     *
+     * Der Name steht entweder am Mob selbst oder an einem Armor Stand ueber ihm (Hypixels uebliche Art, einen Namen zu schreiben). Wer ihn
+     * traegt, entscheidet pestBody. Wird kein Koerper gefunden, gilt der Name selbst: Eine Linie zu ihm ist besser als keine.
+     */
+    private static void markPest(Minecraft client, Entity named, String rawName) {
+        PestTarget target = PestTarget.INSTANCE;
+        Entity body = pestBody(client, named);
+        Entity visual = body != null ? body : named;
+        if (body != null) {
+            pestClaimed.add(body);
+            if (target.highlight()) registerHighlight(body, target);
+        }
+        // Der Schluessel ist der Pest selbst, nicht die Art: So bekommt jeder seine Linie
+        if (target.tracer()) addTracer(visual, visual, target.tracerColorARGB());
+        registerBox(visual, target);
+        if (target.nameplate()) {
+            nameplateEntities.put(visual, nameplateLabel(target, PestTarget.displayName(rawName)));
+        }
+
+        if (pestLogged.size() < PEST_LOG_MAX && pestLogged.add(named.getId())) {
+            com.shokiteufel.shokimod.ShokiMod.LOGGER.info("[Pests] {} ({} #{}) -> {}", PestTarget.displayName(rawName),
+                    named.getType().getDescriptionId(), named.getId(), body == null
+                            ? "no body found within " + (int) PEST_SEARCH_RADIUS + " blocks, marked at the name"
+                            : body.getType().getDescriptionId() + " #" + body.getId() + " "
+                                    + String.format(java.util.Locale.ROOT, "%.1f", body.distanceTo(named)) + " blocks from it");
+        }
+    }
+
+    /**
+     * Der Koerper zu einem Pest-Namen. Traegt der Mob den Namen selbst (kein Armor Stand, kein Spieler), ist er es. Sonst steht der Name auf
+     * einem Armor Stand: dann der naechste Mob in der Naehe, der keinem anderen Pest schon gehoert - ein Silverfish oder eine Fledermaus
+     * (so fuehrt SkyHanni die Pests) vor allem anderen. Spieler zaehlen nie: Besucher sind Spieler-Modelle. Armor Stands mit Ausruestung zaehlen
+     * auch nicht, anders als bei den Mobs der Liste: Im Garden stehen Fallen und Schmuck in der Naehe, und der naechste von ihnen waere
+     * sonst der "Koerper".
+     */
+    private static Entity pestBody(Minecraft client, Entity named) {
+        if (named instanceof LivingEntity && !(named instanceof ArmorStand) && !(named instanceof Player)) return named;
+
+        AABB box = named.getBoundingBox().inflate(PEST_SEARCH_RADIUS);
+        Entity best = null;
+        double bestScore = Double.MAX_VALUE;
+        for (LivingEntity candidate : client.level.getEntitiesOfClass(LivingEntity.class, box,
+                e -> !(e instanceof ArmorStand) && !(e instanceof Player))) {
+            if (pestClaimed.contains(candidate)) continue;
+            String type = candidate.getType().getDescriptionId();
+            boolean insect = type.equals("entity.minecraft.silverfish") || type.equals("entity.minecraft.bat");
+            double score = candidate.distanceToSqr(named) + (insect ? 0.0 : 16.0);
+            if (score < bestScore) {
+                bestScore = score;
+                best = candidate;
+            }
+        }
+        return best;
     }
 
     /**
