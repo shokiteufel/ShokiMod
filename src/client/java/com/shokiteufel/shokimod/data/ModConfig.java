@@ -3481,6 +3481,22 @@ public class ModConfig extends Config {
         public boolean seeded = false;
     }
 
+    /**
+     * Ein Platz der Voreinstellungen im Effects-Fenster: welche Effekte im Kasten stehen und welche Alarm geben, nach kleingeschriebenem Namen.
+     * So hat man fuer Farming andere Effekte im Kasten als fuer Mining und wechselt mit einem Klick.
+     */
+    public static class EffectPreset {
+        @Expose
+        public String name = "";
+        @Expose
+        public List<String> hud = new ArrayList<>();
+        @Expose
+        public List<String> alert = new ArrayList<>();
+        /** Schon einmal gewaehlt oder gesichert. Ein Platz, der es nicht ist, ist leer: Wer ihn waehlt, sieht erst einmal nichts angehakt */
+        @Expose
+        public boolean used = false;
+    }
+
     public static class EffectsCategory {
 
         @ConfigOption(name = "Effects", desc = "Open /effects in the game once: every effect in that menu is remembered, with its time. Then choose here or in /shoki effects what is shown and what warns you. Modelled on SkyHanni's Non-God Pot Effects.")
@@ -3571,6 +3587,12 @@ public class ModConfig extends Config {
         /** Welche Fassung der Liste bekannter Mixins schon eingetragen wurde - so kommt ein vergessener Eintrag nicht von selbst zurueck */
         @Expose
         public int catalogueVersion = 0;
+
+        /** Die Voreinstellungen (mindestens fuenf Plaetze) und der gerade gewaehlte. Leer, bis das Fenster sie zum ersten Mal braucht */
+        @Expose
+        public List<EffectPreset> presets = new ArrayList<>();
+        @Expose
+        public int activePreset = 0;
 
         @Expose
         public float hudX = 0.02f;
