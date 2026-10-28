@@ -218,24 +218,23 @@ public final class CollectionData {
             }
         }
 
-        if (pending.add(id)) {
-            Thread worker = new Thread(() -> {
+        if (mayAsk(id) && pending.add(id)) {
+            LOOKUPS.execute(() -> {
                 try {
                     Yield found = fetchYield(id, 0);
                     resolved.put(id, found == null ? negative() : found.collectionId() + ":" + found.amount());
                     cacheDirty = true;
-                    writeCache();
+                    scheduleWrite();
                     if (found != null) {
                         ShokiMod.LOGGER.info("[Collections] {} = {} x {}", id, found.amount(), found.collectionId());
                     }
                 } catch (RuntimeException e) {
+                    failedAt.put(id, System.currentTimeMillis());
                     ShokiMod.LOGGER.warn("[Collections] Bauplan von {} nicht lesbar: {}", id, e.toString());
                 } finally {
                     pending.remove(id);
                 }
-            }, "ShokiMod collection recipe");
-            worker.setDaemon(true);
-            worker.start();
+            });
         }
         return null;
     }
@@ -297,22 +296,21 @@ public final class CollectionData {
             resolved.remove(key);
         }
 
-        if (pending.add(key)) {
-            Thread worker = new Thread(() -> {
+        if (mayAsk(key) && pending.add(key)) {
+            LOOKUPS.execute(() -> {
                 try {
                     List<Step> found = fetchChain(a, b, 0);
                     resolved.put(key, found == null ? negative() : writeChain(found));
                     cacheDirty = true;
-                    writeCache();
+                    scheduleWrite();
                     if (found != null) ShokiMod.LOGGER.info("[Collections] {} -> {}: {}", a, b, found);
                 } catch (RuntimeException e) {
+                    failedAt.put(key, System.currentTimeMillis());
                     ShokiMod.LOGGER.warn("[Collections] Bauplan von {} nicht lesbar: {}", b, e.toString());
                 } finally {
                     pending.remove(key);
                 }
-            }, "ShokiMod craft chain");
-            worker.setDaemon(true);
-            worker.start();
+            });
         }
         return List.of();
     }
@@ -529,7 +527,20 @@ public final class CollectionData {
 
     // ---- Ablage auf der Platte ----
 
-    private static synchronized void readCache() {
+    /**
+     * Die Ablage einmal einlesen.
+     *
+     * Der schnelle Weg steht vor dem Schloss: {@link #chain} wird vom Zeichenfaden gerufen, und {@link #writeCache} haelt das Schloss,
+     * solange es die ganze Ablage auf die Platte schreibt. Wer hier nur "ist schon gelesen" fragen will und trotzdem auf das Schloss
+     * wartet, steht so lange still, wie die Platte braucht - das war ein Standbild im Profit Tracker, jedes Mal, wenn im Hintergrund
+     * ein Bauplan ankam.
+     */
+    private static void readCache() {
+        if (cacheRead) return;
+        readCacheOnce();
+    }
+
+    private static synchronized void readCacheOnce() {
         if (cacheRead) return;
         cacheRead = true;
         Path file = ModPaths.configDir().resolve(CACHE_FILE);
@@ -560,6 +571,57 @@ public final class CollectionData {
         } catch (IOException e) {
             ShokiMod.LOGGER.warn("[Collections] Rezept-Ablage nicht schreibbar: {}", e.toString());
         }
+    }
+
+    /**
+     * Die Ablage bald schreiben - einmal fuer alles, was bis dahin ankommt.
+     *
+     * Vorher schrieb jeder fertige Bauplan die ganze Ablage neu: Beim ersten Blick auf einen grossen Gesamtstand sind das
+     * Tausende Antworten, also Tausende Schreibvorgaenge hintereinander. Jetzt sammeln sie sich fuer ein paar Sekunden.
+     */
+    private static final java.util.concurrent.atomic.AtomicBoolean writeScheduled =
+            new java.util.concurrent.atomic.AtomicBoolean(false);
+    private static final long WRITE_DELAY_SECONDS = 5L;
+
+    private static void scheduleWrite() {
+        if (!writeScheduled.compareAndSet(false, true)) return;
+        LOOKUPS.schedule(() -> {
+            writeScheduled.set(false);
+            writeCache();
+        }, WRITE_DELAY_SECONDS, java.util.concurrent.TimeUnit.SECONDS);
+    }
+
+    /**
+     * Wer die Bauplaene holt: wenige Faeden, nicht einer je Frage.
+     *
+     * Vorher startete jede offene Frage einen eigenen Faden mit eigener Netzanfrage - beim ersten Blick auf einen grossen
+     * Gesamtstand waren das ueber dreitausend in einer Minute. Vier arbeiten die Fragen jetzt der Reihe nach ab.
+     */
+    private static final java.util.concurrent.ScheduledThreadPoolExecutor LOOKUPS = newLookupPool();
+
+    private static java.util.concurrent.ScheduledThreadPoolExecutor newLookupPool() {
+        java.util.concurrent.ScheduledThreadPoolExecutor pool = new java.util.concurrent.ScheduledThreadPoolExecutor(4, task -> {
+            Thread thread = new Thread(task, "ShokiMod craft chain");
+            thread.setDaemon(true);
+            return thread;
+        });
+        pool.setRemoveOnCancelPolicy(true);
+        return pool;
+    }
+
+    /** Wann ein Abruf zuletzt gescheitert ist - eine Minute lang wird nicht von vorn begonnen */
+    private static final Map<String, Long> failedAt = new ConcurrentHashMap<>();
+    private static final long RETRY_AFTER_MILLIS = 60_000L;
+
+    /** Darf diese Frage jetzt gestellt werden? Nein, wenn sie gerade eben gescheitert ist (kein Netz, Repo gestoert) */
+    private static boolean mayAsk(String key) {
+        Long failed = failedAt.get(key);
+        if (failed == null) return true;
+        if (System.currentTimeMillis() - failed >= RETRY_AFTER_MILLIS) {
+            failedAt.remove(key);
+            return true;
+        }
+        return false;
     }
 
     private static final String NEGATIVE = "!";
