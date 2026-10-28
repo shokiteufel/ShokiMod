@@ -107,6 +107,8 @@ public class NetworkHandler {
             com.shokiteufel.shokimod.scanner.CorpseFinder.onChatMessage(unformattedMsg);
             // Ein Plus im Gildenchat nach dem Vanguard-Ruf bekommt einen Einladen-Knopf
             com.shokiteufel.shokimod.handler.VanguardGuildCall.onChatMessage(unformattedMsg);
+            // Party-Einladungen: die wartende merken (Annehmen-Taste) und ein Wort im Gildenchat zum Einladen anbieten
+            PartyInvites.onChatMessage(message, unformattedMsg);
             // Was ein Slayer-Boss zu starten kostet, geht in die Bilanz
             com.shokiteufel.shokimod.handler.SlayerSpawnCost.onChatMessage(unformattedMsg);
             // Ein Schluessel kostet, wenn die Leiche ihre Beute ausschuettet

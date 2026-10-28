@@ -235,6 +235,9 @@ public class ModConfig extends Config {
         if (INSTANCE.hunting == null) INSTANCE.hunting = new HuntingCategory();
         if (INSTANCE.guild == null) INSTANCE.guild = new GuildCategory();
         if (INSTANCE.guild.events == null) INSTANCE.guild.events = new GuildEventsCategory();
+        // Eine Config von vor 2.0.18 kennt die Party-Rubrik noch nicht
+        if (INSTANCE.guild.party == null) INSTANCE.guild.party = new PartyInvitesCategory();
+        if (INSTANCE.guild.party.inviteText == null) INSTANCE.guild.party.inviteText = "+";
         if (INSTANCE.guild.events.seenAnnouncements == null) INSTANCE.guild.events.seenAnnouncements = new ArrayList<>();
         // Wer die Mod schon vor 1.2.11 hatte, hat das Feld leer gespeichert. Der Gist ist die
         // oeffentliche Quelle und soll auch in alten Dateien ohne Zutun greifen
@@ -1053,7 +1056,7 @@ public class ModConfig extends Config {
     public LogsCategory logs = new LogsCategory();
 
     @Expose
-    @Category(name = "Guild", desc = "Guild events from the ShokiTeufelBot: a banner when one starts, the live ranking in a panel.")
+    @Category(name = "Guild / Party", desc = "Guild events from the ShokiTeufelBot (a banner when one starts, the live ranking in a panel) and party invites: accept one with a key, invite whoever writes a word in the guild chat.")
     public GuildCategory guild = new GuildCategory();
 
     @Expose
@@ -3230,13 +3233,43 @@ public class ModConfig extends Config {
 
     public static class GuildCategory {
 
-        @ConfigOption(name = "Guild", desc = "Everything about guild events lives in the sub tab on the left.")
+        @ConfigOption(name = "Guild / Party", desc = "Guild events and party invites each live in their own sub tab on the left.")
         @ConfigEditorInfoText
         public transient String about = "";
 
         @Expose
         @Category(name = "Events", desc = "Live ranking of the running guild event and a banner when one starts. The data comes from the ShokiTeufelBot.")
         public GuildEventsCategory events = new GuildEventsCategory();
+
+        @Expose
+        @Category(name = "Party", desc = "Party invites: accept one with a key, and get an invite button when a guild member writes a word.")
+        public PartyInvitesCategory party = new PartyInvitesCategory();
+    }
+
+    /**
+     * Party-Einladungen (siehe PartyInvites): annehmen mit einer Taste, einladen mit einem Klick.
+     */
+    public static class PartyInvitesCategory {
+
+        @Expose
+        @ConfigOption(name = "Accept key", desc = "Press this key to accept the party invite that is waiting - the same as clicking \"Click here to join!\" in the chat, without opening it. An invite stays valid for 60 seconds, as Hypixel says. Keyboard keys only. No key is set from the start.")
+        @ConfigEditorKeybind(defaultKey = -1)
+        public int acceptKey = -1;
+
+        /** Ist eine Tastaturtaste gewaehlt? MoulConfig fuehrt "keine" als -1; die Tastaturtasten beginnen bei 32, der Leertaste */
+        public boolean hasAcceptKey() {
+            return acceptKey >= 32;
+        }
+
+        @Expose
+        @ConfigOption(name = "Suggest invites", desc = "When someone writes the trigger text below in the guild chat, shows a line with a button that invites them to your party - the same button the Vanguard call gives, without the call. Only the guild chat counts (not the officer chat, not the party chat). Off from the start.")
+        @ConfigEditorBoolean
+        public boolean suggestInvites = false;
+
+        @Expose
+        @ConfigOption(name = "Trigger text", desc = "What someone has to write, on its own, in the guild chat. Capital letters do not matter. Empty switches the suggestion off.")
+        @ConfigEditorText
+        public String inviteText = "+";
     }
 
     /**
