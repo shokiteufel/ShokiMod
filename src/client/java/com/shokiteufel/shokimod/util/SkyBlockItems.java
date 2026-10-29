@@ -196,6 +196,25 @@ public final class SkyBlockItems {
         return "LVL_" + level + "_" + PET_TIERS[Integer.parseInt(m.group(2))] + "_" + m.group(1);
     }
 
+    private static final java.util.regex.Pattern PET_AUCTION_KEY =
+            java.util.regex.Pattern.compile("^LVL_\\d+_(COMMON|UNCOMMON|RARE|EPIC|LEGENDARY|MYTHIC)_([A-Z0-9_]+)$");
+
+    /**
+     * Der Rueckweg von {@link #petAuctionKey}: "LVL_1_COMMON_BABY_YETI" wird zu "BABY_YETI;0". Sonst null.
+     *
+     * Der Preis eines Pets wird unter seiner Auktionskennung gefunden, und die gibt der Rare-Loot-Alarm als Kennung des Fundes weiter -
+     * das Bild gehoert aber zur Kennung im Inventar. Ohne diesen Rueckweg war "LVL_1_COMMON_BABY_YETI" fuer das Bild kein Pet.
+     */
+    public static String petIdOfAuctionKey(String key) {
+        if (key == null) return null;
+        java.util.regex.Matcher m = PET_AUCTION_KEY.matcher(key);
+        if (!m.matches()) return null;
+        for (int tier = 0; tier < PET_TIERS.length; tier++) {
+            if (PET_TIERS[tier].equals(m.group(1))) return m.group(2) + ";" + tier;
+        }
+        return null;
+    }
+
     /**
      * ENCHANTED_DIAMOND wird zu "Enchanted Diamond".
      *
