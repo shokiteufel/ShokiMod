@@ -573,11 +573,11 @@ public final class RareLootHandler {
 
         if (banner) {
             // Der Wert geht mit: Fallen mehrere auf einmal, reiht die Einblendung danach
-            DropBanner.show(ModConfig.INSTANCE.chat.banner.designOrDefault(design),
+            DropBanner.show(ModConfig.INSTANCE.chat.banner.designOrDefault(design), "",
                     // Ohne Klammern: Was links und rechts vom Wert steht, gehoert
                     // zum Aussehen und damit ins Design, nicht hierher
                     headline, worth, label, colour,
-                    ItemIcons.stackFor(itemId), Math.max(coins, 0));
+                    ItemIcons.stackFor(itemId), Math.max(coins, 0), 0L, itemId);
         }
 
         if (toast && client.getToastManager() != null) {

@@ -93,6 +93,9 @@ public final class DropBanner {
         String tierLabel = "";
         int tint = 0xFFFFFF;
         ItemStack icon;
+        /** Die Kennung hinter dem Bild: Solange das Bild nur ein Ersatz ist (ein Pet-Kopf, der noch aus dem Netz kommt), wird es neu gesucht */
+        String iconId;
+        boolean iconReady = true;
         long displayMillis = 3000L;
         /** Wonach gereiht wird. Bei allem ausser Beute egal */
         double value;
@@ -146,7 +149,19 @@ public final class DropBanner {
      */
     public static void show(BannerDesign chosen, String bylineText, String headlineText, String worthText,
                             String tierText, int rgb, ItemStack iconStack, double value, long millis) {
+        show(chosen, bylineText, headlineText, worthText, tierText, rgb, iconStack, value, millis, null);
+    }
+
+    /**
+     * Dasselbe mit der Kennung hinter dem Bild.
+     *
+     * Ist das Bild noch ein Ersatz, sucht die Einblendung es waehrend des Zeigens weiter und tauscht es ein, sobald es da ist.
+     */
+    public static void show(BannerDesign chosen, String bylineText, String headlineText, String worthText,
+                            String tierText, int rgb, ItemStack iconStack, double value, long millis, String iconId) {
         Shown s = new Shown();
+        s.iconId = iconId;
+        s.iconReady = iconId == null || ItemIcons.isSettled(iconId);
         s.byline = bylineText == null ? "" : bylineText;
         s.design = chosen == null ? BannerDesign.presets().get(0) : chosen;
         s.headline = headlineText == null ? "" : headlineText;
@@ -310,6 +325,11 @@ public final class DropBanner {
     /** Eine einzelne Einblendung. Gibt ihre Hoehe zurueck, damit die naechste darunter passt */
     private static int renderOne(GuiGraphicsExtractor g, Shown banner, int offsetY) {
         if (banner.design == null) return 0;
+
+        if (!banner.iconReady) {
+            banner.icon = ItemIcons.stackFor(banner.iconId);
+            banner.iconReady = ItemIcons.isSettled(banner.iconId);
+        }
 
         long age = System.currentTimeMillis() - banner.startedAt;
         long displayMillis = banner.displayMillis;
