@@ -24,6 +24,7 @@ import net.minecraft.world.phys.Vec3;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -144,11 +145,19 @@ public final class DeployableCountdown {
     private static int decisionsLogged = 0;
 
     /**
-     * Wo ich stand, als ich zuletzt ein Deployable-Item benutzt habe, und zu welchem Rechtsklick das gehoert (ParticleTracer.lastUseAt).
-     * Der Flare steigt senkrecht von dort auf; ein Orb oder eine Laterne erscheint in der Naehe dieses Punkts.
+     * Ein Rechtsklick mit einem Deployable: wann (ParticleTracer.lastUseAt), womit und wo ich stand. Der Flare steigt senkrecht von dort
+     * auf; ein Orb oder eine Laterne erscheint in der Naehe dieses Punkts.
      */
-    private static Vec3 clickPos = null;
-    private static long clickKey = 0L;
+    private record Click(long at, String item, Vec3 pos) {
+    }
+
+    /**
+     * Mein letzter Rechtsklick mit einem Deployable je Sorte. Ein spaeterer Rechtsklick mit etwas anderem (Angel, Hyperion) loescht ihn nicht:
+     * Der Flare-Staender erscheint gut eine Sekunde nach dem Schuss, und dazwischen wird weitergeangelt.
+     */
+    private static final Map<Kind, Click> clicks = new EnumMap<>(Kind.class);
+    /** Der juengste Rechtsklick mit einem Deployable, gleich welcher Sorte (fuer das Protokoll) */
+    private static Click lastClick = null;
     /**
      * Wer fuer den letzten Rechtsklick den Zuschlag bekam. Ein Rechtsklick stellt hoechstens ein Deployable auf (man kann nur eines
      * seiner Sorte draussen haben): Erscheinen im Fenster zwei Staender derselben Sorte, ist nur der meiner, der naeher am Klickpunkt steht.
@@ -273,8 +282,8 @@ public final class DeployableCountdown {
         mine.clear();
         scanned.clear();
         textsLogged.clear();
-        clickPos = null;
-        clickKey = 0L;
+        clicks.clear();
+        lastClick = null;
         claimId = -1;
         claimKind = null;
         claimKey = 0L;
@@ -375,8 +384,10 @@ public final class DeployableCountdown {
             logStatus(String.format(Locale.ROOT, "panel=%s mode=%s warnings=%s stands=%d named=%d read=%d totem parts=%d/%d/%d timers=%d rows=%d",
                             panel, hud.mode, warnings, stands, named, understood, totems.size(), remaining.size(), owners.size(),
                             DeployableTimers.count(), DeployableTimers.rows(now).size()),
-                    String.format(Locale.ROOT, " | last right-click: %s, %s | %s", ParticleTracer.lastUseItem(),
-                            ParticleTracer.lastUseAt() == 0L ? "never" : (sinceUse / 1000) + " s ago", DeployableTimers.describe(now)), now);
+                    String.format(Locale.ROOT, " | last right-click: %s, %s%s | %s", ParticleTracer.lastUseItem(),
+                            ParticleTracer.lastUseAt() == 0L ? "never" : (sinceUse / 1000) + " s ago",
+                            lastClick == null ? "" : ", last deployable: " + lastClick.item() + " " + ((now - lastClick.at()) / 1000) + " s ago",
+                            DeployableTimers.describe(now)), now);
         }
     }
 
@@ -408,8 +419,10 @@ public final class DeployableCountdown {
      */
     private static void logTextNearUse(ArmorStand stand, String text, Vec3 me, long now) {
         if (text.isEmpty() || textsLogged.size() >= TEXT_LIMIT) return;
-        long since = now - ParticleTracer.lastUseAt();
-        if (since < 0 || since > TEXT_WINDOW_MILLIS || !DEPLOYABLE_ITEM.matcher(String.valueOf(ParticleTracer.lastUseItem())).find()) return;
+        Click click = lastClick;
+        if (click == null) return;
+        long since = now - click.at();
+        if (since < 0 || since > TEXT_WINDOW_MILLIS) return;
         double distance = Math.sqrt(stand.distanceToSqr(me));
         if (distance > TEXT_RANGE || !textsLogged.add(text)) return;
         DeployableLog.line("TEXT", String.format(Locale.ROOT, "near stand, not read: \"%s\" (%.1f blocks away, %d ms after the right-click)", text, distance, since));
@@ -418,12 +431,12 @@ public final class DeployableCountdown {
     /** Ein Rechtsklick mit diesem Item (SkyBlock-Kennung) in der Haupthand - nur Deployables kommen ins Protokoll */
     static void noteUse(String item) {
         if (item == null || !DEPLOYABLE_ITEM.matcher(item).find()) return;
-        // Der Klickpunkt gehoert zu jedem Rechtsklick mit einem Deployable, auch ohne Protokoll
+        // Der Rechtsklick samt Klickpunkt wird gemerkt, auch ohne Protokoll
         Minecraft client = Minecraft.getInstance();
-        if (client != null && client.player != null) {
-            clickPos = client.player.position();
-            clickKey = ParticleTracer.lastUseAt();
-        }
+        Click click = new Click(ParticleTracer.lastUseAt(), item, client != null && client.player != null ? client.player.position() : null);
+        lastClick = click;
+        Kind kind = deployableKind(item);
+        if (kind != null) clicks.put(kind, click);
         if (!DeployableLog.enabled()) return;
         DeployableLog.line("USE", "right-click with " + item + " (panel=" + FeatureGate.deployableHud() + ", skyblock=" + GameState.Server.isSkyblock() + ")");
     }
@@ -432,11 +445,11 @@ public final class DeployableCountdown {
      * Wie weit steht der Staender vom Klickpunkt? Ein Flare steigt senkrecht auf, zaehlt also am Boden; alles andere im Raum. Ohne Klickpunkt
      * (kein Rechtsklick mit einem Deployable gemerkt) der Abstand zu mir.
      */
-    private static double clickScore(ArmorStand stand, Reading reading, double distanceToMe) {
-        if (clickPos == null || clickKey != ParticleTracer.lastUseAt()) return distanceToMe;
-        double flat = Math.hypot(stand.getX() - clickPos.x, stand.getZ() - clickPos.z);
+    private static double clickScore(ArmorStand stand, Reading reading, double distanceToMe, Click click) {
+        if (click == null || click.pos() == null) return distanceToMe;
+        double flat = Math.hypot(stand.getX() - click.pos().x, stand.getZ() - click.pos().z);
         if (reading.kind() == Kind.FLARE) return flat;
-        return Math.sqrt(flat * flat + Math.pow(stand.getY() - clickPos.y, 2));
+        return Math.sqrt(flat * flat + Math.pow(stand.getY() - click.pos().y, 2));
     }
 
     /** Ein Staender gilt doch nicht als meiner (ein anderer passt besser zum Rechtsklick): Besitz und Zeitkasten zuruecknehmen */
@@ -523,8 +536,14 @@ public final class DeployableCountdown {
      * Item-Liste ein Deployable nicht kennt.
      */
     static boolean placedByMe(ArmorStand stand, Reading reading, Vec3 me, long now) {
-        long since = now - ParticleTracer.lastUseAt();
-        String item = ParticleTracer.lastUseItem();
+        // Der letzte Rechtsklick mit einem Deployable dieser Sorte, solange er im Fenster liegt - auch wenn danach mit der Angel oder dem
+        // Hyperion geklickt wurde. Gemessen: SOS Flare benutzt, 0,2 s spaeter ein Rechtsklick mit der Riesen-Angel, der Flare-Staender 1,5 s
+        // nach dem Schuss: "not mine - right-click with GIANT_FISHING_ROD", der Kasten blieb leer. Sonst der letzte Rechtsklick, womit auch immer
+        Click click = clicks.get(reading.kind());
+        if (click != null && (now - click.at() < 0 || now - click.at() > PLACE_WINDOW_MILLIS)) click = null;
+        long clickAt = click != null ? click.at() : ParticleTracer.lastUseAt();
+        long since = now - clickAt;
+        String item = click != null ? click.item() : ParticleTracer.lastUseItem();
         double distance = Math.sqrt(stand.distanceToSqr(me));
         boolean deployableItem = item != null && DEPLOYABLE_ITEM.matcher(item).find();
         boolean flareShot = deployableItem && reading.kind() == Kind.FLARE && item.contains("FLARE");
@@ -544,8 +563,8 @@ public final class DeployableCountdown {
         // anderen Spielers daneben. Beide galten als meine
         String contest = "";
         if (placed) {
-            long key = ParticleTracer.lastUseAt();
-            double score = clickScore(stand, reading, distance);
+            long key = clickAt;
+            double score = clickScore(stand, reading, distance, click);
             if (claimId >= 0 && claimId != stand.getId() && claimKey == key && claimKind == reading.kind()) {
                 if (score < claimScore - CLAIM_MARGIN) {
                     contest = String.format(Locale.ROOT, ", takes the right-click over from id %d (%.1f instead of %.1f blocks from where I clicked)",
@@ -573,10 +592,14 @@ public final class DeployableCountdown {
                     wrongKind ? " (the item makes " + itemKind + ", not " + reading.kind() + ")" : "", contest);
         }
         if (DeployableLog.enabled()) {
-            DeployableLog.line("OWNER", String.format(Locale.ROOT, "id=%d %s (%s): %s - right-click %s with %s, %.1f blocks away (%.1f on the ground, %+.1f up; deployable item: %s%s%s; window %d ms, range %.0f%s - or %d ms / %.1f when the item is not known)",
+            // Ein spaeterer Rechtsklick mit etwas anderem zaehlt nicht - das Protokoll sagt, dass es ihn gab
+            String later = click != null && ParticleTracer.lastUseAt() != click.at()
+                    ? String.format(Locale.ROOT, ", a later right-click with %s (%d ms ago) did not count", ParticleTracer.lastUseItem(), now - ParticleTracer.lastUseAt())
+                    : "";
+            DeployableLog.line("OWNER", String.format(Locale.ROOT, "id=%d %s (%s): %s - right-click %s with %s, %.1f blocks away (%.1f on the ground, %+.1f up; deployable item: %s%s%s%s; window %d ms, range %.0f%s - or %d ms / %.1f when the item is not known)",
                     stand.getId(), reading.name(), reading.kind(), placed ? "MINE" : "not mine",
-                    ParticleTracer.lastUseAt() == 0L ? "never" : since + " ms ago", item, distance, flat, up, deployableItem,
-                    wrongKind ? ", wrong kind: the item makes " + itemKind + ", this stand is " + reading.kind() : "", contest,
+                    clickAt == 0L ? "never" : since + " ms ago", item, distance, flat, up, deployableItem,
+                    wrongKind ? ", wrong kind: the item makes " + itemKind + ", this stand is " + reading.kind() : "", contest, later,
                     PLACE_WINDOW_MILLIS, PLACE_RANGE, flareShot ? " on the ground, up to " + (int) FLARE_SHOT_HEIGHT + " up (flare)" : "",
                     PLACE_STRICT_WINDOW_MILLIS, PLACE_STRICT_RANGE));
         }
