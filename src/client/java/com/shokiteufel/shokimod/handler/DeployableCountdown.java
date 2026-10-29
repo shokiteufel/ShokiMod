@@ -16,6 +16,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.decoration.ArmorStand;
+import net.minecraft.world.entity.projectile.FireworkRocketEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.ResolvableProfile;
@@ -158,6 +159,23 @@ public final class DeployableCountdown {
     private static final Map<Kind, Click> clicks = new EnumMap<>(Kind.class);
     /** Der juengste Rechtsklick mit einem Deployable, gleich welcher Sorte (fuer das Protokoll) */
     private static Click lastClick = null;
+
+    /**
+     * Ein Flare-Schuss, auf dessen Rakete ich noch warte. So erkennt Feesh den Flare: Rechtsklick mit einem Flare in der Hand, kurz danach
+     * eine neue Feuerwerksrakete in der Naehe - dann steht fest, dass einer aufgestellt wurde, ohne den Staender zu lesen, ohne Abstand
+     * zu raten, und egal, was danach noch geklickt wird. Die Raketen, die schon vor dem Klick da waren, zaehlen nicht.
+     */
+    private record Shot(long at, String name, Vec3 pos, Set<Integer> rocketsBefore) {
+    }
+
+    private static Shot pendingShot = null;
+    private static long lastShotAt = 0L;
+    /** So nah an mir (oder am Klickpunkt) muss die neue Rakete auftauchen (Feesh: 10 Bloecke) */
+    private static final double ROCKET_RANGE = 10.0;
+    /** So lange nach dem Rechtsklick wird auf die Rakete gewartet (Feesh sieht nach 0,5 s nach) */
+    private static final long ROCKET_WAIT_MILLIS = 2_000L;
+    /** Ein zweiter Flare-Klick so kurz danach zaehlt nicht als neuer Schuss (Feesh: "Prevent multiple clicks") */
+    private static final long SHOT_SPAM_MILLIS = 500L;
     /**
      * Wer fuer den letzten Rechtsklick den Zuschlag bekam. Ein Rechtsklick stellt hoechstens ein Deployable auf (man kann nur eines
      * seiner Sorte draussen haben): Erscheinen im Fenster zwei Staender derselben Sorte, ist nur der meiner, der naeher am Klickpunkt steht.
@@ -284,6 +302,8 @@ public final class DeployableCountdown {
         textsLogged.clear();
         clicks.clear();
         lastClick = null;
+        pendingShot = null;
+        lastShotAt = 0L;
         claimId = -1;
         claimKind = null;
         claimKey = 0L;
@@ -300,6 +320,7 @@ public final class DeployableCountdown {
     static void tick(Minecraft client, long now) {
         // Jeden Tick: neue Zahlen der Staender, die der Zeitkasten kennt - er soll gleichmaessig herunterlaufen
         DeployableTimers.tick(client, now);
+        if (pendingShot != null) checkShot(client, now);
         if (++ticks < SCAN_TICKS) return;
         ticks = 0;
         if (client.level == null || client.player == null) return;
@@ -437,8 +458,61 @@ public final class DeployableCountdown {
         lastClick = click;
         Kind kind = deployableKind(item);
         if (kind != null) clicks.put(kind, click);
+        if (kind == Kind.FLARE) startShot(item, click);
         if (!DeployableLog.enabled()) return;
         DeployableLog.line("USE", "right-click with " + item + " (panel=" + FeatureGate.deployableHud() + ", skyblock=" + GameState.Server.isSkyblock() + ")");
+    }
+
+    /** Der Name des Flares, den dieses Item schiesst - wie ihn auch der Staender traegt (siehe flareFromTexture) */
+    static String flareLabel(String item) {
+        String id = item == null ? "" : item.toUpperCase(Locale.ROOT);
+        if (id.contains("WARNING")) return "Warning Flare";
+        if (id.contains("ALERT")) return "Alert Flare";
+        return "SOS Flare";
+    }
+
+    /** Ein Rechtsklick mit einem Flare: merken, welche Raketen es schon gibt, und auf eine neue warten (siehe Shot) */
+    private static void startShot(String item, Click click) {
+        if (click.pos() == null || !FeatureGate.deployableHud() || !GameState.Server.isSkyblock()) return;
+        if (click.at() - lastShotAt < SHOT_SPAM_MILLIS) return;
+        Minecraft client = Minecraft.getInstance();
+        if (client == null || client.level == null) return;
+        Set<Integer> before = new HashSet<>();
+        for (Entity entity : client.level.entitiesForRendering()) {
+            if (entity instanceof FireworkRocketEntity) before.add(entity.getId());
+        }
+        lastShotAt = click.at();
+        pendingShot = new Shot(click.at(), flareLabel(item), click.pos(), before);
+    }
+
+    /** Jeden Tick, solange ein Schuss wartet: ist eine neue Rakete da, laeuft der Flare im Zeitkasten an, auch ohne Staender */
+    private static void checkShot(Minecraft client, long now) {
+        Shot shot = pendingShot;
+        if (shot == null) return;
+        if (client.level == null || client.player == null) {
+            pendingShot = null;
+            return;
+        }
+        Vec3 me = client.player.position();
+        for (Entity entity : client.level.entitiesForRendering()) {
+            if (!(entity instanceof FireworkRocketEntity) || shot.rocketsBefore().contains(entity.getId())) continue;
+            double distance = Math.min(entity.position().distanceTo(me), entity.position().distanceTo(shot.pos()));
+            if (distance > ROCKET_RANGE) continue;
+            pendingShot = null;
+            DeployableTimers.shot(shot.name(), shot.at(), shot.pos(), now);
+            if (DeployableLog.enabled()) {
+                DeployableLog.line("SHOT", String.format(Locale.ROOT, "%s: firework rocket id=%d %.1f blocks away, %d ms after the right-click - counts as my flare",
+                        shot.name(), entity.getId(), distance, now - shot.at()));
+            }
+            return;
+        }
+        if (now - shot.at() > ROCKET_WAIT_MILLIS) {
+            pendingShot = null;
+            if (DeployableLog.enabled()) {
+                DeployableLog.line("SHOT", String.format(Locale.ROOT, "%s: no new firework rocket within %.0f blocks in %d ms after the right-click - no flare counted",
+                        shot.name(), ROCKET_RANGE, ROCKET_WAIT_MILLIS));
+            }
+        }
     }
 
     /**
@@ -549,7 +623,17 @@ public final class DeployableCountdown {
         boolean flareShot = deployableItem && reading.kind() == Kind.FLARE && item.contains("FLARE");
         double flat = Math.hypot(stand.getX() - me.x, stand.getZ() - me.z);
         double up = stand.getY() - me.y;
-        boolean near = flareShot ? flat <= PLACE_RANGE && Math.abs(up) <= FLARE_SHOT_HEIGHT : distance <= PLACE_RANGE;
+        boolean nearMe = flareShot ? flat <= PLACE_RANGE && Math.abs(up) <= FLARE_SHOT_HEIGHT : distance <= PLACE_RANGE;
+        // Wer nach dem Schuss weitergeht oder sich mit dem Hyperion versetzt, steht beim Erscheinen des Staenders woanders: Er kann auch
+        // beim Klickpunkt stehen, und das reicht
+        boolean nearClick = false;
+        if (click != null && click.pos() != null) {
+            double clickFlat = Math.hypot(stand.getX() - click.pos().x, stand.getZ() - click.pos().z);
+            double clickUp = stand.getY() - click.pos().y;
+            nearClick = flareShot ? clickFlat <= PLACE_RANGE && Math.abs(clickUp) <= FLARE_SHOT_HEIGHT
+                    : Math.sqrt(clickFlat * clickFlat + clickUp * clickUp) <= PLACE_RANGE;
+        }
+        boolean near = nearMe || nearClick;
         // Ein Item stellt nur seine eigene Sorte auf. Wer einen SOS Flare schiesst, hat keine Laterne hingestellt, auch wenn
         // eine fremde gerade neben ihm erscheint (gemessen: Will-o'-wisp 1,2 s nach dem Flare, 6 Bloecke weit - fuer den Kasten
         // "nur meine" war das ein fremdes Deployable, das als meines galt). Gilt auch fuer den engen Weg ohne bekanntes Item
@@ -596,6 +680,7 @@ public final class DeployableCountdown {
             String later = click != null && ParticleTracer.lastUseAt() != click.at()
                     ? String.format(Locale.ROOT, ", a later right-click with %s (%d ms ago) did not count", ParticleTracer.lastUseItem(), now - ParticleTracer.lastUseAt())
                     : "";
+            if (nearClick && !nearMe) later += ", close to where I clicked, not to where I stand now";
             DeployableLog.line("OWNER", String.format(Locale.ROOT, "id=%d %s (%s): %s - right-click %s with %s, %.1f blocks away (%.1f on the ground, %+.1f up; deployable item: %s%s%s%s; window %d ms, range %.0f%s - or %d ms / %.1f when the item is not known)",
                     stand.getId(), reading.name(), reading.kind(), placed ? "MINE" : "not mine",
                     clickAt == 0L ? "never" : since + " ms ago", item, distance, flat, up, deployableItem,

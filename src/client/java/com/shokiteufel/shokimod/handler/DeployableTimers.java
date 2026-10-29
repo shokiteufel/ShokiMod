@@ -13,6 +13,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.decoration.ArmorStand;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -71,6 +72,8 @@ public final class DeployableTimers {
         /** Wann der Staender zum ersten Mal gesehen wurde - eine Chatzeile "previous ... removed" meint nie einen, der eben erst kam */
         long bornAt = 0L;
         double x, y, z;
+        /** Kein Staender dahinter: der Flare ist an seiner Rakete erkannt (siehe shot), die Zeit rechnet vom Schuss */
+        boolean standless = false;
 
         Timer(int id, Kind kind, String name) {
             this.id = id;
@@ -81,6 +84,11 @@ public final class DeployableTimers {
 
     /** Hoechstens so weit liegt ein neuer Staender vom alten entfernt, damit er als dessen Ersatz gilt (Bloecke) */
     private static final double RESPAWN_REACH = 2.0;
+
+    /** Die Rakete eines Flares steigt auf, bevor der Staender da ist (gemessen: Staender 1,3 bis 1,7 s nach dem Rechtsklick gesehen) */
+    private static final long ROCKET_RISE_MILLIS = 1_000L;
+    /** Nummern fuer Eintraege ohne Staender: negativ, damit sie nie mit einer Entity-Nummer zusammenfallen */
+    private static int standlessIds = 0;
 
     private static final Map<Integer, Timer> timers = new HashMap<>();
     /** Die Uhr des letzten Ticks - der Zeitkasten wird mit jedem neuen Tick neu gebaut (siehe SafariHud) */
@@ -99,6 +107,7 @@ public final class DeployableTimers {
 
     public static void reset() {
         timers.clear();
+        standlessIds = 0;
     }
 
     /** Wie viele Deployables der Zeitkasten kennt - gezeigt oder nicht */
@@ -178,6 +187,31 @@ public final class DeployableTimers {
         return t.mine;
     }
 
+    /**
+     * Ein Flare-Schuss, den die Rakete bestaetigt hat (siehe DeployableCountdown.Shot): ein eigener Eintrag ohne Staender, der drei Minuten
+     * vom Schuss an laeuft. Wird der Staender des Flares danach als meiner gelesen, loest er diesen Eintrag ab (dropOtherMine) und die Zeit
+     * folgt seinem Alter; wird er nie gelesen oder gilt er nicht als meiner, bleibt der Eintrag bis zum Ablauf - oder bis Hypixel schreibt,
+     * dass der Flare weg ist. Ein neuer Schuss ersetzt den alten, man kann nur einen Flare draussen haben.
+     */
+    static void shot(String name, long at, Vec3 pos, long now) {
+        int id = --standlessIds;
+        Timer t = new Timer(id, Kind.FLARE, name);
+        t.standless = true;
+        t.mine = true;
+        t.lost = true;
+        t.bornAt = now;
+        t.expiryAt = at + FLARE_TICKS * 50L + ROCKET_RISE_MILLIS;
+        t.x = pos.x;
+        t.y = pos.y;
+        t.z = pos.z;
+        dropOtherMine(Kind.FLARE, id, "a new shot of mine took its place");
+        timers.put(id, t);
+        if (DeployableLog.enabled()) {
+            DeployableLog.line("STAND", String.format(Locale.ROOT, "id=%d %s \"%s\" no stand, from the rocket: ends in %.1f s, counts as mine",
+                    id, t.kind, name, (t.expiryAt - now) / 1000.0));
+        }
+    }
+
     /** Ein Staender gilt doch nicht als meiner (siehe DeployableCountdown.placedByMe): bleibt im Kasten nur im Modus "alle in der Naehe" */
     static void revoke(int id) {
         Timer t = timers.get(id);
@@ -237,13 +271,14 @@ public final class DeployableTimers {
 
         for (Iterator<Timer> it = timers.values().iterator(); it.hasNext(); ) {
             Timer t = it.next();
-            Entity entity = client.level.getEntity(t.id);
+            Entity entity = t.standless ? null : client.level.getEntity(t.id);
+            if (t.standless) t.distance = Math.sqrt(client.player.distanceToSqr(t.x, t.y, t.z));
             if (entity instanceof ArmorStand stand && !stand.isRemoved()) {
                 t.lost = false;
                 t.distance = Math.sqrt(stand.distanceToSqr(client.player));
                 refresh(t, stand, now);
             } else {
-                if (!t.lost && DeployableLog.enabled()) {
+                if (!t.lost && !t.standless && DeployableLog.enabled()) {
                     DeployableLog.line("GONE", String.format(Locale.ROOT, "id=%d %s \"%s\": stand no longer there, %s, %.1f s left by my count",
                             t.id, t.kind, t.name, t.mine ? "mine - keeps counting" : "not mine - dropped", (t.expiryAt - now) / 1000.0));
                 }
