@@ -102,19 +102,42 @@ public final class ItemIcons {
     /** Ein Bild fuer die Kennung - immer eines, notfalls ein Ersatz */
     public static ItemStack stackFor(String itemId) {
         if (itemId == null || itemId.isBlank()) return new ItemStack(Items.NETHER_STAR);
+        itemId = inventoryId(itemId);
 
         ItemStack cached = cache.get(itemId);
         if (cached != null) return cached.copy();
 
         ItemStack built = build(itemId);
         // Erst merken, wenn die Quelle da war - sonst bliebe der Ersatz fuer immer
-        boolean settled = itemId.startsWith("SHARD_")
+        if (settledFor(itemId)) cache.put(itemId, built.copy());
+        return built;
+    }
+
+    /**
+     * Ob das Bild zu dieser Kennung endgueltig ist - oder noch ein Ersatz, der durch ein besseres abgeloest werden kann (der Kopf eines
+     * Pets kommt aus dem Netz und ist beim ersten Fund noch nicht da).
+     */
+    public static boolean isSettled(String itemId) {
+        return itemId == null || itemId.isBlank() || settledFor(inventoryId(itemId));
+    }
+
+    private static boolean settledFor(String itemId) {
+        return itemId.startsWith("SHARD_")
                 ? ShardIcons.texture(itemId) != null
                 : PetHeads.isPet(itemId)
                 ? !PetIcons.iconFor(PetHeads.nameOf(itemId)).isEmpty() || PetHeads.settled(itemId)
                 : !modelIndex.isEmpty() && ItemNames.FEED.ready();
-        if (settled) cache.put(itemId, built.copy());
-        return built;
+    }
+
+    /**
+     * Die Kennung, unter der das Item im Inventar liegt.
+     *
+     * Der Rare-Loot-Alarm reicht die Kennung weiter, unter der er den Preis fand - bei einem Pet die Auktionskennung
+     * (LVL_1_COMMON_BABY_YETI). Fuer das Bild ist das Pet BABY_YETI;0.
+     */
+    private static String inventoryId(String itemId) {
+        String pet = SkyBlockItems.petIdOfAuctionKey(itemId);
+        return pet == null ? itemId : pet;
     }
 
     private static ItemStack build(String itemId) {

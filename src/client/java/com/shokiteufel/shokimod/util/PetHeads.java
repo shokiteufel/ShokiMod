@@ -43,6 +43,9 @@ public final class PetHeads {
     private static final Map<String, String> textures = new ConcurrentHashMap<>();
     private static final Set<String> loading = ConcurrentHashMap.newKeySet();
     private static final Set<String> missing = ConcurrentHashMap.newKeySet();
+    /** Pet -> frueheste Zeit fuer den naechsten Versuch, nachdem das Netz versagt hat (kein Fund, aber auch kein "gibt es nicht") */
+    private static final Map<String, Long> retryAt = new ConcurrentHashMap<>();
+    private static final long RETRY_MILLIS = 30_000L;
 
     private PetHeads() {
     }
@@ -74,6 +77,8 @@ public final class PetHeads {
         String cached = textures.get(petId);
         if (cached != null) return cached;
         if (missing.contains(petId)) return null;
+        Long again = retryAt.get(petId);
+        if (again != null && System.currentTimeMillis() < again) return null;
 
         String fromDisk = readDisk(petId);
         if (fromDisk != null) {
@@ -108,16 +113,27 @@ public final class PetHeads {
             for (int t = 0; t < 6; t++) {
                 if (t != tier) order[n++] = t;
             }
+            boolean networkFailed = false;
             for (int t : order) {
-                String texture = fetchOne(client, name + ";" + t);
+                boolean[] failed = new boolean[1];
+                String texture = fetchOne(client, name + ";" + t, failed);
                 if (texture != null) {
                     textures.put(petId, texture);
+                    retryAt.remove(petId);
                     writeDisk(petId, texture);
                     return;
                 }
+                networkFailed |= failed[0];
             }
-            ShokiMod.LOGGER.warn("[ShokiMod] No head texture found for pet {}", petId);
-            missing.add(petId);
+            if (networkFailed) {
+                // Das Netz hat versagt (bei manchen Spielern bricht der Handschlag mit GitHub ab): Das ist keine Antwort. Als "gibt es
+                // nicht" gemerkt bliebe das Pet bis zum Neustart ohne Bild
+                retryAt.put(petId, System.currentTimeMillis() + RETRY_MILLIS);
+                ShokiMod.LOGGER.warn("[ShokiMod] Pet head {} not loaded (network), trying again in {} s", petId, RETRY_MILLIS / 1000L);
+            } else {
+                ShokiMod.LOGGER.warn("[ShokiMod] No head texture found for pet {}", petId);
+                missing.add(petId);
+            }
         } catch (RuntimeException e) {
             ShokiMod.LOGGER.warn("[ShokiMod] Could not load pet head {}: {}", petId, e.toString());
         } catch (InterruptedException e) {
@@ -127,17 +143,23 @@ public final class PetHeads {
         }
     }
 
-    private static String fetchOne(HttpClient client, String file) throws InterruptedException {
+    /** @param failed wird wahr, wenn die Antwort am Netz scheiterte statt daran, dass es die Datei nicht gibt */
+    private static String fetchOne(HttpClient client, String file, boolean[] failed) throws InterruptedException {
         try {
             HttpRequest request = HttpRequest.newBuilder(URI.create(REPO + file.replace(";", "%3B") + ".json"))
                     .header("User-Agent", "ShokiMod").timeout(TIMEOUT).GET().build();
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() != 200) return null;
+            if (response.statusCode() == 404) return null;
+            if (response.statusCode() != 200) {
+                failed[0] = true;
+                return null;
+            }
             JsonObject item = GSON.fromJson(response.body(), JsonObject.class);
             String nbt = item != null && item.has("nbttag") ? item.get("nbttag").getAsString() : "";
             Matcher matcher = TEXTURE_VALUE.matcher(nbt);
             return matcher.find() ? matcher.group(1) : null;
         } catch (IOException | RuntimeException e) {
+            failed[0] = true;
             return null;
         }
     }
