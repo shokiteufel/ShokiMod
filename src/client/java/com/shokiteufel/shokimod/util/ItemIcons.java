@@ -125,7 +125,7 @@ public final class ItemIcons {
         return itemId.startsWith("SHARD_")
                 ? ShardIcons.texture(itemId) != null
                 : PetHeads.isPet(itemId)
-                ? !PetIcons.iconFor(PetHeads.nameOf(itemId)).isEmpty() || PetHeads.settled(itemId)
+                ? PetHeads.settled(itemId)
                 : !modelIndex.isEmpty() && ItemNames.FEED.ready();
     }
 
@@ -141,11 +141,10 @@ public final class ItemIcons {
     }
 
     private static ItemStack build(String itemId) {
-        // Ein Pet im Inventar: erst das Bild, das aus dem Pet-Menue bekannt ist, sonst der
-        // Kopf aus dem NEU-Repo. Ohne beides bleibt es beim Ersatzbild, bis die Textur da ist
+        // Ein Pet als Fund: ein neues Pet, das mit dem Pet-Menue nichts zu tun hat. Sein Bild ist der Kopf aus dem NEU-Repo, so wie
+        // das Pet ohne Skin aussieht - nicht das Bild eines gleichnamigen Pets des Spielers (das kann einen Skin tragen). Bis die
+        // Textur da ist, bleibt es beim Ersatzbild
         if (PetHeads.isPet(itemId)) {
-            ItemStack seen = PetIcons.iconFor(PetHeads.nameOf(itemId));
-            if (!seen.isEmpty()) return seen.copy();
             String texture = PetHeads.texture(itemId);
             if (texture == null) return fallback(itemId);
             ItemStack head = new ItemStack(Items.PLAYER_HEAD);
