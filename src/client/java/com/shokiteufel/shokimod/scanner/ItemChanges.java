@@ -1201,7 +1201,7 @@ public final class ItemChanges {
         Map<String, Integer> gains = new LinkedHashMap<>();
         gains.put(echt, amount);
         ShokiMod.LOGGER.info("[Profit] corpse loot: {} x{} - counted from the chat line, the sack message will not count it again", echt, amount);
-        dispatch(gains, "corpse loot");
+        dispatch(gains, CORPSE_LOOT);
     }
 
     /**
@@ -1607,7 +1607,29 @@ public final class ItemChanges {
     private static final long KAT_MILLIS = 45_000L;
     private static long katUntil = 0L;
 
+    /** Die Quelle der Beute einer Leiche (siehe bookCorpseDrop) */
+    private static final String CORPSE_LOOT = "corpse loot";
+
+    /**
+     * Ein Umber- oder Tungsten-Schluessel ist kein Fund.
+     *
+     * Er wird in der Forge gebaut, geholt und in die Saecke gepackt - und das Einpacken meldet Hypixel als "+" in der Sack-Meldung, das
+     * Holen laesst ihn im Inventar auftauchen. Beides sah aus wie Beute und stand im Kasten im Plus. Ein Schluessel kostet erst, wenn er an
+     * einer Leiche verbraucht wird (CorpseKeyCost, im Minus), und kommt nur dann als Gewinn dazu, wenn die Leiche ihn selbst in ihrer Beute
+     * hat ("corpse loot"). Der Skeleton Key gehoert nicht dazu: Er war nicht gemeint.
+     */
+    private static boolean isForgedKey(String itemId) {
+        return "UMBER_KEY".equals(itemId) || "TUNGSTEN_KEY".equals(itemId);
+    }
+
     private static void dispatch(Map<String, Integer> gains, String source) {
+        if (!CORPSE_LOOT.equals(source) && (gains.containsKey("UMBER_KEY") || gains.containsKey("TUNGSTEN_KEY"))) {
+            // Die Karte gehoert dem Aufrufer, und manche sind nicht aenderbar: erst kopieren
+            gains = new LinkedHashMap<>(gains);
+            gains.keySet().removeIf(ItemChanges::isForgedKey);
+            ShokiMod.LOGGER.info("[Profit] Umber/Tungsten key via {} - not a find, not counted (only a corpse's own loot counts it)", source);
+            if (gains.isEmpty()) return;
+        }
         if (System.currentTimeMillis() < katUntil
                 && gains.keySet().removeIf(com.shokiteufel.shokimod.util.PetHeads::isPet)) {
             ShokiMod.LOGGER.info("[Profit] pet picked up from Kat - not a find");
