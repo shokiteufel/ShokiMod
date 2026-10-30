@@ -314,6 +314,9 @@ public class ModConfig extends Config {
         INSTANCE.deployables.hud.maxRows = Math.max(1, Math.min(10, INSTANCE.deployables.hud.maxRows));
         INSTANCE.deployables.hud.ringOpacity = Math.max(10, Math.min(100, INSTANCE.deployables.hud.ringOpacity));
         if (INSTANCE.deployables.hud.ringColour == null) INSTANCE.deployables.hud.ringColour = ColourText.ofRgb(0x55FF55);
+        if (INSTANCE.deployables.hud.ringColourOutside == null) INSTANCE.deployables.hud.ringColourOutside = ColourText.ofRgb(0xFFFFFF);
+        // Eine Config von vor 2.1.17 kennt die Form noch nicht
+        if (INSTANCE.deployables.hud.ringShape == null) INSTANCE.deployables.hud.ringShape = RingShape.SPHERE;
         // Bis 1.15.17 war die Umberella ein Haken im Hauptreiter: wer den Alarm an hatte und sie nicht
         // abgewaehlt hatte, behaelt ihn jetzt in ihrem eigenen Reiter
         if (INSTANCE.deployables.umberella != null) {
@@ -2385,6 +2388,23 @@ public class ModConfig extends Config {
         }
     }
 
+    /** Wie die Reichweite eines Deployables gezeichnet wird */
+    public enum RingShape {
+        SPHERE("Sphere"),
+        RING("Flat ring");
+
+        private final String label;
+
+        RingShape(String label) {
+            this.label = label;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
+    }
+
     /**
      * Der Zeitkasten der Deployables: wie lange die eigenen - oder alle in der Naehe - noch halten. Die Zeit laeuft gleichmaessig herunter
      * (siehe DeployableTimers), nicht in den Spruengen, in denen Hypixel den Namen des Staenders aendert.
@@ -2425,21 +2445,39 @@ public class ModConfig extends Config {
         @ConfigEditorBoolean
         public boolean tenths = true;
 
-        @ConfigOption(name = "Range ring", desc = "A ring on the ground that shows how far a deployable reaches.")
+        @ConfigOption(name = "Range ring", desc = "A sphere or ring that shows how far a deployable reaches.")
         @ConfigEditorAccordion(id = 99)
         public transient boolean ringFolder = false;
 
         @Expose
-        @ConfigOption(name = "Show range ring", desc = "Draws the reach of a deployable as a ring around it - only the rim, nothing filled: 30 blocks for a lantern and the Umberella, 40 for a flare, 20 for a Black Hole, 18 for a Power Orb (Plasmaflux 20). It follows \"Which\" above: yours, or all nearby. Not in a Glacite Mineshaft: a lantern works for the whole shaft there and only the time matters. Works without the time panel.")
+        @ConfigOption(name = "Show range ring", desc = "Draws the reach of a deployable around it - as a sphere, like the lootshare range some fishing mods show, or as a flat ring. Only the rim by default, nothing filled: 30 blocks for a lantern and the Umberella, 40 for a flare, 20 for a Black Hole, 18 for a Power Orb (Plasmaflux 20). It follows \"Which\" above: yours, or all nearby. Not in a Glacite Mineshaft: a lantern works for the whole shaft there and only the time matters. Works without the time panel.")
         @ConfigEditorBoolean
         @ConfigAccordionId(id = 99)
         public boolean rangeRing = false;
 
         @Expose
-        @ConfigOption(name = "Ring colour", desc = "Colour of the ring. Click the colour to pick one. The opacity is set below; the picker's own opacity slider changes nothing here.")
+        @ConfigOption(name = "Shape", desc = "Sphere: a ball around the deployable with its reach as the radius. Flat ring: only the circle, at the height of the deployable.")
+        @ConfigEditorDropdown
+        @ConfigAccordionId(id = 99)
+        public RingShape ringShape = RingShape.SPHERE;
+
+        @Expose
+        @ConfigOption(name = "Filled", desc = "Sphere only: also tints the ball when you look at it from outside, about a fifth as solid as the rim. From inside you see only the rim, so the screen is never tinted. Off: only the rim.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 99)
+        public boolean ringFilled = false;
+
+        @Expose
+        @ConfigOption(name = "Ring colour", desc = "Colour while you are within reach. Click the colour to pick one. The opacity is set below; the picker's own opacity slider changes nothing here.")
         @ConfigEditorColour
         @ConfigAccordionId(id = 99)
         public String ringColour = ColourText.ofRgb(0x55FF55);
+
+        @Expose
+        @ConfigOption(name = "Colour out of reach", desc = "Colour while you are outside the reach, so you see at a glance whether it reaches you. Same colour as above: no change.")
+        @ConfigEditorColour
+        @ConfigAccordionId(id = 99)
+        public String ringColourOutside = ColourText.ofRgb(0xFFFFFF);
 
         @Expose
         @ConfigOption(name = "Ring opacity", desc = "How solid the ring is, in percent. The rings of other players' deployables are drawn at half of it.")
@@ -2448,7 +2486,7 @@ public class ModConfig extends Config {
         public int ringOpacity = 80;
 
         @Expose
-        @ConfigOption(name = "Ring through walls", desc = "Draws the ring through blocks and walls, so the whole circle shows even where the ground rises in front of it. Off: what lies behind terrain is hidden.")
+        @ConfigOption(name = "Ring through walls", desc = "Draws the sphere or ring through blocks and walls, so the whole shape shows even where the ground rises in front of it. Off: what lies behind terrain is hidden.")
         @ConfigEditorBoolean
         @ConfigAccordionId(id = 99)
         public boolean ringThroughWalls = true;
