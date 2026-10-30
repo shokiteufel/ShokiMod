@@ -5,10 +5,12 @@ import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.data.ModConfig.ParticlesCategory.HideMode;
 import com.shokiteufel.shokimod.util.SkyBlockItems;
 
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Player;
@@ -53,6 +55,12 @@ public final class ParticleHider {
     /** Wie weit ein Farbkanal (0 bis 255) abweichen darf - Rundung auf dem Weg, kein anderes Farbspiel */
     private static final int COLOUR_TOLERANCE = 3;
     private static final double SPEED_TOLERANCE = 0.011;
+    /** So viele Fehler innerhalb einer Sekunde, dann ruht das Ausblenden kurz, statt bei jedem Paket einen Fehler zu bauen */
+    private static final int FAILURES_BEFORE_PAUSE = 20;
+    private static final long FAILURE_WINDOW_MILLIS = 1_000L;
+    private static final long PAUSE_MILLIS = 10_000L;
+    /** So viele Fehler werden mit ihrer ganzen Spur ins Log geschrieben, danach nur noch die Pausen */
+    private static final int FAILURES_LOGGED_IN_FULL = 3;
 
     /**
      * Wie ein Partikel aussieht: Art, Anzahl, Tempo und - bei Staub - die Farbe als 0xRRGGBB (sonst -1).
@@ -117,6 +125,13 @@ public final class ParticleHider {
             new Rule("Hyperion", c -> c.hyperionMode, Source.HELD,
                     List.of("HYPERION", "ASTRAEA", "SCYLLA", "VALKYRIE"), 16.0,
                     List.of(Look.of("explosion", 8, 8.0), Look.of("witch", 1, 0.0))));
+
+    /** Fehler im laufenden Sekundenfenster, das beim ersten Fehler beginnt */
+    private static int failures = 0;
+    private static long windowStart = 0L;
+    private static int failuresTotal = 0;
+    private static long pausedUntil = 0L;
+    private static boolean failureTold = false;
 
     private ParticleHider() {
     }
@@ -204,6 +219,11 @@ public final class ParticleHider {
         if (client.player == null || client.level == null || !client.isSameThread()) return Action.NONE;
         // Eine Markierung vom vorigen Paket darf nicht stehen bleiben
         ParticleForce.disarm();
+        // Nach einer Fehlerserie ruht das Ausblenden ein paar Sekunden - die Einstellung des Spielers bleibt dabei, wie sie ist
+        if (pausedUntil != 0L) {
+            if (System.currentTimeMillis() < pausedUntil) return Action.NONE;
+            pausedUntil = 0L;
+        }
         // Ein Schalter fuer die Optik darf das Spiel nie selbst zum Absturz bringen
         try {
             if (!ParticlePacketView.overrideLimiter(packet)) return Action.NONE;
@@ -225,13 +245,44 @@ public final class ParticleHider {
             }
             return Action.NONE;
         } catch (RuntimeException | LinkageError e) {
-            cfg.flayMode = HideMode.SHOW;
-            cfg.divanMode = HideMode.SHOW;
-            cfg.spadeMode = HideMode.SHOW;
-            cfg.hyperionMode = HideMode.SHOW;
-            ShokiMod.LOGGER.warn("[Particles] hiding switched itself off after an error", e);
+            failed(e);
             return Action.NONE;
         }
+    }
+
+    /**
+     * Ein Fehler beim Pruefen eines Pakets: dieses eine Paket geht unberuehrt durch.
+     *
+     * Bis 2.1.15 stellte das alle vier Schalter auf "Show" und speicherte das mit - der Spieler sah seine Wahl ploetzlich verschwunden
+     * (gemeldet: nach einem Warp stand dort wieder "Show"). Jetzt bleiben die Schalter, wie der Spieler sie gestellt hat; eine Serie
+     * von Fehlern (zwanzig in einer Sekunde) legt das Ausblenden nur fuer ein paar Sekunden still. Der Fehler steht im Log, und einmal je Start auch im Chat,
+     * damit man ihn ohne Log-Datei melden kann.
+     */
+    private static void failed(Throwable e) {
+        long now = System.currentTimeMillis();
+        if (now - windowStart > FAILURE_WINDOW_MILLIS) {
+            windowStart = now;
+            failures = 0;
+        }
+        failuresTotal++;
+        if (failuresTotal <= FAILURES_LOGGED_IN_FULL) {
+            ShokiMod.LOGGER.warn("[Particles] checking a particle packet failed ({} so far) - this packet is left alone, your settings stay", failuresTotal, e);
+        }
+        if (++failures >= FAILURES_BEFORE_PAUSE) {
+            failures = 0;
+            pausedUntil = now + PAUSE_MILLIS;
+            ShokiMod.LOGGER.warn("[Particles] {} failures within a second - hiding rests for {} s, your settings stay", FAILURES_BEFORE_PAUSE, PAUSE_MILLIS / 1000L);
+        }
+        if (failureTold) return;
+        failureTold = true;
+        Minecraft client = Minecraft.getInstance();
+        Component line = Component.literal("[ShokiMod] ").withStyle(ChatFormatting.DARK_AQUA)
+                .append(Component.literal("Particle hiding hit an error (" + e.getClass().getSimpleName()
+                        + ") and left one particle alone. Your settings are unchanged. Details: latest.log, line \"[Particles] checking a particle packet failed\".")
+                        .withStyle(ChatFormatting.GRAY));
+        client.execute(() -> {
+            if (client.player != null) client.player.sendSystemMessage(line);
+        });
     }
 
     /**
