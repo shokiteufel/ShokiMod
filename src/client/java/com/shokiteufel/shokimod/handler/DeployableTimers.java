@@ -7,6 +7,7 @@ import com.shokiteufel.shokimod.data.ModConfig.DeployableHudCategory;
 import com.shokiteufel.shokimod.handler.DeployableCountdown.Reading;
 import com.shokiteufel.shokimod.handler.DeployableReminder.Ending;
 import com.shokiteufel.shokimod.handler.DeployableReminder.Kind;
+import com.shokiteufel.shokimod.scanner.MiningState;
 import com.shokiteufel.shokimod.util.DeployableLog;
 
 import net.minecraft.client.Minecraft;
@@ -380,9 +381,11 @@ public final class DeployableTimers {
         List<Row> out = new ArrayList<>();
         if (c == null || !c.enabled) return out;
         boolean own = c.mode == ModConfig.DeployableHudMode.OWN;
+        // Im Mineshaft zaehlt die Reichweite nicht: Die Laterne wirkt dort fuer den ganzen Schacht, und wichtig ist nur noch die Zeit
+        boolean shaft = MiningState.inShaft();
         for (Timer t : timers.values()) {
             if (own ? !t.mine : (!t.mine && t.distance > c.nearbyRange)) continue;
-            if (c.onlyInRange && !t.inRange) continue;
+            if (c.onlyInRange && !t.inRange && !shaft) continue;
             long left = t.expiryAt - now;
             if (left < -200L) continue;
             out.add(new Row(t.name, Math.max(0L, left), t.mine, t.distance));

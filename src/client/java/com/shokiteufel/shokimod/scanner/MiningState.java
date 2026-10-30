@@ -463,8 +463,13 @@ public final class MiningState {
         usedInShaft = false;
     }
 
-    /** Steht man in einem Glacite Mineshaft? Das Gebiet kommt aus der Tab-Liste, der Schacht aus der Seitenleiste */
-    private static boolean inShaft() {
+    /**
+     * Steht man in einem Glacite Mineshaft? Das Gebiet kommt aus der Tab-Liste, der Schacht aus der Seitenleiste.
+     *
+     * Oeffentlich, weil auch der Zeitkasten der Deployables es wissen muss: Die Seitenleiste wird nur gelesen, wenn eine
+     * Schacht-Funktion an ist, das Gebiet aus der Tab-Liste dagegen immer - darum zaehlt hier beides.
+     */
+    public static boolean inShaft() {
         return ModConstants.MAP_GLACITE_MINESHAFTS.equals(GameState.Server.map) || MineshaftState.inMineshaft();
     }
 
