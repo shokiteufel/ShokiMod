@@ -104,6 +104,19 @@ public final class ItemChanges {
     private static final Pattern SACK_LINE = Pattern.compile("^([+-])\\s*([\\d,.]+)\\s+(.+?)\\s*\\(");
     private static final String SACK_MARKER = "[Sacks]";
     /**
+     * "UMBER CORPSE LOOT!" - die Ueberschrift der Beute, die eine Leiche im Schacht ausschuettet.
+     *
+     * Die Sorte steht davor (Lapis, Tungsten, Umber, Vanguard) und bleibt offen: Welche es noch gibt, weiss heute niemand. Nur Grossbuchstaben
+     * am Zeilenanfang - ein Spieler, der das Wort in den Chat schreibt, steht dort mit Rang und Namen davor.
+     */
+    private static final Pattern CORPSE_START = Pattern.compile("^[A-Z]{3,12} CORPSE LOOT!?$");
+    /** So lange nach der Ueberschrift gelten die Zeilen noch als Beute der Leiche - sie kommen alle im selben Augenblick */
+    private static final long CORPSE_MILLIS = 5_000L;
+    /** Mehr Zeilen als das hat keine Leiche; wer darueber kommt, ist schon nicht mehr bei der Beute */
+    private static final int CORPSE_MAX_LINES = 40;
+    private static long corpseUntil = 0L;
+    private static int corpseLines = 0;
+    /**
      * "You received 32x Enchanted Sunflower for killing a Lunar Moth!"
      *
      * Die Zeile sagt nicht, was alles kommt - sie sagt, dass der Server gerade Beute
@@ -1038,6 +1051,8 @@ public final class ItemChanges {
         if (fromSacks(plain)) return;
         // Ein gemeldeter Fund ist sicher gefallen - gemerkt, falls der Vergleich ihn verpasst
         noteDropLine(plain);
+        // Die Beute einer Leiche zaehlt, sobald sie im Chat steht - nicht erst mit der Sack-Meldung, die nie kommt, wenn man vorher den Schacht verlaesst
+        if (corpseLoot(plain)) return;
 
         // Ein Loadout-Wechsel legt eine ganze Ruestung um - das ist kein Fund
         if (EQUIPPED.matcher(plain.trim()).matches()) {
@@ -1113,6 +1128,80 @@ public final class ItemChanges {
         // im Log vom 25.09. um 13:59:37 zwei Lunar-Moth-Shards, die der Fund-Alarm
         // gemeldet hat und der Kasten nie zu sehen bekam
         shards(formatted, plain);
+    }
+
+    /**
+     * Die Beute einer Leiche, Zeile fuer Zeile aus dem Chat.
+     *
+     * "UMBER CORPSE LOOT!", darunter "REWARDS" und je Ware eine Zeile ("Fine Onyx Gemstone x4"), zum Schluss der Strich. Das meiste davon faellt
+     * in die Saecke, und deren Sammelmeldung kommt erst bis zu dreissig Sekunden spaeter - wer die Leiche pluendert und gleich danach den Schacht
+     * verlaesst, bekommt sie nie, und die Beute fehlte im Kasten. Deshalb wird hier gebucht, was im Chat steht, und als schon gebucht vorgemerkt:
+     * Kommt die Sack-Meldung doch noch, rechnet sie die Menge dagegen auf und zaehlt sie kein zweites Mal.
+     *
+     * Jede Zeile fuer sich und sofort, nicht erst beim Strich am Ende: Kaeme der nie an, gaeben die Zeilen davor trotzdem schon ihre Ware her.
+     *
+     * @return ob die Zeile zur Beute der Leiche gehoerte
+     */
+    private static boolean corpseLoot(String plain) {
+        String clean = plain.trim();
+        long now = System.currentTimeMillis();
+
+        if (CORPSE_START.matcher(clean).matches()) {
+            corpseUntil = now + CORPSE_MILLIS;
+            corpseLines = 0;
+            return true;
+        }
+        if (corpseUntil == 0L) return false;
+
+        // Zu Ende: der Strich, die Zeit oder die Zeilenzahl. Die Zeile selbst gehoert dann nicht mehr dazu
+        if (now > corpseUntil || RareLootParser.isBundleEnd(clean) || ++corpseLines > CORPSE_MAX_LINES) {
+            corpseUntil = 0L;
+            corpseLines = 0;
+            return false;
+        }
+        for (int i = 0; i < FOREIGN_PREFIXES.length; i++) {
+            if (clean.startsWith(FOREIGN_PREFIXES[i])) return false;
+        }
+
+        Drop drop = RareLootParser.parseBundleLine(clean);
+        // Ueberschrift ("REWARDS", "+1 bonus drop!") oder Leerzeile: die Beute laeuft weiter
+        if (drop == null) return true;
+
+        bookCorpseDrop(drop, now);
+        return true;
+    }
+
+    /** Eine Ware aus der Beute einer Leiche buchen und gegen Inventar und Sack-Meldung vormerken */
+    private static void bookCorpseDrop(Drop drop, long now) {
+        int amount = drop.amount();
+        String name = drop.displayName();
+        if (amount <= 0 || name == null || name.isBlank()) return;
+
+        // Powder ist eine Waehrung, kein Gegenstand: Sie hat keinen Preis, liegt in keinem Sack und stand nie im Kasten
+        if (name.endsWith(" Powder")) return;
+
+        List<String> ids = com.shokiteufel.shokimod.handler.RareLootHandler.candidatesFor(drop);
+        if (ids.isEmpty()) {
+            ShokiMod.LOGGER.info("[Profit] corpse loot: no id for \"{}\" x{} - not counted", name, amount);
+            return;
+        }
+        // Die Preise werden gleich gebraucht, um die richtige Kennung zu waehlen
+        ItemValue.prefetch();
+        String echt = realId(ids);
+        // Eine Zeile, die nur so aussieht, darf nichts buchen: die Kennung muss es wirklich geben
+        if (ItemNames.displayName(echt) == null && ItemValue.BAZAAR.get(echt) == null) {
+            ShokiMod.LOGGER.info("[Profit] corpse loot: \"{}\" x{} is no known item ({}) - not counted", name, amount, echt);
+            return;
+        }
+
+        // Unter jeder Kennung, die gemeint sein kann: Die Sack-Meldung nennt die Ware mit ihrem Namen und waehlt die Kennung selbst,
+        // das Inventar mit der aus dem Stapel
+        for (String id : ids) losses.add(new Loss(id, amount, now, false));
+
+        Map<String, Integer> gains = new LinkedHashMap<>();
+        gains.put(echt, amount);
+        ShokiMod.LOGGER.info("[Profit] corpse loot: {} x{} - counted from the chat line, the sack message will not count it again", echt, amount);
+        dispatch(gains, "corpse loot");
     }
 
     /**
@@ -1660,5 +1749,7 @@ public final class ItemChanges {
         held.clear();
         worn.clear();
         confirmed.clear();
+        corpseUntil = 0L;
+        corpseLines = 0;
     }
 }
