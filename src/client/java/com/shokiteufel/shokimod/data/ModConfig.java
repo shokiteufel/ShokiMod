@@ -2404,7 +2404,7 @@ public class ModConfig extends Config {
         public DeployableHudMode mode = DeployableHudMode.OWN;
 
         @Expose
-        @ConfigOption(name = "Only in range", desc = "A deployable is listed only while its effect reaches you: 30 blocks for a lantern and the Umberella, 40 for a flare, 20 for a Black Hole, 18 for a Power Orb (Plasmaflux 20). When you walk further away it leaves the panel and comes back when you are close again - its time keeps running meanwhile. Off: yours stay listed wherever you are.")
+        @ConfigOption(name = "Only in range", desc = "A deployable is listed only while its effect reaches you: 30 blocks for a lantern and the Umberella, 40 for a flare, 20 for a Black Hole, 18 for a Power Orb (Plasmaflux 20). When you walk further away it leaves the panel and comes back when you are close again - its time keeps running meanwhile. Not in a Glacite Mineshaft: a lantern works for the whole shaft there, so the row stays wherever you are and only the time counts. Off: yours stay listed wherever you are.")
         @ConfigEditorBoolean
         public boolean onlyInRange = true;
 
