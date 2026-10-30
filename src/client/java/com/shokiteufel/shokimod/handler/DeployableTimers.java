@@ -52,6 +52,8 @@ public final class DeployableTimers {
     private static final long HALF_SECOND = 500L;
     /** So lange bleibt ein abgelaufenes oder verschwundenes Deployable in der Liste, bevor es ausgetragen wird */
     private static final long GRACE_MILLIS = 1_500L;
+    /** So viel naeher als die Reichweite muss man wieder sein, damit die Zeile zurueckkommt - sonst flackert sie an der Grenze */
+    private static final double REACH_SLACK = 1.0;
     private static final Pattern COLOUR_CODE = Pattern.compile("§[0-9a-fk-or]");
 
     /** Eine Zeile des Zeitkastens */
@@ -74,6 +76,10 @@ public final class DeployableTimers {
         double x, y, z;
         /** Kein Staender dahinter: der Flare ist an seiner Rakete erkannt (siehe shot), die Zeit rechnet vom Schuss */
         boolean standless = false;
+        /** Wie weit das Deployable wirkt (Bloecke); 0: unbekannt, dann gilt es als in Reichweite */
+        double range = 0.0;
+        /** Reicht es gerade bis zu mir? Mit einem Block Spiel an der Grenze (siehe reach) */
+        boolean inRange = true;
 
         Timer(int id, Kind kind, String name) {
             this.id = id;
@@ -178,6 +184,8 @@ public final class DeployableTimers {
         // Wer einmal meiner war, bleibt es: owned() kennt einen Ersatzstaender nicht, und beim naechsten Durchgang soll er nicht wieder fremd sein
         t.mine |= mine;
         t.distance = distance;
+        t.range = reading.range();
+        reach(t);
         t.lost = false;
         if (reading.kind() == Kind.FLARE) {
             t.expiryAt = now + Math.max(0, FLARE_TICKS - stand.tickCount) * 50L;
@@ -204,6 +212,7 @@ public final class DeployableTimers {
         t.x = pos.x;
         t.y = pos.y;
         t.z = pos.z;
+        t.range = DeployableCountdown.rangeOf(name, Kind.FLARE);
         dropOtherMine(Kind.FLARE, id, "a new shot of mine took its place");
         timers.put(id, t);
         if (DeployableLog.enabled()) {
@@ -272,10 +281,11 @@ public final class DeployableTimers {
         for (Iterator<Timer> it = timers.values().iterator(); it.hasNext(); ) {
             Timer t = it.next();
             Entity entity = t.standless ? null : client.level.getEntity(t.id);
-            if (t.standless) t.distance = Math.sqrt(client.player.distanceToSqr(t.x, t.y, t.z));
             if (entity instanceof ArmorStand stand && !stand.isRemoved()) {
                 t.lost = false;
-                t.distance = Math.sqrt(stand.distanceToSqr(client.player));
+                t.x = stand.getX();
+                t.y = stand.getY();
+                t.z = stand.getZ();
                 refresh(t, stand, now);
             } else {
                 if (!t.lost && !t.standless && DeployableLog.enabled()) {
@@ -284,9 +294,31 @@ public final class DeployableTimers {
                 }
                 t.lost = true;
             }
+            // Der Abstand gilt von der Stelle des Deployables, auch wenn sein Staender nicht mehr zu sehen ist (man ist weggegangen):
+            // sonst bliebe der letzte Wert stehen, und die Zeile wuesste nie, dass man weit weg ist
+            t.distance = Math.sqrt(client.player.distanceToSqr(t.x, t.y, t.z));
+            reach(t);
             // Abgelaufen, oder verschwunden und nicht mein eigenes (das zaehlt weiter, bis es ablaeuft)
             boolean over = now > t.expiryAt + GRACE_MILLIS;
             if (over || (t.lost && !t.mine)) it.remove();
+        }
+    }
+
+    /**
+     * Reicht das Deployable bis zu mir? Wer weiter weg steht als seine Wirkung reicht (Laterne 30 Bloecke), hat nichts davon: Die
+     * Zeile verschwindet aus dem Kasten und kommt wieder, wenn man naeher ist. Die Zeit laeuft die ganze Zeit weiter.
+     */
+    private static void reach(Timer t) {
+        if (t.range <= 0.0) {
+            t.inRange = true;
+            return;
+        }
+        boolean was = t.inRange;
+        if (was && t.distance > t.range) t.inRange = false;
+        else if (!was && t.distance < t.range - REACH_SLACK) t.inRange = true;
+        if (was != t.inRange && DeployableLog.enabled()) {
+            DeployableLog.line("RANGE", String.format(Locale.ROOT, "id=%d %s \"%s\": %.1f blocks away, reaches %.0f - %s", t.id, t.kind, t.name,
+                    t.distance, t.range, t.inRange ? "back in range, listed again" : "out of range, not listed"));
         }
     }
 
@@ -314,8 +346,8 @@ public final class DeployableTimers {
         StringBuilder out = new StringBuilder();
         for (Timer t : timers.values()) {
             if (out.length() > 0) out.append("; ");
-            out.append(String.format(Locale.ROOT, "id=%d %s %s%s %.1fm %.1fs", t.id, t.kind, t.mine ? "mine" : "other",
-                    t.lost ? " lost" : "", t.distance, (t.expiryAt - now) / 1000.0));
+            out.append(String.format(Locale.ROOT, "id=%d %s %s%s %.1fm %.1fs%s", t.id, t.kind, t.mine ? "mine" : "other",
+                    t.lost ? " lost" : "", t.distance, (t.expiryAt - now) / 1000.0, t.inRange ? "" : " out-of-range"));
         }
         return out.toString();
     }
@@ -350,6 +382,7 @@ public final class DeployableTimers {
         boolean own = c.mode == ModConfig.DeployableHudMode.OWN;
         for (Timer t : timers.values()) {
             if (own ? !t.mine : (!t.mine && t.distance > c.nearbyRange)) continue;
+            if (c.onlyInRange && !t.inRange) continue;
             long left = t.expiryAt - now;
             if (left < -200L) continue;
             out.add(new Row(t.name, Math.max(0L, left), t.mine, t.distance));
