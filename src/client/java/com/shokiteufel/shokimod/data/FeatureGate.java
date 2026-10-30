@@ -157,9 +157,12 @@ public final class FeatureGate {
         return ModConfig.INSTANCE.deployables.enabled || ModConfig.INSTANCE.deployables.umberellaAlert.alert;
     }
 
-    /** Der Zeitkasten der Deployables liest jeden Tick die Namen der Ruestungsstaender, die er kennt, und sucht alle zehn Ticks neue - nur wenn er an ist. Braucht den Ort (nur in SkyBlock) */
+    /**
+     * Der Zeitkasten der Deployables liest jeden Tick die Namen der Ruestungsstaender, die er kennt, und sucht alle zehn Ticks neue - nur wenn er
+     * an ist. Braucht den Ort (nur in SkyBlock). Dieselbe Liste speist den Reichweiten-Ring, der auch ohne den Kasten laeuft.
+     */
     public static boolean deployableHud() {
-        return ModConfig.INSTANCE.deployables.hud.enabled;
+        return ModConfig.INSTANCE.deployables.hud.enabled || ModConfig.INSTANCE.deployables.hud.rangeRing;
     }
 
     /** Die HP-Anzeige der Meeresbewohner liest die Namensschilder in der Naehe - nur wenn sie an ist */

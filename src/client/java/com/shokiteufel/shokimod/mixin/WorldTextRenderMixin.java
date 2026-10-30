@@ -32,6 +32,7 @@ public class WorldTextRenderMixin {
         EntityTracerRenderer.emitGizmos(client, partialTicks);
         BoxHighlightRenderer.emitGizmos(client, partialTicks);
         HotspotRenderer.emitGizmos(client);
+        com.shokiteufel.shokimod.render.DeployableRangeRenderer.emitGizmos(client);
         FireVeilRenderer.emitGizmos(client, partialTicks);
         com.shokiteufel.shokimod.render.SeaCreatureBoxRenderer.emitGizmos(client, partialTicks);
     }
