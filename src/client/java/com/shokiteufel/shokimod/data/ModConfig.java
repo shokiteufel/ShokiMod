@@ -2399,9 +2399,14 @@ public class ModConfig extends Config {
         public boolean enabled = false;
 
         @Expose
-        @ConfigOption(name = "Which", desc = "Only my own: the ones you put down yourself (right-clicked with the orb, flare, lantern ... in your hand), also when you have walked away from them. All nearby: every deployable within the range below, yours in gold, the others in grey.")
+        @ConfigOption(name = "Which", desc = "Only my own: the ones you put down yourself (right-clicked with the orb, flare, lantern ... in your hand). All nearby: every deployable within the range below, yours in gold, the others in grey.")
         @ConfigEditorDropdown
         public DeployableHudMode mode = DeployableHudMode.OWN;
+
+        @Expose
+        @ConfigOption(name = "Only in range", desc = "A deployable is listed only while its effect reaches you: 30 blocks for a lantern and the Umberella, 40 for a flare, 20 for a Black Hole, 18 for a Power Orb (Plasmaflux 20). When you walk further away it leaves the panel and comes back when you are close again - its time keeps running meanwhile. Off: yours stay listed wherever you are.")
+        @ConfigEditorBoolean
+        public boolean onlyInRange = true;
 
         @Expose
         @ConfigOption(name = "Range", desc = "For \"All nearby\": how far away a deployable may be, in blocks.")
