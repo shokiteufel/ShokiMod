@@ -61,6 +61,10 @@ public final class DeployableTimers {
     public record Row(String name, long remainingMs, boolean mine, double distance) {
     }
 
+    /** Ein Reichweiten-Ring: die Stelle des Deployables und wie weit es wirkt (Bloecke) */
+    public record Ring(double x, double y, double z, double range, boolean mine) {
+    }
+
     private static final class Timer {
         final int id;
         final Kind kind;
@@ -393,6 +397,25 @@ public final class DeployableTimers {
         out.sort((a, b) -> Long.compare(a.remainingMs(), b.remainingMs()));
         int max = Math.max(1, Math.min(10, c.maxRows));
         return out.size() > max ? new ArrayList<>(out.subList(0, max)) : out;
+    }
+
+    /**
+     * Die Ringe, die gezeichnet werden: zu jedem Deployable, das der Kasten kennt und das eine Reichweite hat - nach Einstellung die eigenen
+     * oder alle in der Naehe, wie im Kasten. Unabhaengig davon, ob der Kasten an ist und ob man gerade in der Reichweite steht: Der Ring soll
+     * ja zeigen, wo sie endet. Im Mineshaft gibt es keinen, dort wirkt die Laterne fuer den ganzen Schacht und nur die Zeit zaehlt.
+     */
+    public static List<Ring> rings(long now) {
+        DeployableHudCategory c = cfg();
+        List<Ring> out = new ArrayList<>();
+        if (c == null || !c.rangeRing || MiningState.inShaft()) return out;
+        boolean own = c.mode == ModConfig.DeployableHudMode.OWN;
+        for (Timer t : timers.values()) {
+            if (t.range <= 0.0) continue;
+            if (own ? !t.mine : (!t.mine && t.distance > c.nearbyRange)) continue;
+            if (t.expiryAt - now < -200L) continue;
+            out.add(new Ring(t.x, t.y, t.z, t.range, t.mine));
+        }
+        return out;
     }
 
     /** "2:07" ab einer Minute, darunter "27.4s" (oder "28s" ohne Zehntel) - aufgerundet, damit die Anzeige erst bei 0 auf 0 steht */

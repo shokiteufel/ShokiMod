@@ -312,6 +312,8 @@ public class ModConfig extends Config {
         if (INSTANCE.deployables.hud.mode == null) INSTANCE.deployables.hud.mode = DeployableHudMode.OWN;
         INSTANCE.deployables.hud.nearbyRange = Math.max(10, Math.min(100, INSTANCE.deployables.hud.nearbyRange));
         INSTANCE.deployables.hud.maxRows = Math.max(1, Math.min(10, INSTANCE.deployables.hud.maxRows));
+        INSTANCE.deployables.hud.ringOpacity = Math.max(10, Math.min(100, INSTANCE.deployables.hud.ringOpacity));
+        if (INSTANCE.deployables.hud.ringColour == null) INSTANCE.deployables.hud.ringColour = ColourText.ofRgb(0x55FF55);
         // Bis 1.15.17 war die Umberella ein Haken im Hauptreiter: wer den Alarm an hatte und sie nicht
         // abgewaehlt hatte, behaelt ihn jetzt in ihrem eigenen Reiter
         if (INSTANCE.deployables.umberella != null) {
@@ -2422,6 +2424,34 @@ public class ModConfig extends Config {
         @ConfigOption(name = "Tenths of a second", desc = "Under a minute the time shows tenths (27.4s) and counts down smoothly; off shows whole seconds (28s). From a minute on it shows minutes and seconds.")
         @ConfigEditorBoolean
         public boolean tenths = true;
+
+        @ConfigOption(name = "Range ring", desc = "A ring on the ground that shows how far a deployable reaches.")
+        @ConfigEditorAccordion(id = 99)
+        public transient boolean ringFolder = false;
+
+        @Expose
+        @ConfigOption(name = "Show range ring", desc = "Draws the reach of a deployable as a ring around it - only the rim, nothing filled: 30 blocks for a lantern and the Umberella, 40 for a flare, 20 for a Black Hole, 18 for a Power Orb (Plasmaflux 20). It follows \"Which\" above: yours, or all nearby. Not in a Glacite Mineshaft: a lantern works for the whole shaft there and only the time matters. Works without the time panel.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 99)
+        public boolean rangeRing = false;
+
+        @Expose
+        @ConfigOption(name = "Ring colour", desc = "Colour of the ring. Click the colour to pick one. The opacity is set below; the picker's own opacity slider changes nothing here.")
+        @ConfigEditorColour
+        @ConfigAccordionId(id = 99)
+        public String ringColour = ColourText.ofRgb(0x55FF55);
+
+        @Expose
+        @ConfigOption(name = "Ring opacity", desc = "How solid the ring is, in percent. The rings of other players' deployables are drawn at half of it.")
+        @ConfigEditorSlider(minValue = 10f, maxValue = 100f, minStep = 5f)
+        @ConfigAccordionId(id = 99)
+        public int ringOpacity = 80;
+
+        @Expose
+        @ConfigOption(name = "Ring through walls", desc = "Draws the ring through blocks and walls, so the whole circle shows even where the ground rises in front of it. Off: what lies behind terrain is hidden.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 99)
+        public boolean ringThroughWalls = true;
 
         @Expose
         public float hudX = 0.02f;
