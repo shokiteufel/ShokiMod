@@ -260,6 +260,13 @@ public class ShokiMod implements ClientModInitializer {
                             openFlipProfitNextTick = true;
                             return 1;
                         }))
+                        // /shoki corpseprofitcheck -> was eine Leiche im Glacite Mineshaft
+                        // (Lapis, Umber, Tungsten, Vanguard) gerade im Schnitt abwirft, mit
+                        // und ohne Frozen Corpse RNG Meter. Preise frisch, Ausgabe im Chat
+                        .then(ClientCommands.literal("corpseprofitcheck").executes(context -> {
+                            com.shokiteufel.shokimod.handler.CorpseProfitCheck.run();
+                            return 1;
+                        }))
                         // /shoki seacreatures -> welcher Meeresbewohner sich meldet.
                         // Neunzig Zeilen passen in keine Einstellungsliste
                         .then(ClientCommands.literal("seacreatures").executes(context -> {

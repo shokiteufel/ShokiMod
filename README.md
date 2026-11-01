@@ -67,6 +67,9 @@ die Spielversion beim Start — die falsche Datei laedt der Loader gar nicht ers
 - `/shoki craftprofit` — Handwerks- und Forge-Rezepte mit Kosten, Erloes, Forge-Zeit und
   Coins pro Stunde.
 - `/shoki petprofit` — welche Pets sich zu leveln lohnen.
+- `/shoki corpseprofitcheck` — was eine Leiche im Glacite Mineshaft (Lapis, Umber, Tungsten,
+  Vanguard) gerade im Schnitt abwirft, mit und ohne Frozen Corpse RNG Meter; die Ausgabe
+  steht im Chat.
 - Preise aus dem Bazaar (auf Wunsch live alle 15 Sekunden) und dem Auktionshaus.
 </details>
 
@@ -214,6 +217,7 @@ die Spielversion beim Start — die falsche Datei laedt der Loader gar nicht ers
 | `/shoki shardprofit` | Gewinn je Shard-Fusion |
 | `/shoki craftprofit` | Gewinn je Handwerks- und Forge-Rezept |
 | `/shoki petprofit` | Gewinn je Pet; die Liste fuehrt je Pet das beste Angebot und das beste auf Stufe 1 |
+| `/shoki corpseprofitcheck` | Gewinn je Leiche im Glacite Mineshaft (Lapis, Umber, Tungsten, Vanguard) mit und ohne RNG Meter, im Chat |
 | `/shoki profit` | Liste des Profit-Trackers: welche Funde zaehlen und wie sie verkauft werden |
 | `/shoki dayprofit` | Was die vergangenen Tage gebracht haben, wahlweise je SkyBlock-Jahr oder Buergermeister; ein Klick zeigt die Waren |
 | `/shoki profitlog [migrate]` | Wo das Tages-Log liegt und wie viele Tage drinstehen; `migrate` schreibt Tage aus der Config ins Log |
