@@ -213,7 +213,8 @@ die Spielversion beim Start — die falsche Datei laedt der Loader gar nicht ers
 | Befehl | Was er tut |
 |---|---|
 | `/shoki` | Einstellungen |
-| `/shoki hud` | HUD-Editor: Kaesten verschieben und skalieren |
+| `/shoki hud` (auch `/shoki hub` und `/shoki gui`) | HUD-Editor: Kaesten verschieben und skalieren, je Kasten die Maps waehlen |
+| `/shoki effects` | Die gemerkten Traenke: je Effekt Kasten, Alarm und die Maps, auf denen er im Kasten steht |
 | `/shoki shardprofit` | Gewinn je Shard-Fusion |
 | `/shoki craftprofit` | Gewinn je Handwerks- und Forge-Rezept |
 | `/shoki petprofit` | Gewinn je Pet; die Liste fuehrt je Pet das beste Angebot und das beste auf Stufe 1 |
@@ -222,7 +223,6 @@ die Spielversion beim Start — die falsche Datei laedt der Loader gar nicht ers
 | `/shoki dayprofit` | Was die vergangenen Tage gebracht haben, wahlweise je SkyBlock-Jahr oder Buergermeister; ein Klick zeigt die Waren |
 | `/shoki profitlog [migrate]` | Wo das Tages-Log liegt und wie viele Tage drinstehen; `migrate` schreibt Tage aus der Config ins Log |
 | `/shoki pet` | Pet-HUD bauen |
-| `/shoki hub` | Zurueck in den Hub |
 | `/shoki update` | Neueste Fassung von GitHub holen; eingesetzt wird sie beim Beenden des Spiels |
 | `/shoki profittracker <Ware> set\|add\|remove <Zahl>` | Eine Zahl im Profit-Kasten geradeziehen; der Name wird vorgeschlagen |
 | `/shoki profittracker <Ware> countas <Ziel>` | Die Ware als ihre hochgecraftete Fassung zaehlen (`none` hebt es auf) |

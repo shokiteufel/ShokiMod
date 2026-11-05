@@ -213,12 +213,17 @@ public class ShokiMod implements ClientModInitializer {
                         })
                         // /shoki hud -> die Kaesten verschieben.
                         // "hub" liegt auf derselben Taste daneben und ist als Schreibweise
-                        // mit angemeldet, damit der Vertipper nicht ins Leere laeuft
+                        // mit angemeldet, damit der Vertipper nicht ins Leere laeuft.
+                        // "gui" tut dasselbe - wer das Fenster der Kaesten so nennt, soll es auch so oeffnen
                         .then(ClientCommands.literal("hud").executes(context -> {
                             openHudNextTick = true;
                             return 1;
                         }))
                         .then(ClientCommands.literal("hub").executes(context -> {
+                            openHudNextTick = true;
+                            return 1;
+                        }))
+                        .then(ClientCommands.literal("gui").executes(context -> {
                             openHudNextTick = true;
                             return 1;
                         }))
