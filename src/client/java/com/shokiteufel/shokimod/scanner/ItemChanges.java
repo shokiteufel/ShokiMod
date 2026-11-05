@@ -44,9 +44,14 @@ import java.util.regex.Pattern;
  * Meldung dazu gab. Denselben Weg geht Skysofts Profit Tracker
  * (SkyBlockInventoryChanges, LGPL-3.0, Akinsoft).
  *
- * Drei Dinge machen den Unterschied zwischen "zaehlt Funde" und "zaehlt Unsinn":
+ * Vier Dinge machen den Unterschied zwischen "zaehlt Funde" und "zaehlt Unsinn":
  *
  * <ul>
+ *   <li><b>Nichts zaehlen, solange der Spieler tot ist.</b> Wer in Kuudra stirbt, bekommt
+ *       vom Server das Inventar eines Geistes, und mit der Wiederbelebung kommt das echte
+ *       in Haeppchen zurueck. Das ganze Inventar saehe wie Beute aus, samt Alarm und
+ *       Nachricht an Party und Gilde. Siehe {@link GhostPhase}: Solange der Geist-Zustand
+ *       gilt, wird nicht verglichen, und danach wird neu angesetzt.</li>
  *   <li><b>Ruhe nach einem Wechsel.</b> Nach Warp, Serverwechsel oder Tod kommt das
  *       Inventar Stueck fuer Stueck an. Wer da vergleicht, sieht sein halbes Inventar
  *       als Fund. Deshalb wird nach jedem Wechsel gewartet, bis sich eine Sekunde
@@ -69,6 +74,14 @@ public final class ItemChanges {
 
     /** Wie lange nichts passieren muss, bis der Stand nach einem Wechsel wieder gilt (Ticks) */
     private static final int SETTLE_TICKS = 20;
+    /**
+     * Wie lange nach der Wiederbelebung gewartet wird, bis das Inventar wieder als Vergleich gilt (Ticks).
+     *
+     * Laenger als nach einem Wechsel: Das echte Inventar kommt in Haeppchen zurueck, im Log vom 05.11. lagen
+     * zwischen dem ersten und dem zweiten weniger als eine Sekunde. Drei Sekunden lassen Luft - und wer in
+     * ihnen etwas findet, hat es bei einem Tod im Schacht ohnehin nicht im Griff.
+     */
+    private static final int GHOST_SETTLE_TICKS = 60;
     /** So lange wird ein Abgang gegen einen spaeteren Zugang derselben Ware aufgerechnet */
     private static final long OFFSET_MILLIS = 10_000L;
     /**
@@ -347,6 +360,10 @@ public final class ItemChanges {
 
     private static final List<Held> held = new ArrayList<>();
     private static int tickCount = 0;
+    /** Ist der Spieler gerade ein Geist? Dann gehoert das Inventar dem Server und nichts zaehlt */
+    private static final GhostPhase ghost = new GhostPhase();
+    /** Der Fingerabdruck, bei dem zuletzt nach den Gegenstaenden des Geistes gesehen wurde */
+    private static int ghostSignature = 0;
 
     private static final String SHARD_PREFIX = "SHARD_";
     /** Zeilen aus fremden Kanaelen erzaehlen von fremden Funden */
@@ -490,6 +507,28 @@ public final class ItemChanges {
         }
 
         tickCount++;
+
+        // Tot? Dann gehoert das Inventar dem Server, und das kommt vor allem anderen: ein offenes
+        // Fenster (der Geist hat "Open Shop"), ein Wechsel, ein Menue - nichts davon darf den
+        // Vergleichsstand vor dem Tod ueberschreiben, sonst kaeme das echte Inventar als Fund zurueck.
+        // Der Fingerabdruck wird nur gebildet, wenn er sich geaendert hat, das Auslesen der Kennungen
+        // auch nur dann
+        int signatureNow = signature(client);
+        if (signatureNow != ghostSignature) {
+            ghostSignature = signatureNow;
+            ghost.onInventory(hasGhostItem(client));
+        }
+        switch (ghost.step(System.currentTimeMillis())) {
+            case ENTERED -> enterGhost();
+            case LEFT -> leaveGhost();
+            default -> { }
+        }
+        if (ghost.active()) {
+            // Was der Chat als gefallen meldet, ist auch als Toter gefallen
+            rescueConfirmed();
+            return;
+        }
+
         flushHeld();
         rescueConfirmed();
 
@@ -598,7 +637,7 @@ public final class ItemChanges {
 
         // Der billige Teil zuerst: hat sich ueberhaupt ein Platz geruehrt? Zwanzigmal je
         // Sekunde lautet die Antwort fast immer nein, und dann faellt alles Weitere weg
-        int signature = signature(client);
+        int signature = signatureNow;
         if (signature == previousSignature) return;
         previousSignature = signature;
 
@@ -623,6 +662,47 @@ public final class ItemChanges {
             windowBaseline = current;
         }
         if (!gains.isEmpty()) held.add(new Held(gains, tickCount));
+    }
+
+    /** Liegen die Gegenstaende eines Geistes im Inventar? Nur aufgerufen, wenn sich der Fingerabdruck aenderte */
+    private static boolean hasGhostItem(Minecraft client) {
+        List<ItemStack> items = client.player.getInventory().getNonEquipmentItems();
+        for (int slot = 0; slot < items.size(); slot++) {
+            ItemStack stack = items.get(slot);
+            if (stack == null || stack.isEmpty()) continue;
+            if (GhostPhase.isGhostItem(SkyBlockItems.idOf(stack))) return true;
+        }
+        return false;
+    }
+
+    /**
+     * Der Spieler ist gestorben: Das Inventar ist ab jetzt das eines Geistes.
+     *
+     * Der Vergleichsstand bleibt, wie er vor dem Tod war - er ist der einzige echte. Was noch
+     * auf seine drei Ticks Wartezeit wartete, kann schon vom Geist-Inventar stammen und faellt weg.
+     */
+    private static void enterGhost() {
+        ShokiMod.LOGGER.info("[Profit] dead - the inventory is the ghost's, nothing counts until it is back"
+                + " ({} waiting finds dropped)", held.size());
+        held.clear();
+        windowBaseline = null;
+    }
+
+    /**
+     * Das Inventar des Geistes ist weg: wieder lebendig.
+     *
+     * Das echte Inventar kommt in Haeppchen zurueck. Deshalb wird wie nach einem Wechsel gewartet
+     * und dann neu angesetzt, ohne zu melden - und ein zu leerer Stand wird dabei nicht als
+     * Vergleich genommen (siehe {@link #waitForRefill}).
+     */
+    private static void leaveGhost() {
+        settleTicks = GHOST_SETTLE_TICKS;
+        settleAfterWindow = false;
+        swapPending = false;
+        refillWaited = 0;
+        windowBaseline = null;
+        ShokiMod.LOGGER.info("[Profit] alive again - waiting {}s for the inventory before comparing",
+                GHOST_SETTLE_TICKS / 20);
     }
 
     /** Ist das Beute, die der Server ohne Chatzeile austeilt? */
@@ -828,7 +908,8 @@ public final class ItemChanges {
     private static void add(Map<String, Integer> counts, ItemStack stack) {
         if (stack == null || stack.isEmpty()) return;
         String id = SkyBlockItems.idOf(stack);
-        if (id == null || MENU_ID.equals(id)) return;
+        // Haunt, Open Shop und Purchase Revive legt der Server dem Geist hin - Bedienelemente, nie Beute
+        if (id == null || MENU_ID.equals(id) || GhostPhase.isGhostItem(id)) return;
         counts.merge(id, stack.getCount(), Integer::sum);
         if (!gearById.containsKey(id)) gearById.put(id, looksLikeGear(stack));
         // Nur beim ersten Mal: den Namen auseinanderzunehmen lohnt sich nicht in jedem Tick
@@ -1042,6 +1123,11 @@ public final class ItemChanges {
     public static void onChatMessage(Component message, String formatted, String plain) {
         if (message == null || plain == null) return;
         if (!FeatureGate.itemChanges() || !GameState.Server.isSkyblock()) return;
+
+        // Die Todesmeldung kommt vor dem Inventar des Geistes - ab ihr zaehlt nichts mehr
+        if (ghost.onChat(plain, System.currentTimeMillis())) {
+            ShokiMod.LOGGER.info("[Profit] death line read - nothing counts while the inventory is the ghost's");
+        }
 
         // Die Craft-Meldung zuerst, und ohne Ruecksicht auf offene Fenster: gecraftet
         // wird in einem, und die Meldung ist der einzige Hinweis darauf, dass die Ware
@@ -1773,5 +1859,7 @@ public final class ItemChanges {
         confirmed.clear();
         corpseUntil = 0L;
         corpseLines = 0;
+        ghost.reset();
+        ghostSignature = 0;
     }
 }
