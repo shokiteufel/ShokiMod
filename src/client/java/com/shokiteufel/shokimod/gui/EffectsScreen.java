@@ -20,6 +20,9 @@ import java.util.List;
  * Die gemerkten Effekte, einer je Zeile: Name, Restzeit, und je Effekt ob er im Kasten steht
  * und ob er Alarm gibt. Gemerkt wird, sobald man /effects oeffnet.
  *
+ * Rechts neben Hide steht "Map": auf welchen Maps der Effekt im Kasten erscheint (derselbe Waehler wie
+ * "Areas" im HUD-Editor; ohne Auswahl auf jeder). Das betrifft nur den Kasten, nicht den Alarm.
+ *
  * Was nicht gebraucht wird, kann versteckt werden: Ein versteckter Effekt steht nicht mehr in der
  * Liste, im Kasten und gibt keinen Alarm - und er kommt nicht zurueck, wenn /effects ihn das
  * naechste Mal zeigt. Unter "Hidden" lassen sich alle wieder holen oder ganz vergessen.
@@ -31,13 +34,26 @@ public class EffectsScreen extends Screen {
     private static final int TIME_WIDTH = 74;
     private static final int TOGGLE_WIDTH = 62;
     private static final int HIDE_WIDTH = 36;
+    /** Der Map-Knopf rechts neben Hide: die Gebiete, in denen der Effekt im Kasten stehen darf */
+    private static final int MAP_WIDTH = 46;
+    /**
+     * Zeit, Haken und Map-Knopf, wenn der Platz nicht fuer die breite Fassung reicht. Zusammen mit Hide und den Luecken sind das
+     * 250 Pixel - genau so viel wie die Zeilen vor dem Map-Knopf brauchten: Wo die Liste vorher passte, passt sie weiter.
+     */
+    private static final int TIME_WIDTH_TIGHT = 50;
+    private static final int TOGGLE_WIDTH_TIGHT = 54;
+    private static final int MAP_WIDTH_TIGHT = 36;
+    /** Was rechts vom Namen steht, in der breiten Fassung: Zeit, zwei Haken, Hide, Map und die Luecken dazwischen (8 + 8 + 4) */
+    private static final int REST_WIDE = TIME_WIDTH + 2 * TOGGLE_WIDTH + HIDE_WIDTH + MAP_WIDTH + 20;
+    /** So schmal darf die Namensspalte in der breiten Fassung werden; reicht der Platz dafuer nicht, rueckt der Rest enger zusammen */
+    private static final int NAME_MIN = 96;
     /** Die Reiter sitzen unter der Ueberschrift, die Liste darunter */
     private static final int TAB_Y = 46;
     private static final int TAB_WIDTH = 84;
     private static final int LIST_TOP = 70;
     /** Unten bleiben zwei Knopfleisten frei: Auswahl und Seiten, darunter die Schalter */
     private static final int BOTTOM_SPACE = 84;
-    private static final int GRID_WIDTH = NAME_WIDTH + TIME_WIDTH + 2 * TOGGLE_WIDTH + HIDE_WIDTH + 16;
+    private static final int GRID_WIDTH = NAME_WIDTH + REST_WIDE;
     /** Links neben der Liste: die Voreinstellungen, ein Knopf je Platz */
     private static final int PRESET_X = 6;
     private static final int PRESET_WIDTH = 80;
@@ -76,10 +92,34 @@ public class EffectsScreen extends Screen {
         return Math.max(width / 2 - GRID_WIDTH / 2, PRESET_X + presetWidth() + (narrow() ? 8 : PRESET_GAP));
     }
 
+    /**
+     * Reicht der Platz nicht fuer die breite Fassung mit dem Namen in voller Breite? Dann rueckt der Rest enger zusammen:
+     * Zeit, die beiden Haken und der Map-Knopf werden schmaler, Hide bleibt.
+     */
+    private boolean tight() {
+        return narrow() || width - left() - 6 - REST_WIDE < NAME_MIN;
+    }
+
+    private int timeWidth() {
+        return tight() ? TIME_WIDTH_TIGHT : TIME_WIDTH;
+    }
+
+    private int toggleWidth() {
+        return tight() ? TOGGLE_WIDTH_TIGHT : TOGGLE_WIDTH;
+    }
+
+    private int mapWidth() {
+        return tight() ? MAP_WIDTH_TIGHT : MAP_WIDTH;
+    }
+
+    /** Was rechts vom Namen steht, samt den Luecken: Zeit, zwei Haken, Hide, Map */
+    private int restWidth() {
+        return timeWidth() + 2 * toggleWidth() + HIDE_WIDTH + mapWidth() + 20;
+    }
+
     /** Die Spalte mit den Namen gibt nach, wenn das Fenster zu schmal fuer die ganze Liste ist - der Rest bleibt, wie er ist */
     private int nameWidth() {
-        int rest = TIME_WIDTH + 2 * TOGGLE_WIDTH + HIDE_WIDTH + 16;
-        return Math.clamp(width - left() - (narrow() ? 4 : 6) - rest, narrow() ? 70 : 96, NAME_WIDTH);
+        return Math.clamp(width - left() - (narrow() ? 4 : 6) - restWidth(), narrow() ? 70 : NAME_MIN, NAME_WIDTH);
     }
 
     private int tabWidth() {
@@ -87,7 +127,7 @@ public class EffectsScreen extends Screen {
     }
 
     private int gridWidth() {
-        return nameWidth() + TIME_WIDTH + 2 * TOGGLE_WIDTH + HIDE_WIDTH + 16;
+        return nameWidth() + restWidth();
     }
 
     private int rowsPerPage() {
@@ -146,6 +186,26 @@ public class EffectsScreen extends Screen {
         return button;
     }
 
+    /** Die Auswahl der Maps eines Effekts: derselbe Waehler wie "Areas" im HUD-Editor, gespeichert wird bei jedem Klick */
+    private void openMaps(EffectEntry e) {
+        if (minecraft == null) return;
+        minecraft.setScreenAndShow(new AreaPickerScreen(this, "Map: " + e.name, EffectsTracker.areasOf(e),
+                "Nothing selected - the effect shows on every map", ModConfig.INSTANCE::saveNow));
+    }
+
+    /** Was der Map-Knopf sagt: wo der Effekt steht, und dass nur der Kasten gemeint ist, nicht der Alarm */
+    private static String mapTip(List<String> maps) {
+        String where;
+        if (maps.isEmpty()) {
+            where = "Nothing selected: it shows on every map.";
+        } else {
+            int shown = Math.min(maps.size(), 6);
+            where = "Shows only on: " + String.join(", ", maps.subList(0, shown))
+                    + (maps.size() > shown ? " (+" + (maps.size() - shown) + " more)" : "") + ".";
+        }
+        return "The maps where this effect may appear in the panel. " + where + " The alert is not affected.";
+    }
+
     @Override
     protected void init() {
         List<List<Row>> pages = pages();
@@ -173,20 +233,21 @@ public class EffectsScreen extends Screen {
             // Eine Ueberschrift hat keine Knoepfe
             if (e == null) continue;
             int y = LIST_TOP + i * ROW_HEIGHT;
-            int x = left + nameWidth() + TIME_WIDTH + 8;
+            int x = left + nameWidth() + timeWidth() + 8;
+            int toggle = toggleWidth();
 
             if (showHidden) {
                 addRenderableWidget(withTip(Button.builder(Component.literal("Show").withStyle(ChatFormatting.GREEN),
                         button -> {
                             EffectsTracker.unhide(e);
                             rebuild();
-                        }).bounds(x, y, TOGGLE_WIDTH, 20).build(),
+                        }).bounds(x, y, toggle, 20).build(),
                         "Brings the effect back into the list. HUD and Alert stay off until you tick them."));
                 addRenderableWidget(withTip(Button.builder(Component.literal("Forget").withStyle(ChatFormatting.RED),
                         button -> {
                             EffectsTracker.remove(e);
                             rebuild();
-                        }).bounds(x + TOGGLE_WIDTH + 4, y, TOGGLE_WIDTH, 20).build(),
+                        }).bounds(x + toggle + 4, y, toggle, 20).build(),
                         "Deletes the entry. It is remembered again the next time /effects lists it."));
                 continue;
             }
@@ -197,20 +258,29 @@ public class EffectsScreen extends Screen {
                     button -> {
                         EffectsTracker.toggleHud(e);
                         rebuild();
-                    }).bounds(x, y, TOGGLE_WIDTH, 20).build());
+                    }).bounds(x, y, toggle, 20).build());
             addRenderableWidget(Button.builder(
                     Component.literal(e.alert ? "Alert ☑" : "Alert ☐")
                             .withStyle(e.alert ? ChatFormatting.GOLD : ChatFormatting.DARK_GRAY),
                     button -> {
                         EffectsTracker.toggleAlert(e);
                         rebuild();
-                    }).bounds(x + TOGGLE_WIDTH + 4, y, TOGGLE_WIDTH, 20).build());
+                    }).bounds(x + toggle + 4, y, toggle, 20).build());
+            int hideX = x + 2 * toggle + 8;
             addRenderableWidget(withTip(Button.builder(Component.literal("Hide").withStyle(ChatFormatting.RED),
                     button -> {
                         EffectsTracker.hide(e);
                         rebuild();
-                    }).bounds(x + 2 * TOGGLE_WIDTH + 8, y, HIDE_WIDTH, 20).build(),
+                    }).bounds(hideX, y, HIDE_WIDTH, 20).build(),
                     "Hides the effect: no list entry, no panel row, no alert - and it stays hidden when /effects lists it again."));
+
+            // Auf welchen Maps der Effekt im Kasten steht - derselbe Waehler wie "Areas" im HUD-Editor
+            List<String> maps = EffectsTracker.areasOf(e);
+            addRenderableWidget(withTip(Button.builder(
+                    Component.literal(maps.isEmpty() ? "Map" : "Map " + maps.size())
+                            .withStyle(maps.isEmpty() ? ChatFormatting.GRAY : ChatFormatting.GREEN),
+                    button -> openMaps(e)).bounds(hideX + HIDE_WIDTH + 4, y, mapWidth(), 20).build(),
+                    mapTip(maps)));
         }
 
         // Auswahl: wegraeumen, was nicht gebraucht wird, und die versteckten ansehen
