@@ -3678,6 +3678,13 @@ public class ModConfig extends Config {
          */
         @Expose
         public boolean seeded = false;
+        /**
+         * Die Gebiete (Maps), in denen der Effekt im Kasten stehen darf - "Map" im Effects-Fenster, derselbe Waehler wie "Areas"
+         * im HUD-Editor. Leer: ueberall. Gilt nur fuer den Kasten, nicht fuer den Alarm, und gehoert zum Effekt, nicht zu einem
+         * Platz der Voreinstellungen.
+         */
+        @Expose
+        public List<String> areas = new ArrayList<>();
     }
 
     /**
@@ -4840,13 +4847,7 @@ public class ModConfig extends Config {
         /** Darf der Kasten hier erscheinen? Null heisst: keine eigene Wahl getroffen */
         public Boolean allowsHere(String panel, String area) {
             if (panelAreas == null) return null;
-            List<String> chosen = panelAreas.get(panel);
-            if (chosen == null || chosen.isEmpty()) return null;
-            if (area == null || area.isBlank()) return false;
-            for (String entry : chosen) {
-                if (entry.equalsIgnoreCase(area)) return true;
-            }
-            return false;
+            return AreaFilter.allows(panelAreas.get(panel), area);
         }
 
         @Expose

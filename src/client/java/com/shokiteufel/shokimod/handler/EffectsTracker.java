@@ -1,6 +1,7 @@
 package com.shokiteufel.shokimod.handler;
 
 import com.shokiteufel.shokimod.ShokiMod;
+import com.shokiteufel.shokimod.data.AreaFilter;
 import com.shokiteufel.shokimod.data.GameState;
 import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.data.ModConfig.EffectEntry;
@@ -275,6 +276,23 @@ public final class EffectsTracker {
     /** Wie lange der Effekt noch laeuft, in Millisekunden - negativ, wenn er aus ist; null, wenn unbekannt */
     public static Long remaining(EffectEntry entry) {
         return entry.expiry <= 0L ? null : entry.expiry - System.currentTimeMillis();
+    }
+
+    /** Die Gebiete (Maps) eines Effekts, immer vorhanden - zum Bearbeiten im Waehler */
+    public static List<String> areasOf(EffectEntry entry) {
+        if (entry.areas == null) entry.areas = new ArrayList<>();
+        return entry.areas;
+    }
+
+    /**
+     * Darf der Effekt auf der Map, auf der man gerade ist, im Kasten stehen?
+     *
+     * Ohne Auswahl ueberall. Mit Auswahl nur dort, und ist die Map noch nicht bekannt, nirgends - wie bei den
+     * Kaesten im HUD-Editor. Der Alarm fragt das nicht: Eine Map-Wahl verschiebt, was man sieht, nicht, wovor man gewarnt wird.
+     */
+    public static boolean showsHere(EffectEntry entry) {
+        Boolean chosen = AreaFilter.allows(entry.areas, GameState.Server.map);
+        return chosen == null || chosen;
     }
 
     public static void remove(EffectEntry entry) {

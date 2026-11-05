@@ -2,6 +2,7 @@ package com.shokiteufel.shokimod.render.hud;
 
 import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.data.ModConfig.EffectEntry;
+import com.shokiteufel.shokimod.gui.HudEditorScreen;
 import com.shokiteufel.shokimod.handler.EffectsTracker;
 
 /**
@@ -20,7 +21,7 @@ public final class EffectsHud {
     /** Gibt es etwas zu zeigen? Sonst bleibt der Kasten weg und nur der Alarm meldet sich */
     public static boolean hasRows() {
         for (EffectEntry e : EffectsTracker.entries()) {
-            if (e.hud && EffectsTracker.remaining(e) != null) return true;
+            if (e.hud && EffectsTracker.remaining(e) != null && EffectsTracker.showsHere(e)) return true;
         }
         return false;
     }
@@ -30,11 +31,14 @@ public final class EffectsHud {
         panel.title("Effects", TITLE_COLOUR);
         ModConfig.EffectsCategory cfg = ModConfig.INSTANCE.effects;
         long early = cfg.alertMinutes * 60_000L;
+        // Im HUD-Editor stehen alle, sonst zeigte die Vorschau nichts, sobald jeder Effekt auf eine andere Map gelegt ist
+        boolean editor = HudEditorScreen.isOpen();
 
         boolean any = false;
         for (EffectEntry e : EffectsTracker.entries()) {
             Long rest = EffectsTracker.remaining(e);
             if (!e.hud || rest == null) continue;
+            if (!editor && !EffectsTracker.showsHere(e)) continue;
             any = true;
             if (rest <= 0L) {
                 panel.pair(e.name, "off", LABEL_COLOUR, HudColours.RED);

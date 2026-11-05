@@ -59,10 +59,28 @@ public class HudEditorScreen extends Screen {
     private Button showsButton;
     private Button areasButton;
 
+    /**
+     * Steht der Editor gerade auf dem Bildschirm?
+     *
+     * Fuer Kaesten, die dort immer ihre Vorschau zeigen sollen, auch wenn sie ausserhalb gerade nichts haetten. Ein eigenes Flag statt der
+     * Frage an Minecraft, welcher Bildschirm offen ist: Der Zugriff darauf heisst auf den Spielversionen verschieden, das hier nicht.
+     */
+    private static boolean open = false;
+
+    public static boolean isOpen() {
+        return open;
+    }
+
     public HudEditorScreen(Screen parent, boolean bannerMode) {
         super(Component.literal("HUD editor"));
         this.parent = parent;
         this.bannerMode = bannerMode;
+    }
+
+    @Override
+    public void removed() {
+        open = false;
+        super.removed();
     }
 
     private static List<BannerDesign> designs() {
@@ -79,6 +97,7 @@ public class HudEditorScreen extends Screen {
 
     @Override
     protected void init() {
+        open = true;
         rebuildContent();
 
         opacity = new OpacitySlider(width / 2 - 105, height - 78, 210);
