@@ -257,6 +257,17 @@ public class ModConfig extends Config {
         if (collectionTracker.lineOrder == null) collectionTracker.lineOrder = CollectionTrackerCategory.LineOrder.TOTAL_GAINED_HOUR;
         if (INSTANCE.effects == null) INSTANCE.effects = new EffectsCategory();
         if (INSTANCE.effects.list == null) INSTANCE.effects.list = new java.util.LinkedHashMap<>();
+        if (INSTANCE.forge == null) INSTANCE.forge = new ForgeCategory();
+        INSTANCE.forge.slots = Math.max(1, Math.min(ForgeCategory.MAX_SLOTS, INSTANCE.forge.slots));
+        if (INSTANCE.forge.slotData == null) INSTANCE.forge.slotData = new ArrayList<>();
+        // Immer sieben Plaetze, nie ein leerer Eintrag: Das Lesen und der Kasten greifen ohne Pruefung nach Platz 1 bis 7
+        while (INSTANCE.forge.slotData.size() < ForgeCategory.MAX_SLOTS) INSTANCE.forge.slotData.add(new ForgeSlot());
+        while (INSTANCE.forge.slotData.size() > ForgeCategory.MAX_SLOTS) INSTANCE.forge.slotData.removeLast();
+        INSTANCE.forge.slotData.replaceAll(slot -> slot == null ? new ForgeSlot() : slot);
+        for (ForgeSlot slot : INSTANCE.forge.slotData) {
+            if (slot.state == null) slot.state = "";
+            if (slot.item == null) slot.item = "";
+        }
         if (INSTANCE.fishing.hotspot == null) INSTANCE.fishing.hotspot = new HotspotCategory();
         if (INSTANCE.fishing.tracker == null) INSTANCE.fishing.tracker = new SeaTrackerCategory();
         if (INSTANCE.fishing.tracker.view == null) INSTANCE.fishing.tracker.view = SeaView.TOTAL;
@@ -541,6 +552,8 @@ public class ModConfig extends Config {
                         Minecraft.getInstance().gui.screen())));
         INSTANCE.effects.test = () -> Minecraft.getInstance().execute(
                 com.shokiteufel.shokimod.handler.EffectsTracker::test);
+        INSTANCE.forge.forget = () -> Minecraft.getInstance().execute(
+                com.shokiteufel.shokimod.handler.ForgeTracker::forget);
         INSTANCE.chat.petMax.test = () -> Minecraft.getInstance().execute(
                 com.shokiteufel.shokimod.handler.PetMaxAlert::test);
         INSTANCE.bugHunt.testSound = () -> Minecraft.getInstance().execute(() ->
@@ -1009,6 +1022,10 @@ public class ModConfig extends Config {
     @Expose
     @Category(name = "Effects", desc = "Remembers your potion effects that are not God Potions, shows what is left and warns you before one runs out. Open /shoki effects to pick which ones.")
     public EffectsCategory effects = new EffectsCategory();
+
+    @Expose
+    @Category(name = "Forge", desc = "The Forge in the Dwarven Mines: the mod reads the Forges list of the tab list there, remembers the time of every slot, and shows it in a panel on every map.")
+    public ForgeCategory forge = new ForgeCategory();
 
     @Expose
     @Category(name = "Profit", desc = "What a run brought in: every item that landed in your inventory or a sack, priced item by item.")
@@ -3803,6 +3820,64 @@ public class ModConfig extends Config {
         public float hudX = 0.02f;
         @Expose
         public float hudY = 0.3f;
+        @Expose
+        public float hudScale = 1.0f;
+        @Expose
+        public float hudAlpha = 1.0f;
+    }
+
+    /**
+     * Ein Platz der Forge, wie ihn die Tab-Liste zuletzt nannte.
+     *
+     * {@code state}: leer = noch nie gesehen, "EMPTY", "LOCKED" oder "BUSY" (ein Gegenstand ist drin). Bei BUSY ist
+     * {@code finishAt} der Zeitpunkt, an dem er fertig ist (Millisekunden seit 1970) - gespeichert wird das Ende, nicht
+     * die Restzeit, damit die Uhr auch auf anderen Maps und bei geschlossenem Spiel weiterlaeuft.
+     */
+    public static class ForgeSlot {
+        @Expose
+        public String state = "";
+        @Expose
+        public String item = "";
+        @Expose
+        public long finishAt = 0L;
+    }
+
+    public static class ForgeCategory {
+
+        public static final int MAX_SLOTS = 7;
+
+        @ConfigOption(name = "Forge", desc = "Open the Dwarven Mines once: the Forges list in the tab list there says what is in each slot and how long it takes. The mod remembers it, so the panel counts down on every map. Move it with /shoki hud. It needs the Forges widget in your tab list (the default in the Dwarven Mines; /widget turns it on).")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Enabled", desc = "Read the Forges list of the tab list and remember the slots.")
+        @ConfigEditorBoolean
+        public boolean enabled = true;
+
+        @Expose
+        @ConfigOption(name = "Show panel", desc = "The panel with the slots and their time. It stays away until the forge has been seen once. Move it with /shoki hud.")
+        @ConfigEditorBoolean
+        public boolean showHud = true;
+
+        @Expose
+        @ConfigOption(name = "Slots shown", desc = "How many slots the panel lists, counted from slot 1. Slots that are still locked are never listed.")
+        @ConfigEditorSlider(minValue = 1f, maxValue = 7f, minStep = 1f)
+        public int slots = MAX_SLOTS;
+
+        @ConfigOption(name = "Forget saved times", desc = "Wipes what the mod remembers about the slots - useful after switching profile. It is read again the next time the Forges list is in your tab list.")
+        @ConfigEditorButton(buttonText = "Forget")
+        public transient Runnable forget = () -> {
+        };
+
+        /** Die sieben Plaetze, Platz 1 zuerst. Immer sieben Eintraege (siehe load) */
+        @Expose
+        public List<ForgeSlot> slotData = new ArrayList<>();
+
+        @Expose
+        public float hudX = 0.8f;
+        @Expose
+        public float hudY = 0.2f;
         @Expose
         public float hudScale = 1.0f;
         @Expose

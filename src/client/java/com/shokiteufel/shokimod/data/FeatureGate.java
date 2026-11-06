@@ -152,6 +152,11 @@ public final class FeatureGate {
         return ModConfig.INSTANCE.garden.visitors.alert;
     }
 
+    /** Die Forge-Zeiten kommen aus der Tab-Liste: Ohne den Schalter wird sie dafuer nicht gelesen */
+    public static boolean forge() {
+        return ModConfig.INSTANCE.forge.enabled;
+    }
+
     /** Die Meldung, wenn ein Deployable verschwindet, liest nur den Chat. Die Umberella hat ihren eigenen Schalter */
     public static boolean deployables() {
         return ModConfig.INSTANCE.deployables.enabled || ModConfig.INSTANCE.deployables.umberellaAlert.alert;
@@ -244,7 +249,7 @@ public final class FeatureGate {
     }
 
     public static boolean location() {
-        return contest() || safari() || nearbyPanel() || rareLoot() || huntingTracker() || mobMarkers() || chatRules()
+        return forge() || contest() || safari() || nearbyPanel() || rareLoot() || huntingTracker() || mobMarkers() || chatRules()
                 || cakeReminder() || hotspots() || collectionTracker() || pestTraps() || gardenVisitors() || seaHp() || mute() || outOfAir() || coldAlert() || petHud() || deployableHud() || hotspotShare()
                 || slayerSpawn() || darkAuction() || darkAuctionTimer() || hidePlayersDungeon() || nearbyRare() || ModConfig.INSTANCE.effects.enabled || mineshaftAnnounce();
     }
