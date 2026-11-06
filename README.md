@@ -81,6 +81,13 @@ Voraussetzungen: Fabric Loader 0.19.3+ und Fabric API.
 - Mineshaft: Leichen, Schluessel und Edelstein-Adern des Schachts — siehe den Abschnitt
   **Glacite Mineshafts**.
 - Pet: Name, Stufe, Fortschritt — samt Overflow-Stufen und Meldung beim Aufstieg.
+- Forge: die Plaetze der Forge mit Gegenstand und Restzeit, auf jeder Map. Gelesen wird das Widget "Forges" der
+  Tab-Liste (Dwarven Mines; `/widget`, falls es dort fehlt), je Platz `1) Refined Diamond: 2h 15m`, `EMPTY`, `LOCKED`
+  oder `Ready!`. Gemerkt wird der Zeitpunkt des Endes, nicht die Restzeit: Wer etwas hineinlegt und die Minen verlaesst,
+  sieht es weiterlaufen, auch nach einem Neustart. Einstellbar sind 1 bis 7 Plaetze (Forge > Slots shown); gesperrte
+  stehen nicht im Kasten, und der Kasten erscheint erst, wenn die Forge einmal gelesen wurde. Die Zeit auf anderen Maps ist
+  eine Rechnung: Ein Stueck, das man holt, steht erst als leer da, wenn die Tab-Liste es zeigt. Die Forge gehoert zum Profil -
+  nach einem Profilwechsel hilft "Forget saved times" oder ein Besuch der Minen.
 - Leistung: Bilder je Sekunde, Server-Takt, selbst gemessener Ping und auf Wunsch der
   Tages-Zaehler - untereinander oder nebeneinander in einer Zeile.
 - Sammlungen: was die Saecke einsammeln, in Sammlungs-Einheiten und in Coins. Dazu die
