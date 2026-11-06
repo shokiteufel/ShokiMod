@@ -665,6 +665,14 @@ drinsteckt.
   Entitätsnummer. Der Mixin zielt auf `AvatarRenderer.scale(AvatarRenderState, PoseStack)`,
   das in 26.1, 26.2 und 26.3 dieselbe Signatur hat.
 
+- **Skyblocker** (LGPL-3.0-or-later, `SkyblockerMod/Skyblocker`) — die Zeilen des Forge-Widgets in der Tab-Liste
+  (`skyblock/tabhud/widget/ForgeWidget.java`, am 06.11.2026 gelesen): "Forges:" als Überschrift, darunter je Platz
+  `<Nr>) LOCKED`, `<Nr>) EMPTY` oder `<Nr>) <Gegenstand>: <Zeit>`, mit "Ready!" statt der Zeit; sieben Plätze, Platz 3 bis 7
+  gesperrt bis Heart of the Mountain 3 bis 7. Das ist eine Beobachtung darüber, wie Hypixel die Zeilen schickt, und kein
+  Code: Das Lesen (`ForgeTab`), das Merken des Endes (`ForgeTracker`) und der Kasten (`ForgeHud`) sind eigen. Anders als
+  Skyblockers Widget, das nur zeigt, was gerade in der Liste steht, merkt sich die Mod das Ende und zeigt es auf jeder Map.
+  Auf Hypixel selbst ist das Format hier noch nicht gesehen (`ForgeTracker` schreibt unverstandene Zeilen ins Log).
+
 ## Daten von außen
 
 - **Spawn-Runde in den Glacite Tunnels** — die 25 Punkte in

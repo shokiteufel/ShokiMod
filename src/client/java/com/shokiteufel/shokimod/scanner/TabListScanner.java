@@ -104,6 +104,8 @@ public class TabListScanner {
         if (FeatureGate.pestTraps()) PestTraps.processTabList(unformattedLines);
         // Und die Besucher des Gartens - dasselbe Spiel, andere Zeilen
         if (FeatureGate.gardenVisitors()) GardenVisitors.processTabList(unformattedLines);
+        // Die Plaetze der Forge samt Zeit: nur wo das Widget in der Liste steht (in den Dwarven Mines), gemerkt wird es fuer jede Map
+        if (FeatureGate.forge()) com.shokiteufel.shokimod.handler.ForgeTracker.processTabList(unformattedLines);
         // Essence ist kein Gegenstand: Ihr Zuwachs steht nur hier, und von hier geht er
         // denselben Weg wie ein Fund aus dem Inventar
         if (FeatureGate.itemChanges()) {
