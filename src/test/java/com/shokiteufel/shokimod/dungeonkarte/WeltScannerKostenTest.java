@@ -1,16 +1,20 @@
 package com.shokiteufel.shokimod.dungeonkarte;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Was ein Durchgang der Funny Map die Welt kostet, gezaehlt an der Floor-V-Welt aus Schiggys Lauf. Der Scan laeuft viermal je Sekunde
- * (alle fuenf Ticks); eine Hoehenabfrage ({@code hoechsterBlock}) sind im Spiel bis zu 257 Blockabfragen. Vor der Verbesserung fragte jeder
- * Durchgang auch nach dem Abschluss noch 94 leere Plaetze neu (gemessen); jetzt ruhen sie, solange nichts Neues kommt.
+ * Was der Welt-Scan der Funny Map die Welt kostet, gezaehlt an der Floor-V-Welt aus Schiggys Lauf. Der Scan laeuft viermal je Sekunde; eine
+ * Hoehenabfrage ({@code hoechsterBlock}) sind im Spiel bis zu 257 Blockabfragen. Urspruenglich fragte jeder Durchgang auch nach dem Abschluss
+ * noch 94 leere Plaetze neu (gemessen); dann ruhten sie (7 je Durchgang); jetzt endet der Scan wie bei NoammAddons, sobald alle Chunks da waren
+ * und nichts Neues kam.
  */
 class WeltScannerKostenTest {
 
@@ -23,8 +27,8 @@ class WeltScannerKostenTest {
     private static final class Zaehlwelt implements WeltScanner.Welt {
         final RaumTabelle tabelle = RaumTabelle.standard();
         final Map<Integer, Integer> kernAnPlatz = new HashMap<>();
+        final Set<Integer> fehlendeChunks = new HashSet<>();
         int hoehenFragen;
-        int hashFragen;
 
         Zaehlwelt() {
             for (int[] r : FLOOR_V) kernAnPlatz.put(r[1] * 2 * 11 + r[0] * 2, tabelle.kernVon("Default"));
@@ -36,7 +40,7 @@ class WeltScannerKostenTest {
 
         @Override
         public boolean chunkGeladen(int x, int z) {
-            return true;
+            return !fehlendeChunks.contains(platz(x, z));
         }
 
         @Override
@@ -47,7 +51,6 @@ class WeltScannerKostenTest {
 
         @Override
         public int kernHash(int x, int z) {
-            hashFragen++;
             return kernAnPlatz.getOrDefault(platz(x, z), 0);
         }
 
@@ -58,31 +61,55 @@ class WeltScannerKostenTest {
     }
 
     @Test
-    void aSettledMapDoesNotRescanTheEmptyColumnsEveryPass() {
-        Raster raster = new Raster();
-        WeltScanner scanner = new WeltScanner(RaumTabelle.standard(), raster);
+    void theScanIsFinishedAfterTwoQuietPassesWithAllChunksLoaded() {
+        WeltScanner scanner = new WeltScanner(RaumTabelle.standard(), new Raster());
         Zaehlwelt welt = new Zaehlwelt();
 
         scanner.durchgang(welt);
-        scanner.durchgang(welt);   // der zweite findet nichts Neues: ab hier ruhen die leeren Plaetze
-        welt.hoehenFragen = 0;
-        welt.hashFragen = 0;
-        for (int i = 0; i < 40; i++) scanner.durchgang(welt);   // zehn Sekunden bei vier Durchgaengen je Sekunde
-
-        double jeDurchgang = welt.hoehenFragen / 40.0;
-        System.out.println("Kosten Funny-Map-Scan (Floor V): vorher 94 Hoehenabfragen je Durchgang, jetzt im Mittel " + jeDurchgang
-                + " (je bis zu 257 Blockabfragen); Hash-Abfragen je Durchgang " + welt.hashFragen / 40.0);
-        assertTrue(jeDurchgang <= 10, "je Durchgang gemessen: " + jeDurchgang + " Hoehenabfragen");
+        assertFalse(scanner.fertig(), "der erste Durchgang findet alles, ist aber noch nicht ruhig");
+        scanner.durchgang(welt);
+        assertFalse(scanner.fertig(), "ein ruhiger Durchgang genuegt nicht");
+        scanner.durchgang(welt);
+        assertTrue(scanner.fertig(), "zwei ruhige Durchgaenge mit allen Chunks: fertig");
     }
 
     @Test
-    void aRoomThatAppearsLaterIsStillFoundAfterTheRestPeriod() {
+    void aFinishedScanDoesNotAskTheWorldAnymore() {
+        WeltScanner scanner = new WeltScanner(RaumTabelle.standard(), new Raster());
+        Zaehlwelt welt = new Zaehlwelt();
+        for (int i = 0; i < 4; i++) scanner.durchgang(welt);
+        welt.hoehenFragen = 0;
+
+        for (int i = 0; i < 40; i++) scanner.durchgang(welt);   // zehn Sekunden bei vier Durchgaengen je Sekunde
+
+        System.out.println("Kosten Funny-Map-Scan (Floor V), zehn Sekunden nach dem Abschluss: " + welt.hoehenFragen
+                + " Hoehenabfragen (urspruenglich 94 je Durchgang = 3760, dann 7 je Durchgang = 282)");
+        assertTrue(welt.hoehenFragen == 0, "gemessen: " + welt.hoehenFragen);
+    }
+
+    @Test
+    void whileAChunkIsMissingTheScanIsNotFinishedButTheEmptyPlacesRest() {
+        WeltScanner scanner = new WeltScanner(RaumTabelle.standard(), new Raster());
+        Zaehlwelt welt = new Zaehlwelt();
+        welt.fehlendeChunks.add(0 * 11 + 10);   // Raumeinheit (5, 0): der Chunk kommt nicht
+        for (int i = 0; i < 4; i++) scanner.durchgang(welt);
+        welt.hoehenFragen = 0;
+
+        for (int i = 0; i < 40; i++) scanner.durchgang(welt);
+
+        assertFalse(scanner.fertig(), "ein Chunk fehlt: der Scan bleibt offen");
+        double jeDurchgang = welt.hoehenFragen / 40.0;
+        System.out.println("Kosten Funny-Map-Scan (Floor V) mit fehlendem Chunk: im Mittel " + jeDurchgang + " Hoehenabfragen je Durchgang (vorher 94)");
+        assertTrue(jeDurchgang <= 10, "je Durchgang gemessen: " + jeDurchgang);
+    }
+
+    @Test
+    void aRoomThatAppearsLaterIsFoundWhileTheScanIsNotFinished() {
         Raster raster = new Raster();
         WeltScanner scanner = new WeltScanner(RaumTabelle.standard(), raster);
         Zaehlwelt welt = new Zaehlwelt();
-        scanner.durchgang(welt);
-        scanner.durchgang(welt);
-        scanner.durchgang(welt);
+        welt.fehlendeChunks.add(10 * 11 + 10);   // ein anderer Chunk fehlt, der Scan ist also nicht fertig
+        for (int i = 0; i < 4; i++) scanner.durchgang(welt);
 
         int platz = 0 * 11 + 10;   // Raumeinheit (5, 0): in Floor V leer
         assertTrue(raster.get(platz) == null);

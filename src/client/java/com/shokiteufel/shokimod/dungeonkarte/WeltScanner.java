@@ -45,6 +45,12 @@ public final class WeltScanner {
      */
     private final int[] ruhtBis = new int[Raster.PLAETZE];
     private int durchgaenge;
+    /**
+     * Sind alle Chunks des Rasters geladen und hat der Scan zweimal hintereinander nichts Neues gefunden, ist er fertig: NoammAddons macht es
+     * ebenso ({@code hasScanned}). Danach fragt {@link #durchgang} die Welt nicht mehr. Eine neue Welt braucht einen neuen Scanner.
+     */
+    private boolean fertig;
+    private int ruhigeDurchgaenge;
     /** Wie viele Durchgaenge (je ein viertel Sekunde) ein erfolgloser Platz ruht: etwa drei Sekunden */
     static final int RUHE = 12;
     private final java.util.Map<Integer, Integer> unbekannteKerne = new java.util.TreeMap<>();
@@ -64,12 +70,18 @@ public final class WeltScanner {
         return alleChunks;
     }
 
+    /** Ist der Scan abgeschlossen (alle Chunks geladen, zweimal nichts Neues)? Dann kostet {@link #durchgang} nichts mehr */
+    public boolean fertig() {
+        return fertig;
+    }
+
     /**
      * Ein Durchgang ueber das Raster. Bekannte Plaetze werden uebersprungen; was noch fehlt, kommt hinzu, sobald sein Chunk da ist.
      *
      * @return wie viele Plaetze neu belegt wurden
      */
     public int durchgang(Welt welt) {
+        if (fertig) return 0;
         int neu = 0;
         boolean alle = true;
         durchgaenge++;
@@ -102,6 +114,11 @@ public final class WeltScanner {
         alleChunks = alle;
         // Etwas Neues kann den ruhenden Plaetzen helfen (eine Tuer bekommt ihren Nachbarraum): dann alle wieder fragen
         if (neu > 0) java.util.Arrays.fill(ruhtBis, 0);
+        if (alle && neu == 0) {
+            if (++ruhigeDurchgaenge >= 2) fertig = true;
+        } else {
+            ruhigeDurchgaenge = 0;
+        }
         return neu;
     }
 
