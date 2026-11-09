@@ -176,7 +176,45 @@ public final class NoammLage {
      * beim Beenden und alle fuenf Minuten - wer das hier jede Sekunde fragt, sieht eine verschobene Karte gleich.
      */
     public static long aenderung(Path configOrdner) {
-        Path datei = configDatei(configOrdner);
+        return aenderungVon(configDatei(configOrdner));
+    }
+
+    private static Path gemerkterOrdner;
+    private static Path gemerkteDatei;
+    private static long gemerktSeit;
+    private static boolean gemerkt;
+    /** So lange gilt das Ergebnis des Auflistens (auch "keine Datei") */
+    private static final long GEMERKT_NANOS = 30_000_000_000L;
+
+    /**
+     * Wie {@link #configDatei}, aber das Ergebnis gilt 30 Sekunden. Die Funny Map fragt jede Sekunde (auch ausserhalb des Dungeons), und das
+     * Auflisten des config-Ordners kostet auf dem Spiel-Thread je Eintrag einen Dateizugriff: gemessen 0,9 ms bei 55, 3,5 ms bei 150 und 7,9 ms
+     * bei 400 Eintraegen - jede Sekunde, solange NoammAddons nicht live erreichbar ist.
+     */
+    public static synchronized Path configDateiGemerkt(Path ordner) {
+        long jetzt = System.nanoTime();
+        if (!gemerkt || !java.util.Objects.equals(ordner, gemerkterOrdner) || jetzt - gemerktSeit > GEMERKT_NANOS) {
+            gemerkteDatei = configDatei(ordner);
+            gemerkterOrdner = ordner;
+            gemerktSeit = jetzt;
+            gemerkt = true;
+        }
+        return gemerkteDatei;
+    }
+
+    /** Das Gemerkte verwerfen: beim Wechsel der Welt und in Tests */
+    public static synchronized void gemerktesVergessen() {
+        gemerkt = false;
+        gemerkteDatei = null;
+        gemerkterOrdner = null;
+    }
+
+    /** Wie {@link #aenderung}, mit dem gemerkten Ergebnis des Auflistens: je Aufruf zwei Abfragen von Dateizeiten statt eines ganzen Ordners */
+    public static long aenderungGemerkt(Path configOrdner) {
+        return aenderungVon(configDateiGemerkt(configOrdner));
+    }
+
+    private static long aenderungVon(Path datei) {
         if (datei == null) return 0L;
         long stand = zeit(datei);
         // Der Zeiger auf die gewaehlte Config liegt im Ordner von Noamm, neben der Standard-Config oder zwei Ebenen hoeher neben configs/

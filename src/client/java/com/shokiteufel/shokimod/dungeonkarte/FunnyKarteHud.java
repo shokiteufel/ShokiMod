@@ -9,6 +9,8 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.PlayerFaceExtractor;
 import net.minecraft.client.player.AbstractClientPlayer;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 
 import static com.shokiteufel.shokimod.dungeonkarte.KartenOption.*;
@@ -24,6 +26,17 @@ public final class FunnyKarteHud {
     private static final int WEISS = 0xFFFFFFFF;
     private static final int ROT = 0xFFFF0000;
     private static final int GRAU = 0xFFAAAAAA;
+
+    /** Haekchen und Pfeil: die Bilder von NoammAddons (CC0), je Haekchen ein Zeichenaufruf statt zehn kleiner Flaechen */
+    private static final Identifier HAKEN_GRUEN = bild("checkmarks/green_check.png");
+    private static final Identifier HAKEN_WEISS = bild("checkmarks/white_check.png");
+    private static final Identifier KREUZ = bild("checkmarks/cross.png");
+    private static final Identifier FRAGE = bild("checkmarks/question.png");
+    private static final Identifier PFEIL = bild("marker.png");
+
+    private static Identifier bild(String pfad) {
+        return Identifier.fromNamespaceAndPath("shokimod", "textures/gui/dungeonmap/" + pfad);
+    }
     /** Mit "Show Extra Info Under Map" ist die Karte 140 Punkte hoch, wie bei Noamm mit seiner Zeile unter der Karte */
     private static final int HOEHE = 128;
     private static final int HOEHE_MIT_ZEILE = 140;
@@ -95,7 +108,14 @@ public final class FunnyKarteHud {
     private static void inhalt(GuiGraphicsExtractor g, Font font, Raster raster, int[] versch, KartenEinstellungen e) {
         int stil = e.ganz(CHECKMARK_STYLE);
         float textMassstab = e.komma(TEXT_SCALE);
-        for (Raster.Raum raum : raster.raeume()) {
+        java.util.List<Raster.Raum> raeume = raster.raeume();
+        // Die Namenszeilen gelten, solange die Raumliste dieselbe ist (sie wird nur bei einer Aenderung des Rasters neu gerechnet)
+        if (raeume != namenListe || font != namenSchrift) {
+            NAMEN.clear();
+            namenListe = raeume;
+            namenSchrift = font;
+        }
+        for (Raster.Raum raum : raeume) {
             RaumDaten daten = raum.daten();
             // Eingang und Fairy tragen keinen Text, wie bei Noamm
             if (daten.typ() == RaumTyp.EINGANG || daten.typ() == RaumTyp.FAIRY) continue;
@@ -130,7 +150,8 @@ public final class FunnyKarteHud {
 
     private static void namen(GuiGraphicsExtractor g, Font font, Raster.Raum raum, RaumDaten daten, float cx, float cy, int farbe,
                               boolean mitGeheimnissen, float grundMassstab, boolean begrenzen) {
-        String[] worte = daten.istUnbekannt() ? new String[] {"?"} : daten.name().split(" ");
+        NamenLayout layout = NAMEN.computeIfAbsent(raum, r -> new NamenLayout(font, r, daten));
+        String[] worte = layout.worte;
         boolean geheimnisse = mitGeheimnissen && !daten.istUnbekannt() && daten.geheimnisse() > 0;
         String zahlen = geheimnisse ? geheimnisse(raum, daten) : "";
         int zeilen = worte.length + (geheimnisse ? 1 : 0);
@@ -139,9 +160,8 @@ public final class FunnyKarteHud {
         // 0,39, nicht ueber den eingestellten Wert); ohne die Einstellung gilt der eingestellte Wert, auch wenn der Name ueber den Raum ragt
         float massstab = grundMassstab;
         if (begrenzen) {
-            int[] platz = platzDesRaums(raum);
-            int breit = font.width(zahlen);
-            for (String w : worte) breit = Math.max(breit, font.width(w));
+            int[] platz = layout.platz;
+            int breit = Math.max(font.width(zahlen), layout.breitWorte);
             float hoeheAlle = zeilen * font.lineHeight;
             if (breit > 0 && hoeheAlle > 0) {
                 massstab = Math.min(platz[0] / (float) breit, platz[1] / hoeheAlle);
@@ -164,6 +184,25 @@ public final class FunnyKarteHud {
         int gefunden = raum.zustand() == Zustand.GRUEN ? gesamt : Math.max(0, FunnyKarte.gefundenIn(raum));
         return Math.min(gefunden, gesamt) + "/" + gesamt;
     }
+
+    /** Was sich an den Namenszeilen eines Raums nicht aendert: die Worte, ihre breiteste Breite und der Platz des Raums (je Raumliste einmal gerechnet) */
+    private static final class NamenLayout {
+        final String[] worte;
+        final int breitWorte;
+        final int[] platz;
+
+        NamenLayout(Font font, Raster.Raum raum, RaumDaten daten) {
+            this.worte = daten.istUnbekannt() ? new String[] {"?"} : daten.name().split(" ");
+            int breit = 0;
+            for (String w : worte) breit = Math.max(breit, font.width(w));
+            this.breitWorte = breit;
+            this.platz = platzDesRaums(raum);
+        }
+    }
+
+    private static final java.util.IdentityHashMap<Raster.Raum, NamenLayout> NAMEN = new java.util.IdentityHashMap<>();
+    private static java.util.List<Raster.Raum> namenListe;
+    private static Font namenSchrift;
 
     /** Breite und Hoehe des Raums in Punkten: das umschliessende Rechteck seiner Plaetze */
     private static int[] platzDesRaums(Raster.Raum raum) {
@@ -193,35 +232,17 @@ public final class FunnyKarteHud {
     // ------------------------------------------------------------------ Haekchen
 
     private static void haekchen(GuiGraphicsExtractor g, Font font, Zustand z, float cx, float cy, float groesse, boolean unbekanntVerbergen) {
-        if (z == Zustand.GESCHLOSSEN) {
-            if (!unbekanntVerbergen) text(g, font, "?", cx, cy, 0.9f * groesse, GRAU);
-            return;
-        }
-        if (z != Zustand.GRUEN && z != Zustand.GERAEUMT && z != Zustand.FEHLGESCHLAGEN) return;
-        // Die Groesse ("Map Checkmark Scale") dehnt das Zeichen um seine Mitte
-        g.pose().pushMatrix();
-        g.pose().translate(Math.round(cx), Math.round(cy));
-        g.pose().scale(groesse, groesse);
-        switch (z) {
-            case GRUEN -> haken(g, 0, 0, GRUEN);
-            case GERAEUMT -> haken(g, 0, 0, WEISS);
-            default -> kreuz(g, 0, 0, ROT);
-        }
-        g.pose().popMatrix();
-    }
-
-    private static void punkt(GuiGraphicsExtractor g, int x, int y, int farbe) {
-        g.fill(x, y, x + 2, y + 2, farbe);
-    }
-
-    private static void haken(GuiGraphicsExtractor g, int x, int y, int farbe) {
-        int[][] punkte = {{-4, 0}, {-3, 1}, {-2, 2}, {-1, 1}, {0, 0}, {1, -1}, {2, -2}, {3, -3}};
-        for (int[] p : punkte) punkt(g, x + p[0], y + p[1], farbe);
-    }
-
-    private static void kreuz(GuiGraphicsExtractor g, int x, int y, int farbe) {
-        int[][] punkte = {{-3, -3}, {-2, -2}, {-1, -1}, {0, 0}, {1, 1}, {2, 2}, {2, -3}, {1, -2}, {0, -1}, {-1, 0}, {-2, 1}, {-3, 2}};
-        for (int[] p : punkte) punkt(g, x + p[0], y + p[1], farbe);
+        Identifier bild = switch (z) {
+            case GRUEN -> HAKEN_GRUEN;
+            case GERAEUMT -> HAKEN_WEISS;
+            case FEHLGESCHLAGEN -> KREUZ;
+            case GESCHLOSSEN -> unbekanntVerbergen ? null : FRAGE;
+            default -> null;
+        };
+        if (bild == null) return;
+        // Wie bei Noamm: "Map Checkmark Scale" mal zehn Punkte, um die Mitte des Raums
+        int s = Math.max(1, Math.round(groesse * 10f));
+        g.blit(RenderPipelines.GUI_TEXTURED, bild, Math.round(cx - s / 2f), Math.round(cy - s / 2f), 0f, 0f, s, s, s, s, WEISS);
     }
 
     // ------------------------------------------------------------------ Spieler
@@ -255,7 +276,8 @@ public final class FunnyKarteHud {
         g.pose().scale(e.komma(HEAD_SCALE), e.komma(HEAD_SCALE));
 
         if (selbst && e.janein(VANILLA_MARKER)) {
-            pfeil(g, e.farbe(VANILLA_MARKER_COLOR));
+            // Der Pfeil von NoammAddons (7 mal 7, schwarzer Rand, heller Kern), auf 12 Punkte gezogen und in der gewaehlten Farbe getoent
+            g.blit(RenderPipelines.GUI_TEXTURED, PFEIL, -6, -6, 0f, 0f, 12, 12, 12, 12, e.farbe(VANILLA_MARKER_COLOR));
         } else {
             int rahmen = e.janein(HEAD_BORDER_CLASS) && klasse != null ? 0xFF000000 | klasse : e.farbe(HEAD_BORDER);
             g.fill(-7, -7, 7, 7, rahmen);
@@ -281,15 +303,6 @@ public final class FunnyKarteHud {
         ItemStack hand = client.player.getMainHandItem();
         String id = ItemChanges.countedId(hand);
         return "SPIRIT_LEAP".equals(id) || "INFINITE_SPIRIT_LEAP".equals(id) || "HAUNT_ABILITY".equals(id);
-    }
-
-    /** Der Pfeil der gewoehnlichen Karte: ein kleiner Pfeil mit schwarzem Rand, Spitze nach oben (der Aufrufer hat schon gedreht) */
-    private static void pfeil(GuiGraphicsExtractor g, int farbe) {
-        g.fill(-3, -4, 4, 4, 0xFF000000);
-        g.fill(0, -3, 1, -2, farbe);
-        g.fill(-1, -2, 2, -1, farbe);
-        g.fill(-2, -1, 3, 0, farbe);
-        g.fill(-1, 0, 2, 3, farbe);
     }
 
     // ------------------------------------------------------------------ Zeile unter der Karte

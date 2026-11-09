@@ -5,6 +5,8 @@ import com.shokiteufel.shokimod.data.FeatureGate;
 import com.shokiteufel.shokimod.data.GameState;
 import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.handler.HidePlayers;
+import com.shokiteufel.shokimod.paket.PaketBus;
+import com.shokiteufel.shokimod.paket.PaketPhase;
 import com.shokiteufel.shokimod.scanner.TabListScanner;
 import com.shokiteufel.shokimod.util.ScoreboardUtils;
 
@@ -12,6 +14,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.network.protocol.game.ClientboundMapItemDataPacket;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.saveddata.maps.MapId;
 import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
@@ -21,9 +24,10 @@ import java.util.List;
 /**
  * Die Funny Map: der ganze Dungeon auf einer Karte, ab den ersten Sekunden.
  *
- * Alle halbe Sekunde im Dungeon: der {@link WeltScanner} liest aus den Chunks, die der Server schon geschickt hat, die Raeume und Tueren
- * ins {@link Raster}; die Karte, die Hypixel in den Hotbar-Platz 9 legt, liefert den Zustand (entdeckt, geraeumt ...). Gezeichnet wird
- * in {@link FunnyKarteHud}. Es wird nichts angefordert und nichts gesendet: nur gelesen, was ohnehin da ist.
+ * Im Dungeon viermal je Sekunde: der {@link WeltScanner} liest aus den Chunks, die der Server schon geschickt hat, die Raeume und Tueren
+ * ins {@link Raster} - bis alle Chunks da waren und nichts Neues mehr kam, dann ruht er (wie bei NoammAddons); die Karte, die Hypixel in den
+ * Hotbar-Platz 9 legt, liefert den Zustand (entdeckt, geraeumt ...) und wird nur gelesen, wenn ein Kartenpaket kam ({@link KartenTakt}).
+ * Gezeichnet wird in {@link FunnyKarteHud}. Es wird nichts angefordert und nichts gesendet: nur gelesen, was ohnehin da ist.
  *
  * Der Dungeon wird wie bei "Hide Players" erkannt (Tab-Liste "Dungeon: Catacombs", Seitenleiste "The Catacombs (F5)"); das Stockwerk
  * steht in der Klammer der Seitenleiste. Mit NoammAddons wird dessen Platz und Groesse gelesen (alle 30 Sekunden neu, die Datei ist klein).
@@ -50,8 +54,19 @@ public final class FunnyKarte {
     private FunnyKarte() {
     }
 
+    /** Wann die Karte von Hypixel gelesen wird: wenn ein Kartenpaket kam, sonst nur zur Sicherheit alle paar Sekunden */
+    private static final KartenTakt KARTENTAKT = new KartenTakt();
+
     public static void register() {
         ClientTickEvents.END_CLIENT_TICK.register(FunnyKarte::tick);
+        try {
+            // Nach dem Spiel: Dann liegen die neuen Farben schon in den Kartendaten
+            PaketBus.abonnieren(ClientboundMapItemDataPacket.class, PaketPhase.NACH, "Funny Map Karte", (p, k) -> {
+                if (FeatureGate.funnyMap()) KARTENTAKT.paket();
+            });
+        } catch (Throwable t) {
+            ShokiMod.LOGGER.warn("[FunnyMap] could not listen for map packets, the map is read on a timer instead: {}", t.toString());
+        }
     }
 
     // ------------------------------------------------------------------ fuer die Anzeige
@@ -203,6 +218,7 @@ public final class FunnyKarte {
     // ------------------------------------------------------------------ Takt
 
     private static void zuruecksetzen() {
+        NoammLage.gemerktesVergessen();
         gefunden.clear();
         RASTER.leeren();
         scanner = new WeltScanner(RaumTabelle.standard(), RASTER);
@@ -250,7 +266,7 @@ public final class FunnyKarte {
     /** Lage der Noamm-Karte neu lesen, wenn seine Config seit dem letzten Mal geschrieben wurde; eine Zeile ins Log, wenn sich die Lage aendert */
     private static void noammPruefen() {
         java.nio.file.Path ordner = FabricLoader.getInstance().getConfigDir();
-        long stand = NoammLage.aenderung(ordner);
+        long stand = NoammLage.aenderungGemerkt(ordner);
         if (stand == noammStand) return;
         noammStand = stand;
         NoammLage.Lage neu = NoammLage.lesen(ordner);
@@ -284,10 +300,11 @@ public final class FunnyKarte {
 
     private static void arbeiten(Minecraft client) {
         ClientWelt welt = new ClientWelt(client.level);
-        scanner.durchgang(welt);
+        boolean neu = scanner.durchgang(welt) > 0;
         scanner.tuerenPruefen(welt);
-        karteLesen(client);
-        protokollieren();
+        boolean gelesen = KARTENTAKT.lesen(PaketBus.ausgeschaltet());
+        if (gelesen) karteLesen(client);
+        if (neu || gelesen || ticks % 100 == 0) protokollieren();
     }
 
     /** Der Zustand der Hypixel-Karte kommt ins Raster, sobald die Karte im Hotbar-Platz 9 liegt und kalibriert werden kann */

@@ -157,4 +157,34 @@ class NoammLageTest {
         assertNull(NoammLage.lesen(config.resolve("gibt-es-nicht")));
         assertNull(NoammLage.lesen(null));
     }
+
+    @Test
+    void theRememberedFolderLookupDoesNotListTheConfigFolderAgainWithinHalfAMinute(@TempDir Path config) throws IOException {
+        NoammLage.gemerktesVergessen();
+        // Ohne Noamm: "keine Datei" wird gemerkt, auch wenn kurz danach ein Ordner entsteht (so spart die Funny Map das Auflisten jede Sekunde)
+        assertEquals(0L, NoammLage.aenderungGemerkt(config));
+        Path datei = config.resolve("NoammAddons").resolve("config.json");
+        schreiben(datei, CONFIG);
+        Files.setLastModifiedTime(datei, java.nio.file.attribute.FileTime.fromMillis(3_000_000L));
+        assertEquals(0L, NoammLage.aenderungGemerkt(config), "innerhalb der 30 Sekunden gilt das Gemerkte");
+
+        // Nach dem Vergessen (neue Welt) wird neu aufgelistet und die Datei gefunden
+        NoammLage.gemerktesVergessen();
+        assertEquals(3_000_000L, NoammLage.aenderungGemerkt(config));
+        // Eine gefundene Datei: die Zeit wird weiter jedes Mal gefragt (zwei Abfragen), nur das Auflisten entfaellt
+        Files.setLastModifiedTime(datei, java.nio.file.attribute.FileTime.fromMillis(4_000_000L));
+        assertEquals(4_000_000L, NoammLage.aenderungGemerkt(config));
+        NoammLage.gemerktesVergessen();
+    }
+
+    @Test
+    void theRememberedLookupIsPerFolder(@TempDir Path eins, @TempDir Path zwei) throws IOException {
+        NoammLage.gemerktesVergessen();
+        Path datei = eins.resolve("NoammAddons").resolve("config.json");
+        schreiben(datei, CONFIG);
+        Files.setLastModifiedTime(datei, java.nio.file.attribute.FileTime.fromMillis(7_000_000L));
+        assertEquals(7_000_000L, NoammLage.aenderungGemerkt(eins));
+        assertEquals(0L, NoammLage.aenderungGemerkt(zwei), "ein anderer Ordner nimmt nicht das Gemerkte des ersten");
+        NoammLage.gemerktesVergessen();
+    }
 }
