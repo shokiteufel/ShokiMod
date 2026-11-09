@@ -213,8 +213,9 @@ public final class FunnyKarte {
     }
 
     private static void tick(Minecraft client) {
-        // Der Abgleich mit Noamm laeuft, wo immer man die Einstellungen aendern kann (auch ausserhalb von SkyBlock und mit ausgeschalteter Karte)
-        if (client != null && client.level != null && ++abgleichTicks >= 20) {
+        // Der Abgleich mit Noamm laeuft nur mit eingeschalteter Karte (von Haus aus aus: dann tut die Funny Map nichts), dafuer ausserhalb von
+        // SkyBlock und ausserhalb eines Dungeons, wo man ihre Einstellungen aendern kann
+        if (client != null && client.level != null && FeatureGate.funnyMap() && ++abgleichTicks >= 20) {
             abgleichTicks = 0;
             try {
                 abgleichTakt();
