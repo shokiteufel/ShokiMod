@@ -59,7 +59,7 @@ class StarMobTargetTest {
 
     @Test
     void itScansOnlyInsideADungeon() {
-        ModConfig.INSTANCE.odin.starMobs = true;
+        ModConfig.INSTANCE.ikohS.starMobs.enabled = true;
         assertTrue(StarMobTarget.enabled());
         assertFalse(StarMobTarget.scanning(), "draussen bedeutet das Sternchen nichts");
         StarMobTarget.setInDungeon(true);
@@ -68,21 +68,32 @@ class StarMobTargetTest {
     }
 
     @Test
-    void itFollowsTheMobVisualsMasterSwitch() {
-        ModConfig.INSTANCE.odin.starMobs = true;
+    void itHasItsOwnSwitchAndDoesNotNeedTheMobVisualsMasterSwitch() {
+        ModConfig.INSTANCE.ikohS.starMobs.enabled = true;
         ModConfig.INSTANCE.mobVisuals.masterEnabled = false;
         StarMobTarget.setInDungeon(true);
-        assertFalse(StarMobTarget.enabled());
-        assertFalse(StarMobTarget.scanning());
+        assertTrue(StarMobTarget.enabled());
+        assertTrue(StarMobTarget.scanning());
+        assertTrue(FeatureGate.mobMarkers(), "auch ohne den Hauptschalter der Mob-Markierungen muss der Markierer laufen");
+    }
+
+    @Test
+    void itIsOffFromTheStartEvenWhenAnOldFileStillCarriesTheOdinKeys() {
+        // Bis 2.2.3 standen die Schalter bei Odin; eine alte Datei traegt sie noch. Sie werden nicht uebernommen: von Haus aus aus
+        ModConfig alt = new com.google.gson.Gson().fromJson("{\"odin\":{\"starMobs\":true,\"starMobsLine\":true,\"starMobsBox\":true}}", ModConfig.class);
+        ModConfig.migrateIkohS(alt);
+        assertFalse(alt.ikohS.starMobs.enabled);
+        assertFalse(alt.ikohS.starMobs.line);
+        assertFalse(alt.ikohS.starMobs.box);
     }
 
     @Test
     void lineAndBoxAreOptionalExtras() {
-        ModConfig.INSTANCE.odin.starMobs = true;
+        ModConfig.INSTANCE.ikohS.starMobs.enabled = true;
         assertFalse(StarMobTarget.INSTANCE.tracer());
         assertFalse(StarMobTarget.INSTANCE.box());
-        ModConfig.INSTANCE.odin.starMobsLine = true;
-        ModConfig.INSTANCE.odin.starMobsBox = true;
+        ModConfig.INSTANCE.ikohS.starMobs.line = true;
+        ModConfig.INSTANCE.ikohS.starMobs.box = true;
         assertTrue(StarMobTarget.INSTANCE.tracer());
         assertTrue(StarMobTarget.INSTANCE.box());
         assertFalse(StarMobTarget.INSTANCE.nameplate(), "ein Namensschild haengt der Server selbst darueber");
@@ -90,7 +101,7 @@ class StarMobTargetTest {
 
     @Test
     void theMarkerGateSeesTheStarMobs() {
-        ModConfig.INSTANCE.odin.starMobs = true;
+        ModConfig.INSTANCE.ikohS.starMobs.enabled = true;
         assertTrue(FeatureGate.mobMarkers());
         assertEquals(0xFFFF55, StarMobTarget.INSTANCE.glowColorRGB());
     }

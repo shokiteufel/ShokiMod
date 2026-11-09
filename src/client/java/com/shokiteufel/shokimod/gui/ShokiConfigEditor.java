@@ -22,6 +22,8 @@ import java.util.function.Predicate;
  * nur dann gelten alle seine Einstellungen als Suchtreffer. Beim Codewort zaehlt
  * Gross- und Kleinschreibung.
  *
+ * "ikohS" (ShokiMods eigene Funktionen: Funny Map, The Mist, Stern-Mobs) ist ebenso verborgen und geht mit demselben Codewort auf.
+ *
  * "Bug hunt" (die Werkzeuge zum Fehlersuchen) ist ebenso verborgen und kommt bei der
  * Suche nach "bug" - ohne Ruecksicht auf Gross und Klein, denn es ist kein Geheimnis,
  * nur nichts, was man im Alltag braucht.
@@ -59,6 +61,8 @@ public class ShokiConfigEditor extends MoulConfigEditor<ModConfig> {
 
     private static final List<Hidden> HIDDEN = List.of(
             hidden("mobVisuals", typed -> SECRET_SHA256.equals(sha256(typed.trim()))),
+            // ikohS (ShokiMods eigene Funktionen) ist ebenso verborgen und geht mit demselben Codewort auf
+            hidden("ikohS", typed -> SECRET_SHA256.equals(sha256(typed.trim()))),
             hidden("bugHunt", typed -> BUG_WORD.equalsIgnoreCase(typed.trim()) || LOG_WORD.equalsIgnoreCase(typed.trim())),
             hidden("logs", typed -> LOG_WORD.equalsIgnoreCase(typed.trim())));
 
@@ -92,7 +96,7 @@ public class ShokiConfigEditor extends MoulConfigEditor<ModConfig> {
     /**
      * Das Fenster so aufschlagen, wie es beim letzten Mal war: erst der Suchtext, dann der Reiter.
      *
-     * Die Reihenfolge zaehlt. Die verborgenen Reiter (Mob Visuals, Bug hunt) sind nur zu sehen, solange das
+     * Die Reihenfolge zaehlt. Die verborgenen Reiter (Mob Visuals, ikohS, Bug hunt, Logs) sind nur zu sehen, solange das
      * Suchfeld ihr Wort enthaelt - der Text muss also im Feld stehen, bevor der Reiter gewaehlt wird. Ein
      * verborgener Reiter kommt nur zurueck, wenn er dann auch offen ist; sonst waere der gemerkte ein leerer.
      * Ist die Kennung unbekannt (der Reiter wurde umbenannt oder entfernt), bleibt es beim ersten.

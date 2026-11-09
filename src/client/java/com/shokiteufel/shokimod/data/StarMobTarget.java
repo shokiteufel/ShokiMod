@@ -25,13 +25,13 @@ public final class StarMobTarget implements MobVisual {
     private StarMobTarget() {
     }
 
-    private static ModConfig.OdinCategory cfg() {
-        return ModConfig.INSTANCE.odin;
+    private static ModConfig.StarMobsCategory cfg() {
+        return ModConfig.INSTANCE.ikohS.starMobs;
     }
 
-    /** Ist die Funktion an? Sie folgt dem Hauptschalter der Mob-Markierungen */
+    /** Ist die Funktion an? Eigener Schalter unter ikohS, ohne den Hauptschalter der Mob-Markierungen (wie bei den Pests und den Runic Ghosts) */
     public static boolean enabled() {
-        return ModConfig.INSTANCE.mobVisuals.masterEnabled && cfg().starMobs;
+        return cfg().enabled;
     }
 
     /** Lohnt sich der Durchgang durch die Mobs: an und im Dungeon */
@@ -74,7 +74,7 @@ public final class StarMobTarget implements MobVisual {
 
     @Override
     public boolean tracer() {
-        return enabled() && cfg().starMobsLine;
+        return enabled() && cfg().line;
     }
 
     @Override
@@ -84,6 +84,6 @@ public final class StarMobTarget implements MobVisual {
 
     @Override
     public boolean box() {
-        return enabled() && cfg().starMobsBox;
+        return enabled() && cfg().box;
     }
 }
