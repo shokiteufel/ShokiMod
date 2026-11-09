@@ -41,6 +41,8 @@ public final class NearbyOverlay {
         // Auch dann zeichnen, wenn kein einziger Kasten an ist: Der Hinweis ueber der
         // Hunting-Box haengt nicht an ihnen
         if (HuntingBoxOverlay.shown()) return true;
+        // Auch die Funny Map: Sie bleibt stehen, wenn man das Inventar oder einen Behaelter oeffnet
+        if (com.shokiteufel.shokimod.dungeonkarte.FunnyKarte.sichtbar()) return true;
         for (SafariHud.Panel panel : SafariHud.panels()) {
             if (panel.visible()) return true;
         }
@@ -68,6 +70,8 @@ public final class NearbyOverlay {
         }
         // Dieselbe Auswahl wie beim Spielen - was eingeschaltet ist und hierher gehoert
         SafariHud.render(graphics);
+        // Die Funny Map nach den Kaesten, wie im Spiel (HudRenderer): bei offenem Inventar oder Behaelter bleibt sie sichtbar
+        com.shokiteufel.shokimod.dungeonkarte.FunnyKarteHud.render(graphics);
         drawNegativeTooltip(graphics);
     }
 
