@@ -158,6 +158,7 @@ public class ModConfig extends Config {
         }
         if (config.ikohS.funnyMap == null) config.ikohS.funnyMap = new FunnyMapCategory();
         if (config.ikohS.mist == null) config.ikohS.mist = new MistCategory();
+        if (config.ikohS.starMobs == null) config.ikohS.starMobs = new StarMobsCategory();
         return moved;
     }
 
@@ -1131,7 +1132,7 @@ public class ModConfig extends Config {
     public SkillXpCategory skillXp = new SkillXpCategory();
 
     @Expose
-    @Category(name = "ikohS", desc = "ShokiMod's own functions, apart from the normal ones: the Funny Map and The Mist. Everything in here is off until you turn it on.")
+    @Category(name = "ikohS", desc = "ShokiMod's own functions, apart from the normal ones: the Funny Map, The Mist and the Star mobs. Everything in here is off until you turn it on.")
     public IkohSCategory ikohS = new IkohSCategory();
 
     /**
@@ -3978,7 +3979,10 @@ public class ModConfig extends Config {
         public boolean announced = false;
     }
 
-    /** ikohS: ShokiMods eigene Funktionen, getrennt von den normalen - die Funny Map und The Mist */
+    /**
+     * ikohS: ShokiMods eigene Funktionen, getrennt von den normalen - die Funny Map, The Mist und die Stern-Mobs. Der Reiter steht nicht in der
+     * Liste: Er wird sichtbar, wenn im Suchfeld das Codewort steht (siehe ShokiConfigEditor, wie bei Mob Visuals).
+     */
     public static class IkohSCategory {
 
         @ConfigOption(name = "ikohS", desc = "ShokiMod's own functions, apart from the normal ones. Everything here is off until you turn it on.")
@@ -3992,6 +3996,33 @@ public class ModConfig extends Config {
         @Expose
         @Category(name = "The Mist", desc = "The Mist in the Dwarven Mines: shows the invisible Ghosts as Creepers and marks the Runic Ghosts. Off until you turn it on.")
         public MistCategory mist = new MistCategory();
+
+        @Expose
+        @Category(name = "Star mobs", desc = "Marks the star mobs (✯) of a dungeon room, through walls. Off until you turn it on.")
+        public StarMobsCategory starMobs = new StarMobsCategory();
+    }
+
+    /** Die Stern-Mobs im Dungeon (wohnten bis 2.2.3 bei Odin; dort gestrichen, damit sie von Haus aus aus sind) */
+    public static class StarMobsCategory {
+
+        @ConfigOption(name = "Star mobs", desc = "The mobs a dungeon room guards carry a star (✯) before their name. This outlines them through walls, so you see where the rest of a room is hiding. Read from the tab list and the sidebar, only in the Catacombs. It does not need the switches of Mob Visuals. Everything here is off until you turn it on.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Mark star mobs", desc = "Glows every mob with a star (✯) before its name, through walls. Only in the Catacombs. Off from the start.")
+        @ConfigEditorBoolean
+        public boolean enabled = false;
+
+        @Expose
+        @ConfigOption(name = "Line", desc = "Also draws a line from your crosshair to every star mob.")
+        @ConfigEditorBoolean
+        public boolean line = false;
+
+        @Expose
+        @ConfigOption(name = "Box", desc = "Also draws a box around every star mob.")
+        @ConfigEditorBoolean
+        public boolean box = false;
     }
 
     /** Die Mist in den Dwarven Mines */
@@ -4655,28 +4686,6 @@ public class ModConfig extends Config {
         @ConfigAccordionId(id = 90)
         public float hidePlayersDistance = 3.0f;
 
-        @ConfigOption(name = "Star mobs", desc = "Marks the star mobs (✯) in a dungeon, so you see where the rest of a room is hiding - through walls.")
-        @ConfigEditorAccordion(id = 102)
-        public transient boolean starMobsFolder = false;
-
-        @Expose
-        @ConfigOption(name = "Mark star mobs", desc = "Glows every mob with a star (✯) before its name, through walls. Only in the Catacombs, read from the tab list and the sidebar. It follows the Mob Visuals master switch. Off from the start.")
-        @ConfigEditorBoolean
-        @ConfigAccordionId(id = 102)
-        public boolean starMobs = false;
-
-        @Expose
-        @ConfigOption(name = "Line", desc = "Also draws a line from your crosshair to every star mob.")
-        @ConfigEditorBoolean
-        @ConfigAccordionId(id = 102)
-        public boolean starMobsLine = false;
-
-        @Expose
-        @ConfigOption(name = "Box", desc = "Also draws a box around every star mob.")
-        @ConfigEditorBoolean
-        @ConfigAccordionId(id = 102)
-        public boolean starMobsBox = false;
-
         @ConfigOption(name = "Camera", desc = "Keeps the camera from going to the front of your player. From Odin's Camera.")
         @ConfigEditorAccordion(id = 91)
         public transient boolean cameraFolder = false;
@@ -4856,6 +4865,11 @@ public class ModConfig extends Config {
         @ConfigOption(name = "Profit diagnostics", desc = "Writes every counted find, every suppressed one and every batch that came in through a window into the log. Only for troubleshooting - switch it on for one run, then send the log.")
         @ConfigEditorBoolean
         public boolean profitDiagnostics = false;
+
+        @Expose
+        @ConfigOption(name = "Performance log", desc = "For when the game lags: looks twenty times a second at what the game thread is busy with and writes, once a minute, which part of ShokiMod took how much time (and the long ticks and the garbage collection) into logs/shokimod-perf.log. Costs almost nothing. Switch it on, play a few minutes where it lags, then hand the file over.")
+        @ConfigEditorBoolean
+        public boolean perfLog = false;
 
         @Expose
         @ConfigOption(name = "Profit core log", desc = "Writes every decision of the packet core behind the Profit Tracker - what arrived in the inventory and why it counted or not - into logs/shokimod-kern.jsonl, next to latest.log. It grows with every hour of play, so switch it on for one run, then hand the file over.")

@@ -26,10 +26,10 @@ public final class FeatureGate {
         if (PestTarget.scanning()) return true;
         // Die Runic Ghosts der Mist haben ebenfalls eigene Schalter
         if (RunicGhostTarget.scanning()) return true;
+        // Ebenso die Stern-Mobs im Dungeon (ikohS): Sie haengen nicht am Hauptschalter der Mobs
+        if (StarMobTarget.enabled()) return true;
         if (!ModConfig.INSTANCE.mobVisuals.masterEnabled) return false;
         if (ModConfig.INSTANCE.mobVisuals.safari.hideyhoFinder) return true;
-        // Die Stern-Mobs im Dungeon: sie haengen am Hauptschalter, haben aber ihren eigenen
-        if (StarMobTarget.enabled()) return true;
         List<CustomMob> targets = ModConfig.INSTANCE.mobVisuals.customTargets;
         for (int i = 0; i < targets.size(); i++) {
             CustomMob mob = targets.get(i);

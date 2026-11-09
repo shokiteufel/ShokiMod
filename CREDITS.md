@@ -184,7 +184,7 @@ erledigt sich, statt offen zu bleiben.
 
 ### NoammAddons (CC0-1.0, Noamm9, `Noamm9/NoammAddons`)
 
-Aus NoammAddons kommt die **Funny Map** (Reiter *Funny Map*) und die Suche des Koerpers bei den **Stern-Mobs** (Odin > Star mobs). Beides ist in Java
+Aus NoammAddons kommt die **Funny Map** (Reiter *Funny Map*) und die Suche des Koerpers bei den **Stern-Mobs** (ikohS > Star mobs). Beides ist in Java
 nachgebaut; die Regeln stammen aus Noamms Quelltext (Zweig `multiversion`, Ordner `features/impl/dungeon/map/` und `utils/dungeons/map/`; die
 Stern-Mobs aus `StarMobESP` im Zweig `26.1.2-legacy`):
 
