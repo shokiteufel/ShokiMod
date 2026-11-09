@@ -138,7 +138,8 @@ public final class NearbyOverlay {
         if (!interactive()) return HuntingBoxOverlay.shown();
         return HuntingBoxOverlay.shown() || shown()
                 || SafariHud.Panel.HUNTING.visible() || SafariHud.Panel.COLLECTION.visible()
-                || SafariHud.Panel.PROFIT.visible() || SafariHud.Panel.SEATRACKER.visible();
+                || SafariHud.Panel.PROFIT.visible() || SafariHud.Panel.SEATRACKER.visible()
+                || SafariHud.Panel.SKILL_XP.visible();
     }
 
     /** Sitzt der Zeiger auf einer Zeile? Dann handeln und den Klick schlucken */
@@ -233,6 +234,20 @@ public final class NearbyOverlay {
                     return true;
                 }
                 com.shokiteufel.shokimod.handler.SeaCreatureTracker.toggleView();
+                SafariHud.invalidate(panel);
+                return true;
+            }
+        }
+
+        if (SafariHud.Panel.SKILL_XP.visible()) {
+            SafariHud.Panel panel = SafariHud.Panel.SKILL_XP;
+            HudPanel content = panel.build();
+            int row = content.rowAt(Minecraft.getInstance().font,
+                    SafariHud.originX(panel), SafariHud.originY(panel), panel.scale(), mouseX, mouseY);
+            // Der Reset-Knopf sitzt in der Ueberschrift, neben dem Namen
+            double titleX = (mouseX - SafariHud.originX(panel)) / panel.scale() - HudPanel.padding();
+            if (row == 0 && SkillXpHud.resetAt(Minecraft.getInstance().font, titleX)) {
+                com.shokiteufel.shokimod.handler.SkillXpTracker.askReset();
                 SafariHud.invalidate(panel);
                 return true;
             }

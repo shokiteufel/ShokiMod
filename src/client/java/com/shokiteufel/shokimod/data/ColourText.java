@@ -51,6 +51,36 @@ public final class ColourText {
         return ChromaColour.specialToChromaRGB(text) & 0xFFFFFF;
     }
 
+    /**
+     * Die Farbe mit Deckkraft (ARGB) aus dem Text des Waehlers; die Deckkraft ist dort die zweite Zahl ("Tempo:Deckkraft:R:G:B"). Aus sechs
+     * Hexstellen wird eine volle Deckkraft; was nicht zu lesen ist, ergibt den Ersatz.
+     */
+    @SuppressWarnings("deprecation")
+    public static int argb(String text, int fallbackArgb) {
+        if (text == null || text.trim().isEmpty()) return fallbackArgb;
+        String t = text.trim();
+        try {
+            if (t.indexOf(':') >= 0) {
+                String[] parts = t.split(":");
+                if (parts.length != 5) return fallbackArgb;
+                int alpha = Integer.parseInt(parts[1].trim());
+                if (alpha < 0 || alpha > 255) return fallbackArgb;
+                int rgb = pickerRgb(t, -1);
+                return rgb < 0 ? fallbackArgb : (alpha << 24) | (rgb & 0xFFFFFF);
+            }
+            int rgb = rgb(t, -1);
+            return rgb < 0 ? fallbackArgb : 0xFF000000 | rgb;
+        } catch (RuntimeException e) {
+            return fallbackArgb;
+        }
+    }
+
+    /** Der Text fuer den Waehler mit Deckkraft, ohne Tempo */
+    @SuppressWarnings("deprecation")
+    public static String ofArgb(int argb) {
+        return ChromaColour.special(0, (argb >>> 24) & 0xFF, (argb >> 16) & 0xFF, (argb >> 8) & 0xFF, argb & 0xFF);
+    }
+
     /** Sechs Hexstellen, wie sie ein Banner-Design speichert */
     public static String toHex(int rgb) {
         return String.format("%06X", rgb & 0xFFFFFF);

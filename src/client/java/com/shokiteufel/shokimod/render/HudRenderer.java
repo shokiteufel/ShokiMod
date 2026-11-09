@@ -30,5 +30,7 @@ public class HudRenderer {
         // hier noch einmal zu zeichnen kostet dieselbe Arbeit und verschwindet hinter dem Fenster
         if (client.screen != null) return;
         SafariHud.render(graphics);
+        // Die Funny Map: der ganze Dungeon, nach den Kaesten gezeichnet, damit sie ueber der Karte von NoammAddons liegt
+        com.shokiteufel.shokimod.dungeonkarte.FunnyKarteHud.render(graphics);
     }
 }

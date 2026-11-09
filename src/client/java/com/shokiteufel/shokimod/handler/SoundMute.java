@@ -91,11 +91,25 @@ public final class SoundMute {
     static String zoneOf(List<String> lines) {
         for (String raw : lines) {
             String line = CODE.matcher(raw).replaceAll("");
-            if (!line.contains("⏣") && !line.contains("ф")) continue;
+            if (!hasZoneSymbol(line)) continue;
             String zone = NON_ASCII.matcher(line).replaceAll("").trim();
             return zone.isEmpty() ? null : zone;
         }
         return null;
+    }
+
+    /**
+     * Steht in der Zeile eines der Zeichen, die Hypixel vor die Zone setzt? Wie bei Feesh ({@code WorldUtils.zonePrefixes}): das Ortszeichen
+     * (U+23E3), das kyrillische "ф" der Rift und zwei Zeichen aus dem privaten Bereich (U+E067, U+E020), die der Server mit seinem Resourcepack
+     * zu Bildern macht. Im Moonglade Marsh steht vor der Zone das U+E067 - mit dem Ortszeichen allein fand die Mod die Hoehle nie
+     * (Aufnahme Schiggy 09.11., 18:00: " §7 §2Murkwater§2 Loch").
+     */
+    static boolean hasZoneSymbol(String line) {
+        for (int i = 0; i < line.length(); i++) {
+            char c = line.charAt(i);
+            if (c == '⏣' || c == 'ф' || c == '' || c == '') return true;
+        }
+        return false;
     }
 
     /** Fuer die Probe: so tun, als stuende man in der Hoehle */

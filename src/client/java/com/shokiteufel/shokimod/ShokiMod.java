@@ -78,6 +78,17 @@ public class ShokiMod implements ClientModInitializer {
         ModConfig.load();
         BundledSounds.seed();
         NetworkHandler.init();
+        // Paket-Schicht. Ohne Abonnenten und ohne Pruefschalter ohne Wirkung; ein Fehler hier darf den Start nie verhindern
+        try {
+            com.shokiteufel.shokimod.paket.PaketBus.init();
+            com.shokiteufel.shokimod.paket.zustand.PaketZustaende.init();
+            // Paket-Kern (Inventarspiegel und Herkunft aus Paketen), Profit-Tracker bei offenem Fenster, Schattenbetrieb
+            // (Schalter -Dshokimod.paketzugaenge=aus|beobachten|an und -Dshokimod.kern.schatten=aus)
+            com.shokiteufel.shokimod.paket.anschluss.KernAnschluss.init();
+            com.shokiteufel.shokimod.paket.PaketDiagnose.init();
+        } catch (Throwable t) {
+            com.mojang.logging.LogUtils.getLogger().error("ShokiMod Pakete: Start fehlgeschlagen, die Paket-Schicht bleibt aus", t);
+        }
         // Die Ortsbestimmung ist Voraussetzung für alles Weitere, darum zuerst
         LocationScanner.register();
         TabListScanner.register();
@@ -86,7 +97,6 @@ public class ShokiMod implements ClientModInitializer {
         com.shokiteufel.shokimod.handler.ParticleTracer.register();
         RareLootHandler.register();
         HuntingTracker.register();
-        com.shokiteufel.shokimod.scanner.ItemChanges.register();
         com.shokiteufel.shokimod.handler.ProfitTracker.register();
         GuildEvents.register();
         CakeReminder.register();
@@ -105,6 +115,10 @@ public class ShokiMod implements ClientModInitializer {
         com.shokiteufel.shokimod.handler.SoundMute.register();
         com.shokiteufel.shokimod.handler.OutOfAirAlert.register();
         com.shokiteufel.shokimod.handler.ColdAlert.register();
+        com.shokiteufel.shokimod.handler.ForgeAlert.register();
+        com.shokiteufel.shokimod.dungeonkarte.FunnyKarte.register();
+        com.shokiteufel.shokimod.handler.DungeonLauf.register();
+        com.shokiteufel.shokimod.handler.MistBoden.register();
         com.shokiteufel.shokimod.handler.HotspotShare.register();
         com.shokiteufel.shokimod.handler.PartyInvites.register();
         com.shokiteufel.shokimod.handler.ShortcutHandler.register();
