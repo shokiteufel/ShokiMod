@@ -287,7 +287,37 @@ public final class PetState {
         return icon;
     }
 
-    /** Nach einem Weltwechsel gilt der alte Stand nicht mehr */
+    /** Hypixel nennt beim Betreten von SkyBlock die Kennung des Profils: "Profile ID: 833f3e3c-..." */
+    private static final Pattern PROFILE_ID = Pattern.compile("^Profile ID: ([0-9a-fA-F-]{36})$");
+    private static volatile String profileId = "";
+
+    /**
+     * Ein neuer Server innerhalb der SkyBlock-Sitzung (Insel, Hub, Dungeon): Welches Pet draussen ist, bleibt, bis Autopet, ein Ruf von Hand oder
+     * die Tab-Liste etwas anderes sagen. Vorher wurde alles vergessen; im Dungeon steht in der Tab-Liste kein Pet-Widget, und die Mod kannte das
+     * Pet dort nicht mehr (Schiggy, 09.11.). Nur der Takt der Quellen (Frist der Tab-Liste, Menue) beginnt neu. Ein anderes Profil meldet sich mit
+     * "Profile ID" (siehe {@link #profilGesehen}): Dann gilt der alte Stand wirklich nicht mehr.
+     */
+    public static void worldJoined() {
+        assertedAt = 0L;
+        assertedKey = "";
+        lastTabSignature = "";
+        lastTabBlock = "";
+        lastPetEventAt = 0L;
+        menuOpen = false;
+        menuLogged.clear();
+        if (known() && !from.startsWith("kept")) from = "kept across the world change (" + from + ")";
+    }
+
+    /** Die Kennung des Profils, in dem man gerade spielt: Wechselt sie, gehoert das Pet zum anderen Profil und wird vergessen */
+    static void profilGesehen(String id) {
+        String neu = id == null ? "" : id.toLowerCase(Locale.ROOT);
+        if (!neu.isEmpty() && !profileId.isEmpty() && !profileId.equals(neu)) {
+            reset();
+        }
+        if (!neu.isEmpty()) profileId = neu;
+    }
+
+    /** Nach einem Profilwechsel (und in Tests) gilt der alte Stand nicht mehr */
     public static void reset() {
         name = "";
         shown = "";
@@ -364,6 +394,11 @@ public final class PetState {
      */
     public static void onChatMessage(Component message, String plain) {
         String line = plain.trim();
+        Matcher profil = PROFILE_ID.matcher(line);
+        if (profil.matches()) {
+            profilGesehen(profil.group(1));
+            return;
+        }
         if (isPetLine(line)) {
             lastPetEventAt = System.currentTimeMillis();
             logChatLine(message, line);

@@ -88,14 +88,17 @@ public class TabListScanner {
 
         if (previousUnformattedLines != null && previousFormattedLines != null &&
                 previousUnformattedLines.equals(unformattedLines) && previousFormattedLines.equals(formattedLines)) {
+            // Gleich geblieben heisst fuer die Forge: das Widget steht noch da (die Zeit dort wechselt in Ruhe nur jede Minute)
+            if (FeatureGate.forge()) com.shokiteufel.shokimod.handler.ForgeTracker.lebenszeichen();
             return;
         }
 
         previousUnformattedLines = new ArrayList<>(unformattedLines);
         previousFormattedLines = new ArrayList<>(formattedLines);
 
-        // Gebiet und Server-ID stehen in der Tab-Liste
-        LocationScanner.processTabList(unformattedLines);
+        // Gebiet und Server-ID stehen in der Tab-Liste. Kommen sie schon aus den Paketen (LocationScanner), ist hier nichts zu tun;
+        // die Abtastung ist nur der Rueckfall, solange die Paket-Schicht noch nichts geliefert hat oder aus ist
+        if (!LocationScanner.tabAusPaketen()) LocationScanner.processTabList(unformattedLines);
         // Welches Pet draussen ist, samt Ueberschuss - die verlaesslichste Quelle
         PetState.processTabList(unformattedLines, formattedLines);
         // Auftraege und Spitzhacken-Faehigkeit stehen dort ebenfalls - aber nur in den Minen

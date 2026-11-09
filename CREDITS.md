@@ -182,6 +182,27 @@ erledigt sich, statt offen zu bleiben.
 
 ---
 
+### NoammAddons (CC0-1.0, Noamm9, `Noamm9/NoammAddons`)
+
+Aus NoammAddons kommt die **Funny Map** (Reiter *Funny Map*) und die Suche des Koerpers bei den **Stern-Mobs** (Odin > Star mobs). Beides ist in Java
+nachgebaut; die Regeln stammen aus Noamms Quelltext (Zweig `multiversion`, Ordner `features/impl/dungeon/map/` und `utils/dungeons/map/`; die
+Stern-Mobs aus `StarMobESP` im Zweig `26.1.2-legacy`):
+
+- Das Raster (11 x 11, Ursprung -185/-185, Raumabstand 32) und der **Welt-Scan** mit dem Kern-Hash der Blocksaeule (y 140 bis 12; Kisten, Kolben,
+  Wasser, Lava, Feuer und Bretter zaehlen als Luft): `KernHash`, `WeltScanner`.
+- Die **Raumtabelle** `rooms-modern.json` (Zweig `data`, unveraendert als Ressource `dungeonkarte/rooms-modern.json`): `RaumTabelle`.
+- Das Lesen der Hypixel-Karte (Eingangsreihe, Farbnummern, Zustaende, Kalibrierung je Stockwerk): `KartenLeser`.
+- **Position und Groesse** der Karte aus der Config von Noamm (Liste `hud`, Eintrag "Dungeon Map"): `NoammLage`.
+- Stern-Mobs: der Koerper steht eine Entity-ID vor dem Namensschild (beim Withermancer drei): `StarMobTarget.bodyIdOffset`. Am Mitschnitt von Schiggy
+  (09.11.) bei allen 46 Schildern bestaetigt.
+
+Eigen sind die Darstellung (Flaechen und Text im HUD, keine Bilddateien), die Einstellungen, das Erkennen des Dungeons (wie "Hide Players") und die
+Tests an echten Daten.
+
+**Lizenz:** CC0 1.0 Universal (Public Domain; Datei `LICENSE` im Repository). Es gibt keine Bedingungen; die Herkunft steht trotzdem hier.
+**Eine Besonderheit:** Noamm baut seine Karte in zwei Fassungen (`LEGIT` und `CHEAT`). Unentdeckte Raeume zeigt nur die `CHEAT`-Fassung; das ist hier der
+Zweck der Funktion, darum steht sie hinter einem eigenen Schalter (von Haus aus aus) mit einem Hinweis auf die Regeln des Servers.
+
 ### Odin (BSD-3-Clause, Odtheking, `OdinFabric`)
 
 Aus Odin kommen die Funktionen im Reiter **Odin**. Jede ist in Java nachgebaut; die Regel stammt aus Odins Kotlin-Quelltext, und was

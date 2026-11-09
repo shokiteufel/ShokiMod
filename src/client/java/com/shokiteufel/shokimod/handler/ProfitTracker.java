@@ -123,10 +123,30 @@ public final class ProfitTracker {
         }
 
         if (counted) {
-            markActivity();
+            markActivity(ItemChanges.fensterMillis());
             dirty = true;
         }
     }
+
+    /** So weit reicht die Gutschrift am Anfang einer Reihe hoechstens zurueck: Hypixel fasst die Saecke in Schueben von dreissig Sekunden zusammen */
+    static final long GUTSCHRIFT_MAX_MILLIS = 30_000L;
+
+    /**
+     * Was die Uhr beim ersten Fund einer Reihe dazubekommt. Eine Sack-Meldung kommt erst, wenn die dreissig Sekunden um sind, und nennt
+     * ihr Fenster ("Last 30s"): Wer anfaengt zu angeln, hat da schon so lange gearbeitet, aber die Uhr stand noch. Mitten in einer Reihe
+     * laeuft sie ohnehin, dort gibt es nichts gutzuschreiben - sonst zaehlte die Zeit doppelt. Ohne laufende Uhr auch nicht.
+     *
+     * Aus Schiggys Aufnahme vom 09.11.: in zwoelf Reihen fehlten der Uhr 18 bis 58 Sekunden am Anfang, zusammen fast ein Zehntel der Spielzeit.
+     */
+    static long startGutschrift(boolean pausiert, boolean uhrLaeuft, long fensterMillis, long seitLetztemFundMillis) {
+        if (!pausiert || !uhrLaeuft || fensterMillis <= 0L) return 0L;
+        // Nie weiter zurueck als der letzte Fund: bis dahin hat die vorige Reihe die Zeit schon gezaehlt
+        long gutschrift = Math.min(fensterMillis, GUTSCHRIFT_MAX_MILLIS);
+        return seitLetztemFundMillis > 0L ? Math.min(gutschrift, seitLetztemFundMillis) : gutschrift;
+    }
+
+    /** Wann der letzte Fund kam (Epoche, 0 = noch keiner) - fuer die Grenze der Gutschrift */
+    private static long lastFindMillis = 0L;
 
     /** So lange ohne Fund gilt der Tag noch als laufend. Fest, nicht einstellbar */
     private static final long DAY_PAUSE_MILLIS = 30_000L;
@@ -147,10 +167,17 @@ public final class ProfitTracker {
         lastActivityMillis = 0L;
     }
 
-    private static void markActivity() {
+    private static void markActivity(long fensterMillis) {
         long now = System.currentTimeMillis();
         if (cfg().startedAt <= 0L) cfg().startedAt = now;
         if (cfg().totalStartedAt <= 0L) cfg().totalStartedAt = now;
+        // Beginn einer Reihe: die Zeit, die die Sack-Meldung zurueckreicht, gehoert der Uhr (siehe startGutschrift)
+        long gutschrift = startGutschrift(paused, clockRuns(), fensterMillis, lastFindMillis > 0L ? now - lastFindMillis : 0L);
+        if (gutschrift > 0L) {
+            cfg().uptimeMillis += gutschrift;
+            cfg().totalUptimeMillis += gutschrift;
+        }
+        lastFindMillis = now;
         lastActivityMillis = now;
         unconfirmedMillis = 0L;
         paused = false;
@@ -321,7 +348,6 @@ public final class ProfitTracker {
         if (cfg().countChestLoot) {
             for (Map.Entry<String, Integer> entry : loot.entrySet()) {
                 adjust(entry.getKey(), entry.getValue());
-                com.shokiteufel.shokimod.scanner.ItemChanges.noteBooked(entry.getKey(), entry.getValue());
             }
         }
         if (cfg().countChestCost && coins > 0) {
@@ -481,6 +507,7 @@ public final class ProfitTracker {
 
     /** Der Name, wie ihn das Spiel schreibt - sonst aus der Kennung gebildet */
     public static String nameOf(String itemId) {
+        if (ItemChanges.UNGEKLAERT.equals(itemId)) return "Unresolved sack items";
         if (CHEST_COINS.equals(itemId)) return "Chest cost (coins)";
         if (SPAWN_COINS.equals(itemId)) return "Spawn cost (coins)";
         Matcher maxed = MAXED_PET.matcher(itemId == null ? "" : itemId);
@@ -757,6 +784,8 @@ public final class ProfitTracker {
      */
     public static double unitPrice(String itemId) {
         if (CHEST_COINS.equals(itemId) || SPAWN_COINS.equals(itemId)) return 1.0;
+        // Die abgeschnittene Menge einer Sack-Meldung, die keine Zeile belegt: unbekannte Ware, kein Preis (steht ohne Wert im Kasten)
+        if (ItemChanges.UNGEKLAERT.equals(itemId)) return -1;
         if (modeOf(itemId) == SellMode.CUSTOM) {
             double own = customPrice(itemId);
             if (own > 0) return own;

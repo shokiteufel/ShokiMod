@@ -24,8 +24,12 @@ public final class FeatureGate {
         if (ModConfig.INSTANCE.slayer.anyMarker()) return true;
         // Die Pests im Garden haben eigene Schalter und haengen nicht am Hauptschalter der Mobs
         if (PestTarget.scanning()) return true;
+        // Die Runic Ghosts der Mist haben ebenfalls eigene Schalter
+        if (RunicGhostTarget.scanning()) return true;
         if (!ModConfig.INSTANCE.mobVisuals.masterEnabled) return false;
         if (ModConfig.INSTANCE.mobVisuals.safari.hideyhoFinder) return true;
+        // Die Stern-Mobs im Dungeon: sie haengen am Hauptschalter, haben aber ihren eigenen
+        if (StarMobTarget.enabled()) return true;
         List<CustomMob> targets = ModConfig.INSTANCE.mobVisuals.customTargets;
         for (int i = 0; i < targets.size(); i++) {
             CustomMob mob = targets.get(i);
@@ -154,7 +158,22 @@ public final class FeatureGate {
 
     /** Die Forge-Zeiten kommen aus der Tab-Liste: Ohne den Schalter wird sie dafuer nicht gelesen */
     public static boolean forge() {
-        return ModConfig.INSTANCE.forge.enabled;
+        return ModConfig.INSTANCE.mining.forge.enabled;
+    }
+
+    /** Die Forge-Warnung schaut alle zehn Ticks auf die gemerkten Zeiten - nur wenn sie an ist (und die Forge gelesen wird). Braucht den Ort */
+    public static boolean forgeAlert() {
+        return ModConfig.INSTANCE.mining.forge.enabled && ModConfig.INSTANCE.mining.forge.alert;
+    }
+
+    /** Die Funny Map liest alle halbe Sekunde die Welt und die Karte - nur wenn sie an ist. Braucht den Ort (nur in SkyBlock) */
+    public static boolean funnyMap() {
+        return ModConfig.INSTANCE.ikohS.funnyMap.enabled;
+    }
+
+    /** Der Skill-XP-Zaehler liest die Aktionsleiste - nur wenn er an ist */
+    public static boolean skillXp() {
+        return ModConfig.INSTANCE.skillXp.enabled;
     }
 
     /** Die Meldung, wenn ein Deployable verschwindet, liest nur den Chat. Die Umberella hat ihren eigenen Schalter */
@@ -249,7 +268,7 @@ public final class FeatureGate {
     }
 
     public static boolean location() {
-        return forge() || contest() || safari() || nearbyPanel() || rareLoot() || huntingTracker() || mobMarkers() || chatRules()
+        return forge() || forgeAlert() || funnyMap() || contest() || safari() || nearbyPanel() || rareLoot() || huntingTracker() || mobMarkers() || chatRules()
                 || cakeReminder() || hotspots() || collectionTracker() || pestTraps() || gardenVisitors() || seaHp() || mute() || outOfAir() || coldAlert() || petHud() || deployableHud() || hotspotShare()
                 || slayerSpawn() || darkAuction() || darkAuctionTimer() || hidePlayersDungeon() || nearbyRare() || ModConfig.INSTANCE.effects.enabled || mineshaftAnnounce();
     }

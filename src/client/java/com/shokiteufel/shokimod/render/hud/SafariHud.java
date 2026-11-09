@@ -19,7 +19,7 @@ public final class SafariHud {
 
     /** Ein Kasten auf dem Bildschirm. Traegt seine eigene Lage und Groesse in der Config */
     public enum Panel {
-        PROGRESS, MISSING, CONTEST, NEARBY, HUNTING, GUILD, COLLECTION, PROFIT, MINING, PET, PERFORMANCE, SEATRACKER, EFFECTS, SEAHP, DARK_AUCTION, FIRE_VEIL, DEPLOYABLES, FORGE;
+        PROGRESS, MISSING, CONTEST, NEARBY, HUNTING, GUILD, COLLECTION, PROFIT, MINING, PET, PERFORMANCE, SEATRACKER, EFFECTS, SEAHP, DARK_AUCTION, FIRE_VEIL, DEPLOYABLES, FORGE, SKILL_XP;
 
         public boolean visible() {
             ModConfig.SafariCategory c = ModConfig.INSTANCE.safari;
@@ -31,7 +31,8 @@ public final class SafariHud {
                 case HUNTING -> ModConfig.INSTANCE.hunting.tracker.enabled && ModConfig.INSTANCE.hunting.tracker.showHud;
                 case GUILD -> ModConfig.INSTANCE.guild.events.enabled && ModConfig.INSTANCE.guild.events.showHud;
                 case COLLECTION -> ModConfig.INSTANCE.collections.tracker.enabled && ModConfig.INSTANCE.collections.tracker.showHud;
-                case PROFIT -> ModConfig.INSTANCE.profit.enabled && ModConfig.INSTANCE.profit.showHud;
+                case PROFIT -> ModConfig.INSTANCE.profit.enabled && ModConfig.INSTANCE.profit.showHud
+                        && !(ModConfig.INSTANCE.profit.hideInDungeons && com.shokiteufel.shokimod.handler.DungeonLauf.imDungeon());
                 case MINING -> ModConfig.INSTANCE.mining.hud.showHud;
                 case PET -> ModConfig.INSTANCE.hud.pet.showHud;
                 case PERFORMANCE -> ModConfig.INSTANCE.hud.performance.showHud;
@@ -50,7 +51,9 @@ public final class SafariHud {
                 // Nur mit etwas darin (eigene oder nahe Deployables); im HUD-Editor immer
                 case DEPLOYABLES -> DeployableHud.shownNow();
                 // Erst, wenn die Forge einmal gelesen wurde; dann auf jeder Map, denn die Zeit liegt gemerkt vor
-                case FORGE -> ModConfig.INSTANCE.forge.enabled && ModConfig.INSTANCE.forge.showHud && ForgeHud.hasRows();
+                case FORGE -> ModConfig.INSTANCE.mining.forge.enabled && ModConfig.INSTANCE.mining.forge.showHud && ForgeHud.hasRows();
+                // Erst, wenn die erste Erfahrung gezaehlt wurde
+                case SKILL_XP -> ModConfig.INSTANCE.skillXp.enabled && ModConfig.INSTANCE.skillXp.showHud && SkillXpHud.hasRows();
             };
         }
 
@@ -87,6 +90,7 @@ public final class SafariHud {
                 case FIRE_VEIL -> "Fire Veil";
                 case DEPLOYABLES -> "Time panel";
                 case FORGE -> "Forge";
+                case SKILL_XP -> "Skill XP";
             };
         }
 
@@ -137,7 +141,8 @@ public final class SafariHud {
                 case DARK_AUCTION -> ModConfig.INSTANCE.chat.reminder.darkAuctionHudX;
                 case FIRE_VEIL -> ModConfig.INSTANCE.iq.fireVeilHudX;
                 case DEPLOYABLES -> ModConfig.INSTANCE.deployables.hud.hudX;
-                case FORGE -> ModConfig.INSTANCE.forge.hudX;
+                case FORGE -> ModConfig.INSTANCE.mining.forge.hudX;
+                case SKILL_XP -> ModConfig.INSTANCE.skillXp.hudX;
             };
         }
 
@@ -161,7 +166,8 @@ public final class SafariHud {
                 case DARK_AUCTION -> ModConfig.INSTANCE.chat.reminder.darkAuctionHudY;
                 case FIRE_VEIL -> ModConfig.INSTANCE.iq.fireVeilHudY;
                 case DEPLOYABLES -> ModConfig.INSTANCE.deployables.hud.hudY;
-                case FORGE -> ModConfig.INSTANCE.forge.hudY;
+                case FORGE -> ModConfig.INSTANCE.mining.forge.hudY;
+                case SKILL_XP -> ModConfig.INSTANCE.skillXp.hudY;
             };
         }
 
@@ -185,7 +191,8 @@ public final class SafariHud {
                 case DARK_AUCTION -> ModConfig.INSTANCE.chat.reminder.darkAuctionHudScale;
                 case FIRE_VEIL -> ModConfig.INSTANCE.iq.fireVeilHudScale;
                 case DEPLOYABLES -> ModConfig.INSTANCE.deployables.hud.hudScale;
-                case FORGE -> ModConfig.INSTANCE.forge.hudScale;
+                case FORGE -> ModConfig.INSTANCE.mining.forge.hudScale;
+                case SKILL_XP -> ModConfig.INSTANCE.skillXp.hudScale;
             };
         }
 
@@ -261,8 +268,12 @@ public final class SafariHud {
                     ModConfig.INSTANCE.deployables.hud.hudY = y;
                 }
                 case FORGE -> {
-                    ModConfig.INSTANCE.forge.hudX = x;
-                    ModConfig.INSTANCE.forge.hudY = y;
+                    ModConfig.INSTANCE.mining.forge.hudX = x;
+                    ModConfig.INSTANCE.mining.forge.hudY = y;
+                }
+                case SKILL_XP -> {
+                    ModConfig.INSTANCE.skillXp.hudX = x;
+                    ModConfig.INSTANCE.skillXp.hudY = y;
                 }
             }
         }
@@ -288,7 +299,8 @@ public final class SafariHud {
                 case DARK_AUCTION -> ModConfig.INSTANCE.chat.reminder.darkAuctionHudAlpha;
                 case FIRE_VEIL -> ModConfig.INSTANCE.iq.fireVeilHudAlpha;
                 case DEPLOYABLES -> ModConfig.INSTANCE.deployables.hud.hudAlpha;
-                case FORGE -> ModConfig.INSTANCE.forge.hudAlpha;
+                case FORGE -> ModConfig.INSTANCE.mining.forge.hudAlpha;
+                case SKILL_XP -> ModConfig.INSTANCE.skillXp.hudAlpha;
             };
         }
 
@@ -315,7 +327,8 @@ public final class SafariHud {
                 case DARK_AUCTION -> ModConfig.INSTANCE.chat.reminder.darkAuctionHudAlpha = clamped;
                 case FIRE_VEIL -> ModConfig.INSTANCE.iq.fireVeilHudAlpha = clamped;
                 case DEPLOYABLES -> ModConfig.INSTANCE.deployables.hud.hudAlpha = clamped;
-                case FORGE -> ModConfig.INSTANCE.forge.hudAlpha = clamped;
+                case FORGE -> ModConfig.INSTANCE.mining.forge.hudAlpha = clamped;
+                case SKILL_XP -> ModConfig.INSTANCE.skillXp.hudAlpha = clamped;
             }
         }
 
@@ -340,7 +353,8 @@ public final class SafariHud {
                 case DARK_AUCTION -> ModConfig.INSTANCE.chat.reminder.darkAuctionHudScale = clamped;
                 case FIRE_VEIL -> ModConfig.INSTANCE.iq.fireVeilHudScale = clamped;
                 case DEPLOYABLES -> ModConfig.INSTANCE.deployables.hud.hudScale = clamped;
-                case FORGE -> ModConfig.INSTANCE.forge.hudScale = clamped;
+                case FORGE -> ModConfig.INSTANCE.mining.forge.hudScale = clamped;
+                case SKILL_XP -> ModConfig.INSTANCE.skillXp.hudScale = clamped;
             }
         }
 
@@ -406,6 +420,7 @@ public final class SafariHud {
                 case FIRE_VEIL -> FireVeilHud.build();
                 case DEPLOYABLES -> DeployableHud.build();
                 case FORGE -> ForgeHud.build();
+                case SKILL_XP -> SkillXpHud.build();
             };
         }
     }

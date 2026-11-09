@@ -1,5 +1,6 @@
 package com.shokiteufel.shokimod.mixin;
 
+import com.shokiteufel.shokimod.data.RunicGhostTarget;
 import com.shokiteufel.shokimod.render.EntityHighlightManager;
 import com.shokiteufel.shokimod.util.CustomMobDebug;
 import net.minecraft.world.entity.Entity;
@@ -35,6 +36,17 @@ public class EntityGlowingMixin {
         if (EntityHighlightManager.highlightedEntities.contains((Entity) (Object) this)) {
             cir.setReturnValue(true);
         }
+    }
+
+    /**
+     * Hypixel macht die Ghosts der Mist unsichtbar (Entity-Flag 0x20 und Unsichtbarkeits-Effekt, Aufnahme 09.11.). Mit dem Schalter "Show Ghosts"
+     * (ikohS > The Mist) werden sie als die Creeper gezeichnet, die sie sind. Die Methode laeuft fuer jede Entity in jedem Bild: Erst die billige
+     * Frage (ist sie unsichtbar?), dann der Schalter.
+     */
+    @Inject(method = "isInvisible()Z", at = @At("RETURN"), cancellable = true)
+    private void showGhosts(CallbackInfoReturnable<Boolean> cir) {
+        if (!cir.getReturnValueZ()) return;
+        if (RunicGhostTarget.showGhosts(((Entity) (Object) this).getType().getDescriptionId())) cir.setReturnValue(false);
     }
 
     @Inject(method = "getTeamColor", at = @At("HEAD"), cancellable = true)

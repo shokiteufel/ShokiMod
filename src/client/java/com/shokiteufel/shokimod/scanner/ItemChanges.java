@@ -6,1860 +6,868 @@ import com.shokiteufel.shokimod.data.GameState;
 import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.data.RareLootParser;
 import com.shokiteufel.shokimod.data.RareLootParser.Drop;
-import com.shokiteufel.shokimod.util.ItemValue;
+import com.shokiteufel.shokimod.paket.kern.FundRegel;
+import com.shokiteufel.shokimod.paket.kern.Kern;
+import com.shokiteufel.shokimod.paket.kern.KernProtokoll;
 import com.shokiteufel.shokimod.util.ItemNames;
+import com.shokiteufel.shokimod.util.ItemValue;
+import com.shokiteufel.shokimod.util.ScoreboardUtils;
 import com.shokiteufel.shokimod.util.SkyBlockItems;
-
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
-import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.HoverEvent;
-import net.minecraft.world.item.ItemStack;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Consumer;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.world.item.ItemStack;
 
 /**
- * Was ins Inventar kommt - ohne auf den Chat angewiesen zu sein.
+ * Was ins Inventar kommt, fuer den Profit-Tracker: gespeist vom Paket-Kern, nicht vom Abtasten des Inventars.
  *
- * Hypixel meldet laengst nicht jeden Fund. "RARE DROP!" steht im Chat, ein
- * gewoehnlicher Deep Sea Orb nicht, und was direkt in einen Sack faellt, sieht der
- * Chat nur als Sammelzeile. Wer Funde am Chat abliest, verpasst deshalb einen Teil
- * davon - genau das ist beim Fund-Alarm zu sehen.
+ * <p>Der {@link Kern} baut den Inventarstand aus den Paketen des Servers und ordnet jeden Zugang einer Ursache zu. {@link FundRegel} sagt,
+ * welche Zugaenge Funde sind; sie gehen sofort an die Hoerer ({@link #listen}). Es gibt hier keine Wartezeiten, keinen Vergleich je Tick
+ * und keine Zeitfenster-Verrechnung.
  *
- * Hier wird stattdessen jeden Tick nachgezaehlt, was im Inventar liegt, und mit dem
- * Stand davor verglichen. Was mehr geworden ist, ist dazugekommen - egal ob es eine
- * Meldung dazu gab. Denselben Weg geht Skysofts Profit Tracker
- * (SkyBlockInventoryChanges, LGPL-3.0, Akinsoft).
- *
- * Vier Dinge machen den Unterschied zwischen "zaehlt Funde" und "zaehlt Unsinn":
- *
- * <ul>
- *   <li><b>Nichts zaehlen, solange der Spieler tot ist.</b> Wer in Kuudra stirbt, bekommt
- *       vom Server das Inventar eines Geistes, und mit der Wiederbelebung kommt das echte
- *       in Haeppchen zurueck. Das ganze Inventar saehe wie Beute aus, samt Alarm und
- *       Nachricht an Party und Gilde. Siehe {@link GhostPhase}: Solange der Geist-Zustand
- *       gilt, wird nicht verglichen, und danach wird neu angesetzt.</li>
- *   <li><b>Ruhe nach einem Wechsel.</b> Nach Warp, Serverwechsel oder Tod kommt das
- *       Inventar Stueck fuer Stueck an. Wer da vergleicht, sieht sein halbes Inventar
- *       als Fund. Deshalb wird nach jedem Wechsel gewartet, bis sich eine Sekunde
- *       lang nichts mehr regt, und dann neu angesetzt - ohne zu melden.</li>
- *   <li><b>Kein offenes Fenster.</b> Was durch ein Fenster hereinkommt, ist kein Fund:
- *       Basar, Auktionshaus, Truhe, Sack, NPC, Craft. Solange ein Behaelter offen ist,
- *       wird nicht verglichen, und danach wird neu angesetzt.</li>
- *   <li><b>Verrechnen statt doppelt zaehlen.</b> Wer etwas wegwirft und wieder
- *       aufhebt, hat nichts gewonnen. Abgaenge bleiben zehn Sekunden stehen und
- *       werden gegen spaetere Zugaenge derselben Ware aufgerechnet.</li>
- * </ul>
- *
- * Zwei Sorten kommen ohne Umweg ueber das Inventar herein und haben deshalb je eine
- * eigene Quelle: Was in einen Sack faellt, meldet Hypixel gesammelt als "[Sacks] +38
- * items." mit der Aufstellung am Mauszeiger. Shards wandern beim Fang direkt in die
- * Hunting Box - fuer sie ist die Chatzeile ("You caught x2 Bambo Shards!", "CHARM!
- * ...") die einzige Meldung, dieselbe, die schon der Hunting Tracker liest.
+ * <p>Drei Quellen stehen nur im Chat, weil der Server dazu kein Platz-Update schickt (gemessen): was direkt in einen Sack faellt
+ * ({@code [Sacks]}-Meldung mit der Aufstellung am Mauszeiger), die Beute einer Leiche (Zeile fuer Zeile) und gefangene Shards.
+ * Die Sack-Meldung rechnet sich gegen das Inventar auf: Was kurz zuvor aus dem Inventar ging, ist dort nicht neu
+ * ({@link Kern#abgangAbziehen}, das Fenster nennt die Meldung selbst), und was die Leichen-Beute schon gebucht hat, zaehlt nicht doppelt.
  */
 public final class ItemChanges {
-
-    /** Wie lange nichts passieren muss, bis der Stand nach einem Wechsel wieder gilt (Ticks) */
-    private static final int SETTLE_TICKS = 20;
-    /**
-     * Wie lange nach der Wiederbelebung gewartet wird, bis das Inventar wieder als Vergleich gilt (Ticks).
-     *
-     * Laenger als nach einem Wechsel: Das echte Inventar kommt in Haeppchen zurueck, im Log vom 05.11. lagen
-     * zwischen dem ersten und dem zweiten weniger als eine Sekunde. Drei Sekunden lassen Luft - und wer in
-     * ihnen etwas findet, hat es bei einem Tod im Schacht ohnehin nicht im Griff.
-     */
-    private static final int GHOST_SETTLE_TICKS = 60;
-    /** So lange wird ein Abgang gegen einen spaeteren Zugang derselben Ware aufgerechnet */
-    private static final long OFFSET_MILLIS = 10_000L;
-    /**
-     * So lange zaehlt ein Abgang noch gegen eine Sack-Meldung.
-     *
-     * Hypixel fasst die Saecke zusammen und meldet sie gesammelt - die Zeile selbst
-     * sagt "(Last 20s.)". Bis die Meldung kommt, ist der Abgang im Inventar also
-     * laengst geschehen, und mit den zehn Sekunden von oben waere er vergessen,
-     * bevor er gebraucht wird.
-     */
-    private static final long SACK_OFFSET_MILLIS = 65_000L;
-    /**
-     * Der letzte Platz der Schnellleiste zaehlt nicht mit.
-     *
-     * Dort steht gewoehnlich das SkyBlock-Menue, aber der Platz ist in Wahrheit eine
-     * Anzeige: Wer eine Angel in die Hand nimmt, sieht dort seinen Koeder, wer einen
-     * Bogen zieht, seine Pfeile. Beides liegt in Wirklichkeit im Lager und ist nicht
-     * dazugekommen - gezaehlt sah es aber aus wie ein Fund, und beim naechsten Griff
-     * zur Angel wieder.
-     *
-     * Deshalb beides: der Platz bleibt aussen vor, und das Menue zusaetzlich an seiner
-     * Kennung - wer es verschoben hat, soll es auch dort nicht mitzaehlen.
-     */
-    /** So weit darf das liegengelassene Stueck entfernt sein, in Bloecken */
-    private static final double FLOOR_REACH = 16.0;
-    private static final int DISPLAY_SLOT = 8;
+    /** Das Menue-Item von SkyBlock: Bedienelement, nie Beute. */
     private static final String MENU_ID = "SKYBLOCK_MENU";
-
     private static final Pattern COLOUR_CODE = Pattern.compile("§.");
-    private static final Pattern LEADING_SYMBOLS = Pattern.compile("^[^\\p{L}\\p{N}]+");
-    private static final Pattern TRAILING_SYMBOLS = Pattern.compile("[^\\p{L}\\p{N}]+$");
-    /** "+38 Enchanted Helix Log (Enchanted Foraging Sack)" */
-    private static final Pattern SACK_LINE = Pattern.compile("^([+-])\\s*([\\d,.]+)\\s+(.+?)\\s*\\(");
-    private static final String SACK_MARKER = "[Sacks]";
-    /**
-     * "UMBER CORPSE LOOT!" - die Ueberschrift der Beute, die eine Leiche im Schacht ausschuettet.
-     *
-     * Die Sorte steht davor (Lapis, Tungsten, Umber, Vanguard) und bleibt offen: Welche es noch gibt, weiss heute niemand. Nur Grossbuchstaben
-     * am Zeilenanfang - ein Spieler, der das Wort in den Chat schreibt, steht dort mit Rang und Namen davor.
-     */
     private static final Pattern CORPSE_START = Pattern.compile("^[A-Z]{3,12} CORPSE LOOT!?$");
-    /** So lange nach der Ueberschrift gelten die Zeilen noch als Beute der Leiche - sie kommen alle im selben Augenblick */
-    private static final long CORPSE_MILLIS = 5_000L;
-    /** Mehr Zeilen als das hat keine Leiche; wer darueber kommt, ist schon nicht mehr bei der Beute */
+    private static final long CORPSE_NANOS = 5_000_000_000L;
     private static final int CORPSE_MAX_LINES = 40;
-    private static long corpseUntil = 0L;
-    private static int corpseLines = 0;
-    /**
-     * "You received 32x Enchanted Sunflower for killing a Lunar Moth!"
-     *
-     * Die Zeile sagt nicht, was alles kommt - sie sagt, dass der Server gerade Beute
-     * austeilt. Die Ultimate-Sunset-Buecher der Garden-Schaedlinge zum Beispiel haben
-     * gar keine eigene Zeile; sie liegen wortlos im Inventar.
-     */
-    private static final Pattern KILL_REWARD = Pattern.compile(
-            "^You received [\\d,]+x? .+ for killing (?:an?|the) .+!$", Pattern.CASE_INSENSITIVE);
-    /** So lange nach einer solchen Zeile zaehlt auch, was bei offenem Fenster ankommt - aber nur Beute ohne Chatzeile */
-    private static final long LOOT_MILLIS = 5_000L;
-    /**
-     * Beute, die der Server wortlos austeilt: Sie hat keine eigene Chatzeile und liegt einfach im Inventar.
-     *
-     * Nur sie zaehlt, solange ein Fenster offen ist und Beute fliesst. Die Ausnahme ist fuer die Buecher der
-     * Garden-Schaedlinge da (Fallen leeren, Fenster offen); alles andere, was in dieser Zeit durch ein Fenster
-     * ankommt, hat der Spieler selbst geholt - aus einem Sack, einer Truhe, dem Basar -, und das ist kein Fund.
-     * Wer seine Fallen leert, hat die Beutezeilen aber dauernd, und mit ihnen war jedes Fenster eine Ausnahme: Im
-     * Log vom 19.10. um 17:47:08 stand so ein Glossy Gemstone aus dem Basar-Fenster im Kasten (2 Mio. Coins,
-     * Alarm Stufe 1).
-     *
-     * Eine Ware dazu: Anfang ihrer Kennung hier eintragen.
-     */
-    private static final String[] WORDLESS_LOOT = {"ENCHANTMENT_ULTIMATE_SUNSET_"};
-
-    /**
-     * "You Supercrafted Blessed Bait x256!" - gebaut, nicht gefunden.
-     *
-     * Zwei Formen. Entweder steht die Menge als "x9,432" hinter dem Namen, oder die
-     * Zeile kam mehrfach und der Chat hat sie zu "...! (14)" zusammengefasst - so wie
-     * er es daneben auch mit "Putting goods in escrow... (7)" macht.
-     */
-    private static final Pattern SUPERCRAFT = Pattern.compile(
-            "^You Supercrafted (?<item>.+?)(?: x(?<amount>[\\d,]+))?!(?: \\((?<repeat>[\\d,]+)\\))?$",
-            Pattern.CASE_INSENSITIVE);
-    /** So lange gilt eine zusammengefasste Zeile als dieselbe wie die davor */
-    private static final long REPEAT_MILLIS = 60_000L;
-    private static String lastCraft = "";
-    private static int lastCraftRepeat = 0;
-    private static long lastCraftMillis = 0L;
-    /**
-     * "Moved 9 Enchanted Bone from your Sacks to your inventory." - geholt, nicht gefunden.
-     *
-     * Wer Ware aus einem Sack ins Inventar holt - von Hand oder ueber den Knopf, den
-     * SkyHanni unter die Craft-Meldung setzt -, hat nichts gefunden. Gezaehlt wurde sie
-     * schon, als sie in den Sack fiel; im Inventar sieht der Vergleich sie ein zweites
-     * Mal, und ohne diese Zeile stuende sie doppelt im Kasten.
-     */
-    private static final Pattern FROM_SACKS = Pattern.compile(
-            "^Moved (?<amount>[\\d,]+) (?<item>.+?) from your Sacks? to your inventory\\.?$",
-            Pattern.CASE_INSENSITIVE);
-    /**
-     * "You have successfully transferred your items from this stash to your sacks!"
-     *
-     * Was aus dem Stash kommt, ist alles Moegliche - aber nichts davon ist gerade
-     * gefunden worden. Die Sack-Meldung danach zaehlt den ganzen Schwung, im Bild vom
-     * 29.09. waren es 143.755 Stueck auf einmal.
-     */
-    private static final Pattern STASH_TO_SACKS = Pattern.compile(
-            "^You have successfully transferred your items from .+ stash to your sacks!?$",
-            Pattern.CASE_INSENSITIVE);
-    /**
-     * So lange nach der Stash-Zeile zaehlt keine Sack-Meldung.
-     *
-     * Die Meldung fasst bis zu zwanzig Sekunden zusammen und kommt entsprechend spaet;
-     * dreissig Sekunden decken das ab. Der Preis ist benannt: Was in diesen Sekunden
-     * wirklich gefunden und eingelagert wird, faellt mit weg.
-     */
-    private static final long STASH_MILLIS = 30_000L;
-    /** "[Bazaar] Claimed 1,344x Enchanted Raw Cod worth 1.1M coins bought for 841 each!" */
-    private static final Pattern BAZAAR_CLAIM = Pattern.compile(
-            "^" + Pattern.quote("[Bazaar]") + " Claimed (?<amount>[\\d,]+)x (?<item>.+?) worth .+$",
-            Pattern.CASE_INSENSITIVE);
-    /**
-     * "[Bazaar] Cancelled! Refunded 897x Party Gift from cancelling Sell Offer!"
-     *
-     * Eine zurueckgezogene Verkaufsorder gibt die Ware zurueck. Sie war nie weg - sie lag
-     * nur eine Weile im Basar - und ist damit kein Fund, sondern eine Rueckgabe.
-     */
-    private static final Pattern BAZAAR_REFUND = Pattern.compile(
-            "^" + Pattern.quote("[Bazaar]") + " Cancelled! Refunded (?<amount>[\\d,]+)x (?<item>.+?)"
-                    + " from cancelling .+$",
-            Pattern.CASE_INSENSITIVE);
-    /**
-     * "You equipped MF!" - ein Satz Ruestung auf einmal, vom Server gelegt.
-     *
-     * Beim Wechsel eines Loadouts raeumt Hypixel die Ruestung paketweise um: Erst liegt
-     * das alte Teil im Inventar, kurz darauf verschwindet es aus dem Ruestungsplatz.
-     * Zwischen beiden Paketen kann ein Tick liegen, und in genau diesem Tick sieht der
-     * Vergleich einen Zugang, der keiner ist - im Log vom 01.10. um 03:03:10 war das ein
-     * Sorrow-Satz, vier Teile, mit Alarm und allem.
-     *
-     * Dass Ruestung mitgezaehlt wird (seit 1.9.10), hilft hier nicht: Sie faengt den
-     * Umzug nur auf, wenn beide Haelften im selben Tick ankommen.
-     */
-    private static final Pattern EQUIPPED = Pattern.compile("^You equipped .+!$");
-    /**
-     * So viele Ticks wartet ein Zugang, bevor er zaehlt.
-     *
-     * Ein Umzug kommt nicht immer in einem Stueck an: Beim Loadout-Wechsel liegt das
-     * alte Ruestungsteil schon im Inventar, waehrend es im Ruestungsplatz noch steht -
-     * und erst im naechsten Tick verschwindet es dort. Wer sofort zaehlt, zaehlt diesen
-     * Zwischenstand. Drei Ticks sind eine Sechzehntelsekunde fuer den Spieler und reichen
-     * fuer beide Haelften eines Umzugs.
-     */
-    private static final int HOLD_TICKS = 3;
-
-    /**
-     * So viele verschiedene Waren auf einmal sind kein Fund, sondern ein Umbau des Inventars.
-     *
-     * Beute faellt zu ein, zwei, drei Sorten je Augenblick. Wenn auf einen Schlag sechs oder
-     * mehr verschiedene Waren dazukommen, ist das Inventar neu geschrieben worden - nach einem
-     * Loadout-Wechsel, einer Neuuebertragung durch den Server oder einem Umzug zwischen
-     * Inventar und Schnellleiste -, und der Vergleichsstand davor war zu leer. Im Bild vom
-     * 15.10. stand so das ganze Inventar im Kasten: Hyperion, Spring Boots, InfiniLeap und
-     * dazu Hunderte Stueck Material, zusammen ueber eine Milliarde Coins.
-     *
-     * Ein solcher Schwung wird verworfen und ins Log geschrieben. Wirklich Gefallenes geht
-     * dabei nicht verloren, soweit der Chat es meldet: "RARE DROP!" wird unabhaengig davon
-     * nachgetragen (siehe {@code rescueConfirmed}).
-     */
-    private static final int BULK_IDS = 6;
-    /** Hoechstens so viele Ticks wartet ein zu leerer Vergleichsstand noch auf sein Inventar */
-    private static final int REFILL_TICKS = 100;
-    /** In diesen Schritten wird gewartet */
-    private static final int REFILL_STEP = 5;
-    /**
-     * Wie viele verschiedene Waren der letzte gute Vergleichsstand hatte.
-     *
-     * Nach einem Wechsel kommt das Inventar manchmal erst nach der Wartezeit an. Wer dann
-     * den leeren Stand als Vergleich nimmt, zaehlt anschliessend alles, was er besitzt.
-     * Ein Stand mit weniger als der Haelfte der bisherigen Sorten gilt deshalb noch nicht.
-     */
-    private static int baselineIds = 0;
-    private static int refillWaited = 0;
-
-    /**
-     * Befehle, die ein Menue zum Wechseln von Ruestung oeffnen - ohne eine Zeile im Chat.
-     *
-     * Wer mitten im Dungeon mit /stats seinen Helm tauscht, bekommt ein Menue, in dem ein
-     * Linksklick das Teil wechselt. Anders als beim Loadout ("You equipped ...") meldet der
-     * Server dazu nichts, und das Inventar sieht nur, dass ein Helm hereinkommt und einer
-     * hinausgeht. Deshalb gibt der Befehl selbst das Zeichen.
-     *
-     * Nur der blanke Befehl: "/stats Name" zeigt fremde Werte und wechselt nichts.
-     */
-    private static final Set<String> SWAP_MENUS = Set.of("stats", "wardrobe", "wd", "equipment", "eq");
-    /** So lange nach dem Befehl darf das Menue auf sich warten lassen */
-    private static final long MENU_WAIT_MILLIS = 4_000L;
-    /** So lange nach dem Schliessen des Menues zaehlt nichts mehr */
-    private static final long MENU_QUIET_MILLIS = 2_000L;
-    /** Laenger als das ist ein "offenes" Menue ein Irrtum - die Sperre fiele sonst nie weg */
-    private static final long MENU_MAX_OPEN_MILLIS = 60_000L;
-    private static long menuArmedUntil = 0L;
-    private static boolean menuOpen = false;
-    private static long menuOpenedAt = 0L;
-    private static long quietUntil = 0L;
-
-    /**
-     * Ist das ein Ruestungs- oder Ausruestungsteil? Je Kennung einmal festgestellt.
-     *
-     * Nur solche Teile sind es, die ein Loadout-Wechsel ins Inventar legt - und nur sie
-     * duerfen in der Sekunde danach aus der Zaehlung fallen. Alles andere, ein Pet etwa,
-     * das in genau dieser Sekunde faellt, ist ein echter Fund.
-     */
-    private static final Map<String, Boolean> gearById = new HashMap<>();
-    private static final Pattern GEAR_LINE = Pattern.compile(
-            "(HELMET|CHESTPLATE|LEGGINGS|BOOTS|NECKLACE|CLOAK|BELT|GLOVES|GAUNTLET|BRACELET)");
-    /** Wann zuletzt ein Loadout angelegt wurde - und ob die Sekunde danach noch aussteht */
-    private static long lastSwapAt = 0L;
-    private static boolean swapPending = false;
-    /** So lange nach einem Wechsel gilt ein Zugang durch das Fenster noch als Teil davon */
-    private static final long SWAP_WINDOW_MILLIS = 8_000L;
-    /**
-     * Wie weit die Meldung "You equipped ..." vor dem Aufgehen eines Fensters liegen darf, damit es noch das
-     * Fenster des Wechsels ist: Fenster und Meldung kommen in verschiedenen Ticks an.
-     */
-    private static final long SWAP_LEAD_MILLIS = 500L;
-    /** Wann das Fenster aufging, dessen Zugaenge beim Schliessen verglichen werden */
-    private static long windowOpenedAt = 0L;
-
-    /**
-     * Gehoert ein Fenster zum Loadout-Wechsel?
-     *
-     * Nur wenn die Meldung kam, waehrend es offen war (oder gerade davor), und nicht laenger her ist als das
-     * Zeitfenster des Wechsels. Ein Fenster, das erst danach aufging, ist ein eigenes: Wer sein Loadout wechselt und
-     * dann das Lager aufmacht, um die Angel zu holen, hat nichts gefunden - die Angel kam aus dem Lager. Zuvor
-     * zaehlte sie, weil jedes Fenster in den acht Sekunden nach dem Wechsel als das Loadout-Menue galt.
-     */
-    static boolean swapWindow(long now, long swapAt, long openedAt) {
-        if (now - swapAt >= SWAP_WINDOW_MILLIS) return false;
-        return swapAt >= openedAt - SWAP_LEAD_MILLIS;
-    }
-
-    private static boolean looksLikeGear(ItemStack stack) {
-        // Ein Pet ist ein Spielerkopf, und Koepfe lassen sich aufsetzen - daran darf es nicht
-        // haengen: Der Baby Yeti galt deshalb als Ruestung und fiel nach einem Wechsel aus der Zaehlung
-        net.minecraft.world.item.component.CustomData data = stack.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
-        if (data != null && "PET".equals(data.copyTag().getStringOr("id", ""))) return false;
-        if (stack.is(net.minecraft.world.item.Items.PLAYER_HEAD)) return loreSaysGear(stack);
-        if (stack.get(net.minecraft.core.component.DataComponents.EQUIPPABLE) != null) return true;
-        return loreSaysGear(stack);
-    }
-
-    private static boolean loreSaysGear(ItemStack stack) {
-        net.minecraft.world.item.component.ItemLore lore = stack.get(net.minecraft.core.component.DataComponents.LORE);
-        if (lore == null || lore.lines().isEmpty()) return false;
-        // Die letzte Zeile nennt Seltenheit und Art: "MYTHIC HELMET", "LEGENDARY NECKLACE"
-        String last = lore.lines().get(lore.lines().size() - 1).getString().toUpperCase(Locale.ROOT);
-        return GEAR_LINE.matcher(last).find();
-    }
-
-    private static boolean isGear(String itemId) {
-        return Boolean.TRUE.equals(gearById.get(itemId)) || worn.containsKey(itemId);
-    }
-
-    /** Dieselben Zugaenge ohne Ruestung und Ausruestung */
-    private static Map<String, Integer> withoutGear(Map<String, Integer> gains) {
-        Map<String, Integer> out = new LinkedHashMap<>();
-        for (Map.Entry<String, Integer> entry : gains.entrySet()) {
-            if (!isGear(entry.getKey())) out.put(entry.getKey(), entry.getValue());
-        }
-        return out;
-    }
-
-    /** Ein Zugang, der noch wartet - und der Tick, in dem er gesehen wurde */
-    private record Held(Map<String, Integer> gains, int tick) {
-    }
-
-    private static final List<Held> held = new ArrayList<>();
-    private static int tickCount = 0;
-    /** Ist der Spieler gerade ein Geist? Dann gehoert das Inventar dem Server und nichts zaehlt */
-    private static final GhostPhase ghost = new GhostPhase();
-    /** Der Fingerabdruck, bei dem zuletzt nach den Gegenstaenden des Geistes gesehen wurde */
-    private static int ghostSignature = 0;
-
+    /** Die Beute einer Leiche steht in der Sack-Meldung bis zu dreissig Sekunden spaeter noch einmal. */
+    private static final long VORGEBUCHT_NANOS = 60_000_000_000L;
     private static final String SHARD_PREFIX = "SHARD_";
-    /** Zeilen aus fremden Kanaelen erzaehlen von fremden Funden */
+    /** Zeilen aus fremden Kanaelen erzaehlen von fremden Funden. */
     private static final String[] FOREIGN_PREFIXES = {"Party >", "Guild >", "Co-op >", "From ", "To "};
+    private static final String CORPSE_LOOT = "corpse loot";
+    private static final String DROP_ZEILE = "drop line";
+    /** "You have successfully transferred your items from this stash to your sacks!": der Stash schuettet seinen Inhalt in die Saecke. */
+    private static final Pattern STASH_ZU_SAECKEN = Pattern.compile("^You have successfully transferred your items from .+ stash to your sacks!?$");
+    /** Alle Koeder enden auf _BAIT (BLESSED, WHALE, CARROT, GLOWY_CHUM ...); Bait Ring und die Koedersaecke gehoeren nicht dazu. */
+    private static final String KOEDER_ENDUNG = "_BAIT";
+    /** Ein Schluessel aus der Forge ist kein Fund; er zaehlt nur, wenn die Leiche ihn selbst in ihrer Beute hat. */
+    private static final java.util.Set<String> GESCHMIEDETE_SCHLUESSEL = java.util.Set.of("UMBER_KEY", "TUNGSTEN_KEY");
 
     private static final List<Consumer<Map<String, Integer>>> listeners = new ArrayList<>(2);
-
     /**
-     * Die Farbe, in der das Spiel den Namen einer Ware schreibt.
-     *
-     * Wird beim Zaehlen nebenbei mitgenommen, solange sie noch fehlt. Sie ist die
-     * Seltenheit: blau ist selten, lila episch. Aus einer Liste laesst sich das nicht
-     * fuer alles holen - Shards, Pets und Farben stehen in keiner.
+     * Drop-Zeilen und Funde zusammenfuehren. Startwerte: die groessten gemessenen Server-Abstaende (Tod bis Platz-Update und Klick bis
+     * Platz-Update); der Abstand der Chatzeile selbst ist noch ungemessen, das Protokoll liefert ihn.
      */
+    private static final FundBuch BUCH = new FundBuch(Kern.DROP_FENSTER_STANDARD, Kern.KLICK_FENSTER_STANDARD);
     private static final Map<String, Integer> colours = new HashMap<>();
+    private static String lastSource = "inventory";
 
-    /** Der Stand des letzten Vergleichs: Kennung -> Stueckzahl im Inventar */
-    private static Map<String, Integer> previousCounts = null;
-    /** Fingerabdruck der Plaetze. Aendert er sich nicht, muss auch nicht gezaehlt werden */
-    private static int previousSignature = 0;
-    private static String previousContext = null;
-    /**
-     * Ticks, die nach einem Wechsel noch abzuwarten sind.
-     *
-     * Ein Zaehler, kein Ruhe-Erfordernis: Er laeuft in jedem Tick herunter, egal was
-     * im Inventar gerade passiert. Die erste Fassung wartete stattdessen darauf, dass
-     * sich zwanzig Ticks lang nichts ruehrt - und genau das kann ausbleiben. Wer
-     * ununterbrochen etwas aufsammelt, kam nie aus dem Warten heraus, und dann zaehlte
-     * der Kasten still gar nichts mehr.
-     */
-    private static int settleTicks = SETTLE_TICKS;
-    /**
-     * Kam die Wartezeit von einem Fenster oder von einem Wechsel?
-     *
-     * Der Unterschied entscheidet, ob sie abgebrochen werden darf. Nach einem Wechsel
-     * nicht - dort kommt das halbe Inventar nach und saehe wie ein Fund aus. Nach einem
-     * Fenster schon: Wenn der Server in genau dieser Sekunde Beute austeilt, gehoert
-     * sie gezaehlt, und die Wartezeit war fuer Craft-Ergebnisse gedacht, nicht fuer sie.
-     */
-    private static boolean settleAfterWindow = false;
-    /** Der Stand, als ein Fenster aufging - um danach zu sehen, was hindurchkam */
-    private static Map<String, Integer> windowBaseline = null;
-    /**
-     * Bis wann der Server gerade Beute austeilt.
-     *
-     * Wer seine Fallen leert, hat dabei das Fallen-Menue offen, und die Beute kommt
-     * waehrenddessen herein. Ohne diese Ausnahme faellt sie unter dieselbe Regel wie
-     * ein Basar-Kauf und zaehlt nie - im Log stand genau das: zweimal vier Buecher,
-     * beide Male "came in through a window".
-     */
-    private static long lootUntil = 0L;
-    /** Bis wann eine Sack-Meldung noch zum geleerten Stash gehoert */
-    private static long stashUntil = 0L;
-    /**
-     * Abgaenge der letzten Sekunden, gegen die spaetere Zugaenge verrechnet werden.
-     *
-     * Jeder Posten mit eigener Uhrzeit, weil die beiden Faelle unterschiedlich lange
-     * nachwirken: das Wiederaufheben von Weggeworfenem zehn Sekunden, die Sack-Meldung
-     * gut eine Minute.
-     */
-    private static final List<Loss> losses = new ArrayList<>();
+    private static boolean corpseAktiv;
+    private static long corpseStart;
+    private static int corpseZeilen;
 
-    /**
-     * Ein vorgemerkter Posten: so viele Stueck dieser Ware sind schon verbucht.
-     *
-     * {@code sackOnly} trennt die beiden Faelle, und diese Trennung ist wichtiger als
-     * sie aussieht. Ein Abgang aus dem Inventar darf gegen alles aufgerechnet werden -
-     * wer etwas wegwirft und wieder aufhebt, hat nichts gefunden. Was dagegen durch ein
-     * Fenster hereinkam, ist nur fuer die Sack-Meldung vorgemerkt: Gekauftes wandert von
-     * selbst in die Saecke und kaeme sonst als Fund zurueck. Gegen einen spaeteren Fund
-     * derselben Ware im Inventar darf es nichts ausrichten - sonst frisst ein Einkauf
-     * eine Minute lang jeden echten Fund derselben Ware.
-     */
-    private static final class Loss {
-        final String itemId;
-        int amount;
-        /** Nicht endgueltig: Solange das Stueck noch auf dem Boden liegt, wird er nachgezogen */
-        long at;
-        final boolean sackOnly;
+    private static final class Gebucht {
+        final String id;
+        int menge;
+        final long nanos;
 
-        Loss(String itemId, int amount, long at, boolean sackOnly) {
-            this.itemId = itemId;
-            this.amount = amount;
-            this.at = at;
-            this.sackOnly = sackOnly;
+        Gebucht(String id, int menge, long nanos) {
+            this.id = id;
+            this.menge = menge;
+            this.nanos = nanos;
         }
     }
+
+    private static final List<Gebucht> vorgebucht = new ArrayList<>();
+    private static Kern kern;
+    /** Die letzte Craft-Zeile: Die Sack-Meldung kurz danach (Ergebnis plus Zutaten) gehoert zum Craften */
+    private static final long CRAFT_NANOS = 20_000_000_000L;
+    private static boolean craftGesehen;
+    private static long craftNanos;
+
+    /** Eine Chatzeile, die eine Ware mit Menge nennt ("You received 22x ... for killing ..."), und wann sie kam (siehe {@link SackErgaenzung}) */
+    private record Zeitanspruch(ZeilenFunde.Anspruch anspruch, long nanos) {
+    }
+
+    /** Was andere Wege kurz zuvor gebucht haben (Inventar, Drop-Zeile, Leichen-Beute ...): ohne die Sack-Meldungen selbst */
+    private record JungerFund(String id, int menge, long nanos) {
+    }
+
+    /** Was der Sack kuerzlich als herausgenommen gemeldet hat, und der Abgleich einer Rueckgabe dagegen (siehe {@link SackRueckgabe}) */
+    private static final SackRueckgabe RUECKGABE = new SackRueckgabe();
+    private static final List<Zeitanspruch> ansprueche = new ArrayList<>();
+    private static final List<JungerFund> jungeFunde = new ArrayList<>();
+    /** Die aus dem Chat nachgetragenen Drop-Zeilen, die noch auf das Urteil einer Sack-Meldung warten (siehe {@link DropWiderruf}) */
+    private static final List<DropWiderruf.Offen> offeneZeilen = new ArrayList<>();
+    /** Jeder Zugang, den der Kern sah (jede Ursache): Ein Drop, der im Inventar ankam, steht hier, auch wenn er kein Fund war */
+    private static final List<JungerFund> zugangGesehen = new ArrayList<>();
+    /** Kam in dieser Welt schon eine Sack-Meldung? Nur dann ist ein Sack-Ziel auszuschliessen, das keine nannte */
+    private static boolean sackMeldungGesehen;
+    /** So lange bleibt eine Zeile fuer eine spaetere Sack-Meldung vorgemerkt; die Meldung kommt bis zu dreissig Sekunden danach */
+    private static final long ANSPRUCH_NANOS = 120_000_000_000L;
+    /** Das Fenster einer Sack-Meldung ("Last 30s") ist auf ein paar Sekunden genau */
+    private static final long FENSTER_SPIELRAUM_NANOS = 3_000_000_000L;
+    /** Der abgeschnittene Rest einer Sack-Meldung, den keine Zeile belegt: kein Gegenstand, nur eine ehrliche Zahl im Kasten */
+    public static final String UNGEKLAERT = "SHOKI_UNRESOLVED_SACK";
+    private static final String SACK_REST = "sack remainder";
 
     private ItemChanges() {
     }
 
-    /** Wer mitzaehlen will, meldet sich hier an. Die Karte enthaelt nur Zugaenge */
+    /** Wer mitzaehlen will, meldet sich hier an. Die Karte enthaelt nur Zugaenge. */
     public static void listen(Consumer<Map<String, Integer>> listener) {
-        if (listener != null) listeners.add(listener);
+        if (listener != null) {
+            listeners.add(listener);
+        }
     }
 
-    public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(ItemChanges::tick);
-        ClientSendMessageEvents.COMMAND.register(ItemChanges::onCommand);
-    }
-
-    /** Ein getippter Befehl, ohne den Schraegstrich davor */
-    private static void onCommand(String command) {
-        if (command == null || !FeatureGate.itemChanges() || !GameState.Server.isSkyblock()) return;
-        if (!SWAP_MENUS.contains(command.trim().toLowerCase(Locale.ROOT))) return;
-        startMenuQuiet(System.currentTimeMillis());
+    /** Der Anschluss uebergibt seinen Kern (fuer die Aufrechnung der Sack-Meldungen). */
+    public static void verbinden(Kern k) {
+        kern = k;
     }
 
     /**
-     * Ein Menue zum Wechseln steht bevor: Bis es auf- und wieder zugegangen ist und noch zwei
-     * Sekunden danach zaehlt nichts, was ins Inventar kommt.
-     *
-     * Der Preis ist benannt: Ein echter Fund in genau diesen Sekunden fehlt im Kasten - ausser
-     * der Chat meldet ihn, dann wird er nachgetragen.
+     * Die Kennung, unter der ein Stapel gezaehlt wird, oder {@code null} (leer, Bedienelement, Gegenstand eines Geistes).
+     * Alle Wege nehmen dieselbe Regel, damit sie dieselbe Ware meinen.
      */
-    static void startMenuQuiet(long now) {
-        menuArmedUntil = now + MENU_WAIT_MILLIS;
-        quietUntil = now + MENU_WAIT_MILLIS;
-        ShokiMod.LOGGER.info("[Profit] menu for swapping gear - nothing counts until it is closed and {}s more",
-                MENU_QUIET_MILLIS / 1000L);
-    }
-
-    /** Gilt die Sperre gerade? Solange das Menue offen ist und kurz danach */
-    private static boolean menuQuiet(long now) {
-        return (menuOpen && now - menuOpenedAt < MENU_MAX_OPEN_MILLIS) || now < quietUntil;
-    }
-
-    /** Steht schon ein Vergleichsstand, oder wird noch gewartet? */
-    public static boolean ready() {
-        return settleTicks == 0 && previousCounts != null && windowBaseline == null;
-    }
-
-    private static void tick(Minecraft client) {
-        if (!FeatureGate.itemChanges()) {
-            reset();
-            return;
+    public static String countedId(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            return null;
         }
-        if (client.player == null || client.level == null || !GameState.Server.isSkyblock()) {
-            reset();
-            return;
-        }
-
-        tickCount++;
-
-        // Tot? Dann gehoert das Inventar dem Server, und das kommt vor allem anderen: ein offenes
-        // Fenster (der Geist hat "Open Shop"), ein Wechsel, ein Menue - nichts davon darf den
-        // Vergleichsstand vor dem Tod ueberschreiben, sonst kaeme das echte Inventar als Fund zurueck.
-        // Der Fingerabdruck wird nur gebildet, wenn er sich geaendert hat, das Auslesen der Kennungen
-        // auch nur dann
-        int signatureNow = signature(client);
-        if (signatureNow != ghostSignature) {
-            ghostSignature = signatureNow;
-            ghost.onInventory(hasGhostItem(client));
-        }
-        switch (ghost.step(System.currentTimeMillis())) {
-            case ENTERED -> enterGhost();
-            case LEFT -> leaveGhost();
-            default -> { }
-        }
-        if (ghost.active()) {
-            // Was der Chat als gefallen meldet, ist auch als Toter gefallen
-            rescueConfirmed();
-            return;
-        }
-
-        flushHeld();
-        rescueConfirmed();
-
-        // Ein offener Behaelter ist der Weg, auf dem Gekauftes, Ausgelagertes und
-        // Gecraftetes hereinkommt. Nichts davon ist ein Fund
-        boolean windowOpen = client.gui.screen() instanceof AbstractContainerScreen<?>;
-        // Solange Beute fliesst, wird auch bei offenem Fenster gezaehlt - aber nur so
-        // lange: was man danach im Fenster anklickt, ist wieder ein Umzug, kein Fund
-        boolean lootFlowing = System.currentTimeMillis() < lootUntil;
-        if (windowOpen && !lootFlowing) {
-            long jetztOffen = System.currentTimeMillis();
-            if (jetztOffen < menuArmedUntil) {
-                menuArmedUntil = 0L;
-                menuOpen = true;
-                menuOpenedAt = jetztOffen;
-            }
-            // Ohne Vergleichsstand gibt es auch nichts zu vergleichen: dann ist das
-            // Fenster waehrend eines Wechsels aufgegangen, und das halbe Inventar saehe
-            // hinterher aus wie frisch hereingekommen
-            if (windowBaseline == null && previousCounts != null) {
-                windowBaseline = previousCounts;
-                windowOpenedAt = System.currentTimeMillis();
-            }
-            return;
-        }
-
-        if (menuOpen && !windowOpen) {
-            menuOpen = false;
-            quietUntil = System.currentTimeMillis() + MENU_QUIET_MILLIS;
-        }
-
-        String context = context(client);
-        if (!context.equals(previousContext)) {
-            previousContext = context;
-            // Nach einem Wechsel kommt das Inventar Stueck fuer Stueck an; erst danach
-            // ist ein Vergleich etwas wert
-            settleTicks = SETTLE_TICKS;
-            settleAfterWindow = false;
-            refillWaited = 0;
-            menuOpen = false;
-            previousCounts = null;
-            windowBaseline = null;
-            return;
-        }
-
-        if (windowBaseline != null && !windowOpen) {
-            // Das Fenster ist zu. Der Stand von jetzt ist der neue Vergleichspunkt -
-            // was durch das Fenster kam, zaehlt nicht als Fund
-            Map<String, Integer> current = counts(client);
-            noteWindow(windowBaseline, current);
-            windowBaseline = null;
-            previousCounts = current;
-            previousSignature = signature(client);
-            // Was beim Bauen oder Kaufen entsteht, kommt manchmal erst ein paar Ticks
-            // nach dem Schliessen an. Diese Sekunde gehoert noch zum Fenster - ausser
-            // der Server teilt gerade Beute aus, dann faellt sie genau in die Sekunde,
-            // in der die Buecher der Schaedlinge ankommen
-            if (!lootFlowing) {
-                settleTicks = SETTLE_TICKS;
-                settleAfterWindow = true;
-            }
-            return;
-        }
-
-        if (settleTicks > 0) {
-            settleTicks--;
-            if (settleTicks == 0) {
-                Map<String, Integer> current = counts(client);
-                // Ein fast leeres Inventar ist noch unterwegs - nicht als Vergleich nehmen,
-                // sonst steht gleich alles, was man besitzt, als Fund im Kasten
-                if (waitForRefill(current)) {
-                    settleTicks = REFILL_STEP;
-                    return;
-                }
-                // Was in dieser Sekunde ankam, zaehlt nicht - aber es soll nicht
-                // spurlos verschwinden. Genau hier waren die vier Buecher weg, und im
-                // Log stand nichts darueber
-                if (previousCounts != null) {
-                    if (swapPending) {
-                        Map<String, Integer> echt = withoutGear(onlyGains(previousCounts, current));
-                        if (!echt.isEmpty()) {
-                            ShokiMod.LOGGER.info("[Profit] arrived during the armour swap, counted: {}", echt);
-                            held.add(new Held(echt, tickCount));
-                        }
-                    }
-                    if (debug()) {
-                        Map<String, Integer> verschluckt = onlyGains(previousCounts, current);
-                        if (!verschluckt.isEmpty()) {
-                            ShokiMod.LOGGER.info("[Profit] arrived while settling, not counted: {}", verschluckt);
-                        }
-                    }
-                    // Abgaenge aus dieser Sekunde zaehlen weiter mit: Wer in ihr wegwirft
-                    // und danach aufhebt, hat nichts gefunden
-                    long jetzt = System.currentTimeMillis();
-                    for (Map.Entry<String, Integer> entry : onlyGains(current, previousCounts).entrySet()) {
-                        losses.add(new Loss(entry.getKey(), entry.getValue(), jetzt, false));
-                    }
-                }
-                swapPending = false;
-                previousCounts = current;
-                noteBaseline(current, true);
-                previousSignature = signature(client);
-            }
-            return;
-        }
-
-        // Der billige Teil zuerst: hat sich ueberhaupt ein Platz geruehrt? Zwanzigmal je
-        // Sekunde lautet die Antwort fast immer nein, und dann faellt alles Weitere weg
-        int signature = signatureNow;
-        if (signature == previousSignature) return;
-        previousSignature = signature;
-
-        Map<String, Integer> current = counts(client);
-        if (previousCounts == null) {
-            previousCounts = current;
-            return;
-        }
-
-        refreshFloorLosses(client, System.currentTimeMillis());
-        Map<String, Integer> gains = diff(previousCounts, current);
-        previousCounts = current;
-        noteBaseline(current, false);
-        // Beute bei offenem Fenster: der Vergleichspunkt des Fensters wandert mit.
-        // Sonst stuende dasselbe beim Schliessen noch einmal als "durchs Fenster" da -
-        // und waere als schon verbucht vorgemerkt, obwohl es gerade gezaehlt wurde
-        if (windowOpen) {
-            // Und gezaehlt wird dabei nur die wortlose Beute: Was der Spieler selbst durchs Fenster holt,
-            // zaehlt auch dann nicht, wenn nebenbei Beute fliesst
-            gains = wordlessLootOnly(gains, System.currentTimeMillis());
-            if (windowBaseline == null) windowOpenedAt = System.currentTimeMillis();
-            windowBaseline = current;
-        }
-        if (!gains.isEmpty()) held.add(new Held(gains, tickCount));
-    }
-
-    /** Liegen die Gegenstaende eines Geistes im Inventar? Nur aufgerufen, wenn sich der Fingerabdruck aenderte */
-    private static boolean hasGhostItem(Minecraft client) {
-        List<ItemStack> items = client.player.getInventory().getNonEquipmentItems();
-        for (int slot = 0; slot < items.size(); slot++) {
-            ItemStack stack = items.get(slot);
-            if (stack == null || stack.isEmpty()) continue;
-            if (GhostPhase.isGhostItem(SkyBlockItems.idOf(stack))) return true;
-        }
-        return false;
-    }
-
-    /**
-     * Der Spieler ist gestorben: Das Inventar ist ab jetzt das eines Geistes.
-     *
-     * Der Vergleichsstand bleibt, wie er vor dem Tod war - er ist der einzige echte. Was noch
-     * auf seine drei Ticks Wartezeit wartete, kann schon vom Geist-Inventar stammen und faellt weg.
-     */
-    private static void enterGhost() {
-        ShokiMod.LOGGER.info("[Profit] dead - the inventory is the ghost's, nothing counts until it is back"
-                + " ({} waiting finds dropped)", held.size());
-        held.clear();
-        windowBaseline = null;
-    }
-
-    /**
-     * Das Inventar des Geistes ist weg: wieder lebendig.
-     *
-     * Das echte Inventar kommt in Haeppchen zurueck. Deshalb wird wie nach einem Wechsel gewartet
-     * und dann neu angesetzt, ohne zu melden - und ein zu leerer Stand wird dabei nicht als
-     * Vergleich genommen (siehe {@link #waitForRefill}).
-     */
-    private static void leaveGhost() {
-        settleTicks = GHOST_SETTLE_TICKS;
-        settleAfterWindow = false;
-        swapPending = false;
-        refillWaited = 0;
-        windowBaseline = null;
-        ShokiMod.LOGGER.info("[Profit] alive again - waiting {}s for the inventory before comparing",
-                GHOST_SETTLE_TICKS / 20);
-    }
-
-    /** Ist das Beute, die der Server ohne Chatzeile austeilt? */
-    static boolean wordlessLoot(String itemId) {
-        if (itemId == null) return false;
-        for (String prefix : WORDLESS_LOOT) {
-            if (itemId.startsWith(prefix)) return true;
-        }
-        return false;
-    }
-
-    /**
-     * Von den Zugaengen eines offenen Fensters bleibt nur die wortlose Beute uebrig.
-     *
-     * Der Rest kam durchs Fenster und wird wie ein Fenster-Zugang behandelt: nicht gezaehlt, und gegen die
-     * Sack-Meldung vorgemerkt, die der Einlagerung sonst als Fund folgte (dasselbe wie in noteWindow).
-     */
-    static Map<String, Integer> wordlessLootOnly(Map<String, Integer> gains, long now) {
-        if (gains.isEmpty()) return gains;
-
-        Map<String, Integer> kept = new LinkedHashMap<>();
-        Map<String, Integer> moved = new LinkedHashMap<>();
-        for (Map.Entry<String, Integer> entry : gains.entrySet()) {
-            (wordlessLoot(entry.getKey()) ? kept : moved).put(entry.getKey(), entry.getValue());
-        }
-        if (moved.isEmpty()) return gains;
-
-        for (Map.Entry<String, Integer> entry : moved.entrySet()) {
-            losses.add(new Loss(entry.getKey(), entry.getValue(), now, true));
-        }
-        ShokiMod.LOGGER.info("[Profit] came in through a window while loot was flowing, not counted: {}", moved);
-        return kept;
-    }
-
-    /**
-     * Was hereinkam, waehrend ein Fenster offen war - und deshalb nicht zaehlt.
-     *
-     * Steht nur im Log, damit die Frage "warum steht das nicht im Kasten?" eine
-     * Antwort hat. Truhe, Basar, Auktionshaus, Sack und Craft laufen alle ueber ein
-     * Fenster, und nichts davon ist ein Fund.
-     */
-    /** Die reinen Zugaenge zwischen zwei Staenden - ohne Verrechnung, nur zum Hinsehen */
-    private static Map<String, Integer> onlyGains(Map<String, Integer> before, Map<String, Integer> after) {
-        Map<String, Integer> gains = new LinkedHashMap<>();
-        for (Map.Entry<String, Integer> entry : after.entrySet()) {
-            int delta = entry.getValue() - before.getOrDefault(entry.getKey(), 0);
-            if (delta > 0) gains.put(entry.getKey(), delta);
-        }
-        return gains;
-    }
-
-    private static void noteWindow(Map<String, Integer> before, Map<String, Integer> after) {
-        Map<String, Integer> gains = new LinkedHashMap<>();
-        long now = System.currentTimeMillis();
-        boolean afterSwap = swapWindow(now, lastSwapAt, windowOpenedAt);
-        if (!afterSwap && now - lastSwapAt < SWAP_WINDOW_MILLIS) {
-            ShokiMod.LOGGER.info("[Profit] this window opened {}s after the loadout swap - it is a window of its own, "
-                    + "what came out of it is moved, not found", (windowOpenedAt - lastSwapAt) / 1000L);
-        }
-        // Als ein Schwung gesammelt, damit der Sammelschutz ihn als Ganzes sieht
-        Map<String, Integer> swapFinds = new LinkedHashMap<>();
-        for (Map.Entry<String, Integer> entry : after.entrySet()) {
-            int delta = entry.getValue() - before.getOrDefault(entry.getKey(), 0);
-            if (delta <= 0) continue;
-
-            // Im Fenster des Loadout-Wechsels kommt nur Ruestung herein -
-            // alles andere ist ein Fund, der in diese Sekunde fiel, und zaehlt
-            if (afterSwap && !isGear(entry.getKey())) {
-                swapFinds.put(entry.getKey(), delta);
-                continue;
-            }
-            gains.put(entry.getKey(), delta);
-            // Vorgemerkt, nicht nur uebergangen: Gekauftes und Gecraftetes wandert von
-            // selbst in die Saecke, und deren Sammelmeldung kaeme sonst als Fund zurueck.
-            // Nur dafuer - einem spaeteren Fund derselben Ware im Inventar darf ein
-            // Einkauf nicht im Weg stehen
-            losses.add(new Loss(entry.getKey(), delta, now, true));
-        }
-        // Und was hinausging. Ohne diese Schleife war ein Wegwerfen bei offenem
-        // Inventar unsichtbar: Das Fenster hielt den Vergleich an, beim Schliessen wurde
-        // neu geeicht, und das Wiederaufheben kam als Fund herein. Genau so sind drei
-        // Moby-Ducks in den Kasten gewandert, die einer waren
-        for (Map.Entry<String, Integer> entry : before.entrySet()) {
-            int delta = entry.getValue() - after.getOrDefault(entry.getKey(), 0);
-            if (delta > 0) losses.add(new Loss(entry.getKey(), delta, now, false));
-        }
-
-        if (!swapFinds.isEmpty()) {
-            ShokiMod.LOGGER.info("[Profit] arrived next to a loadout swap, counted: {}", swapFinds);
-            held.add(new Held(swapFinds, tickCount));
-        }
-        if (!gains.isEmpty()) {
-            ShokiMod.LOGGER.info("[Profit] came in through a window, not counted: {}", gains);
-        }
-    }
-
-    /**
-     * Wo wir sind, und wer wir sind.
-     *
-     * Aendert sich hier etwas, ist das Inventar gerade unterwegs: Serverwechsel,
-     * Warp, neues Profil. Die Server-ID steht in der Tab-Liste und wechselt bei
-     * jedem Sprung.
-     */
-    private static String context(Minecraft client) {
-        return GameState.Server.id + "|" + client.player.getUUID() + "|"
-                + System.identityHashCode(client.level);
-    }
-
-    /**
-     * Ein Fingerabdruck aller Plaetze.
-     *
-     * Der teure Teil ist das Auslesen der Kennungen; der billige ist dieser Vergleich.
-     * Er laeuft ohne eine einzige neue Liste - was hier jeden Tick angelegt wuerde,
-     * muesste auch jeden Tick wieder weggeraeumt werden.
-     *
-     * Mit Ruestung und Zweithand, ohne das SkyBlock-Menue (dessen Platz sich staendig
-     * aendert), aber mit dem, was am Mauszeiger haengt: das liegt in keinem Platz und
-     * waere sonst ein Abgang.
-     */
-    private static int signature(Minecraft client) {
-        List<ItemStack> items = client.player.getInventory().getNonEquipmentItems();
-        int hash = 1;
-        for (int slot = 0; slot < items.size(); slot++) {
-            ItemStack stack = items.get(slot);
-            if (stack == null || stack.isEmpty()) continue;
-            hash = hash * 31 + ItemStack.hashItemAndComponents(stack) * 31 + stack.getCount();
-        }
-        for (EquipmentSlot slot : WORN) {
-            ItemStack worn = client.player.getItemBySlot(slot);
-            if (worn == null || worn.isEmpty()) continue;
-            hash = hash * 31 + ItemStack.hashItemAndComponents(worn) * 31 + worn.getCount();
-        }
-        ItemStack carried = client.player.containerMenu.getCarried();
-        if (carried != null && !carried.isEmpty()) {
-            hash = hash * 31 + ItemStack.hashItemAndComponents(carried) * 31 + carried.getCount();
-        }
-        return hash;
-    }
-
-    /**
-     * Die getragenen Teile: Ruestung und Zweithand.
-     *
-     * Sie zaehlen mit, obwohl sie beim Spielen stillstehen - denn beim Umziehen stehen
-     * sie eben nicht still. Ein Helm, der vom Kopf ins Inventar wandert, waere sonst ein
-     * Fund: Er taucht im Inventar auf, und wo er herkommt, sah der Vergleich nicht.
-     *
-     * Die Haupthand fehlt mit Absicht - sie ist ein Platz der Hotbar und steckt schon im
-     * Inventar. Zweimal gezaehlt waere sie ein Fund bei jedem Wechsel der Waffe.
-     */
-    private static final EquipmentSlot[] WORN = {
-            EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS,
-            EquipmentSlot.FEET, EquipmentSlot.OFFHAND};
-
-    /** Wie viel von welcher Ware der Spieler gerade bei sich hat */
-    private static Map<String, Integer> counts(Minecraft client) {
-        Map<String, Integer> out = new LinkedHashMap<>();
-        List<ItemStack> items = client.player.getInventory().getNonEquipmentItems();
-        for (int slot = 0; slot < items.size(); slot++) {
-            if (slot == DISPLAY_SLOT) continue;
-            add(out, items.get(slot));
-        }
-        long jetzt = System.currentTimeMillis();
-        for (EquipmentSlot slot : WORN) {
-            ItemStack getragen = client.player.getItemBySlot(slot);
-            add(out, getragen);
-            // Mitschreiben, was am Koerper haengt: Was von dort ins Inventar wandert,
-            // ist ein Umzug - auch wenn der Server sich damit eine Sekunde Zeit laesst.
-            // Nur die vier Ruestungsplaetze: In der Zweithand steckt mal ein Koeder oder
-            // ein Block, und davon findet man welche. Ein Helm ist ein Helm
-            if (slot == EquipmentSlot.OFFHAND) continue;
-            String id = SkyBlockItems.idOf(getragen);
-            if (id != null) worn.put(id, jetzt);
-        }
-        add(out, client.player.containerMenu.getCarried());
-        return out;
-    }
-
-    /**
-     * Was zuletzt am Koerper hing, mit dem Zeitpunkt.
-     *
-     * Der Vergleich sieht nur Staende, keine Wege. Taucht ein Helm im Inventar auf, der
-     * im selben Augenblick noch im Ruestungsplatz steckt, hat der Server den Umzug in
-     * zwei Pakete zerlegt und das erste ist schon da - im Log vom 01.10. lagen zwischen
-     * beiden Haelften eine ganze Sekunde, weil nebenbei Pest-Fallen geleert und Mobs
-     * gekillt wurden. Drei Ticks Wartezeit reichen dafuer nicht; die Frage "hing das
-     * gerade noch an mir?" schon.
-     */
-    private static final Map<String, Long> worn = new HashMap<>();
-    /** So lange gilt ein abgelegtes Teil noch als Umzug und nicht als Fund */
-    private static final long WORN_MILLIS = 10_000L;
-
-    /** Hing diese Ware eben noch am Koerper? */
-    private static boolean wasWorn(String itemId, long now) {
-        Long zuletzt = worn.get(itemId);
-        if (zuletzt == null) return false;
-        if (now - zuletzt > WORN_MILLIS) {
-            worn.remove(itemId);
-            return false;
-        }
-        return true;
-    }
-
-    private static void add(Map<String, Integer> counts, ItemStack stack) {
-        if (stack == null || stack.isEmpty()) return;
         String id = SkyBlockItems.idOf(stack);
-        // Haunt, Open Shop und Purchase Revive legt der Server dem Geist hin - Bedienelemente, nie Beute
-        if (id == null || MENU_ID.equals(id) || GhostPhase.isGhostItem(id)) return;
-        counts.merge(id, stack.getCount(), Integer::sum);
-        if (!gearById.containsKey(id)) gearById.put(id, looksLikeGear(stack));
-        // Nur beim ersten Mal: den Namen auseinanderzunehmen lohnt sich nicht in jedem Tick
-        if (!colours.containsKey(id)) {
+        if (id == null || MENU_ID.equals(id) || GhostPhase.isGhostItem(id)) {
+            return null;
+        }
+        return id;
+    }
+
+    /** Merkt sich den Farbton des Namens einer Ware (Seltenheit), einmal je Kennung. */
+    public static void beobachte(String id, ItemStack stack) {
+        if (id != null && !colours.containsKey(id)) {
             int colour = SkyBlockItems.nameColour(stack);
-            if (colour != 0) colours.put(id, colour);
+            if (colour != 0) {
+                colours.put(id, colour);
+            }
         }
     }
 
-    /** Die beobachtete Namensfarbe einer Ware, oder 0 */
+    /** Die beobachtete Namensfarbe einer Ware, oder 0. */
     public static int colourOf(String itemId) {
         Integer colour = colours.get(itemId);
         return colour == null ? 0 : colour;
     }
 
-    /**
-     * Was lange genug gewartet hat, zaehlt jetzt - was inzwischen wieder wegging, nicht.
-     *
-     * In der Wartezeit kann ein Abgang nachkommen, der den Zugang erklaert: das
-     * Ruestungsteil, das aus seinem Platz verschwindet, nachdem es im Inventar auftauchte.
-     * Genau dafuer wird hier ein zweites Mal gegengerechnet.
-     */
-    private static void flushHeld() {
-        if (held.isEmpty()) return;
+    /** Woher der letzte Fund kam; steht im Log neben dem ersten Fund einer Ware. */
+    public static String lastSource() {
+        return lastSource;
+    }
 
-        long now = System.currentTimeMillis();
-        for (int i = 0; i < held.size(); ) {
-            Held warte = held.get(i);
-            if (tickCount - warte.tick() < HOLD_TICKS) {
-                i++;
-                continue;
-            }
-            held.remove(i);
-
-            if (menuQuiet(now)) {
-                ShokiMod.LOGGER.info("[Profit] gear menu - not counted: {}", warte.gains());
-                continue;
-            }
-
-            Map<String, Integer> rest = new LinkedHashMap<>();
-            for (Map.Entry<String, Integer> entry : warte.gains().entrySet()) {
-                if (wasWorn(entry.getKey(), now)) {
-                    ShokiMod.LOGGER.info("[Profit] {} came off the body, not a find", entry.getKey());
-                    continue;
-                }
-                int uebrig = offset(entry.getKey(), entry.getValue(), OFFSET_MILLIS, now, false);
-                if (uebrig > 0) rest.put(entry.getKey(), uebrig);
-            }
-            if (rest.size() >= BULK_IDS) {
-                ShokiMod.LOGGER.warn("[Profit] {} kinds at once are a rebuilt inventory, not loot - dropped: {}"
-                        + " ({})", rest.size(), rest, lastSwapAt == 0L ? "no loadout swap yet"
-                        : "last loadout swap " + (now - lastSwapAt) / 1000L + "s ago");
-                continue;
-            }
-            if (!rest.isEmpty()) dispatch(rest, "inventory");
+    /** Ein Fund, der nicht ueber das Inventar kommt (zum Beispiel Essence aus der Tab-Liste oder der Aktionsleiste). */
+    public static void report(Map<String, Integer> gains, String source) {
+        if (gains == null || gains.isEmpty() || !aktiv()) {
+            return;
         }
+        dispatch(new LinkedHashMap<>(gains), source, -1L);
     }
 
     /**
-     * Ist dieser Stand noch zu leer, um als Vergleichsstand zu taugen?
-     *
-     * Dann wird kurz weitergewartet, hoechstens {@link #REFILL_TICKS} Ticks. Danach gilt er
-     * trotzdem: Wer wirklich fast alles verkauft hat, soll nicht ewig warten.
+     * Beim Verlassen von SkyBlock: der Stand des Kerns geht mit der Welt, die Zaehlung bleibt. Eine Drop-Zeile, auf deren Platz-Update
+     * noch gewartet wurde, kann in der neuen Welt keins mehr bekommen: sie wird nachgetragen.
      */
-    private static boolean waitForRefill(Map<String, Integer> current) {
-        if (baselineIds < BULK_IDS || current.size() * 2 >= baselineIds) return false;
-        if (refillWaited >= REFILL_TICKS) return false;
-        if (refillWaited == 0) {
-            ShokiMod.LOGGER.info("[Profit] the inventory shows {} kinds, it had {} - waiting for it to fill before"
-                    + " taking it as the reference", current.size(), baselineIds);
+    public static void reset() {
+        for (FundBuch.Rettung r : BUCH.alleSchliessen(0L)) {
+            rette(r, 0L, false);
         }
-        refillWaited += REFILL_STEP;
+        BUCH.leeren();
+        corpseAktiv = false;
+        corpseZeilen = 0;
+        vorgebucht.clear();
+        craftGesehen = false;
+        ansprueche.clear();
+        jungeFunde.clear();
+        offeneZeilen.clear();
+        zugangGesehen.clear();
+        sackMeldungGesehen = false;
+        koederGutschrift.clear();
+        RUECKGABE.leeren();
+    }
+
+    /**
+     * Schliesst Drop-Zeilen, auf deren Platz-Update lange genug vergeblich gewartet wurde, und traegt sie aus dem Chat nach. Der Anschluss
+     * ruft das mit jedem Ereignis des Kerns, also im Takt der Pakete, nicht der Uhr.
+     */
+    public static void takt(long nr, long nanos) {
+        if (!offeneZeilen.isEmpty()) {
+            veraltetPruefen(nr, nanos);
+        }
+        if (BUCH.wartend() == 0) {
+            return;
+        }
+        for (FundBuch.Rettung r : BUCH.takt(nr)) {
+            rette(r, nanos, true);
+        }
+    }
+
+    /** Hat eine nachgetragene Zeile ihre Frist ueberschritten, ohne dass eine Sack-Meldung urteilte? Dann gilt der Zugang des Kerns, sonst ist sie weg */
+    private static void veraltetPruefen(long nr, long nanos) {
+        DropWiderruf.Urteil urteil = DropWiderruf.veraltet(offeneZeilen, nanos, sackMeldungGesehen,
+                o -> DropWiderruf.nieImSack(o.ids()), ItemChanges::zugangSeit);
+        if (urteil.bestaetigt().isEmpty() && urteil.widerrufen().isEmpty()) {
+            return;
+        }
+        offeneZeilen.removeAll(urteil.bestaetigt());
+        offeneZeilen.removeAll(urteil.widerrufen());
+        for (DropWiderruf.Offen w : urteil.widerrufen()) {
+            widerrufen(w, nr);
+        }
+    }
+
+    private static boolean aktiv() {
+        return FeatureGate.itemChanges() && GameState.Server.isSkyblock();
+    }
+
+    private static boolean debug() {
+        return ModConfig.INSTANCE.logs.profitDiagnostics;
+    }
+
+    // ------------------------------------------------------------------ Inventar (Paket-Kern)
+
+    /** Ein Zugang des Kerns. Ob er ein Fund ist, sagt {@link FundRegel}. */
+    public static void zugang(Kern.Zugang z) {
+        if (!aktiv()) {
+            return;
+        }
+        // Gemerkt wird jeder Zugang, nicht nur die Funde: Er belegt, dass eine Ware beim Spieler ankam (siehe DropWiderruf)
+        long jetzt = System.nanoTime();
+        zugangGesehen.removeIf(g -> jetzt - g.nanos > ANSPRUCH_NANOS);
+        zugangGesehen.add(new JungerFund(z.id(), z.menge(), jetzt));
+        if (FundRegel.istFund(z)) {
+            Map<String, Integer> fund = new LinkedHashMap<>();
+            fund.put(z.id(), z.menge());
+            dispatch(fund, FundRegel.quelle(z.ursache()), z.nr());
+        } else if (z.container() != 0 && (z.ursache() == Kern.Ursache.UNBEKANNT || z.ursache() == Kern.Ursache.MEHRDEUTIG)) {
+            ShokiMod.LOGGER.info("[Profit] {} x{} came into the open window ({}: {}) - not counted", z.id(), z.menge(),
+                    z.ursache().name().toLowerCase(java.util.Locale.ROOT), z.beleg());
+        }
+    }
+
+    // ------------------------------------------------------------------ Chat (nur, was kein Paket sonst traegt)
+
+    /** Eine Chatzeile aus dem Paketstrom. {@code nanos} ist die Uhr des Abgriffs, {@code nr} die Paketnummer. */
+    public static void chat(Component message, String plain, long nanos, long nr) {
+        if (message == null || plain == null || !aktiv()) {
+            return;
+        }
+        String clean = plain.trim();
+        // Ein geleerter Stash schuettet seinen ganzen Inhalt in die Saecke: die Sack-Meldung dazu ist kein Fund
+        if (STASH_ZU_SAECKEN.matcher(clean).matches()) {
+            BUCH.stashZeile(nanos);
+            KernProtokoll.beleg("stash", nr, clean);
+            return;
+        }
+        // Selbst Gecraftetes ist nie Beute: Das Ergebnis kommt meist in den Sack, und die Sack-Meldung kurz danach nennt es als Zugang.
+        // Hier wird es vorgemerkt, die Sack-Meldung zieht es ab (wie bei der Beute einer Leiche)
+        CraftZeile.Gecraftet gecraftet = CraftZeile.lesen(clean);
+        if (gecraftet != null) {
+            gecraftet(gecraftet, nanos, nr);
+            return;
+        }
+        // Ein gemeldeter Drop ist sicher gefallen; das Inventar belegt ihn, oder die Zeile wird nachgetragen
+        dropZeile(clean, nr);
+        if (corpseLoot(clean, nanos, nr)) {
+            return;
+        }
+        if (SackZeilen.istSackMeldung(clean)) {
+            sacks(message, clean, nanos, nr);
+            return;
+        }
+        merkeAnspruch(clean, nanos);
+        shards(message, clean, nr);
+    }
+
+    /**
+     * "RARE DROP! ..." und die anderen Drop-Zeilen: der Server meldet einen Fund, auch wenn kein Platz-Update dazu kommt (Loadout-Wechsel
+     * in derselben Sekunde, volles Inventar im Umbau). Hier wird die Zeile nur vorgemerkt; ob sie ein Fund wird, entscheidet {@link FundBuch}.
+     */
+    private static void dropZeile(String clean, long nr) {
+        if (com.shokiteufel.shokimod.handler.RareLootHandler.isChatLine(clean)) {
+            return;
+        }
+        Drop drop = RareLootParser.parse(clean);
+        // Pet-Zeilen immer festhalten: ihre genaue Form ist die Unbekannte, und ohne die Zeile im Log laesst sich nicht sagen, warum ein Pet fehlte
+        if (clean.toUpperCase(java.util.Locale.ROOT).contains("PET DROP")) {
+            ShokiMod.LOGGER.info("[Profit] pet drop line: \"{}\" -> {}", clean, drop == null ? "not understood" : drop.itemIdCandidates());
+        }
+        if (drop == null || drop.amount() <= 0) {
+            return;
+        }
+        List<String> ids = com.shokiteufel.shokimod.handler.RareLootHandler.candidatesFor(drop);
+        if (ids.isEmpty()) {
+            return;
+        }
+        // Essence ist eine Waehrung (ein einzelner Fund ist keiner), Shards haben ihre eigene Quelle
+        for (String id : ids) {
+            if (id.startsWith("ESSENCE_") || id.startsWith(SHARD_PREFIX)) {
+                return;
+            }
+        }
+        // Die Preise werden gleich gebraucht, um die richtige Kennung zu waehlen
+        ItemValue.prefetch();
+        int belegt = BUCH.dropZeile(ids, drop.amount(), nr);
+        KernProtokoll.beleg(belegt >= drop.amount() ? "drop-zeile belegt (Fund war zuerst)" : "drop-zeile wartet", nr,
+                ids.get(0) + " x" + drop.amount());
+        if (debug()) {
+            ShokiMod.LOGGER.info("[Profit] chat says {} x{} dropped - {}", ids.get(0), drop.amount(),
+                    belegt >= drop.amount() ? "the inventory already counted it" : "waiting for the inventory");
+        }
+    }
+
+    /** Eine Drop-Zeile, die das Inventar nicht belegt hat: aus dem Chat zaehlen. */
+    private static void rette(FundBuch.Rettung r, long nanos, boolean vormerken) {
+        String echt = waehle(r.ids());
+        KernProtokoll.beleg("drop-zeile nachgetragen", r.zeilenNr(), echt + " x" + r.menge());
+        ShokiMod.LOGGER.info("[Profit] the inventory never confirmed {} x{} - taking it from the chat line", echt, r.menge());
+        if (vormerken) {
+            // Kommt die Ware doch noch in einen Sack, steht sie dort in der Sack-Meldung und zaehlt nicht noch einmal
+            for (String id : r.ids()) {
+                vorgebucht.add(new Gebucht(id, r.menge(), nanos));
+            }
+            // Die erste Sack-Meldung, die dieses Fenster deckt, urteilt, ob die Ware ihr Ziel erreicht hat (Personal Deletor)
+            offeneZeilen.add(new DropWiderruf.Offen(echt, new ArrayList<>(r.ids()), r.menge(), nanos));
+        }
+        Map<String, Integer> nachtrag = new LinkedHashMap<>();
+        nachtrag.put(echt, r.menge());
+        dispatch(nachtrag, DROP_ZEILE, r.zeilenNr());
+    }
+
+    /**
+     * Die Beute einer Leiche: "UMBER CORPSE LOOT!", darunter "REWARDS" und je Ware eine Zeile, zum Schluss der Strich. Das meiste faellt in
+     * die Saecke, deren Meldung erst bis zu dreissig Sekunden spaeter kommt (oder nie, wenn man den Schacht vorher verlaesst). Deshalb zaehlt
+     * jede Zeile sofort, und die Menge ist vorgebucht, damit die Sack-Meldung sie nicht noch einmal zaehlt.
+     *
+     * @return ob die Zeile zur Beute der Leiche gehoerte
+     */
+    private static boolean corpseLoot(String clean, long nanos, long nr) {
+        if (CORPSE_START.matcher(clean).matches()) {
+            corpseAktiv = true;
+            corpseStart = nanos;
+            corpseZeilen = 0;
+            return true;
+        }
+        if (!corpseAktiv) {
+            return false;
+        }
+        if (nanos - corpseStart > CORPSE_NANOS || RareLootParser.isBundleEnd(clean) || ++corpseZeilen > CORPSE_MAX_LINES) {
+            corpseAktiv = false;
+            return false;
+        }
+        for (String prefix : FOREIGN_PREFIXES) {
+            if (clean.startsWith(prefix)) {
+                return false;
+            }
+        }
+        Drop drop = RareLootParser.parseBundleLine(clean);
+        if (drop == null) {
+            return true; // Ueberschrift oder Leerzeile: die Beute laeuft weiter
+        }
+        bucheLeiche(drop, nanos, nr);
         return true;
     }
 
-    /** Den Stand als Massstab merken. Ein angenommener Stand setzt ihn neu, ein laufender hebt ihn nur an */
-    private static void noteBaseline(Map<String, Integer> current, boolean accepted) {
-        if (accepted) {
-            baselineIds = current.size();
-            refillWaited = 0;
-        } else if (current.size() > baselineIds) {
-            baselineIds = current.size();
+    private static void bucheLeiche(Drop drop, long nanos, long nr) {
+        int menge = drop.amount();
+        String name = drop.displayName();
+        // Powder ist eine Waehrung: kein Preis, kein Sack, nie im Kasten
+        if (menge <= 0 || name == null || name.isBlank() || name.endsWith(" Powder")) {
+            return;
         }
+        List<String> ids = com.shokiteufel.shokimod.handler.RareLootHandler.candidatesFor(drop);
+        if (ids.isEmpty()) {
+            ShokiMod.LOGGER.info("[Profit] corpse loot: no id for \"{}\" x{} - not counted", name, menge);
+            return;
+        }
+        ItemValue.prefetch();
+        String echt = waehle(ids);
+        if (ItemNames.displayName(echt) == null && ItemValue.BAZAAR.get(echt) == null) {
+            ShokiMod.LOGGER.info("[Profit] corpse loot: \"{}\" x{} is no known item ({}) - not counted", name, menge, echt);
+            return;
+        }
+        for (String id : ids) {
+            vorgebucht.add(new Gebucht(id, menge, nanos));
+        }
+        Map<String, Integer> fund = new LinkedHashMap<>();
+        fund.put(echt, menge);
+        dispatch(fund, CORPSE_LOOT, nr);
     }
 
-    /** Zugaenge zwischen zwei Staenden, verrechnet mit den Abgaengen der letzten Sekunden */
-    /**
-     * Etwas wurde schon gebucht, ohne dass das Inventar es gesehen hat - zum Beispiel die
-     * Beute einer Belohnungstruhe. Kommt es danach noch im Inventar an, soll es nicht ein
-     * zweites Mal zaehlen: Es wird als Abgang vorgemerkt, gegen den der Zugang aufgerechnet wird.
-     */
-    public static void noteBooked(String itemId, int amount) {
-        if (itemId == null || amount <= 0) return;
-        losses.add(new Loss(itemId, amount, System.currentTimeMillis(), false));
+    /** Eine Craft-Zeile: die Menge wird vorgemerkt und von der naechsten Sack-Meldung abgezogen (gilt bis {@link #VORGEBUCHT_NANOS}) */
+    private static void gecraftet(CraftZeile.Gecraftet g, long nanos, long nr) {
+        List<String> ids = ItemNames.idsFor(g.name());
+        if (ids.isEmpty()) {
+            ShokiMod.LOGGER.info("[Profit] crafted \"{}\" x{}: no id known, nothing set aside", g.name(), g.menge());
+            return;
+        }
+        for (String id : ids) {
+            vorgebucht.add(new Gebucht(id, g.menge(), nanos));
+        }
+        craftGesehen = true;
+        craftNanos = nanos;
+        KernProtokoll.beleg("craft", nr, "gecraftet: " + g.name() + " x" + g.menge());
+        ShokiMod.LOGGER.info("[Profit] crafted {} x{} - set aside so the sack message does not count it as a find", ids.get(0), g.menge());
     }
 
-    /**
-     * Die Kosten der Leichen-Schluessel stehen in {@link com.shokiteufel.shokimod.handler.CorpseKeyCost}:
-     * Das Inventar sieht sie nicht verlaesslich, weil die Leiche ein Fenster oeffnet.
-     */
-    public static void onChatMessage(String plain) {
+    /** Welche der moeglichen Kennungen ist die echte? Die, fuer die es einen Preis gibt. */
+    private static String waehle(List<String> ids) {
+        for (String id : ids) {
+            if (ItemValue.BAZAAR.get(id) != null) {
+                return id;
+            }
+        }
+        for (String id : ids) {
+            Double bin = ItemValue.LOWEST_BIN.get(id);
+            if (bin != null && bin > 0) {
+                return id;
+            }
+        }
+        return ids.get(0);
     }
 
-    private static Map<String, Integer> diff(Map<String, Integer> before, Map<String, Integer> after) {
-        long now = System.currentTimeMillis();
-        expireLosses(now);
-
-        Map<String, Integer> gains = new LinkedHashMap<>();
-        for (Map.Entry<String, Integer> entry : after.entrySet()) {
-            int delta = entry.getValue() - before.getOrDefault(entry.getKey(), 0);
-            if (delta <= 0) continue;
-
-            int rest = offset(entry.getKey(), delta, OFFSET_MILLIS, now, false);
-            if (rest > 0) gains.put(entry.getKey(), rest);
+    /** Was die Leichen-Beute schon gebucht hat, von einer Sack-Menge abziehen. */
+    private static int vorgebuchtAbziehen(List<String> ids, int menge, long nanos) {
+        int rest = menge;
+        vorgebucht.removeIf(g -> nanos - g.nanos > VORGEBUCHT_NANOS);
+        for (Gebucht g : vorgebucht) {
+            if (rest > 0 && ids.contains(g.id)) {
+                int genommen = Math.min(g.menge, rest);
+                g.menge -= genommen;
+                rest -= genommen;
+            }
         }
-        // Was verschwunden ist, bleibt vorgemerkt. Zwei Faelle laufen darueber: wer
-        // wegwirft und wieder aufhebt, hat nichts gefunden - und was in einen Sack
-        // wandert, verschwindet hier und taucht gleich darauf in der Sack-Meldung
-        // wieder auf
-        for (Map.Entry<String, Integer> entry : before.entrySet()) {
-            int delta = entry.getValue() - after.getOrDefault(entry.getKey(), 0);
-            if (delta > 0) losses.add(new Loss(entry.getKey(), delta, now, false));
-        }
-        return gains;
-    }
-
-    /**
-     * Rechnet einen Zugang gegen vorgemerkte Abgaenge auf und gibt zurueck, was
-     * uebrig bleibt.
-     *
-     * Aelteste zuerst, damit die kurzlebigen Posten zuerst verbraucht werden. Was
-     * ausserhalb des Fensters liegt, bleibt liegen statt verworfen zu werden - das
-     * Fenster der Sack-Meldung ist laenger als das des Wiederaufhebens.
-     */
-    private static int offset(String itemId, int amount, long window, long now, boolean forSack) {
-        int rest = amount;
-        for (int i = 0; i < losses.size() && rest > 0; i++) {
-            Loss loss = losses.get(i);
-            if (!loss.itemId.equals(itemId) || now - loss.at > window) continue;
-            // Was nur fuer die Saecke vorgemerkt ist, geht das Inventar nichts an
-            if (loss.sackOnly && !forSack) continue;
-
-            int used = Math.min(loss.amount, rest);
-            loss.amount -= used;
-            rest -= used;
-        }
-        losses.removeIf(loss -> loss.amount <= 0);
-        if (rest < amount && debug()) {
-            ShokiMod.LOGGER.info("[Profit] {} x{} already booked, {} left over", itemId, amount, rest);
-        }
+        vorgebucht.removeIf(g -> g.menge <= 0);
         return rest;
     }
 
-    private static void expireLosses(long now) {
-        if (losses.isEmpty()) return;
-        losses.removeIf(loss -> now - loss.at > SACK_OFFSET_MILLIS);
-    }
-
     /**
-     * Ein Abgang bleibt vorgemerkt, solange sein Stueck noch daliegt.
-     *
-     * Ein Fenster von zehn Sekunden ist eine Wette darauf, wie schnell jemand sein
-     * Zeug wieder aufhebt. Wer es hinlegt, herumlaeuft und in einer Minute zurueckkommt,
-     * verliert die Wette - und der Kasten zaehlt dasselbe Stueck ein zweites Mal. Die
-     * Frage ist aber gar keine Zeitfrage: Solange das Stueck in Sichtweite auf dem
-     * Boden liegt, ist sein Wiederaufheben kein Fund. Also wird der Zeitpunkt
-     * nachgezogen, so lange es dort liegt.
-     *
-     * Der Preis dafuer ist klein und benannt: Liegt eine Ware unaufgehoben herum und man
-     * findet dieselbe noch einmal, geht der neue Fund gegen den alten Posten. Das ist
-     * seltener als der Fall, den es behebt, und in der Richtung, die nichts erfindet.
+     * Die Sammelmeldung der Saecke. Was direkt in einen Sack faellt, kommt nie im Inventar an. Gegengerechnet wird, was kurz zuvor aus dem
+     * Inventar ging (ein Fisch, der erst ins Inventar kam und von dort weiterwanderte, oder eine Hand-Einlagerung) und was die
+     * Leichen-Beute schon gebucht hat.
      */
-    private static void refreshFloorLosses(Minecraft client, long now) {
-        if (losses.isEmpty() || client.level == null || client.player == null) return;
-
-        Set<String> onFloor = null;
-        for (int i = 0; i < losses.size(); i++) {
-            Loss loss = losses.get(i);
-            // Frische Posten brauchen es nicht, Sack-Posten geht der Boden nichts an
-            if (loss.sackOnly || now - loss.at <= OFFSET_MILLIS) continue;
-
-            if (onFloor == null) onFloor = floorIds(client);
-            if (onFloor.isEmpty()) return;
-            if (onFloor.contains(loss.itemId)) loss.at = now;
+    private static void sacks(Component message, String clean, long nanos, long nr) {
+        // Wer Sack-Meldungen sieht, bei dem faellt alles, was in einen Sack geht, in einer von ihnen auf (siehe DropWiderruf.veraltet)
+        sackMeldungGesehen = true;
+        LinkedHashSet<String> bloecke = new LinkedHashSet<>();
+        sammleMauszeiger(message, bloecke);
+        if (bloecke.isEmpty()) {
+            return;
+        }
+        SackZeilen.Meldung m = SackZeilen.lesen(clean, new ArrayList<>(bloecke));
+        long fenster = m.fensterSekunden() * 1_000_000_000L;
+        // Was beim Craften aus dem Sack ging, sind Zutaten, kein verbrauchter Koeder (Whale Bait entsteht aus Koedern)
+        boolean nachCraft = craftGesehen && nanos - craftNanos <= CRAFT_NANOS;
+        if (!nachCraft) {
+            koeder(m.entfernt(), fenster, nr);
+        }
+        // Der Schwung aus dem Stash laeuft ueber genau diese Meldung: die Stash-Zeile liegt in dem Zeitraum, den sie zusammenfasst
+        if (BUCH.stashGehoert(nanos, fenster)) {
+            KernProtokoll.beleg("stash-sacks", nr, "Sack-Meldung gehoert zum Stash, nicht gezaehlt");
+            ShokiMod.LOGGER.info("[Profit] sack message skipped, it belongs to the stash");
+            return;
+        }
+        Map<String, Integer> netto = new LinkedHashMap<>();
+        for (SackZeilen.Zeile zeile : m.hinzu()) {
+            List<String> ids = ItemNames.idsFor(zeile.name());
+            if (ids.isEmpty()) {
+                continue;
+            }
+            // Eine Shard der Hunting Box ist nie ein Fund, auch wenn die Sack-Meldung sie nennt: Gefangene Shards zaehlen ueber ihre Fang-Zeile
+            // ("CHARM! ...", "You caught a ... Shard!"), alles andere ist Einlagern oder Herausnehmen (Schiggy 09.11., 18:39: 36 Snoozling-Shards
+            // vom Basar, 12 verbraucht, 24 eingelagert, und der Tracker zeigte sie)
+            if (huntingShard(zeile.name(), ids)) {
+                KernProtokoll.beleg("sack-shard ignoriert", nr, zeile.name() + " x" + zeile.menge() + " (" + ids.get(0) + ")");
+                ShokiMod.LOGGER.info("[Profit] sack message names {} x{}: a Hunting Box shard, not a find - not counted", zeile.name(), zeile.menge());
+                continue;
+            }
+            int rest = vorgebuchtAbziehen(ids, zeile.menge(), nanos);
+            if (rest > 0 && kern != null) {
+                // Das Fenster der Meldung ist auf Sekunden genau, ihr Zeitpunkt streut: ein Abgang vom Anfang der Spanne ist bei ihr
+                // schon so alt wie das Fenster oder knapp aelter (Zuruecklegen nach der Entnahme-Meldung, Schiggy 09.11., 19:37)
+                rest = kern.abgangAbziehen(ids.get(0), rest, fenster + SackRueckgabe.ABGANG_SPIELRAUM_NANOS);
+            }
+            // Was der Spieler selbst bei offenem Menue aus dem Inventar genommen hat, ist eingelagert, auch wenn die Meldung spaeter kam als ihr Fenster
+            if (rest > 0 && kern != null) {
+                int vorher = rest;
+                rest = kern.eigeneAbgangAbziehen(ids.get(0), rest, EIGENE_EINLAGERUNG_NANOS);
+                if (rest < vorher) {
+                    KernProtokoll.beleg("sack-einlagerung von hand", nr, ids.get(0) + " x" + (vorher - rest) + " (eigener Klick im Menue, Fenster der Meldung zu knapp)");
+                }
+            }
+            // Was kuerzlich aus dem Sack genommen wurde und jetzt wieder aus dem Inventar verschwunden ist, ist zurueckgelegt, kein Fund
+            if (rest > 0 && kern != null) {
+                int vorRueckgabe = rest;
+                rest = RUECKGABE.verrechnen(kern, ids.get(0), rest, nanos);
+                if (rest < vorRueckgabe) {
+                    KernProtokoll.beleg("sack-rueckgabe", nr, ids.get(0) + " x" + (vorRueckgabe - rest) + " (kuerzlich aus dem Sack genommen, Abgang aus dem Inventar)");
+                    ShokiMod.LOGGER.info("[Profit] {} x{} went back into the sack after it was taken out - not counted", ids.get(0), vorRueckgabe - rest);
+                }
+            }
+            if (rest > 0 && kern != null) {
+                // Zur Pruefung, falls doch etwas durchrutscht: was das Konto der eigenen Abgaenge zu dieser Ware fuehrte
+                String konto = kern.eigeneAbgaengeText(ids.get(0));
+                KernProtokoll.beleg("sack-rest", nr, ids.get(0) + " x" + rest + " Fenster " + (fenster / 1_000_000_000L) + " s, eigene Abgaenge: "
+                        + (konto.isEmpty() ? "keine" : konto));
+            }
+            // Koeder, der in den Sack zurueckkommt, ist kein Fund: Er wurde nicht verbraucht (die Chance dazu, Schiggy 09.11.: "4 Whale Baits als
+            // Refund im Tracker"). Er gleicht den verbrauchten aus - statt als Gewinn zu stehen
+            if (rest > 0 && ids.get(0).endsWith(KOEDER_ENDUNG)) {
+                if (koederZaehlen()) {
+                    koederZurueck(ids.get(0), rest);
+                }
+                rest = 0;
+            }
+            if (rest > 0) {
+                netto.merge(ids.get(0), rest, Integer::sum);
+            }
+        }
+        // Was diese Meldung als herausgenommen nennt, ist Grundlage fuer eine spaetere Rueckgabe (nicht fuer diese Meldung selbst)
+        for (SackZeilen.Zeile zeile : m.entfernt()) {
+            List<String> entnommenIds = ItemNames.idsFor(zeile.name());
+            if (!entnommenIds.isEmpty()) {
+                RUECKGABE.entnommen(entnommenIds.get(0), zeile.menge(), nanos);
+            }
+        }
+        // Nachgetragene Drop-Zeilen dieses Fensters: Hat die Ware ihr Ziel erreicht? Sonst war sie weg (Personal Deletor) und wird zurueckgenommen
+        if (!offeneZeilen.isEmpty()) {
+            java.util.Set<String> gelisteteIds = new java.util.HashSet<>();
+            for (SackZeilen.Zeile zeile : m.hinzu()) {
+                gelisteteIds.addAll(ItemNames.idsFor(zeile.name()));
+            }
+            DropWiderruf.Urteil urteil = DropWiderruf.urteilen(offeneZeilen, nanos - fenster - FENSTER_SPIELRAUM_NANOS, nanos, gelisteteIds,
+                    ItemChanges::zugangSeit, m.versteckt() > 0);
+            offeneZeilen.removeAll(urteil.bestaetigt());
+            offeneZeilen.removeAll(urteil.widerrufen());
+            for (DropWiderruf.Offen w : urteil.widerrufen()) {
+                widerrufen(w, nr);
+            }
+        }
+        // Was der Server abschneidet ("+36 other items."), ergaenzen die Chatzeilen dieses Fensters - soweit kein anderer Weg es schon gebucht hat
+        List<ZeilenFunde.Anspruch> imFenster = anspruecheImFenster(nanos, fenster);
+        int ungeklaert = 0;
+        if (m.versteckt() > 0) {
+            List<String> gelistet = new ArrayList<>();
+            for (SackZeilen.Zeile zeile : m.hinzu()) {
+                gelistet.add(zeile.name());
+            }
+            SackErgaenzung.Ergebnis erg = SackErgaenzung.ergaenzen(m.versteckt(), gelistet, imFenster, ItemNames::idsFor,
+                    jungeFundeImFenster(nanos, fenster));
+            for (Map.Entry<String, Integer> e : erg.dazu().entrySet()) {
+                netto.merge(e.getKey(), e.getValue(), Integer::sum);
+            }
+            ungeklaert = erg.ungeklaert();
+            ShokiMod.LOGGER.info("[Profit] sack message cut {} items off: {} filled in from chat lines {}, {} unresolved",
+                    m.versteckt(), m.versteckt() - ungeklaert, erg.dazu(), ungeklaert);
+        }
+        if (!netto.isEmpty() || ungeklaert > 0) {
+            // Die Sack-Meldung fasst die letzten Sekunden zusammen ("Last 30s"): Wer mit dem Angeln oder Minen anfaengt, bekommt die erste
+            // Meldung erst bis zu dreissig Sekunden spaeter. Die Uhr des Profit Trackers schenkt diese Zeit dem Anfang ihrer Reihe
+            fensterMillis = m.fensterSekunden() * 1000L;
+            try {
+                if (!netto.isEmpty()) {
+                    dispatch(netto, "sacks", nr);
+                }
+                if (ungeklaert > 0) {
+                    Map<String, Integer> offen = new LinkedHashMap<>();
+                    offen.put(UNGEKLAERT, ungeklaert);
+                    dispatch(offen, SACK_REST, -1L);
+                }
+            } finally {
+                fensterMillis = 0L;
+            }
         }
     }
 
-    /** Was in der Naehe auf dem Boden liegt */
-    private static Set<String> floorIds(Minecraft client) {
-        Set<String> out = new java.util.HashSet<>();
-        double reach = FLOOR_REACH * FLOOR_REACH;
-        net.minecraft.world.phys.Vec3 eye = client.player.position();
+    /** So lange gilt eine Einlagerung von Hand fuer die Sack-Meldung, die ihr folgt */
+    private static final long EIGENE_EINLAGERUNG_NANOS = 60_000_000_000L;
 
-        for (net.minecraft.world.entity.Entity entity : client.level.entitiesForRendering()) {
-            if (!(entity instanceof net.minecraft.world.entity.item.ItemEntity item)) continue;
-            if (entity.position().distanceToSqr(eye) > reach) continue;
+    /**
+     * Nennt die Sack-Meldung hier eine Shard der Hunting Box? Das ist so, wenn die Fusionsliste den Namen als Shard kennt, oder wenn der Name auf
+     * " Shard" endet und es fuer die Kennung keinen Preis gibt (Prismarine Shard und Earth Shard sind Waren mit Preis und bleiben).
+     */
+    private static boolean huntingShard(String name, List<String> ids) {
+        if (name == null || ids == null || ids.isEmpty()) {
+            return false;
+        }
+        String n = name.trim();
+        boolean mitEndung = n.endsWith(" Shard");
+        String stamm = mitEndung ? n.substring(0, n.length() - " Shard".length()) : n;
+        boolean hatPreis = false;
+        for (String id : ids) {
+            if (ItemValue.BAZAAR.get(id) != null || ItemValue.LOWEST_BIN.get(id) != null) {
+                hatPreis = true;
+                break;
+            }
+        }
+        if (hatPreis) {
+            return false;
+        }
+        // Ohne geladene Preisliste weiss man nicht, ob "Prismarine Shard" eine Ware ist: dann nur die Fusionsliste entscheidet
+        if (mitEndung && ItemValue.BAZAAR.ready()) {
+            return true;
+        }
+        return com.shokiteufel.shokimod.util.ShardProfitData.ready() && com.shokiteufel.shokimod.util.ShardProfitData.isShard(stamm);
+    }
 
-            String id = SkyBlockItems.idOf(item.getItem());
-            if (id != null) out.add(id);
+    /** Zaehlt Koeder im Tracker (Verbrauch als Minus, Rueckgabe dagegen)? Von Haus aus nicht */
+    private static boolean koederZaehlen() {
+        return com.shokiteufel.shokimod.data.ModConfig.INSTANCE.profit.countBait;
+    }
+
+    /** Koeder, der zurueck in den Sack kam: erst den schon verbuchten Verbrauch ausgleichen, der Rest mindert den naechsten Verbrauch */
+    private static final java.util.Map<String, Integer> koederGutschrift = new java.util.HashMap<>();
+
+    private static void koederZurueck(String id, int menge) {
+        if (!com.shokiteufel.shokimod.handler.ProfitTracker.enabled()) {
+            return;
+        }
+        int schuld = Math.max(0, -com.shokiteufel.shokimod.handler.ProfitTracker.countOf(id));
+        int ausgeglichen = Math.min(menge, schuld);
+        if (ausgeglichen > 0) {
+            com.shokiteufel.shokimod.handler.ProfitTracker.adjust(id, ausgeglichen);
+        }
+        if (menge - ausgeglichen > 0) {
+            koederGutschrift.merge(id, menge - ausgeglichen, Integer::sum);
+        }
+        ShokiMod.LOGGER.info("[Profit] {} x{} came back into the sack (bait not used): {} off the bait used, {} kept for the next use", id, menge,
+                ausgeglichen, menge - ausgeglichen);
+    }
+
+    /** Sah der Kern kurz vor oder nach der Zeile einen Zugang einer der Waren (jede Ursache)? Er kommt dann beim Spieler an */
+    private static boolean zugangSeit(DropWiderruf.Offen o) {
+        long von = o.nanos() - 10_000_000_000L;
+        for (JungerFund f : zugangGesehen) {
+            if (f.nanos >= von && o.ids().contains(f.id)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Eine nachgetragene Drop-Zeile, deren Ware nirgends ankam: aus dem Tracker nehmen */
+    private static void widerrufen(DropWiderruf.Offen w, long nr) {
+        vorgebucht.removeIf(g -> g.nanos == w.nanos() && w.ids().contains(g.id));
+        if (com.shokiteufel.shokimod.handler.ProfitTracker.enabled()) {
+            com.shokiteufel.shokimod.handler.ProfitTracker.adjust(w.gebuchtAls(), -w.menge());
+        }
+        KernProtokoll.beleg("drop-zeile widerrufen", nr, w.gebuchtAls() + " x" + w.menge() + ": nie im Inventar, in keinem Sack");
+        ShokiMod.LOGGER.info("[Profit] {} x{} was in a drop line but never reached the inventory or a sack (a deletor, or lost) - taken back",
+                w.gebuchtAls(), w.menge());
+    }
+
+    /** Eine Chatzeile, die eine Ware mit Menge nennt, fuer die naechste Sack-Meldung vormerken */
+    private static void merkeAnspruch(String clean, long nanos) {
+        ansprueche.removeIf(a -> nanos - a.nanos > ANSPRUCH_NANOS);
+        for (ZeilenFunde.Anspruch a : ZeilenFunde.lesen(clean, name -> !ItemNames.idsFor(name).isEmpty())) {
+            ansprueche.add(new Zeitanspruch(a, nanos));
+        }
+    }
+
+    /** Die vorgemerkten Zeilen, die in das Fenster einer Sack-Meldung fallen; sie sind damit verbraucht (aeltere verfallen) */
+    private static List<ZeilenFunde.Anspruch> anspruecheImFenster(long nanos, long fensterNanos) {
+        List<ZeilenFunde.Anspruch> out = new ArrayList<>();
+        long von = nanos - fensterNanos - FENSTER_SPIELRAUM_NANOS;
+        java.util.Iterator<Zeitanspruch> it = ansprueche.iterator();
+        while (it.hasNext()) {
+            Zeitanspruch a = it.next();
+            if (a.nanos >= von && a.nanos <= nanos) {
+                out.add(a.anspruch);
+                it.remove();
+            } else if (a.nanos < von) {
+                it.remove();
+            }
         }
         return out;
     }
 
+    /** Was andere Wege im Fenster einer Sack-Meldung gebucht haben, je Kennung */
+    private static Map<String, Integer> jungeFundeImFenster(long nanos, long fensterNanos) {
+        Map<String, Integer> out = new LinkedHashMap<>();
+        long von = nanos - fensterNanos - FENSTER_SPIELRAUM_NANOS;
+        jungeFunde.removeIf(f -> f.nanos < nanos - ANSPRUCH_NANOS);
+        for (JungerFund f : jungeFunde) {
+            if (f.nanos >= von && f.nanos <= nanos) {
+                out.merge(f.id, f.menge, Integer::sum);
+            }
+        }
+        return out;
+    }
+
+    private static void merkeJungenFund(Map<String, Integer> gains, String source) {
+        // Die Sack-Meldungen selbst nicht: Jede Meldung hat ihr eigenes Fenster, ihre Posten gehoeren nicht in das der naechsten
+        if ("sacks".equals(source) || SACK_REST.equals(source)) {
+            return;
+        }
+        long jetzt = System.nanoTime();
+        jungeFunde.removeIf(f -> jetzt - f.nanos > ANSPRUCH_NANOS);
+        for (Map.Entry<String, Integer> e : gains.entrySet()) {
+            jungeFunde.add(new JungerFund(e.getKey(), e.getValue(), jetzt));
+        }
+    }
+
+    /** Die Spanne in Millisekunden, die die Sack-Meldung zurueckreicht, deren Funde gerade verteilt werden - sonst 0. Nur waehrend des Verteilens gesetzt */
+    private static long fensterMillis;
+
+    public static long fensterMillis() {
+        return fensterMillis;
+    }
+
     /**
-     * Die beiden Meldungen ueber Zugaenge, die das Inventar nie zu sehen bekommt.
-     *
-     * @param message   die Nachricht samt Mauszeiger-Text
-     * @param formatted dieselbe Zeile mit den Farbcodes
-     * @param plain     dieselbe Zeile ohne
+     * Der verbrauchte Koeder aus "Removed items". Was aus einem Sack verschwindet, ist meistens kein Verlust: Es wandert ins Inventar, wird
+     * gebaut oder verkauft, und dafuer gibt es einen eigenen Schritt, der es erklaert. Beim Koeder nicht: Er wird beim Angeln direkt aus dem
+     * Sack verbraucht, und die Sack-Meldung ist das einzige Zeichen davon. Gezaehlt wurde er beim Hereinfallen, abgezogen wird er hier,
+     * abzueglich dessen, was der Kern als Zugang ins Inventar (Klick im Sack, Befehl) erklaert hat.
      */
-    public static void onChatMessage(Component message, String formatted, String plain) {
-        if (message == null || plain == null) return;
-        if (!FeatureGate.itemChanges() || !GameState.Server.isSkyblock()) return;
-
-        // Die Todesmeldung kommt vor dem Inventar des Geistes - ab ihr zaehlt nichts mehr
-        if (ghost.onChat(plain, System.currentTimeMillis())) {
-            ShokiMod.LOGGER.info("[Profit] death line read - nothing counts while the inventory is the ghost's");
-        }
-
-        // Die Craft-Meldung zuerst, und ohne Ruecksicht auf offene Fenster: gecraftet
-        // wird in einem, und die Meldung ist der einzige Hinweis darauf, dass die Ware
-        // gebaut und nicht gefunden wurde
-        if (supercraft(plain)) return;
-        // Und aus demselben Grund die Zeile, die einen Umzug aus dem Sack meldet
-        if (fromSacks(plain)) return;
-        // Ein gemeldeter Fund ist sicher gefallen - gemerkt, falls der Vergleich ihn verpasst
-        noteDropLine(plain);
-        // Die Beute einer Leiche zaehlt, sobald sie im Chat steht - nicht erst mit der Sack-Meldung, die nie kommt, wenn man vorher den Schacht verlaesst
-        if (corpseLoot(plain)) return;
-
-        // Ein Loadout-Wechsel legt eine ganze Ruestung um - das ist kein Fund
-        if (EQUIPPED.matcher(plain.trim()).matches()) {
-            settleTicks = SETTLE_TICKS;
-            settleAfterWindow = false;
-            // Der Vergleichsstand bleibt: In der Sekunde danach fallen nur die Ruestungsteile
-            // aus der Zaehlung, alles andere zaehlt am Ende der Wartezeit ganz normal
-            swapPending = true;
-            refillWaited = 0;
-            lastSwapAt = System.currentTimeMillis();
-            for (int i = 0; i < held.size(); i++) {
-                held.set(i, new Held(withoutGear(held.get(i).gains()), held.get(i).tick()));
-            }
-            held.removeIf(h -> h.gains().isEmpty());
-            ShokiMod.LOGGER.info("[Profit] armour swapped - armour and equipment of the next second do not count");
+    private static void koeder(List<SackZeilen.Zeile> entfernt, long fensterNanos, long nr) {
+        if (entfernt.isEmpty() || !com.shokiteufel.shokimod.handler.ProfitTracker.enabled() || !koederZaehlen()) {
             return;
         }
-
-        // Ein geleerter Stash schuettet seinen ganzen Inhalt in die Saecke
-        if (STASH_TO_SACKS.matcher(plain.trim()).matches()) {
-            stashUntil = System.currentTimeMillis() + STASH_MILLIS;
-            ShokiMod.LOGGER.info("[Profit] stash emptied into the sacks - sack messages do not count for {}s",
-                    STASH_MILLIS / 1000);
-            return;
-        }
-
-        // Gekaufte und zurueckgegebene Ware ist keine gefundene
-        if (bazaarGoods(plain)) return;
-
-        // Ein bei Kat aufgewertetes Pet ist kein Fund
-        if (KAT_DONE.matcher(plain.trim()).matches()) {
-            katUntil = System.currentTimeMillis() + KAT_MILLIS;
-            held.removeIf(h -> {
-                h.gains().keySet().removeIf(com.shokiteufel.shokimod.util.PetHeads::isPet);
-                return h.gains().isEmpty();
-            });
-        }
-
-        // Teilt der Server gerade Beute aus, zaehlt sie auch bei offenem Fenster
-        if (KILL_REWARD.matcher(plain.trim()).matches()) {
-            lootUntil = System.currentTimeMillis() + LOOT_MILLIS;
-            // Und eine laufende Wartezeit nach einem Fenster ist damit hinfaellig.
-            // Im Log vom 25.09. um 19:24:43 lag genau dort der Fehler: Falle geleert,
-            // Fenster zu, Wartezeit an - und die vier Buecher, die eine halbe Sekunde
-            // spaeter ankamen, verschwanden in ihr. Ohne Neuansetzen abbrechen, sonst
-            // waere der Vergleichspunkt schon hinter den Buechern
-            if (settleAfterWindow && settleTicks > 0) {
-                settleTicks = 0;
-                settleAfterWindow = false;
+        for (SackZeilen.Zeile zeile : entfernt) {
+            List<String> ids = ItemNames.idsFor(zeile.name());
+            if (ids.isEmpty() || !ids.get(0).endsWith(KOEDER_ENDUNG)) {
+                continue;
+            }
+            String id = ids.get(0);
+            int verbraucht = kern != null ? kern.zugangAbziehen(id, zeile.menge(), fensterNanos) : zeile.menge();
+            int geholt = zeile.menge() - verbraucht;
+            if (geholt > 0) {
+                ShokiMod.LOGGER.info("[Profit] {} left the sack, {} of it came into the inventory - not consumed", id, geholt);
+            }
+            // Ein zurueckgekommener Koeder, der noch keinen verbrauchten ausglich, mindert den naechsten Verbrauch
+            Integer gutschrift = koederGutschrift.get(id);
+            if (gutschrift != null && gutschrift > 0 && verbraucht > 0) {
+                int abzug = Math.min(gutschrift, verbraucht);
+                verbraucht -= abzug;
+                koederGutschrift.put(id, gutschrift - abzug);
+            }
+            if (verbraucht > 0) {
+                com.shokiteufel.shokimod.handler.ProfitTracker.adjust(id, -verbraucht);
+                KernProtokoll.beleg("koeder verbraucht", nr, id + " -" + verbraucht + (geholt > 0 ? " (geholt " + geholt + ")" : ""));
+                ShokiMod.LOGGER.info("[Profit] bait used from the sack: {} -{}", id, verbraucht);
             }
         }
+    }
 
-        if (plain.contains(SACK_MARKER)) {
-            // Der Schwung aus dem Stash laeuft ueber genau diese Meldung
-            if (System.currentTimeMillis() < stashUntil) {
-                ShokiMod.LOGGER.info("[Profit] sack message skipped, it belongs to the stash");
+    /** Jede Aufstellung einmal, ohne Farbcodes. */
+    private static void sammleMauszeiger(Component component, LinkedHashSet<String> out) {
+        HoverEvent hover = component.getStyle().getHoverEvent();
+        if (hover instanceof HoverEvent.ShowText showText) {
+            String block = showText.value().getString();
+            if (!block.isBlank()) {
+                out.add(COLOUR_CODE.matcher(block).replaceAll(""));
+            }
+        }
+        for (Component sibling : component.getSiblings()) {
+            sammleMauszeiger(sibling, out);
+        }
+    }
+
+    /**
+     * Ein gefangener Shard zaehlt immer: die Zeile ist die einzige Meldung zu dem Fang (der Shard kommt in die Box, nicht ins Inventar).
+     */
+    private static void shards(Component message, String clean, long nr) {
+        for (String prefix : FOREIGN_PREFIXES) {
+            if (clean.startsWith(prefix)) {
                 return;
             }
-            // Wer von Hand einlagert, hat den Sack offen - das ist kein Fund, sondern
-            // ein Umzug. Waehrend Beute fliesst aber schon: wer seine Fallen leert,
-            // steht dabei im Fallen-Menue, und die Ernte geht trotzdem in die Saecke
-            boolean umzug = Minecraft.getInstance().gui.screen() instanceof AbstractContainerScreen<?>
-                    && System.currentTimeMillis() >= lootUntil;
-            if (!umzug) sacks(message);
-            return;
         }
-
-        // Ein gefangener Shard zaehlt immer.
-        //
-        // Die Zeile "CHARM! ..." ist keine Frage des Bildschirms - sie ist die einzige
-        // Meldung, die es zu dem Fang gibt. Bisher hing sie an derselben Bedingung wie
-        // die Sack-Zeile, und wer beim Leeren der Fallen einen Shard fing, verlor ihn:
-        // im Log vom 25.09. um 13:59:37 zwei Lunar-Moth-Shards, die der Fund-Alarm
-        // gemeldet hat und der Kasten nie zu sehen bekam
-        shards(formatted, plain);
-    }
-
-    /**
-     * Die Beute einer Leiche, Zeile fuer Zeile aus dem Chat.
-     *
-     * "UMBER CORPSE LOOT!", darunter "REWARDS" und je Ware eine Zeile ("Fine Onyx Gemstone x4"), zum Schluss der Strich. Das meiste davon faellt
-     * in die Saecke, und deren Sammelmeldung kommt erst bis zu dreissig Sekunden spaeter - wer die Leiche pluendert und gleich danach den Schacht
-     * verlaesst, bekommt sie nie, und die Beute fehlte im Kasten. Deshalb wird hier gebucht, was im Chat steht, und als schon gebucht vorgemerkt:
-     * Kommt die Sack-Meldung doch noch, rechnet sie die Menge dagegen auf und zaehlt sie kein zweites Mal.
-     *
-     * Jede Zeile fuer sich und sofort, nicht erst beim Strich am Ende: Kaeme der nie an, gaeben die Zeilen davor trotzdem schon ihre Ware her.
-     *
-     * @return ob die Zeile zur Beute der Leiche gehoerte
-     */
-    private static boolean corpseLoot(String plain) {
-        String clean = plain.trim();
-        long now = System.currentTimeMillis();
-
-        if (CORPSE_START.matcher(clean).matches()) {
-            corpseUntil = now + CORPSE_MILLIS;
-            corpseLines = 0;
-            return true;
-        }
-        if (corpseUntil == 0L) return false;
-
-        // Zu Ende: der Strich, die Zeit oder die Zeilenzahl. Die Zeile selbst gehoert dann nicht mehr dazu
-        if (now > corpseUntil || RareLootParser.isBundleEnd(clean) || ++corpseLines > CORPSE_MAX_LINES) {
-            corpseUntil = 0L;
-            corpseLines = 0;
-            return false;
-        }
-        for (int i = 0; i < FOREIGN_PREFIXES.length; i++) {
-            if (clean.startsWith(FOREIGN_PREFIXES[i])) return false;
-        }
-
-        Drop drop = RareLootParser.parseBundleLine(clean);
-        // Ueberschrift ("REWARDS", "+1 bonus drop!") oder Leerzeile: die Beute laeuft weiter
-        if (drop == null) return true;
-
-        bookCorpseDrop(drop, now);
-        return true;
-    }
-
-    /** Eine Ware aus der Beute einer Leiche buchen und gegen Inventar und Sack-Meldung vormerken */
-    private static void bookCorpseDrop(Drop drop, long now) {
-        int amount = drop.amount();
-        String name = drop.displayName();
-        if (amount <= 0 || name == null || name.isBlank()) return;
-
-        // Powder ist eine Waehrung, kein Gegenstand: Sie hat keinen Preis, liegt in keinem Sack und stand nie im Kasten
-        if (name.endsWith(" Powder")) return;
-
-        List<String> ids = com.shokiteufel.shokimod.handler.RareLootHandler.candidatesFor(drop);
-        if (ids.isEmpty()) {
-            ShokiMod.LOGGER.info("[Profit] corpse loot: no id for \"{}\" x{} - not counted", name, amount);
-            return;
-        }
-        // Die Preise werden gleich gebraucht, um die richtige Kennung zu waehlen
-        ItemValue.prefetch();
-        String echt = realId(ids);
-        // Eine Zeile, die nur so aussieht, darf nichts buchen: die Kennung muss es wirklich geben
-        if (ItemNames.displayName(echt) == null && ItemValue.BAZAAR.get(echt) == null) {
-            ShokiMod.LOGGER.info("[Profit] corpse loot: \"{}\" x{} is no known item ({}) - not counted", name, amount, echt);
-            return;
-        }
-
-        // Unter jeder Kennung, die gemeint sein kann: Die Sack-Meldung nennt die Ware mit ihrem Namen und waehlt die Kennung selbst,
-        // das Inventar mit der aus dem Stapel
-        for (String id : ids) losses.add(new Loss(id, amount, now, false));
-
-        Map<String, Integer> gains = new LinkedHashMap<>();
-        gains.put(echt, amount);
-        ShokiMod.LOGGER.info("[Profit] corpse loot: {} x{} - counted from the chat line, the sack message will not count it again", echt, amount);
-        dispatch(gains, CORPSE_LOOT);
-    }
-
-    /**
-     * Was gecraftet wurde, ist kein Fund.
-     *
-     * Gebaut wird in einem Fenster, und was dabei ins Inventar kommt, zaehlt schon
-     * deshalb nicht. Von dort wandert es aber weiter in einen Sack, und dessen
-     * Sammelmeldung kommt Sekunden spaeter - dann steht das Fenster laengst offen
-     * oder zu, und die Meldung sieht aus wie ein Fund. Deshalb wird die Menge hier
-     * vorgemerkt und gegen die Sack-Meldung aufgerechnet.
-     *
-     * @return ob die Zeile eine Craft-Meldung war
-     */
-    private static boolean supercraft(String plain) {
-        Matcher matcher = SUPERCRAFT.matcher(plain.trim());
-        if (!matcher.matches()) return false;
-
-        String name = matcher.group("item").trim();
-        int jeZeile = matcher.group("amount") == null ? 1 : number(matcher.group("amount"));
-        int wiederholt = matcher.group("repeat") == null ? 1 : number(matcher.group("repeat"));
-        if (name.isEmpty() || jeZeile <= 0 || wiederholt <= 0) return true;
-
-        List<String> ids = ItemNames.idsFor(name);
-        if (ids.isEmpty()) {
-            // Ohne Kennung laesst sich nichts vormerken, und das Gebaute stuende als
-            // Fund im Kasten - also wenigstens nachlesbar, warum
-            ShokiMod.LOGGER.warn("[Profit] crafted, but no id for \"{}\"", name);
-            return true;
-        }
-        String id = ids.get(0);
-        long jetzt = System.currentTimeMillis();
-
-        // Der Chat zaehlt Wiederholungen hoch: erst "...!", dann "...! (2)", "...! (3)".
-        // Jede dieser Zeilen kommt hier an, und jede nennt die Gesamtzahl seit der
-        // ersten - vorgemerkt wird deshalb nur, was seit der letzten dazugekommen ist.
-        // Sonst waeren aus vierzehn Crafts hundertfuenf geworden
-        int neu = wiederholt;
-        if (id.equals(lastCraft) && wiederholt > lastCraftRepeat
-                && jetzt - lastCraftMillis < REPEAT_MILLIS) {
-            neu = wiederholt - lastCraftRepeat;
-        }
-        lastCraft = id;
-        lastCraftRepeat = wiederholt;
-        lastCraftMillis = jetzt;
-
-        int amount = jeZeile * neu;
-        // Gecraftetes ist nur fuer die Sack-Meldung vorgemerkt - im Inventar liegt es
-        // schon, und was danach dort ankommt, ist wieder ein Fund
-        losses.add(new Loss(id, amount, jetzt, true));
-        ShokiMod.LOGGER.info("[Profit] crafted, not found: {} x{}", id, amount);
-        return true;
-    }
-
-    /**
-     * Ware aus einem Sack ist kein Fund.
-     *
-     * Sie war schon gezaehlt, als sie in den Sack fiel. Im Inventar taucht sie gleich
-     * darauf wieder auf - fuer den Vergleich sieht das aus wie ein Zugang. Also wird die
-     * Menge vorgemerkt und gegen den naechsten Zugang derselben Ware aufgerechnet.
-     *
-     * @return ob die Zeile ein solcher Umzug war
-     */
-    private static boolean fromSacks(String plain) {
-        Matcher matcher = FROM_SACKS.matcher(plain.trim());
-        if (!matcher.matches()) return false;
-
-        String name = matcher.group("item").trim();
-        int amount = number(matcher.group("amount"));
-        if (name.isEmpty() || amount <= 0) return true;
-
-        List<String> ids = ItemNames.idsFor(name);
-        if (ids.isEmpty()) {
-            ShokiMod.LOGGER.info("[Profit] out of the sack, but the name is unknown: {} x{}", name, amount);
-            return true;
-        }
-
-        // Nicht nur fuer die Sack-Meldung: Hier kommt die Ware ins Inventar, und genau
-        // dort muss sie wieder abgezogen werden
-        movedOut(ids.get(0), amount);
-        losses.add(new Loss(ids.get(0), amount, System.currentTimeMillis(), false));
-        ShokiMod.LOGGER.info("[Profit] out of the sack, not found: {} x{}", ids.get(0), amount);
-        return true;
-    }
-
-    /**
-     * Ware vom Basar ist kein Fund.
-     *
-     * Zwei Wege fuehren von dort ins Inventar: eine eingeloeste Kauforder und eine
-     * zurueckgezogene Verkaufsorder. Gekauft ist gekauft, und zurueckgegeben war nie weg -
-     * beides sieht im Inventar aus wie alles andere. Die Menge steht in der Zeile, also
-     * wird genau sie vorgemerkt und gegen den naechsten Zugang derselben Ware
-     * aufgerechnet.
-     *
-     * @return ob die Zeile eine solche Meldung war
-     */
-    private static boolean bazaarGoods(String plain) {
-        String zeile = plain.trim();
-        Matcher matcher = BAZAAR_CLAIM.matcher(zeile);
-        boolean gekauft = matcher.matches();
-        if (!gekauft) {
-            matcher = BAZAAR_REFUND.matcher(zeile);
-            if (!matcher.matches()) return false;
-        }
-
-        String name = matcher.group("item").trim();
-        int amount = number(matcher.group("amount"));
-        if (name.isEmpty() || amount <= 0) return true;
-
-        List<String> ids = ItemNames.idsFor(name);
-        if (ids.isEmpty()) {
-            ShokiMod.LOGGER.info("[Profit] from the bazaar, but the name is unknown: {} x{}", name, amount);
-            return true;
-        }
-
-        losses.add(new Loss(ids.get(0), amount, System.currentTimeMillis(), false));
-        ShokiMod.LOGGER.info("[Profit] {}, not found: {} x{}", gekauft ? "bought" : "refunded",
-                ids.get(0), amount);
-        return true;
-    }
-
-    /**
-     * Ein gefangener Shard.
-     *
-     * Shards wandern beim Fang direkt in die Hunting Box; im Inventar taucht nie
-     * einer auf, und einen Sack haben sie auch nicht. Bliebe es beim Nachzaehlen,
-     * fehlte im Kasten ausgerechnet das, wonach beim Jagen gesucht wird.
-     *
-     * Gelesen wird dieselbe Zeile wie beim Hunting Tracker, mit demselben Parser -
-     * und mit derselben Vorsicht: Zeilen aus Party- und Gildenchat erzaehlen von
-     * fremden Funden.
-     */
-    private static void shards(String formatted, String plain) {
-        String clean = plain.trim();
-        for (int i = 0; i < FOREIGN_PREFIXES.length; i++) {
-            if (clean.startsWith(FOREIGN_PREFIXES[i])) return;
-        }
-
         Drop drop = RareLootParser.parse(clean);
-        if (drop == null) return;
-
+        if (drop == null) {
+            return;
+        }
         String shard = null;
-        List<String> candidates = drop.itemIdCandidates();
-        for (int i = 0; i < candidates.size(); i++) {
-            String candidate = candidates.get(i);
+        for (String candidate : drop.itemIdCandidates()) {
             if (candidate != null && candidate.startsWith(SHARD_PREFIX)) {
                 // "Wither Spectre" heisst im Basar SHARD_WITHER_SPECTER
                 shard = ItemValue.canonicalShard(candidate);
                 break;
             }
         }
-        if (shard == null) return;
-
-        int amount = Math.max(1, drop.amount());
-        // Ist die Box voll, faellt der Shard doch ins Inventar. Dann steht er hier
-        // schon verbucht und zaehlt beim Nachzaehlen nicht noch einmal
-        losses.add(new Loss(shard, amount, System.currentTimeMillis(), false));
-
-        // Die Seltenheit steht in der Farbe des Namens - fuer Shards die einzige
-        // Gelegenheit, sie ueberhaupt zu erfahren
+        if (shard == null) {
+            return;
+        }
+        // Die Seltenheit steht in der Farbe des Namens: fuer Shards die einzige Gelegenheit, sie ueberhaupt zu erfahren
         if (!colours.containsKey(shard)) {
             String name = drop.displayName();
-            if (name.endsWith(" Shard")) name = name.substring(0, name.length() - " Shard".length());
-            int colour = SkyBlockItems.colourInLine(formatted, name);
-            if (colour != 0) colours.put(shard, colour);
-        }
-
-        Map<String, Integer> gains = new LinkedHashMap<>();
-        gains.put(shard, amount);
-        dispatch(gains, "shard catch");
-    }
-
-    /**
-     * Die Sammelzeile der Saecke.
-     *
-     * Was direkt in einen Sack faellt, kommt nie im Inventar an. Die Zeile
-     * "[Sacks] +38 items." traegt am Mauszeiger die Aufstellung - dieselbe Quelle,
-     * aus der auch der Collection-Tracker liest.
-     */
-    private static void sacks(Component message) {
-        List<String> blocks = hoverBlocks(message);
-        if (blocks.isEmpty()) return;
-
-        Map<String, Integer> gains = new LinkedHashMap<>();
-        Map<String, Integer> consumed = new LinkedHashMap<>();
-        for (String block : blocks) {
-            // Jede Aufstellung fuer sich: die Ueberschrift "Added items:" gilt nur
-            // innerhalb ihrer eigenen, nicht bis in die naechste hinein
-            boolean adding = false;
-            boolean removing = false;
-            for (String line : block.split("\n")) {
-                String clean = line.trim();
-                String lower = clean.toLowerCase(Locale.ROOT);
-                if (lower.startsWith("added items")) {
-                    adding = true;
-                    removing = false;
-                    continue;
-                }
-                if (lower.startsWith("removed items")) {
-                    adding = false;
-                    removing = true;
-                    continue;
-                }
-                if (removing) {
-                    noteConsumed(clean, consumed);
-                    continue;
-                }
-                if (!adding) continue;
-
-                Matcher matcher = SACK_LINE.matcher(clean);
-                if (!matcher.find()) continue;
-                if ("-".equals(matcher.group(1))) continue;
-                int amount = number(matcher.group(2));
-                if (amount <= 0) continue;
-
-                String name = TRAILING_SYMBOLS.matcher(LEADING_SYMBOLS.matcher(matcher.group(3))
-                        .replaceAll("")).replaceAll("").trim();
-                if (name.isEmpty()) continue;
-                List<String> ids = ItemNames.idsFor(name);
-                if (ids.isEmpty()) continue;
-                gains.merge(ids.get(0), amount, Integer::sum);
+            if (name.endsWith(" Shard")) {
+                name = name.substring(0, name.length() - " Shard".length());
+            }
+            int colour = SkyBlockItems.colourInLine(ScoreboardUtils.toLegacyString(message), name);
+            if (colour != 0) {
+                colours.put(shard, colour);
             }
         }
-
-        // Der eigentliche Punkt dieser Verrechnung: ein gefangener Fisch landet erst
-        // im Inventar und wandert von dort in den Sack. Beides wird gesehen - der
-        // Fang als Zugang, der Umzug als Abgang. Ohne den Ausgleich stuende der Fisch
-        // zweimal im Kasten, einmal vom Nachzaehlen und einmal von der Meldung.
-        // Was ohne Umweg in den Sack faellt, hat keinen Abgang und zaehlt voll
-        long now = System.currentTimeMillis();
-        expireLosses(now);
-        Map<String, Integer> net = new LinkedHashMap<>();
-        for (Map.Entry<String, Integer> entry : gains.entrySet()) {
-            int rest = offset(entry.getKey(), entry.getValue(), SACK_OFFSET_MILLIS, now, true);
-            if (rest > 0) net.put(entry.getKey(), rest);
-        }
-
-        if (!net.isEmpty()) dispatch(net, "sacks");
-        subtractConsumed(consumed, now);
+        Map<String, Integer> fund = new LinkedHashMap<>();
+        fund.put(shard, Math.max(1, drop.amount()));
+        dispatch(fund, "shard catch", nr);
     }
 
-    /** Wie viel dieser Ware zuletzt aus einem Sack ins Inventar geholt wurde: {Menge, Zeitpunkt} */
-    private static final Map<String, long[]> movedOutAt = new HashMap<>();
-    /**
-     * So lange gilt ein Abgang aus dem Sack als Umzug ins Inventar, nicht als Verbrauch.
-     *
-     * Die Sack-Meldung ("Removed items") fasst gut dreissig Sekunden zusammen und kommt deshalb
-     * spaet nach der Zeile "Moved ... to your inventory". Mit fuenfzehn Sekunden kam sie oft
-     * zu spaet, und der geholte Koeder stand als verbraucht im Minus.
-     */
-    private static final long MOVE_MILLIS = 90_000L;
+    // ------------------------------------------------------------------ Ausgabe
 
     /**
-     * Was zuletzt als verbraucht abgezogen wurde: {Menge, Zeitpunkt}.
+     * Gibt Funde an die Hoerer.
      *
-     * Kommt die Sack-Meldung ausnahmsweise vor der Zeile "Moved ... to your inventory", ist der
-     * Koeder schon abgezogen, wenn der Umzug gemeldet wird - dann geht die Menge zurueck.
+     * @param nr Paketnummer des Anlasses, oder -1 (Essence aus Tab-Liste und Aktionsleiste: kein Paketbezug)
      */
-    private static final Map<String, long[]> recentlyConsumed = new HashMap<>();
-    /** So kurz darf die Sack-Meldung vor der Moved-Zeile liegen, damit sie noch dazugehoert */
-    private static final long REFUND_MILLIS = 10_000L;
-
-    private static void movedOut(String itemId, int amount) {
-        long now = System.currentTimeMillis();
-        long[] schon = recentlyConsumed.get(itemId);
-        if (schon != null && now - schon[1] < REFUND_MILLIS && schon[0] > 0) {
-            int zurueck = (int) Math.min(schon[0], amount);
-            schon[0] -= zurueck;
-            amount -= zurueck;
-            com.shokiteufel.shokimod.handler.ProfitTracker.adjust(itemId, zurueck);
-            ShokiMod.LOGGER.info("[Profit] {} x{} was moved, not consumed - given back", itemId, zurueck);
-            if (amount <= 0) return;
-        }
-        long[] alt = movedOutAt.get(itemId);
-        long menge = alt != null && now - alt[1] < MOVE_MILLIS ? alt[0] + amount : amount;
-        movedOutAt.put(itemId, new long[] {menge, now});
-    }
-
-    /**
-     * Eine Zeile unter "Removed items" - gemerkt wird sie nur bei Koedern.
-     *
-     * Was aus einem Sack verschwindet, ist meistens kein Verlust: Es wandert ins
-     * Inventar, wird gebaut oder verkauft, und in allen drei Faellen gibt es eine eigene
-     * Meldung, die es verrechnet. Beim Koeder gibt es keine - er wird beim Angeln
-     * direkt aus dem Sack verbraucht, und die Sack-Meldung ist das einzige Zeichen
-     * davon. Gezaehlt wurde er beim Hereinfallen, abgezogen wurde nie.
-     *
-     * Alle Koeder enden auf _BAIT (BLESSED, WHALE, CARROT, GLOWY_CHUM ...); Bait Ring und
-     * die Koedersaecke gehoeren nicht dazu.
-     */
-    private static void noteConsumed(String line, Map<String, Integer> consumed) {
-        Matcher matcher = SACK_LINE.matcher(line);
-        if (!matcher.find()) return;
-        int amount = number(matcher.group(2));
-        if (amount <= 0) return;
-
-        String name = TRAILING_SYMBOLS.matcher(LEADING_SYMBOLS.matcher(matcher.group(3))
-                .replaceAll("")).replaceAll("").trim();
-        if (name.isEmpty()) return;
-        List<String> ids = ItemNames.idsFor(name);
-        if (ids.isEmpty() || !ids.get(0).endsWith("_BAIT")) return;
-        consumed.merge(ids.get(0), amount, Integer::sum);
-    }
-
-    /**
-     * Den verbrauchten Koeder aus dem Kasten nehmen.
-     *
-     * Ausser er wurde gerade ins Inventar geholt: Dann steht der Abgang aus dem Sack
-     * in derselben Meldung, und die Ware ist nicht weg, sondern woanders. Abgezogen
-     * wuerde sie doppelt - einmal hier, einmal als Zugang im Inventar, den die
-     * "Moved ... from your Sacks"-Zeile schon aufgerechnet hat.
-     */
-    private static void subtractConsumed(Map<String, Integer> consumed, long now) {
-        if (consumed.isEmpty() || !com.shokiteufel.shokimod.handler.ProfitTracker.enabled()) return;
-        for (Map.Entry<String, Integer> entry : consumed.entrySet()) {
-            int verbraucht = entry.getValue();
-            // Nach Menge, nicht nach Zeit: Was geholt wurde, ist nicht verbraucht - aber nur so
-            // viel. Wer nebenher wirklich angelt, hat den Rest verbraucht
-            long[] geholt = movedOutAt.get(entry.getKey());
-            if (geholt != null && now - geholt[1] < MOVE_MILLIS && geholt[0] > 0) {
-                int umgezogen = (int) Math.min(geholt[0], verbraucht);
-                geholt[0] -= umgezogen;
-                verbraucht -= umgezogen;
-                ShokiMod.LOGGER.info("[Profit] {} left the sack, {} of it moved - not consumed",
-                        entry.getKey(), umgezogen);
-                if (geholt[0] <= 0) movedOutAt.remove(entry.getKey());
+    private static void dispatch(Map<String, Integer> gains, String source, long nr) {
+        // Koeder steht nur im Tracker, wenn "Count bait as cost" an ist (Schiggy 09.11.: "sowas soll nicht im Tracker stehen"): Weder Rueckgabe noch
+        // Craft noch Fund. Die Karte gehoert dem Aufrufer, und manche sind nicht aenderbar: erst kopieren
+        if (!koederZaehlen() && gains.keySet().stream().anyMatch(id -> id.endsWith(KOEDER_ENDUNG))) {
+            gains = new LinkedHashMap<>(gains);
+            gains.keySet().removeIf(id -> id.endsWith(KOEDER_ENDUNG));
+            if (gains.isEmpty()) {
+                return;
             }
-            if (verbraucht <= 0) continue;
-            long[] vorher = recentlyConsumed.get(entry.getKey());
-            long summe = vorher != null && now - vorher[1] < MOVE_MILLIS ? vorher[0] + verbraucht : verbraucht;
-            recentlyConsumed.put(entry.getKey(), new long[] {summe, now});
-            com.shokiteufel.shokimod.handler.ProfitTracker.adjust(entry.getKey(), -verbraucht);
-            ShokiMod.LOGGER.info("[Profit] bait used from the sack: {} -{}", entry.getKey(), verbraucht);
         }
-    }
-
-    private static int number(String text) {
-        try {
-            return Integer.parseInt(text.replace(",", "").replace(".", ""));
-        } catch (NumberFormatException e) {
-            return 0;
-        }
-    }
-
-    /**
-     * Der Text am Mauszeiger, Zeile fuer Zeile - jede Aufstellung aber nur einmal.
-     *
-     * Der Mauszeiger-Text haengt am Stil einer Nachricht, und den erben ihre Teile.
-     * Wer den Baum abgeht, bekommt dieselbe Aufstellung deshalb so oft zurueck, wie
-     * die Zeile Teile hat. Genau das hat jeden Posten aus einem Sack doppelt gezaehlt:
-     * "+3 Raw Cod" stand zweimal da, und beide Male wurde gebucht. Skysoft sortiert an
-     * derselben Stelle aus, und aus demselben Grund.
-     */
-    private static List<String> hoverBlocks(Component message) {
-        LinkedHashSet<String> blocks = new LinkedHashSet<>();
-        collectHoverText(message, blocks);
-        return new ArrayList<>(blocks);
-    }
-
-    /** Jede Aufstellung einmal - verglichen wird ohne Farbcodes, sonst zaehlt dieselbe zweimal */
-    private static void collectHoverText(Component component, LinkedHashSet<String> out) {
-        HoverEvent hover = component.getStyle().getHoverEvent();
-        if (hover instanceof HoverEvent.ShowText showText) {
-            String block = showText.value().getString();
-            if (!block.isBlank()) out.add(COLOUR_CODE.matcher(block).replaceAll(""));
-        }
-        for (Component sibling : component.getSiblings()) collectHoverText(sibling, out);
-    }
-
-    /**
-     * Woher der letzte Schwung Zugaenge kam.
-     *
-     * Steht im Log neben dem ersten Fund einer Ware. Wenn etwas im Kasten steht, das
-     * dort nicht hingehoert, ist das die erste Frage - und ohne diese Notiz liesse sie
-     * sich nur raten.
-     */
-    private static String lastSource = "inventory";
-
-    public static String lastSource() {
-        return lastSource;
-    }
-
-    /** Der Schalter im verborgenen Reiter Logs ("log" im Suchfeld). Aus kostet er nichts */
-    private static boolean debug() {
-        return ModConfig.INSTANCE.logs.profitDiagnostics;
-    }
-
-    /**
-     * Ein Fund, den der Inventar-Vergleich nie sehen kann.
-     *
-     * Essence liegt im Profil, nicht im Inventar; sie kommt aus der Tab-Liste. Damit
-     * Kasten, Schacht-Bilanz und Alarm trotzdem davon erfahren, geht sie denselben Weg
-     * wie alles andere - ein zweiter Melde-Weg waere ein zweiter Ort, an dem man
-     * suchen muss, wenn etwas fehlt.
-     */
-    public static void report(Map<String, Integer> gains, String source) {
-        if (gains == null || gains.isEmpty()) return;
-        dispatch(gains, source);
-    }
-
-    /** "[NPC] Kat: I was able to upgrade your Squid to LEGENDARY." - das Pet kommt von Kat, nicht aus der Beute */
-    private static final Pattern KAT_DONE = Pattern.compile("^\\[NPC\\] Kat: I was able to upgrade your .+ to .+\\.$");
-    /** So lange nach Kats Meldung zaehlt kein Pet als Fund: Es wandert erst beim Abholen ins Inventar */
-    private static final long KAT_MILLIS = 45_000L;
-    private static long katUntil = 0L;
-
-    /** Die Quelle der Beute einer Leiche (siehe bookCorpseDrop) */
-    private static final String CORPSE_LOOT = "corpse loot";
-
-    /**
-     * Ein Umber- oder Tungsten-Schluessel ist kein Fund.
-     *
-     * Er wird in der Forge gebaut, geholt und in die Saecke gepackt - und das Einpacken meldet Hypixel als "+" in der Sack-Meldung, das
-     * Holen laesst ihn im Inventar auftauchen. Beides sah aus wie Beute und stand im Kasten im Plus. Ein Schluessel kostet erst, wenn er an
-     * einer Leiche verbraucht wird (CorpseKeyCost, im Minus), und kommt nur dann als Gewinn dazu, wenn die Leiche ihn selbst in ihrer Beute
-     * hat ("corpse loot"). Der Skeleton Key gehoert nicht dazu: Er war nicht gemeint.
-     */
-    private static boolean isForgedKey(String itemId) {
-        return "UMBER_KEY".equals(itemId) || "TUNGSTEN_KEY".equals(itemId);
-    }
-
-    private static void dispatch(Map<String, Integer> gains, String source) {
-        if (!CORPSE_LOOT.equals(source) && (gains.containsKey("UMBER_KEY") || gains.containsKey("TUNGSTEN_KEY"))) {
+        // Ein Schluessel aus der Forge ist kein Fund: gebaut, geholt und in die Saecke gepackt, das alles sah wie Beute aus. Er kostet erst, wenn
+        // er an einer Leiche verbraucht wird (CorpseKeyCost, im Minus), und kommt nur als Gewinn dazu, wenn die Leiche ihn selbst in ihrer Beute hat
+        if (!CORPSE_LOOT.equals(source) && gains.keySet().stream().anyMatch(GESCHMIEDETE_SCHLUESSEL::contains)) {
             // Die Karte gehoert dem Aufrufer, und manche sind nicht aenderbar: erst kopieren
             gains = new LinkedHashMap<>(gains);
-            gains.keySet().removeIf(ItemChanges::isForgedKey);
+            gains.keySet().removeIf(GESCHMIEDETE_SCHLUESSEL::contains);
             ShokiMod.LOGGER.info("[Profit] Umber/Tungsten key via {} - not a find, not counted (only a corpse's own loot counts it)", source);
-            if (gains.isEmpty()) return;
+            if (gains.isEmpty()) {
+                return;
+            }
         }
-        if (System.currentTimeMillis() < katUntil
-                && gains.keySet().removeIf(com.shokiteufel.shokimod.util.PetHeads::isPet)) {
-            ShokiMod.LOGGER.info("[Profit] pet picked up from Kat - not a find");
-            if (gains.isEmpty()) return;
+        // Was eine Drop-Zeile schon gebucht hat, zaehlt nicht noch einmal; was eine wartende Zeile belegt, zaehlt mit seiner genauen Kennung
+        if (nr >= 0 && !DROP_ZEILE.equals(source)) {
+            Map<String, Integer> zaehlt = new LinkedHashMap<>();
+            for (Map.Entry<String, Integer> e : gains.entrySet()) {
+                int n = BUCH.fund(e.getKey(), e.getValue(), nr);
+                if (n < e.getValue()) {
+                    KernProtokoll.beleg("fund nach nachtrag", nr, e.getKey() + " x" + e.getValue() + ", davon schon gebucht "
+                            + (e.getValue() - n) + ", Fenster jetzt " + BUCH.fenster());
+                }
+                if (n > 0) {
+                    zaehlt.put(e.getKey(), n);
+                }
+            }
+            if (zaehlt.isEmpty()) {
+                return;
+            }
+            gains = zaehlt;
         }
-        long gezaehlt = System.currentTimeMillis();
-        for (String id : gains.keySet()) recentlyCounted.put(id, gezaehlt);
         lastSource = source;
-        if (debug()) ShokiMod.LOGGER.info("[Profit] +{} via {}", gains, source);
+        merkeJungenFund(gains, source);
+        KernProtokoll.fund(gains, source);
+        if (debug()) {
+            ShokiMod.LOGGER.info("[Profit] +{} via {}", gains, source);
+        }
         for (int i = 0; i < listeners.size(); i++) {
             listeners.get(i).accept(gains);
         }
-    }
-
-    // ------------------------------------------------------------------ Rettung
-
-    /** Ein in den Chat gemeldeter Fund, der noch auf sein Inventar wartet */
-    private record Confirmed(java.util.List<String> ids, String preferred, int amount, long at) {
-    }
-
-    private static final List<Confirmed> confirmed = new ArrayList<>();
-    /** Was zuletzt gezaehlt wurde, je Kennung - von allen Wegen, die etwas melden */
-    private static final Map<String, Long> recentlyCounted = new HashMap<>();
-    /**
-     * So lange hat das Inventar Zeit, den Fund selbst zu zaehlen.
-     *
-     * Im Normalfall tut es das in derselben Sekunde, und dann geschieht hier nichts. Die
-     * Frist ist laenger als der Vergleich braucht, und kuerzer als alles, was danach
-     * noch zaehlen koennte.
-     */
-    private static final long CONFIRM_WAIT_MILLIS = 3_000L;
-
-    /**
-     * Eine Zeile "RARE DROP! ..." als Beweis merken.
-     *
-     * Steht sie im Chat, ist der Fund gefallen - ganz gleich, was das Inventar dazu
-     * sagt. Es sagt nicht immer etwas: Wer im selben Augenblick sein Loadout wechselt,
-     * hat eine Sekunde, in der nichts zaehlt, und die Warteschlange gegen Ruestungswechsel
-     * wird geleert. Ein Flash-Buch fiel genau in diese Sekunde und fehlte im Kasten.
-     */
-    private static void noteDropLine(String plain) {
-        String clean = plain.trim();
-        if (com.shokiteufel.shokimod.handler.RareLootHandler.isChatLine(clean)) return;
-        com.shokiteufel.shokimod.data.RareLootParser.Drop drop = com.shokiteufel.shokimod.data.RareLootParser.parse(clean);
-        // Pet-Zeilen immer festhalten: Ihre genaue Form ist die Unbekannte, und ohne diese
-        // Zeile im Log laesst sich nicht sagen, warum ein Pet fehlte
-        if (clean.toUpperCase(java.util.Locale.ROOT).contains("PET DROP")) {
-            ShokiMod.LOGGER.info("[Profit] pet drop line: \"{}\" -> {}", clean,
-                    drop == null ? "not understood" : drop.itemIdCandidates());
-        }
-        if (drop == null || drop.amount() <= 0) return;
-
-        List<String> ids = com.shokiteufel.shokimod.handler.RareLootHandler.candidatesFor(drop);
-        if (ids.isEmpty()) return;
-        // Essence ist eine Waehrung: Sie waechst weiter, ein einzelner Fund ist keiner
-        if (ids.get(0).startsWith("ESSENCE_")) return;
-        // Die Preise werden gleich gebraucht, um die richtige Kennung zu waehlen
-        com.shokiteufel.shokimod.util.ItemValue.prefetch();
-        confirmed.add(new Confirmed(List.copyOf(ids), null, drop.amount(), System.currentTimeMillis()));
-        ShokiMod.LOGGER.info("[Profit] chat says {} x{} dropped - waiting {}s for the inventory",
-                ids.get(0), drop.amount(), CONFIRM_WAIT_MILLIS / 1000);
-    }
-
-    /**
-     * Welche der Kennungen ist die echte?
-     *
-     * Die Liste nennt mehrere, weil der Name nicht verraet, was gemeint ist: "Flash I" kann
-     * ENCHANTMENT_FLASH_1 sein oder ENCHANTMENT_ULTIMATE_FLASH_1. Echt ist die, fuer die
-     * es einen Preis gibt - eine Kennung, die niemand handelt, gibt es auch nicht. Die
-     * erste Kennung der Liste zu nehmen hiesse zu raten, und das Buch stuende danach unter
-     * einem Namen im Kasten, den das Inventar nie liefert.
-     */
-    private static String realId(List<String> ids) {
-        for (String id : ids) {
-            if (com.shokiteufel.shokimod.util.ItemValue.BAZAAR.get(id) != null) return id;
-        }
-        for (String id : ids) {
-            Double bin = com.shokiteufel.shokimod.util.ItemValue.LOWEST_BIN.get(id);
-            if (bin != null && bin > 0) return id;
-        }
-        return ids.get(0);
-    }
-
-    /**
-     * Was die Chatzeile sagte und das Inventar nicht bestaetigt hat, nachtragen.
-     *
-     * Erst nach der Frist, und nur, wenn in der Zwischenzeit keine der moeglichen
-     * Kennungen gezaehlt wurde. So aendert sich im Normalfall nichts - der Fund ist
-     * dann laengst im Kasten -, und nur der verlorene Fall wird gerettet.
-     *
-     * Dazu wird die Menge als bereits gebucht vermerkt. Kommt das Inventar spaeter doch
-     * noch dazu - ein Fenster, das erst zugeht -, bucht es damit nicht ein zweites Mal.
-     */
-    private static void rescueConfirmed() {
-        if (confirmed.isEmpty()) return;
-        long now = System.currentTimeMillis();
-        for (int i = 0; i < confirmed.size(); ) {
-            Confirmed c = confirmed.get(i);
-            if (now - c.at() < CONFIRM_WAIT_MILLIS) {
-                i++;
-                continue;
-            }
-            confirmed.remove(i);
-
-            boolean schonGezaehlt = false;
-            for (String id : c.ids()) {
-                Long at = recentlyCounted.get(id);
-                if (at != null && at >= c.at() - CONFIRM_WAIT_MILLIS) {
-                    schonGezaehlt = true;
-                    break;
-                }
-            }
-            if (schonGezaehlt) continue;
-
-            String echt = realId(c.ids());
-            Map<String, Integer> nachtrag = new LinkedHashMap<>();
-            nachtrag.put(echt, c.amount());
-            ShokiMod.LOGGER.info("[Profit] the inventory never counted {} x{} - taking it from the chat line",
-                    echt, c.amount());
-            for (String id : c.ids()) losses.add(new Loss(id, c.amount(), now, false));
-            dispatch(nachtrag, "drop line");
-        }
-    }
-
-    /** Beim Verlassen von SkyBlock faellt der Vergleichsstand weg, nicht die Zaehlung */
-    public static void reset() {
-        previousCounts = null;
-        previousContext = null;
-        previousSignature = 0;
-        settleTicks = SETTLE_TICKS;
-        settleAfterWindow = false;
-        windowBaseline = null;
-        baselineIds = 0;
-        refillWaited = 0;
-        menuOpen = false;
-        menuArmedUntil = 0L;
-        quietUntil = 0L;
-        losses.clear();
-        held.clear();
-        worn.clear();
-        confirmed.clear();
-        corpseUntil = 0L;
-        corpseLines = 0;
-        ghost.reset();
-        ghostSignature = 0;
     }
 }
