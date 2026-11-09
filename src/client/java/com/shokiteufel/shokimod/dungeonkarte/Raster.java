@@ -19,6 +19,10 @@ public final class Raster {
     public static final int RAUM = 32;
 
     private final Kachel[] kacheln = new Kachel[PLAETZE];
+    /** Zaehlt jede Aenderung des Rasters; die Raumliste gilt nur fuer den Stand, zu dem sie gerechnet wurde */
+    private int stand;
+    private List<Raum> raeumeMerk;
+    private int raeumeStand = -1;
 
     public Kachel get(int index) {
         return kacheln[index];
@@ -26,10 +30,12 @@ public final class Raster {
 
     public void set(int index, Kachel kachel) {
         kacheln[index] = kachel;
+        stand++;
     }
 
     public void leeren() {
         java.util.Arrays.fill(kacheln, null);
+        stand++;
     }
 
     public static int weltX(int spalte) {
@@ -67,6 +73,15 @@ public final class Raster {
      * mit demselben Namen bleiben zwei). Unbekannte Raeume (nur die Karte kennt sie) stehen einzeln.
      */
     public List<Raum> raeume() {
+        // Die Karte wird in jedem Bild gezeichnet, das Raster aendert sich nur ein paar Mal je Sekunde: die Raeume nur neu rechnen, wenn es sich aenderte
+        if (raeumeMerk == null || raeumeStand != stand) {
+            raeumeMerk = java.util.Collections.unmodifiableList(raeumeRechnen());
+            raeumeStand = stand;
+        }
+        return raeumeMerk;
+    }
+
+    private List<Raum> raeumeRechnen() {
         boolean[] besucht = new boolean[PLAETZE];
         List<Raum> aus = new ArrayList<>();
         for (int i = 0; i < PLAETZE; i++) {
@@ -136,6 +151,7 @@ public final class Raster {
      * ein Rueckschritt, der gelten soll.
      */
     public void vonKarte(KartenLeser.Zelle[] karte) {
+        stand++;
         for (int i = 0; i < PLAETZE; i++) {
             KartenLeser.Zelle m = karte[i];
             if (m.art() == null) continue;
