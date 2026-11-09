@@ -109,6 +109,61 @@ public final class KernAnschluss {
 
     private static int protokollTakt;
 
+    // ------------------------------------------------------------------ Bedarf
+
+    /** Die Frage, ob jemand die Funde aus dem Inventar braucht; nur Tests ersetzen sie */
+    private static java.util.function.BooleanSupplier bedarfFrage = com.shokiteufel.shokimod.data.FeatureGate::itemChanges;
+    private static boolean bedarfLief;
+
+    /**
+     * Braucht jemand die Funde aus dem Inventar (Profit Tracker, Rare-Loot-Inventarueberwachung, Schacht-Bilanz)? Nur dann rechnet der Kern
+     * mit: Von Haus aus ist alles davon aus, und dann kostet ein Inventar-Paket nichts. Geht der Bedarf an, startet der Kern frisch und fuellt
+     * seinen Spiegel aus dem eigenen Inventar (sonst zaehlte das ganze Inventar als neu); geht er aus, wird das Zwischengemerkte verworfen.
+     */
+    static boolean bedarf() {
+        boolean soll = bedarfFrage.getAsBoolean();
+        if (soll != bedarfLief) {
+            bedarfLief = soll;
+            if (soll) {
+                anlaufen();
+            } else {
+                ItemChanges.verwerfen();
+            }
+        }
+        return soll;
+    }
+
+    private static void anlaufen() {
+        ItemChanges.verwerfen();
+        KERN.uhr(System.nanoTime());
+        List<Stapel> lokal = new ArrayList<>();
+        Minecraft client = Minecraft.getInstance();
+        if (client != null && client.player != null && client.player.inventoryMenu != null) {
+            for (net.minecraft.world.inventory.Slot platz : client.player.inventoryMenu.slots) {
+                lokal.add(stapel(platz.getItem()));
+            }
+        }
+        spiegelFuellen(KERN, PaketBus.laufendeNummer(), lokal);
+        ShokiMod.LOGGER.info("[Kern] the finds of the inventory are needed now - the core starts with {} slots read from the inventory", lokal.size());
+    }
+
+    /**
+     * Setzt den Kern zurueck und gibt ihm den Stand des Spielerinventars (Container 0) als Ausgangslage: was schon im Inventar liegt, ist kein
+     * Zugang. Ohne Plaetze (nicht in einer Welt) bleibt es beim Zuruecksetzen; den Ausgangsstand liefert dann der naechste Komplettbestand.
+     */
+    static void spiegelFuellen(Kern kern, long nr, List<Stapel> lokal) {
+        kern.bei(new Ereignis.Welt(nr));
+        if (!lokal.isEmpty()) {
+            kern.bei(new Ereignis.Inhalt(nr, 0, lokal));
+        }
+    }
+
+    /** Nur fuer Tests: ersetzt die Frage nach dem Bedarf (null = wieder die Einstellungen) und setzt den Stand zurueck */
+    static void bedarfFuerTests(java.util.function.BooleanSupplier frage) {
+        bedarfFrage = frage != null ? frage : com.shokiteufel.shokimod.data.FeatureGate::itemChanges;
+        bedarfLief = false;
+    }
+
     /** Haelt das Protokoll im Einklang mit dem Schalter im Reiter Logs (von Haus aus aus): an = Datei offen, aus = zu. */
     static void protokollAbgleichen() {
         boolean soll = com.shokiteufel.shokimod.data.ModConfig.INSTANCE.logs.kernLog
@@ -129,25 +184,35 @@ public final class KernAnschluss {
         ItemChanges.takt(kopf.laufendeNummer(), kopf.nanos());
     }
 
+    /** Ein Abonnent des Kerns: laeuft nur, wenn jemand die Funde braucht (siehe {@link #bedarf}) */
+    private static <P extends net.minecraft.network.protocol.Packet<?>> void abo(Class<P> typ, PaketPhase phase, String name,
+                                                                                  com.shokiteufel.shokimod.paket.PaketAbonnent<? super P> abonnent) {
+        PaketBus.abonnieren(typ, phase, name, (p, k) -> {
+            if (bedarf()) {
+                abonnent.bei(p, k);
+            }
+        });
+    }
+
     static void anmelden() {
-        PaketBus.abonnieren(ClientboundOpenScreenPacket.class, PaketPhase.VOR, "Kern Menue auf",
+        abo(ClientboundOpenScreenPacket.class, PaketPhase.VOR, "Kern Menue auf",
                 (p, k) -> bei(k, new Ereignis.MenueAuf(k.laufendeNummer(), p.getContainerId(), p.getTitle().getString())));
-        PaketBus.abonnieren(ClientboundContainerClosePacket.class, PaketPhase.VOR, "Kern Menue zu",
+        abo(ClientboundContainerClosePacket.class, PaketPhase.VOR, "Kern Menue zu",
                 (p, k) -> bei(k, new Ereignis.MenueZu(k.laufendeNummer(), p.getContainerId())));
-        PaketBus.abonnieren(ServerboundContainerClosePacket.class, PaketPhase.VOR, "Kern Menue zu (eigen)",
+        abo(ServerboundContainerClosePacket.class, PaketPhase.VOR, "Kern Menue zu (eigen)",
                 (p, k) -> bei(k, new Ereignis.MenueZu(k.laufendeNummer(), p.getContainerId())));
-        PaketBus.abonnieren(ServerboundContainerClickPacket.class, PaketPhase.VOR, "Kern Klick", KernAnschluss::klick);
-        PaketBus.abonnieren(ServerboundChatCommandPacket.class, PaketPhase.VOR, "Kern Befehl",
+        abo(ServerboundContainerClickPacket.class, PaketPhase.VOR, "Kern Klick", KernAnschluss::klick);
+        abo(ServerboundChatCommandPacket.class, PaketPhase.VOR, "Kern Befehl",
                 (p, k) -> bei(k, new Ereignis.Befehl(k.laufendeNummer())));
-        PaketBus.abonnieren(ServerboundChatCommandSignedPacket.class, PaketPhase.VOR, "Kern Befehl (signiert)",
+        abo(ServerboundChatCommandSignedPacket.class, PaketPhase.VOR, "Kern Befehl (signiert)",
                 (p, k) -> bei(k, new Ereignis.Befehl(k.laufendeNummer())));
-        PaketBus.abonnieren(ClientboundContainerSetSlotPacket.class, PaketPhase.VOR, "Kern Platz",
+        abo(ClientboundContainerSetSlotPacket.class, PaketPhase.VOR, "Kern Platz",
                 (p, k) -> bei(k, new Ereignis.Platz(k.laufendeNummer(), p.getContainerId(), p.getSlot(), stapel(p.getItem()))));
-        PaketBus.abonnieren(ClientboundContainerSetContentPacket.class, PaketPhase.VOR, "Kern Inhalt", KernAnschluss::inhalt);
-        PaketBus.abonnieren(ClientboundEntityEventPacket.class, PaketPhase.VOR, "Kern Mob-Tod", KernAnschluss::ereignis);
-        PaketBus.abonnieren(ClientboundAddEntityPacket.class, PaketPhase.VOR, "Kern Item-Entity", KernAnschluss::entitaet);
-        PaketBus.abonnieren(ClientboundTakeItemEntityPacket.class, PaketPhase.VOR, "Kern Aufsammeln", KernAnschluss::aufsammeln);
-        PaketBus.abonnieren(ClientboundSetPlayerInventoryPacket.class, PaketPhase.VOR, "Kern Spielerinventar (nur gemeldet)", (p, k) -> {
+        abo(ClientboundContainerSetContentPacket.class, PaketPhase.VOR, "Kern Inhalt", KernAnschluss::inhalt);
+        abo(ClientboundEntityEventPacket.class, PaketPhase.VOR, "Kern Mob-Tod", KernAnschluss::ereignis);
+        abo(ClientboundAddEntityPacket.class, PaketPhase.VOR, "Kern Item-Entity", KernAnschluss::entitaet);
+        abo(ClientboundTakeItemEntityPacket.class, PaketPhase.VOR, "Kern Aufsammeln", KernAnschluss::aufsammeln);
+        abo(ClientboundSetPlayerInventoryPacket.class, PaketPhase.VOR, "Kern Spielerinventar (nur gemeldet)", (p, k) -> {
             // Hypixel nutzt dieses Paket in keinem Mitschnitt; seine Platznummern weichen von Container 0 ab, darum nicht verarbeitet
             if (!playerInventoryGemeldet) {
                 playerInventoryGemeldet = true;
@@ -155,11 +220,14 @@ public final class KernAnschluss {
             }
         });
         PaketZustaende.chatHoeren((klartext, inhalt, kopf) -> {
+            if (!bedarf()) {
+                return;
+            }
             bei(kopf, new Ereignis.Chat(kopf.laufendeNummer(), klartext));
             ItemChanges.chat(inhalt, klartext, kopf.nanos(), kopf.laufendeNummer());
         });
         PaketZustaende.weltHoeren((weltart, zwischenwelt, neueWelt, kopf) -> {
-            if (neueWelt) {
+            if (neueWelt && bedarf()) {
                 bei(kopf, new Ereignis.Welt(kopf.laufendeNummer()));
             }
         });
