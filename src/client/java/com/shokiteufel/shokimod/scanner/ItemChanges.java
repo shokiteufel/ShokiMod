@@ -183,6 +183,14 @@ public final class ItemChanges {
         for (FundBuch.Rettung r : BUCH.alleSchliessen(0L)) {
             rette(r, 0L, false);
         }
+        verwerfen();
+    }
+
+    /**
+     * Wirft alles Zwischengemerkte weg, ohne etwas zu buchen: Der Kern wird abgeschaltet (niemand braucht die Funde mehr) oder neu gestartet.
+     * Eine Drop-Zeile, die auf ihr Platz-Update wartete, wuerde sonst beim naechsten Start nachgetragen, lange nachdem sie fiel.
+     */
+    public static void verwerfen() {
         BUCH.leeren();
         corpseAktiv = false;
         corpseZeilen = 0;

@@ -63,8 +63,17 @@ public final class FeatureGate {
         // Auch fuer die Schacht-Bilanz: Sie zaehlt dieselben Zugaenge und braucht deshalb
         // denselben Vergleich. Wer die Mineshaft-Sachen anhat, bekommt sie ohne Zutun
         return ModConfig.INSTANCE.profit.enabled
-                || ModConfig.INSTANCE.chat.rareLoot.watchInventory
+                || rareLootBrauchtInventar()
                 || mineshaftKnown();
+    }
+
+    /**
+     * Braucht Rare Loot die Funde aus dem Inventar? "Watch inventory" ist von Haus aus an, ohne dass Alarm oder Teilen laufen: Dann wirft
+     * {@code RareLootHandler.onInventoryGains} alles weg, und der Paket-Kern muss fuer nichts mitrechnen.
+     */
+    private static boolean rareLootBrauchtInventar() {
+        ModConfig.RareLootCategory r = ModConfig.INSTANCE.chat.rareLoot;
+        return r.watchInventory && (r.enabled || (r.shareEnabled && r.shareInventory));
     }
 
     /** Der Kasten mit den Mobs in der Naehe */
