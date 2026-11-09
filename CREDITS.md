@@ -196,7 +196,11 @@ Stern-Mobs aus `StarMobESP` im Zweig `26.1.2-legacy`):
 - Stern-Mobs: der Koerper steht eine Entity-ID vor dem Namensschild (beim Withermancer drei): `StarMobTarget.bodyIdOffset`. Am Mitschnitt von Schiggy
   (09.11.) bei allen 46 Schildern bestaetigt.
 
-Eigen sind die Darstellung (Flaechen und Text im HUD, keine Bilddateien), die Einstellungen, das Erkennen des Dungeons (wie "Hide Players") und die
+Die Bilder der Funny Map sind die von NoammAddons (CC0): die vier Haekchen (gruen, weiss, Kreuz, Fragezeichen) und der Pfeil des eigenen Spielers
+unter `assets/shokimod/textures/gui/dungeonmap/` (aus `assets/noammaddons/textures/gui/dungeonmap/`, unveraendert). Der Scan endet wie bei ihm, wenn
+alle Chunks geladen waren (`hasScanned`), und die Karte von Hypixel wird nur bei einem Kartenpaket gelesen (`MapUpdater`).
+
+Eigen sind die Darstellung (Flaechen und Text im HUD), die Einstellungen, das Erkennen des Dungeons (wie "Hide Players") und die
 Tests an echten Daten.
 
 **Lizenz:** CC0 1.0 Universal (Public Domain; Datei `LICENSE` im Repository). Es gibt keine Bedingungen; die Herkunft steht trotzdem hier.
