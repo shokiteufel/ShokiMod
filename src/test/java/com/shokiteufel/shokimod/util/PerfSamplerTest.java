@@ -65,12 +65,30 @@ class PerfSamplerTest {
         f.abtasten(leicht);
         f.abtasten(new StackTraceElement[] {frame("net.minecraft.client.Minecraft", "runTick", 1)});
 
-        String bericht = f.bericht("2 runs, 40 ms");
+        String bericht = f.bericht("2 runs, 40 ms", "180 MB/s");
 
         assertTrue(bericht.contains("11 samples, ShokiMod 90.9 % (10)"), bericht);
         assertTrue(bericht.contains("GC: 2 runs, 40 ms"), bericht);
+        assertTrue(bericht.contains("game thread allocates 180 MB/s"), bericht);
         assertTrue(bericht.indexOf("dungeonkarte.FunnyKarte.tick") < bericht.indexOf("handler.MistBoden.tick"), "das Schwerste steht oben:\n" + bericht);
         assertTrue(bericht.contains("dungeonkarte.WeltScanner.durchgang:77"), bericht);
+    }
+
+    @Test
+    void framesAreCountedWithTheSlowOnesAndTheLongestGap() {
+        PerfSampler.Fenster f = new PerfSampler.Fenster();
+        f.bild(7_000_000L);    // 143 Bilder je Sekunde
+        f.bild(40_000_000L);   // unter 30
+        f.bild(90_000_000L);   // unter 20
+        f.bild(10_000_000L);
+
+        assertEquals(4, f.bilder);
+        assertEquals(2, f.bilderUeber33);
+        assertEquals(1, f.bilderUeber50);
+        assertEquals(90_000_000L, f.laengstesBild);
+        String bericht = f.bericht("0 runs, 0 ms", "n/a");
+        assertTrue(bericht.contains("frames: 4"), bericht);
+        assertTrue(bericht.contains("over 33 ms: 2, over 50 ms: 1, longest 90 ms"), bericht);
     }
 
     /** Der Aufruf, den die Probe an einem laufenden Faden sieht */
