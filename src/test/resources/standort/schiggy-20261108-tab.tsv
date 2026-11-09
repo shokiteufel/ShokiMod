@@ -1,0 +1,103 @@
+# Standort-Zeilen der Tab-Liste (Anzeigenamen 'Area:' und 'Server:') in Paketreihenfolge, Mitschnitt vom 08.11.2026 (zwei Sitzungen)
+# Spalten: Art (A=Gebiet, S=Server), Eintrags-UUID (vom Server vergeben), Klartext, Wiederholungen. '---' trennt die Sitzungen
+A	4f42592d-b2e8-2339-b2fd-62e4a8053b6f	Area: Private Island	1
+S	dc662fcf-7f1e-2417-aed2-cde156bbe48e	 Server: mini30CT	1
+A	4f42592d-b2e8-2339-b2fd-62e4a8053b6f	Area: Private Island	1
+S	dc662fcf-7f1e-2417-aed2-cde156bbe48e	 Server: mini30CT	1
+A	e2fd1e5e-ab5b-2558-94da-c849e82d363a	Area: Jerry's Workshop	1
+S	30939ddb-4f05-2eef-a46b-97835787a5b3	 Server: mini26DV	1
+A	e2fd1e5e-ab5b-2558-94da-c849e82d363a	Area: Jerry's Workshop	1
+S	30939ddb-4f05-2eef-a46b-97835787a5b3	 Server: mini26DV	1
+A	e6ef85c0-7522-2c7f-8c42-d2a731e1db12	Area: Torrhus Canyon	1
+S	1b51ad23-0763-2a51-ba18-dc31560e9078	 Server: mini84DG	1
+A	e6ef85c0-7522-2c7f-8c42-d2a731e1db12	Area: Torrhus Canyon	1
+S	1b51ad23-0763-2a51-ba18-dc31560e9078	 Server: mini84DG	1
+A	d40f40ed-a8e6-2476-a685-a2ac8456dddd	Area: Jerry's Workshop	1
+S	9c57950d-4a91-21b4-bb0a-ddc184400a48	 Server: mini78DK	1
+A	d40f40ed-a8e6-2476-a685-a2ac8456dddd	Area: Jerry's Workshop	1
+S	9c57950d-4a91-21b4-bb0a-ddc184400a48	 Server: mini78DK	1
+A	4a53ce07-45ec-24ce-bb97-b2fc7ffa6ebf	Area: Torrhus Canyon	1
+S	d11ac555-e676-20b5-9962-7565bd0559c2	 Server: mini15DN	1
+A	4a53ce07-45ec-24ce-bb97-b2fc7ffa6ebf	Area: Torrhus Canyon	1
+S	d11ac555-e676-20b5-9962-7565bd0559c2	 Server: mini15DN	1
+A	2c812513-8cf9-26f5-bf34-ed7f5cb6ee52	Area: Jerry's Workshop	1
+S	1426314a-3fd2-2c30-9eb4-02dc7b64dada	 Server: mini78DK	1
+A	2c812513-8cf9-26f5-bf34-ed7f5cb6ee52	Area: Jerry's Workshop	1
+S	1426314a-3fd2-2c30-9eb4-02dc7b64dada	 Server: mini78DK	1
+A	0559f705-1b53-2820-8006-dba9e18cccc4	Area: Torrhus Canyon	1
+S	41b2bf31-6a9c-270e-9e6d-241910db87e9	 Server: mini15DN	1
+A	0559f705-1b53-2820-8006-dba9e18cccc4	Area: Torrhus Canyon	1
+S	41b2bf31-6a9c-270e-9e6d-241910db87e9	 Server: mini15DN	1
+A	823629fa-fa4d-23e7-a499-209998bcdaa7	Area: Jerry's Workshop	1
+S	ea9597a2-41b5-20ed-8106-903c787d46ad	 Server: mini78DK	1
+A	823629fa-fa4d-23e7-a499-209998bcdaa7	Area: Jerry's Workshop	1
+S	ea9597a2-41b5-20ed-8106-903c787d46ad	 Server: mini78DK	1
+A	cedbe3ab-56ac-2cf7-a320-413620557003	Area: Torrhus Canyon	1
+S	6d143c57-cc2d-2c9b-861d-4f919a26a1b0	 Server: mini74CG	1
+A	cedbe3ab-56ac-2cf7-a320-413620557003	Area: Torrhus Canyon	1
+S	6d143c57-cc2d-2c9b-861d-4f919a26a1b0	 Server: mini74CG	1
+A	c1be6a0f-3e8c-2efd-a17c-78135039da94	Area: Jerry's Workshop	1
+S	2278a610-5575-2842-bcb2-5f15c45de57f	 Server: mini78DK	1
+A	c1be6a0f-3e8c-2efd-a17c-78135039da94	Area: Jerry's Workshop	1
+S	2278a610-5575-2842-bcb2-5f15c45de57f	 Server: mini78DK	1
+A	0d0033e4-6701-24aa-ad36-092b52baf8ac	Area: Torrhus Canyon	1
+S	f65906bc-045f-28bf-b378-1198be8d92a8	 Server: mini74CG	1
+A	0d0033e4-6701-24aa-ad36-092b52baf8ac	Area: Torrhus Canyon	1
+S	f65906bc-045f-28bf-b378-1198be8d92a8	 Server: mini74CG	1
+A	6e7817ce-133e-2028-b1dd-375c262ea8b9	Area: Jerry's Workshop	1
+S	f47eda30-bacf-2f7e-84cc-9aad2870d98c	 Server: mini78DK	1
+A	6e7817ce-133e-2028-b1dd-375c262ea8b9	Area: Jerry's Workshop	1
+S	f47eda30-bacf-2f7e-84cc-9aad2870d98c	 Server: mini78DK	1
+A	11dafd1f-00ed-22f4-84c9-30917840590b	Area: Torrhus Canyon	1
+S	1c8a7fb3-d750-2ada-832a-7c99f5ea9867	 Server: mini90V	1
+A	11dafd1f-00ed-22f4-84c9-30917840590b	Area: Torrhus Canyon	1
+S	1c8a7fb3-d750-2ada-832a-7c99f5ea9867	 Server: mini90V	1
+A	6ec3a4c6-abdf-299c-9771-8fdd9f5edb2e	Area: Jerry's Workshop	1
+S	5a48f7e4-efd6-2e64-b014-83de501074e7	 Server: mini182CA	1
+A	6ec3a4c6-abdf-299c-9771-8fdd9f5edb2e	Area: Jerry's Workshop	1
+S	5a48f7e4-efd6-2e64-b014-83de501074e7	 Server: mini182CA	1
+---
+A	3bff2eef-be1f-2237-8db1-ea5f38347a16	Area: Private Island	1
+S	5671d84f-6c52-2935-ba56-a6d42acead3b	 Server: mini22CD	1
+A	3bff2eef-be1f-2237-8db1-ea5f38347a16	Area: Private Island	1
+S	5671d84f-6c52-2935-ba56-a6d42acead3b	 Server: mini22CD	1
+A	6ad13bf1-cdfa-2411-9cce-f64c147b178b	Area: Jerry's Workshop	1
+S	8366e6a1-521e-2bfa-8806-5053bd941d7b	 Server: mini26DV	1
+A	6ad13bf1-cdfa-2411-9cce-f64c147b178b	Area: Jerry's Workshop	1
+S	8366e6a1-521e-2bfa-8806-5053bd941d7b	 Server: mini26DV	1
+A	7cce64dd-64b4-21f2-89d2-788f7bf9c2f0	Area: Crystal Hollows	1
+S	ebffd7a7-c782-20f0-bff8-18d13791e291	 Server: mini30DR	1
+A	7cce64dd-64b4-21f2-89d2-788f7bf9c2f0	Area: Crystal Hollows	1
+S	ebffd7a7-c782-20f0-bff8-18d13791e291	 Server: mini30DR	1
+A	cc9dc6e5-ac4e-244f-9563-45542c1bf993	Area: Private Island	1
+S	836f7bd8-e1a4-2c54-914d-e4bfb3d189fd	 Server: mini22CD	1
+A	cc9dc6e5-ac4e-244f-9563-45542c1bf993	Area: Private Island	1
+S	836f7bd8-e1a4-2c54-914d-e4bfb3d189fd	 Server: mini22CD	1
+A	f30fbf0c-1234-22ae-a533-ef0d5b2a8495	Area: Garden	1
+S	98478b0a-2e52-274c-a92c-5456b2381764	 Server: mini103BT	1
+A	f30fbf0c-1234-22ae-a533-ef0d5b2a8495	Area: Garden	1
+S	98478b0a-2e52-274c-a92c-5456b2381764	 Server: mini103BT	1
+A	7d2c5019-39cc-25d7-b770-9f2021b7246b	Area: The End	1
+S	2dcfc602-61fe-269b-b224-7e18ceaa3954	 Server: mini17W	1
+A	7d2c5019-39cc-25d7-b770-9f2021b7246b	Area: The End	1
+S	2dcfc602-61fe-269b-b224-7e18ceaa3954	 Server: mini17W	1
+A	5414a041-5d9a-2054-8a1f-776ae525d741	Area: Dungeon Hub	1
+S	5e7af765-bd4c-2010-b5b5-7720abe1df8c	 Server: mini29U	1
+A	5414a041-5d9a-2054-8a1f-776ae525d741	Area: Dungeon Hub	1
+S	5e7af765-bd4c-2010-b5b5-7720abe1df8c	 Server: mini29U	1
+A	1a60d08d-f173-290c-aca6-72f33dc0a977	Area: Torrhus Canyon	1
+S	c11ce1b4-0277-2ee7-a8e1-36ca03220052	 Server: mini68DW	1
+A	1a60d08d-f173-290c-aca6-72f33dc0a977	Area: Torrhus Canyon	1
+S	c11ce1b4-0277-2ee7-a8e1-36ca03220052	 Server: mini68DW	1
+A	20a8f79b-ccd2-2c07-997a-2c41dcf7f57d	Area: Garden	1
+S	50fae295-062c-2285-8255-946689a44442	 Server: mini143AJ	1
+A	20a8f79b-ccd2-2c07-997a-2c41dcf7f57d	Area: Garden	1
+S	50fae295-062c-2285-8255-946689a44442	 Server: mini143AJ	1
+A	48ce25f5-d9e3-22fb-a57d-4131b80f2932	Area: Crimson Isle	1
+S	cac62cbe-92b3-2092-9adc-2d9345a8c05c	 Server: mini89AT	1
+A	48ce25f5-d9e3-22fb-a57d-4131b80f2932	Area: Crimson Isle	1
+S	cac62cbe-92b3-2092-9adc-2d9345a8c05c	 Server: mini89AT	1
+A	9aa0d060-c9e7-20f1-84f9-716b8ca993b5	Area: Private Island	1
+S	e3085a7d-fe19-29b5-90c0-43332ea0c0d0	 Server: mini22CD	1
+A	9aa0d060-c9e7-20f1-84f9-716b8ca993b5	Area: Private Island	1
+S	e3085a7d-fe19-29b5-90c0-43332ea0c0d0	 Server: mini22CD	1

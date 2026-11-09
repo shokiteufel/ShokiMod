@@ -49,7 +49,8 @@ public class ModConfig extends Config {
     public static ModConfig INSTANCE = new ModConfig();
 
     // ★修正2: セーブ＆ロード用のGsonを準備 (@Expose が付いた変数だけを処理する設定)
-    private static final Gson GSON = new GsonBuilder()
+    /** Paketsichtbar, damit sich das Lesen alter Dateien (Umzuege wie {@link #migrateForge}) mit echtem JSON pruefen laesst */
+    static final Gson GSON = new GsonBuilder()
             .excludeFieldsWithoutExposeAnnotation()
             .setPrettyPrinting()
             .create();
@@ -100,6 +101,95 @@ public class ModConfig extends Config {
             c.dyeShareGuild = c.shareGuild;
         }
         c.dyeChannelsMigrated = true;
+    }
+
+    /**
+     * Bis 2.2.2 hatte die Forge eine eigene Kategorie; sie wohnt jetzt unter Mining > Forge. Was dort stand (Plaetze mit ihren Zeiten,
+     * Lage und Groesse des Kastens, Zahl der Plaetze) wandert einmal mit, und das alte Feld wird geleert - ein leeres Feld wird nicht
+     * gespeichert, ein zweiter Lauf findet also nichts mehr.
+     *
+     * Die Forge war damals von Haus aus an, jetzt ist sie von Haus aus aus. Wer sie nie angefasst hat, soll sie darum nicht ungefragt
+     * behalten: Der Schalter geht beim Umzug auf aus und wird bei Bedarf neu eingeschaltet.
+     *
+     * @return ob etwas uebernommen wurde (dann ist zu speichern)
+     */
+    static boolean migrateForge(ModConfig config) {
+        if (config == null || config.forge == null) return false;
+        if (config.mining == null) config.mining = new MiningCategory();
+        ForgeCategory old = config.forge;
+        config.forge = null;
+        config.mining.forge = old;
+        old.enabled = false;
+        return true;
+    }
+
+    /**
+     * Die Pause des Skill-XP-Zaehlers war in 0.2.0 von Haus aus 60 Sekunden und ist jetzt 30. Eine Datei, die noch die alten 60 traegt, hat die
+     * Vorgabe nie angefasst (ein Wert von Hand waere ein anderer) und bekommt einmalig die neue.
+     *
+     * @return ob etwas geaendert wurde (dann ist zu speichern)
+     */
+    static boolean migrateSkillXpIdle(SkillXpCategory c) {
+        if (c == null || c.idleDefaultMoved) return false;
+        c.idleDefaultMoved = true;
+        if (c.idleSeconds == 60) c.idleSeconds = 30;
+        return true;
+    }
+
+    /**
+     * Funny Map und The Mist stehen unter ikohS. Alte Dateien tragen sie noch an den alten Stellen (die Funny Map ganz oben, The Mist unter
+     * Mining): Was dort steht, wird einmal uebernommen und an der alten Stelle gestrichen. Danach gibt es immer beide Kategorien.
+     *
+     * @return ob etwas uebernommen wurde (dann ist zu speichern)
+     */
+    static boolean migrateIkohS(ModConfig config) {
+        boolean moved = false;
+        if (config.ikohS == null) config.ikohS = new IkohSCategory();
+        if (config.funnyMap != null) {
+            config.ikohS.funnyMap = config.funnyMap;
+            config.funnyMap = null;
+            moved = true;
+        }
+        if (config.mining != null && config.mining.mist != null) {
+            config.ikohS.mist = config.mining.mist;
+            config.mining.mist = null;
+            moved = true;
+        }
+        if (config.ikohS.funnyMap == null) config.ikohS.funnyMap = new FunnyMapCategory();
+        if (config.ikohS.mist == null) config.ikohS.mist = new MistCategory();
+        return moved;
+    }
+
+    /** Werte einer von Hand geaenderten Datei zurechtruecken: Auswahlen nie leer, Grenzen eingehalten */
+    static void clampFunnyMap(FunnyMapCategory c) {
+        if (c.style == null) c.style = FunnyStyle.CHECKMARKS;
+        if (c.playerNames == null) c.playerNames = FunnyPlayerNames.OFF;
+        c.darken = Math.max(0, Math.min(100, c.darken));
+        c.scale = Math.max(0.5f, Math.min(5f, c.scale));
+        c.textScale = Math.max(0.4f, Math.min(1.5f, c.textScale));
+        c.checkmarkScale = Math.max(0.3f, Math.min(1.5f, c.checkmarkScale));
+        c.doorWidth = Math.max(6, Math.min(10, c.doorWidth));
+        c.borderWidth = Math.max(1, Math.min(5, c.borderWidth));
+        c.headScale = Math.max(0.3f, Math.min(1.5f, c.headScale));
+        c.nameScale = Math.max(0.3f, Math.min(1.5f, c.nameScale));
+    }
+
+    /** Werte einer von Hand geaenderten Datei zurechtruecken; immer sieben Plaetze, nie ein leerer Eintrag */
+    static void clampForge(ForgeCategory forge) {
+        forge.slots = Math.max(1, Math.min(ForgeCategory.MAX_SLOTS, forge.slots));
+        forge.shortlyMinutes = Math.max(1, Math.min(ForgeCategory.MAX_SHORTLY_MINUTES, forge.shortlyMinutes));
+        forge.alertBeforeMinutes = Math.max(0, Math.min(ForgeCategory.MAX_SHORTLY_MINUTES, forge.alertBeforeMinutes));
+        if (forge.bannerDesign == null) forge.bannerDesign = BannerDesign.ALERT_BAND;
+        if (forge.soundFile == null) forge.soundFile = "";
+        if (forge.slotData == null) forge.slotData = new ArrayList<>();
+        // Das Lesen und der Kasten greifen ohne Pruefung nach Platz 1 bis 7
+        while (forge.slotData.size() < ForgeCategory.MAX_SLOTS) forge.slotData.add(new ForgeSlot());
+        while (forge.slotData.size() > ForgeCategory.MAX_SLOTS) forge.slotData.removeLast();
+        forge.slotData.replaceAll(slot -> slot == null ? new ForgeSlot() : slot);
+        for (ForgeSlot slot : forge.slotData) {
+            if (slot.state == null) slot.state = "";
+            if (slot.item == null) slot.item = "";
+        }
     }
 
     /**
@@ -257,17 +347,17 @@ public class ModConfig extends Config {
         if (collectionTracker.lineOrder == null) collectionTracker.lineOrder = CollectionTrackerCategory.LineOrder.TOTAL_GAINED_HOUR;
         if (INSTANCE.effects == null) INSTANCE.effects = new EffectsCategory();
         if (INSTANCE.effects.list == null) INSTANCE.effects.list = new java.util.LinkedHashMap<>();
-        if (INSTANCE.forge == null) INSTANCE.forge = new ForgeCategory();
-        INSTANCE.forge.slots = Math.max(1, Math.min(ForgeCategory.MAX_SLOTS, INSTANCE.forge.slots));
-        if (INSTANCE.forge.slotData == null) INSTANCE.forge.slotData = new ArrayList<>();
-        // Immer sieben Plaetze, nie ein leerer Eintrag: Das Lesen und der Kasten greifen ohne Pruefung nach Platz 1 bis 7
-        while (INSTANCE.forge.slotData.size() < ForgeCategory.MAX_SLOTS) INSTANCE.forge.slotData.add(new ForgeSlot());
-        while (INSTANCE.forge.slotData.size() > ForgeCategory.MAX_SLOTS) INSTANCE.forge.slotData.removeLast();
-        INSTANCE.forge.slotData.replaceAll(slot -> slot == null ? new ForgeSlot() : slot);
-        for (ForgeSlot slot : INSTANCE.forge.slotData) {
-            if (slot.state == null) slot.state = "";
-            if (slot.item == null) slot.item = "";
-        }
+        // Die Forge wohnte bis 2.2.2 in einer eigenen Kategorie, jetzt unter Mining
+        if (migrateForge(INSTANCE)) INSTANCE.saveNow();
+        if (INSTANCE.mining.forge == null) INSTANCE.mining.forge = new ForgeCategory();
+        clampForge(INSTANCE.mining.forge);
+        if (INSTANCE.skillXp == null) INSTANCE.skillXp = new SkillXpCategory();
+        if (migrateSkillXpIdle(INSTANCE.skillXp)) INSTANCE.saveNow();
+        INSTANCE.skillXp.idleSeconds = Math.max(10, Math.min(SkillXpCategory.MAX_IDLE_SECONDS, INSTANCE.skillXp.idleSeconds));
+        INSTANCE.skillXp.maxRows = Math.max(1, Math.min(12, INSTANCE.skillXp.maxRows));
+        // Funny Map und The Mist wohnten in der ersten Fassung von 0.2.1 an anderen Stellen, jetzt unter ikohS
+        if (migrateIkohS(INSTANCE)) INSTANCE.saveNow();
+        clampFunnyMap(INSTANCE.ikohS.funnyMap);
         if (INSTANCE.fishing.hotspot == null) INSTANCE.fishing.hotspot = new HotspotCategory();
         if (INSTANCE.fishing.tracker == null) INSTANCE.fishing.tracker = new SeaTrackerCategory();
         if (INSTANCE.fishing.tracker.view == null) INSTANCE.fishing.tracker.view = SeaView.TOTAL;
@@ -552,8 +642,18 @@ public class ModConfig extends Config {
                         Minecraft.getInstance().gui.screen())));
         INSTANCE.effects.test = () -> Minecraft.getInstance().execute(
                 com.shokiteufel.shokimod.handler.EffectsTracker::test);
-        INSTANCE.forge.forget = () -> Minecraft.getInstance().execute(
+        INSTANCE.mining.forge.forget = () -> Minecraft.getInstance().execute(
                 com.shokiteufel.shokimod.handler.ForgeTracker::forget);
+        INSTANCE.skillXp.reset = () -> Minecraft.getInstance().execute(
+                com.shokiteufel.shokimod.handler.SkillXpTracker::askReset);
+        INSTANCE.mining.forge.test = () -> Minecraft.getInstance().execute(
+                com.shokiteufel.shokimod.handler.ForgeAlert::test);
+        INSTANCE.mining.forge.openSound = soundPicker(() -> INSTANCE.mining.forge.soundFile,
+                picked -> INSTANCE.mining.forge.soundFile = picked);
+        INSTANCE.mining.forge.openMaps = () -> Minecraft.getInstance().execute(() ->
+                Minecraft.getInstance().setScreenAndShow(new com.shokiteufel.shokimod.gui.AreaPickerScreen(
+                        Minecraft.getInstance().gui.screen(), "Maps: Forge panel", INSTANCE.hud.areasFor("FORGE"),
+                        "Nothing selected - the panel shows on every map", INSTANCE::saveNow)));
         INSTANCE.chat.petMax.test = () -> Minecraft.getInstance().execute(
                 com.shokiteufel.shokimod.handler.PetMaxAlert::test);
         INSTANCE.bugHunt.testSound = () -> Minecraft.getInstance().execute(() ->
@@ -614,6 +714,8 @@ public class ModConfig extends Config {
         INSTANCE.collections.tracker.resetTracker = () -> Minecraft.getInstance().execute(CollectionTracker::askReset);
         INSTANCE.collections.tracker.openPicker = () -> Minecraft.getInstance().execute(() ->
                 Minecraft.getInstance().setScreenAndShow(new CollectionPickerScreen(Minecraft.getInstance().gui.screen())));
+        INSTANCE.ikohS.funnyMap.openNoammMap = () -> Minecraft.getInstance().execute(
+                com.shokiteufel.shokimod.dungeonkarte.NoammBruecke::oeffnen);
         INSTANCE.profit.resetTracker = () -> Minecraft.getInstance().execute(ProfitTracker::askReset);
         INSTANCE.profit.openItems = () -> Minecraft.getInstance().execute(() ->
                 Minecraft.getInstance().setScreenAndShow(
@@ -1024,8 +1126,27 @@ public class ModConfig extends Config {
     public EffectsCategory effects = new EffectsCategory();
 
     @Expose
-    @Category(name = "Forge", desc = "The Forge in the Dwarven Mines: the mod reads the Forges list of the tab list there, remembers the time of every slot, and shows it in a panel on every map.")
-    public ForgeCategory forge = new ForgeCategory();
+    @Category(name = "Skill XP", desc = "How much experience each skill brings in this session, and what that comes to per hour. Read from the action bar; works for every skill (Fishing, Farming, Mining ...). Off until you turn it on.")
+    public SkillXpCategory skillXp = new SkillXpCategory();
+
+    @Expose
+    @Category(name = "ikohS", desc = "ShokiMod's own functions, apart from the normal ones: the Funny Map and The Mist. Everything in here is off until you turn it on.")
+    public IkohSCategory ikohS = new IkohSCategory();
+
+    /**
+     * Die Funny Map wohnte in 0.2.1 (erste Fassung) in einer eigenen Kategorie ganz oben. Sie steht jetzt unter ikohS ({@link IkohSCategory#funnyMap});
+     * dieses Feld gibt es nur noch, damit alte Dateien gelesen werden koennen (siehe {@link #migrateIkohS}). Ist es uebernommen, steht es auf null.
+     */
+    @Expose
+    public FunnyMapCategory funnyMap = null;
+
+    /**
+     * Bis 2.2.2 hatte die Forge eine eigene Kategorie. Sie wohnt jetzt unter Mining > Forge ({@link MiningCategory#forge});
+     * dieses Feld gibt es nur noch, damit alte Dateien gelesen werden koennen (siehe {@link #migrateForge}). Ist es uebernommen,
+     * steht es auf null und wird nicht mehr geschrieben.
+     */
+    @Expose
+    public ForgeCategory forge = null;
 
     @Expose
     @Category(name = "Profit", desc = "What a run brought in: every item that landed in your inventory or a sack, priced item by item.")
@@ -1380,6 +1501,14 @@ public class ModConfig extends Config {
         @Expose
         @Category(name = "Cold alert", desc = "A warning when your cold gets close to freezing in the Glacite Tunnels and the Mineshaft.")
         public ColdAlertCategory cold = new ColdAlertCategory();
+
+        @Expose
+        @Category(name = "Forge", desc = "The Forge in the Dwarven Mines: the mod reads the Forges list of the tab list there, remembers the time of every slot, and shows it in a panel on the maps you choose. Off until you turn it on.")
+        public ForgeCategory forge = new ForgeCategory();
+
+        /** Stand bis 0.2.1 (erste Fassung) hier; wohnt jetzt unter ikohS und wird beim Laden dorthin uebernommen (siehe {@link #migrateIkohS}) */
+        @Expose
+        public MistCategory mist = null;
     }
 
     /** Welche gefrorenen Leichen im Mining-HUD stehen sollen */
@@ -3840,30 +3969,182 @@ public class ModConfig extends Config {
         public String item = "";
         @Expose
         public long finishAt = 0L;
+        /** Vor diesem Stueck wurde schon gewarnt ("gleich fertig") - damit die Warnung je Stueck nur einmal kommt, auch nach einem Neustart */
+        @Expose
+        public boolean warned = false;
+        /** Fuer dieses Stueck kam schon die Meldung "fertig" */
+        @Expose
+        public boolean announced = false;
+    }
+
+    /** ikohS: ShokiMods eigene Funktionen, getrennt von den normalen - die Funny Map und The Mist */
+    public static class IkohSCategory {
+
+        @ConfigOption(name = "ikohS", desc = "ShokiMod's own functions, apart from the normal ones. Everything here is off until you turn it on.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @Category(name = "Funny Map", desc = "The whole dungeon map from the first seconds: every room, door and secret count, read from the chunks the server has already sent. Lays itself over the map of NoammAddons, on its position and at its size. Off until you turn it on.")
+        public FunnyMapCategory funnyMap = new FunnyMapCategory();
+
+        @Expose
+        @Category(name = "The Mist", desc = "The Mist in the Dwarven Mines: shows the invisible Ghosts as Creepers and marks the Runic Ghosts. Off until you turn it on.")
+        public MistCategory mist = new MistCategory();
+    }
+
+    /** Die Mist in den Dwarven Mines */
+    public static class MistCategory {
+
+        @ConfigOption(name = "The Mist", desc = "The Mist in the Dwarven Mines. Its Ghosts are plain Creepers that Hypixel makes invisible, without a name, so nothing says \"Runic\" - a Runic Ghost is told apart by its health: 4,000,000 against 1,000,000 for a normal one (the recordings of 09.11.). It does not need the switches of Mob Visuals. Everything here is off until you turn it on.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Show Ghosts as Creepers", desc = "Hypixel makes the Ghosts of the Mist invisible (an invisibility effect on a plain Creeper). This draws them as the normal Creepers they are, so you see where they are. The Creeper's own look only: nothing else about them changes. Off from the start.")
+        @ConfigEditorBoolean
+        public boolean showGhosts = false;
+
+        @Expose
+        @ConfigOption(name = "Mark Runic ghosts", desc = "Outlines every Ghost that has shown more than 1,500,000 health, through walls - and keeps it marked after you have hit it below that. It is the health that decides, not a name: if it marks the wrong ones, say which and when. Off from the start.")
+        @ConfigEditorBoolean
+        public boolean runicGhosts = false;
+
+        @Expose
+        @ConfigOption(name = "Line", desc = "Also draws a line from your crosshair to the nearest marked Runic Ghost.")
+        @ConfigEditorBoolean
+        public boolean runicGhostsLine = false;
+
+        @Expose
+        @ConfigOption(name = "Box", desc = "Also draws a box around every marked Runic Ghost.")
+        @ConfigEditorBoolean
+        public boolean runicGhostsBox = false;
+
+        @Expose
+        @ConfigOption(name = "Floor", desc = "The floor of the Mist is white glass, which makes the white Ghosts hard to see. This shows it as gray or black glass instead - only on your screen, only while you stand in the Mist; the server builds nothing different and every other white glass stays white. White: as the server builds it (the default).")
+        @ConfigEditorDropdown
+        public MistFloor floor = MistFloor.WHITE;
+    }
+
+    /** Wie der Boden der Mist aussieht */
+    public enum MistFloor {
+        WHITE("White (as built)"),
+        GRAY("Gray glass"),
+        BLACK("Black glass");
+
+        private final String label;
+
+        MistFloor(String label) {
+            this.label = label;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
     }
 
     public static class ForgeCategory {
 
         public static final int MAX_SLOTS = 7;
+        /** Das Zeitfenster "kurz vor Ende" und die Vorwarnung reichen bis hierher, in Minuten */
+        public static final int MAX_SHORTLY_MINUTES = 5;
 
-        @ConfigOption(name = "Forge", desc = "Open the Dwarven Mines once: the Forges list in the tab list there says what is in each slot and how long it takes. The mod remembers it, so the panel counts down on every map. Move it with /shoki hud. It needs the Forges widget in your tab list (the default in the Dwarven Mines; /widget turns it on).")
+        @ConfigOption(name = "Forge", desc = "Open the Dwarven Mines once: the Forges list in the tab list there says what is in each slot and how long it takes. The mod remembers it, so the panel counts down on the maps you choose. Move it with /shoki hud. It needs the Forges widget in your tab list (the default in the Dwarven Mines; /widget turns it on). Everything here is off until you turn it on.")
         @ConfigEditorInfoText
         public transient String about = "";
 
         @Expose
-        @ConfigOption(name = "Enabled", desc = "Read the Forges list of the tab list and remember the slots.")
+        @ConfigOption(name = "Enabled", desc = "Read the Forges list of the tab list and remember the slots. Off from the start: nothing in this section does anything until it is on.")
         @ConfigEditorBoolean
-        public boolean enabled = true;
+        public boolean enabled = false;
+
+        @ConfigOption(name = "Panel", desc = "The panel with the slots and their time: whether it shows, on which maps, and when.")
+        @ConfigEditorAccordion(id = 100)
+        public transient boolean panelFolder = false;
 
         @Expose
         @ConfigOption(name = "Show panel", desc = "The panel with the slots and their time. It stays away until the forge has been seen once. Move it with /shoki hud.")
         @ConfigEditorBoolean
+        @ConfigAccordionId(id = 100)
         public boolean showHud = true;
+
+        @ConfigOption(name = "Maps", desc = "The maps the panel shows on. Nothing selected: every map. The same choice is in the HUD editor (/shoki hud) under Areas.")
+        @ConfigEditorButton(buttonText = "Pick")
+        @ConfigAccordionId(id = 100)
+        public transient Runnable openMaps = () -> {
+        };
 
         @Expose
         @ConfigOption(name = "Slots shown", desc = "How many slots the panel lists, counted from slot 1. Slots that are still locked are never listed.")
         @ConfigEditorSlider(minValue = 1f, maxValue = 7f, minStep = 1f)
+        @ConfigAccordionId(id = 100)
         public int slots = MAX_SLOTS;
+
+        @Expose
+        @ConfigOption(name = "Only shortly before", desc = "Shows the panel only while a slot has a few minutes left or is ready, and lists just those slots - like the Dark Auction timer. A finished slot stays for 10 minutes. Off: the panel is always there.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 100)
+        public boolean onlyShortly = false;
+
+        @Expose
+        @ConfigOption(name = "Show it for the last", desc = "How many minutes before the end a slot shows up: 1 to 5. Only counts with 'Only shortly before' on.")
+        @ConfigEditorSlider(minValue = 1f, maxValue = 5f, minStep = 1f)
+        @ConfigAccordionId(id = 100)
+        public int shortlyMinutes = MAX_SHORTLY_MINUTES;
+
+        @ConfigOption(name = "Alert", desc = "A banner and a sound when a slot is almost done and when it is ready. Works on every map, the time comes from what the mod remembers.")
+        @ConfigEditorAccordion(id = 101)
+        public transient boolean alertFolder = false;
+
+        @Expose
+        @ConfigOption(name = "Forge alert", desc = "Warns about your forge slots: shortly before one is done and when it is ready. Needs 'Enabled' above. Works in SkyBlock only.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 101)
+        public boolean alert = false;
+
+        @Expose
+        @ConfigOption(name = "Warn minutes before", desc = "How many minutes before a slot is done the first warning comes: 1 to 5. 0 = no early warning, only when it is ready.")
+        @ConfigEditorSlider(minValue = 0f, maxValue = 5f, minStep = 1f)
+        @ConfigAccordionId(id = 101)
+        public int alertBeforeMinutes = 1;
+
+        @Expose
+        @ConfigOption(name = "Alert when ready", desc = "Also warns the moment a slot is done.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 101)
+        public boolean alertWhenReady = true;
+
+        @Expose
+        @ConfigOption(name = "Banner", desc = "Shows a banner with the alert. The design is picked in Alerts > Banner > Sandbox. Off: the alert only plays its sound.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 101)
+        public boolean banner = true;
+
+        /** Das Design des Banners - gewaehlt im Sandkasten (Liste "Use for") */
+        @Expose
+        public String bannerDesign = BannerDesign.ALERT_BAND;
+
+        @Expose
+        @ConfigOption(name = "Sound", desc = "Plays a sound with the alert, at the alert volume. Off: the alert stays silent.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 101)
+        public boolean sound = true;
+
+        @ConfigOption(name = "Sound file", desc = "Your own file from config/shokimod/sounds. Empty (No sound) plays the standard ping.")
+        @ConfigEditorButton(buttonText = "Pick")
+        @ConfigAccordionId(id = 101)
+        public transient Runnable openSound = () -> {
+        };
+
+        @Expose
+        public String soundFile = "";
+
+        @ConfigOption(name = "Test alert", desc = "Shows the alert once, as it would come when a slot is almost done.")
+        @ConfigEditorButton(buttonText = "Test")
+        @ConfigAccordionId(id = 101)
+        public transient Runnable test = () -> {
+        };
 
         @ConfigOption(name = "Forget saved times", desc = "Wipes what the mod remembers about the slots - useful after switching profile. It is read again the next time the Forges list is in your tab list.")
         @ConfigEditorButton(buttonText = "Forget")
@@ -3882,6 +4163,404 @@ public class ModConfig extends Config {
         public float hudScale = 1.0f;
         @Expose
         public float hudAlpha = 1.0f;
+    }
+
+    /**
+     * Erfahrung je Faehigkeit und Stunde. Von Haus aus aus, wie jede neue Funktion. Der Stand liegt nicht in der Datei: Er gilt fuer die
+     * Sitzung (siehe {@link com.shokiteufel.shokimod.handler.SkillXpTracker}), die Datei haelt nur die Einstellungen und die Lage des Kastens.
+     */
+    public static class SkillXpCategory {
+
+        /** Laengste einstellbare Pause in Sekunden */
+        public static final int MAX_IDLE_SECONDS = 600;
+
+        @ConfigOption(name = "Skill XP", desc = "Counts the experience of every skill you train and works out how much that is per hour. It reads the action bar, where Hypixel writes '+3,909.8 Fishing (...)' at every gain. The numbers are for this session: nothing is saved, Reset clears them. Move the panel with /shoki hud.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Enabled", desc = "Count the experience of your skills. Off from the start.")
+        @ConfigEditorBoolean
+        public boolean enabled = false;
+
+        @Expose
+        @ConfigOption(name = "Show panel", desc = "The panel with one line per skill: its experience, the time it ran and the experience per hour. It stays away until the first gain. Move it with /shoki hud.")
+        @ConfigEditorBoolean
+        public boolean showHud = true;
+
+        @Expose
+        @ConfigOption(name = "Pause after", desc = "Seconds without a gain after which a skill's clock stops: 10 to 600. Time spent AFK or doing something else does not drag the hourly rate down.")
+        @ConfigEditorSlider(minValue = 10f, maxValue = 600f, minStep = 5f)
+        public int idleSeconds = 30;
+
+        /** Bis 0.2.0 war die Pause von Haus aus 60 Sekunden, jetzt 30: Wer sie nie verstellt hat (60 steht noch da), bekommt einmalig die neue Vorgabe */
+        @Expose
+        public boolean idleDefaultMoved = false;
+
+        @Expose
+        @ConfigOption(name = "Lines shown", desc = "How many skills the panel lists, the one with the most experience first: 1 to 12.")
+        @ConfigEditorSlider(minValue = 1f, maxValue = 12f, minStep = 1f)
+        public int maxRows = 6;
+
+        @ConfigOption(name = "Reset", desc = "Clears the experience and the timers of every skill in this session.")
+        @ConfigEditorButton(buttonText = "Reset")
+        public transient Runnable reset = () -> {
+        };
+
+        @Expose
+        public float hudX = 0.02f;
+        @Expose
+        public float hudY = 0.45f;
+        @Expose
+        public float hudScale = 1.0f;
+        @Expose
+        public float hudAlpha = 1.0f;
+    }
+
+    /** Was die Funny Map in einem Raum zeigt: dieselbe Auswahl wie bei NoammAddons ("Checkmark Style"), in derselben Reihenfolge */
+    public enum FunnyStyle {
+        CHECKMARKS("Checkmarks"),
+        SECRETS("Secrets"),
+        NAMES("Room Name"),
+        NAMES_AND_SECRETS("Room Name + Secrets"),
+        SECRETS_AND_PUZZLE_NAMES("Secrets + Puzzle Name");
+
+        private final String label;
+
+        FunnyStyle(String label) {
+            this.label = label;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
+    }
+
+    /** Wann die Namen der Spieler auf der Karte stehen: dieselbe Auswahl wie bei NoammAddons ("Show Player Names") */
+    public enum FunnyPlayerNames {
+        OFF("Off"),
+        HOLDING_LEAP("Holding Leap"),
+        ALWAYS("Always");
+
+        private final String label;
+
+        FunnyPlayerNames(String label) {
+            this.label = label;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
+    }
+
+    /**
+     * Die Funny Map: der ganze Dungeon auf einer Karte, ab den ersten Sekunden (siehe {@link com.shokiteufel.shokimod.dungeonkarte.FunnyKarte}).
+     * Von Haus aus aus. Sie ersetzt keine Hypixel-Karte, sie ist eine eigene Anzeige; wer NoammAddons nutzt, bekommt sie auf dessen
+     * Platz und in dessen Groesse.
+     */
+    public static class FunnyMapCategory {
+
+        @ConfigOption(name = "Funny Map", desc = "Shows every room of the dungeon - also the ones nobody has entered yet - with its type, name and number of secrets, drawn from the chunks the server has already sent you. The server's rules decide whether that is allowed: it is your choice and your risk. With NoammAddons installed it lays itself over its dungeon map, on its position and at its size, and hides it. Works in the Catacombs only.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Enabled", desc = "Show the Funny Map in dungeons. Off from the start.")
+        @ConfigEditorBoolean
+        public boolean enabled = false;
+
+        @ConfigOption(name = "NoammAddons map settings", desc = "Opens the settings window of the dungeon map in the menu of NoammAddons, with its preview. It has the same settings as the folders below. With the sync on, what you change there shows here within a second, and the other way round.")
+        @ConfigEditorButton(buttonText = "Open")
+        public transient Runnable openNoammMap = () -> {
+        };
+
+        @ConfigOption(name = "Position and size", desc = "Where the map sits and how big it is.")
+        @ConfigEditorAccordion(id = 103)
+        public transient boolean positionFolder = false;
+
+        @Expose
+        @ConfigOption(name = "Sync with NoammAddons", desc = "Keeps the dungeon map of NoammAddons and this map in step, both ways: what stands at NoammAddons now is taken over first (settings, position and size), and from then on a change on either side - in /na hud or the menu of NoammAddons, or here - shows on the other one within a second. The map lies exactly on top of its map, whatever your GUI size is. Without NoammAddons, or with this off, the values here count on their own.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 103)
+        public boolean followNoamm = true;
+
+        @Expose
+        @ConfigOption(name = "Left", desc = "Distance from the left edge in GUI points. With the sync on, these follow NoammAddons (same numbers as in its HUD editor).")
+        @ConfigEditorSlider(minValue = 0f, maxValue = 1000f, minStep = 1f)
+        @ConfigAccordionId(id = 103)
+        public float x = 20f;
+
+        @Expose
+        @ConfigOption(name = "Top", desc = "Distance from the top edge in GUI points. With the sync on, these follow NoammAddons (same numbers as in its HUD editor).")
+        @ConfigEditorSlider(minValue = 0f, maxValue = 600f, minStep = 1f)
+        @ConfigAccordionId(id = 103)
+        public float y = 20f;
+
+        @Expose
+        @ConfigOption(name = "Size", desc = "Scale of the map: 1 is 128 points wide, like the map of Hypixel. With the sync on, these follow NoammAddons (same numbers as in its HUD editor).")
+        @ConfigEditorSlider(minValue = 0.5f, maxValue = 5f, minStep = 0.1f)
+        @ConfigAccordionId(id = 103)
+        public float scale = 1.0f;
+
+        @ConfigOption(name = "General", desc = "What the map does in general.")
+        @ConfigEditorAccordion(id = 104)
+        public transient boolean generalFolder = false;
+
+        @Expose
+        @ConfigOption(name = "Hide In Boss", desc = "Takes the map away once you are in the boss room.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 104)
+        public boolean hideInBoss = false;
+
+        @Expose
+        @ConfigOption(name = "Show Extra Info Under Map", desc = "A line under the map with the number of secrets in the rooms found, and how many rooms are still unknown. Off from the start, like at NoammAddons.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 104)
+        public boolean extraLine = false;
+
+        @Expose
+        @ConfigOption(name = "Show players (ShokiMod)", desc = "Marks you and the other players on the map. NoammAddons has no switch for this.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 104)
+        public boolean showPlayers = true;
+
+        @ConfigOption(name = "Size & Border", desc = "Text and checkmark size, door width, background and border.")
+        @ConfigEditorAccordion(id = 105)
+        public transient boolean sizeborderFolder = false;
+
+        @Expose
+        @ConfigOption(name = "Map Text Scale", desc = "Size of the text in the rooms.")
+        @ConfigEditorSlider(minValue = 0.4f, maxValue = 1.5f, minStep = 0.1f)
+        @ConfigAccordionId(id = 105)
+        public float textScale = 1.0f;
+
+        @Expose
+        @ConfigOption(name = "Map Checkmark Scale", desc = "Size of the checkmarks and crosses in the rooms.")
+        @ConfigEditorSlider(minValue = 0.3f, maxValue = 1.5f, minStep = 0.1f)
+        @ConfigAccordionId(id = 105)
+        public float checkmarkScale = 1.0f;
+
+        @Expose
+        @ConfigOption(name = "Door Width", desc = "How wide the doors between the rooms are drawn, in map points.")
+        @ConfigEditorSlider(minValue = 6f, maxValue = 10f, minStep = 1f)
+        @ConfigAccordionId(id = 105)
+        public int doorWidth = 6;
+
+        @Expose
+        @ConfigOption(name = "Map Background Color", desc = "The colour behind the rooms, with its opacity (here the opacity slider of the picker counts).")
+        @ConfigEditorColour
+        @ConfigAccordionId(id = 105)
+        public String backgroundColour = ColourText.ofArgb(0x32FFFFFF);
+
+        @Expose
+        @ConfigOption(name = "Map Border Color", desc = "The colour of the edge around the map.")
+        @ConfigEditorColour
+        @ConfigAccordionId(id = 105)
+        public String borderColour = ColourText.ofArgb(0xFFFFFFFF);
+
+        @Expose
+        @ConfigOption(name = "Border Thickness", desc = "How thick the edge around the map is, in map points.")
+        @ConfigEditorSlider(minValue = 1f, maxValue = 5f, minStep = 1f)
+        @ConfigAccordionId(id = 105)
+        public int borderWidth = 1;
+
+        @ConfigOption(name = "Rooms", desc = "What the rooms show and how unvisited ones look.")
+        @ConfigEditorAccordion(id = 106)
+        public transient boolean roomsFolder = false;
+
+        @Expose
+        @ConfigOption(name = "Checkmark Style", desc = "What stands in a room: a checkmark for its state, the number of secrets found out of all, its name, name and secrets, or secrets with the name of puzzles.")
+        @ConfigEditorDropdown
+        @ConfigAccordionId(id = 106)
+        public FunnyStyle style = FunnyStyle.CHECKMARKS;
+
+        @Expose
+        @ConfigOption(name = "Center Checkmark/Text", desc = "Puts the checkmark or text in the middle of a room. Off: in its upper left corner.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 106)
+        public boolean centerCheckmark = true;
+
+        @Expose
+        @ConfigOption(name = "Hide text/checkmark of Blood room", desc = "Shows nothing in the Blood room.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 106)
+        public boolean hideBloodRoomText = false;
+
+        @Expose
+        @ConfigOption(name = "Hide Unknown Room Checkmark", desc = "Hides the question mark in rooms nobody has seen. Only with the style Checkmarks.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 106)
+        public boolean hideUnknownCheckmark = false;
+
+        @Expose
+        @ConfigOption(name = "Limit Room Name Size", desc = "Shrinks long room names so they stay inside their room. Only with a style that shows names.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 106)
+        public boolean limitRoomNameSize = true;
+
+        @Expose
+        @ConfigOption(name = "Undiscovered Room Tint", desc = "How far rooms nobody has entered are tinted towards the colour below, in percent. 0 shows them like visited ones.")
+        @ConfigEditorSlider(minValue = 0f, maxValue = 100f, minStep = 1f)
+        @ConfigAccordionId(id = 106)
+        public int darken = 50;
+
+        @Expose
+        @ConfigOption(name = "Undiscovered Room", desc = "The colour unvisited rooms are tinted towards.")
+        @ConfigEditorColour
+        @ConfigAccordionId(id = 106)
+        public String undiscoveredColour = ColourText.ofArgb(0xFF000000);
+
+        @ConfigOption(name = "Players", desc = "Heads, names and the marker of the players.")
+        @ConfigEditorAccordion(id = 107)
+        public transient boolean playersFolder = false;
+
+        @Expose
+        @ConfigOption(name = "Show Player Names", desc = "When the name of a player stands next to the head: never, while you hold a leap item, or always.")
+        @ConfigEditorDropdown
+        @ConfigAccordionId(id = 107)
+        public FunnyPlayerNames playerNames = FunnyPlayerNames.OFF;
+
+        @Expose
+        @ConfigOption(name = "Player Heads Scale", desc = "Size of the heads on the map.")
+        @ConfigEditorSlider(minValue = 0.3f, maxValue = 1.5f, minStep = 0.1f)
+        @ConfigAccordionId(id = 107)
+        public float headScale = 1.0f;
+
+        @Expose
+        @ConfigOption(name = "Player Name Scale", desc = "Size of the names.")
+        @ConfigEditorSlider(minValue = 0.3f, maxValue = 1.5f, minStep = 0.1f)
+        @ConfigAccordionId(id = 107)
+        public float nameScale = 0.5f;
+
+        @Expose
+        @ConfigOption(name = "Head Border", desc = "The colour of the frame around a head.")
+        @ConfigEditorColour
+        @ConfigAccordionId(id = 107)
+        public String headBorderColour = ColourText.ofArgb(0xFF000000);
+
+        @Expose
+        @ConfigOption(name = "Head Border Class Base", desc = "Colours the frame by the dungeon class of the player instead.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 107)
+        public boolean headBorderClass = false;
+
+        @Expose
+        @ConfigOption(name = "Player Names Class Base", desc = "Colours the names by the dungeon class of the player.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 107)
+        public boolean namesClass = false;
+
+        @Expose
+        @ConfigOption(name = "Vanilla Head Marker", desc = "Draws yourself as the arrow of the normal map instead of a head.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 107)
+        public boolean vanillaMarker = false;
+
+        @Expose
+        @ConfigOption(name = "Vanilla Head Marker Color", desc = "The colour of that arrow.")
+        @ConfigEditorColour
+        @ConfigAccordionId(id = 107)
+        public String vanillaMarkerColour = ColourText.ofArgb(0xFF00FF00);
+
+        @ConfigOption(name = "Room Colors", desc = "The colour of every kind of room.")
+        @ConfigEditorAccordion(id = 108)
+        public transient boolean roomcolorsFolder = false;
+
+        @Expose
+        @ConfigOption(name = "Unopened Room", desc = "Rooms the map only knows as closed.")
+        @ConfigEditorColour
+        @ConfigAccordionId(id = 108)
+        public String roomUnopened = ColourText.ofArgb(0xFF414141);
+
+        @Expose
+        @ConfigOption(name = "Blood Room", desc = "The Blood room.")
+        @ConfigEditorColour
+        @ConfigAccordionId(id = 108)
+        public String roomBlood = ColourText.ofArgb(0xFFFF0000);
+
+        @Expose
+        @ConfigOption(name = "Fairy Room", desc = "The Fairy room.")
+        @ConfigEditorColour
+        @ConfigAccordionId(id = 108)
+        public String roomFairy = ColourText.ofArgb(0xFFF27FA5);
+
+        @Expose
+        @ConfigOption(name = "Rare Room", desc = "Rare rooms.")
+        @ConfigEditorColour
+        @ConfigAccordionId(id = 108)
+        public String roomRare = ColourText.ofArgb(0xFFB2B2B2);
+
+        @Expose
+        @ConfigOption(name = "Miniboss Room", desc = "Rooms with a miniboss.")
+        @ConfigEditorColour
+        @ConfigAccordionId(id = 108)
+        public String roomMiniboss = ColourText.ofArgb(0xFFE5E533);
+
+        @Expose
+        @ConfigOption(name = "Puzzle Room", desc = "Puzzle rooms.")
+        @ConfigEditorColour
+        @ConfigAccordionId(id = 108)
+        public String roomPuzzle = ColourText.ofArgb(0xFFB24CD8);
+
+        @Expose
+        @ConfigOption(name = "Trap Room", desc = "Trap rooms.")
+        @ConfigEditorColour
+        @ConfigAccordionId(id = 108)
+        public String roomTrap = ColourText.ofArgb(0xFFD87F33);
+
+        @Expose
+        @ConfigOption(name = "Normal Room", desc = "All other rooms.")
+        @ConfigEditorColour
+        @ConfigAccordionId(id = 108)
+        public String roomNormal = ColourText.ofArgb(0xFF72431B);
+
+        @Expose
+        @ConfigOption(name = "Entrance Room", desc = "The entrance.")
+        @ConfigEditorColour
+        @ConfigAccordionId(id = 108)
+        public String roomEntrance = ColourText.ofArgb(0xFF007C00);
+
+        @ConfigOption(name = "Door Colors", desc = "The colour of every kind of door.")
+        @ConfigEditorAccordion(id = 109)
+        public transient boolean doorcolorsFolder = false;
+
+        @Expose
+        @ConfigOption(name = "Unopened Door", desc = "Doors the map only knows as closed.")
+        @ConfigEditorColour
+        @ConfigAccordionId(id = 109)
+        public String doorUnopened = ColourText.ofArgb(0xFF414141);
+
+        @Expose
+        @ConfigOption(name = "Blood Door", desc = "The door of the Blood room.")
+        @ConfigEditorColour
+        @ConfigAccordionId(id = 109)
+        public String doorBlood = ColourText.ofArgb(0xFFFF0000);
+
+        @Expose
+        @ConfigOption(name = "Wither Door", desc = "Wither doors that are still shut.")
+        @ConfigEditorColour
+        @ConfigAccordionId(id = 109)
+        public String doorWither = ColourText.ofArgb(0xFF101010);
+
+        @Expose
+        @ConfigOption(name = "Normal Door", desc = "Doors between normal rooms.")
+        @ConfigEditorColour
+        @ConfigAccordionId(id = 109)
+        public String doorNormal = ColourText.ofArgb(0xFF72431B);
+
+        @Expose
+        @ConfigOption(name = "Opened Wither Door", desc = "Wither doors that are open.")
+        @ConfigEditorColour
+        @ConfigAccordionId(id = 109)
+        public String doorOpenWither = ColourText.ofArgb(0xFF72431B);
+
+        @Expose
+        @ConfigOption(name = "Entrance Door", desc = "The door of the entrance.")
+        @ConfigEditorColour
+        @ConfigAccordionId(id = 109)
+        public String doorEntrance = ColourText.ofArgb(0xFF007C00);
     }
 
     public static class PetMaxCategory {
@@ -3974,6 +4653,28 @@ public class ModConfig extends Config {
         @ConfigEditorSlider(minValue = 0f, maxValue = 32f, minStep = 0.5f)
         @ConfigAccordionId(id = 90)
         public float hidePlayersDistance = 3.0f;
+
+        @ConfigOption(name = "Star mobs", desc = "Marks the star mobs (✯) in a dungeon, so you see where the rest of a room is hiding - through walls.")
+        @ConfigEditorAccordion(id = 102)
+        public transient boolean starMobsFolder = false;
+
+        @Expose
+        @ConfigOption(name = "Mark star mobs", desc = "Glows every mob with a star (✯) before its name, through walls. Only in the Catacombs, read from the tab list and the sidebar. It follows the Mob Visuals master switch. Off from the start.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 102)
+        public boolean starMobs = false;
+
+        @Expose
+        @ConfigOption(name = "Line", desc = "Also draws a line from your crosshair to every star mob.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 102)
+        public boolean starMobsLine = false;
+
+        @Expose
+        @ConfigOption(name = "Box", desc = "Also draws a box around every star mob.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 102)
+        public boolean starMobsBox = false;
 
         @ConfigOption(name = "Camera", desc = "Keeps the camera from going to the front of your player. From Odin's Camera.")
         @ConfigEditorAccordion(id = 91)
@@ -4154,6 +4855,11 @@ public class ModConfig extends Config {
         @ConfigOption(name = "Profit diagnostics", desc = "Writes every counted find, every suppressed one and every batch that came in through a window into the log. Only for troubleshooting - switch it on for one run, then send the log.")
         @ConfigEditorBoolean
         public boolean profitDiagnostics = false;
+
+        @Expose
+        @ConfigOption(name = "Profit core log", desc = "Writes every decision of the packet core behind the Profit Tracker - what arrived in the inventory and why it counted or not - into logs/shokimod-kern.jsonl, next to latest.log. It grows with every hour of play, so switch it on for one run, then hand the file over.")
+        @ConfigEditorBoolean
+        public boolean kernLog = false;
 
         @Expose
         @ConfigOption(name = "Mob glow log", desc = "Writes into the log why a custom mob does or does not glow. Only for troubleshooting.")
@@ -4342,6 +5048,11 @@ public class ModConfig extends Config {
         @ConfigEditorBoolean
         public boolean showHud = true;
 
+        @Expose
+        @ConfigOption(name = "Hide in Dungeons", desc = "Hides the panel by itself during a dungeon run (the Catacombs) and brings it back when you leave. Only the panel goes: everything that arrives is still counted. Off from the start.")
+        @ConfigEditorBoolean
+        public boolean hideInDungeons = false;
+
         @ConfigOption(name = "Items", desc = "Which items the panel shows and how each one is sold - Instant Sell, Sell Order or the NPC.")
         @ConfigEditorButton(buttonText = "Open")
         public transient Runnable openItems = () -> {
@@ -4518,6 +5229,12 @@ public class ModConfig extends Config {
                 desc = "The Dungeon Chest Key a reward chest needs counts as spent, at its price. Kuudra keys have no price list and are left out.")
         @ConfigEditorBoolean
         public boolean countChestKey = true;
+
+        @Expose
+        @ConfigOption(name = "Count bait as cost",
+                desc = "Bait you use up while fishing (Whale Bait and the like) shows in the tracker as a minus at its price; bait that falls back into the sack (the chance not to use it) is taken off again. Off from the start: bait then does not show in the tracker at all - not as a gain, not as a cost, not after crafting.")
+        @ConfigEditorBoolean
+        public boolean countBait = false;
 
         @Expose
         @ConfigOption(name = "Count corpse keys as cost",

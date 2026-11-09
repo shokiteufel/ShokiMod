@@ -34,8 +34,13 @@
 		{
 			"config": "shokimod-odin.mixins.json",
 			"environment": "client"
+		},
+		{
+			"config": "shokimod-pakete.mixins.json",
+			"environment": "client"
 		}
 	],
+	"accessWidener": "shokimod.accesswidener",
 	"custom": {
 		"shokimod:upstream": "GanKura 6.4.0+26.1.x (fork point 39d3901, 2026-08-22)",
 		"shokimod:credits": "https://github.com/shokiteufel/ShokiMod/blob/26.1.x/CREDITS.md"

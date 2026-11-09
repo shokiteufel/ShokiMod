@@ -160,6 +160,11 @@ public final class BannerUses {
                 name -> ModConfig.INSTANCE.mining.cold.bannerDesign = name,
                 BannerDesign.ALERT_BAND,
                 () -> resolved(ModConfig.INSTANCE.mining.cold.bannerDesign)));
+        out.add(new Use("Forge", "Forge", "A forge slot is almost done or ready",
+                () -> ModConfig.INSTANCE.mining.forge.bannerDesign,
+                name -> ModConfig.INSTANCE.mining.forge.bannerDesign = name,
+                BannerDesign.ALERT_BAND,
+                () -> resolved(ModConfig.INSTANCE.mining.forge.bannerDesign)));
         out.add(new Use("Dark Auction", "DA", "The warning shortly before the Dark Auction opens",
                 () -> ModConfig.INSTANCE.chat.reminder.darkAuctionBannerDesign,
                 name -> ModConfig.INSTANCE.chat.reminder.darkAuctionBannerDesign = name,

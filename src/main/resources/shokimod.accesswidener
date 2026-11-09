@@ -1,0 +1,10 @@
+accessWidener v2 official
+
+# Klassifizierung der Pakete: Entity-IDs in Paketen, die keine oeffentliche Zugriffsmethode dafuer haben (Minecraft 26.2).
+# Gelesen aus der Fabric-Fassung von 26.2 (javap): alle Felder sind dort private bzw. protected final.
+accessible field net/minecraft/network/protocol/game/ClientboundEntityEventPacket entityId I
+accessible field net/minecraft/network/protocol/game/ClientboundMoveEntityPacket entityId I
+accessible field net/minecraft/network/protocol/game/ClientboundRotateHeadPacket entityId I
+accessible field net/minecraft/network/protocol/game/ClientboundSetCameraPacket cameraId I
+accessible field net/minecraft/network/protocol/game/ClientboundPlayerLookAtPacket entity I
+accessible field net/minecraft/network/protocol/game/ClientboundPlayerLookAtPacket atEntity Z

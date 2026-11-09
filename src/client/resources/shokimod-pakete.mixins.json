@@ -1,0 +1,13 @@
+{
+	"required": false,
+	"package": "com.shokiteufel.shokimod.paket.mixin",
+	"compatibilityLevel": "JAVA_25",
+	"client": [
+		"ConnectionMixin",
+		"ListenerAndPacketMixin",
+		"PacketProcessorMixin"
+	],
+	"injectors": {
+		"defaultRequire": 0
+	}
+}

@@ -7,10 +7,12 @@ import com.shokiteufel.shokimod.data.HideyhoTarget;
 import com.shokiteufel.shokimod.data.MobVisual;
 import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.data.PestTarget;
+import com.shokiteufel.shokimod.data.RunicGhostTarget;
 import com.shokiteufel.shokimod.data.SlayerBossTarget;
 import com.shokiteufel.shokimod.data.SlayerMinibossTarget;
 import com.shokiteufel.shokimod.data.SlayerMobKind;
 import com.shokiteufel.shokimod.data.SparklingTarget;
+import com.shokiteufel.shokimod.data.StarMobTarget;
 import com.shokiteufel.shokimod.handler.SlayerBossSpawn;
 import com.shokiteufel.shokimod.util.CustomMobDebug;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -108,6 +110,8 @@ public class EntityHighlightManager {
     private static final double PEST_SEARCH_RADIUS = 3.0;
 
     private static int debugNamedCount = 0;
+    /** Die Pruefung "steht man im Dungeon?" laeuft zweimal je Sekunde, nicht in jedem Tick */
+    private static int starTicks = 0;
     private static int debugMatchCount = 0;
 
     /**
@@ -219,6 +223,16 @@ public class EntityHighlightManager {
             return;
         }
 
+        // Die Stern-Mobs im Dungeon: ob man dort steht, kommt aus der Tab-Liste und der Seitenleiste und wird zweimal je Sekunde gelesen
+        if (StarMobTarget.enabled() && ++starTicks >= 10) {
+            starTicks = 0;
+            StarMobTarget.setInDungeon(com.shokiteufel.shokimod.handler.HidePlayers.detectDungeon(
+                    com.shokiteufel.shokimod.scanner.TabListScanner.lastLines(),
+                    com.shokiteufel.shokimod.util.ScoreboardUtils.getSidebarLines(client)));
+        } else if (!StarMobTarget.enabled()) {
+            StarMobTarget.setInDungeon(false);
+        }
+
         // Ein Durchgang fuer beide Fragen, ohne Stream und ohne Lambda: diese Schleife
         // laeuft jeden Tick, und jede Allokation darin waere eine je Tick
         boolean scanCustom = false;
@@ -239,13 +253,19 @@ public class EntityHighlightManager {
         boolean scanHideyho = HideyhoTarget.enabled();
         // Die Pests im Garden: nur dort, mit eigenen Schaltern
         boolean scanPests = PestTarget.scanning();
+        boolean scanStars = StarMobTarget.scanning();
+        // Die Runic Ghosts der Mist: Creeper ohne Namen, erkannt am Leben (kein Namensschild zum Suchen)
+        boolean scanRunic = RunicGhostTarget.scanning();
+        if (!scanRunic && !runicSeen.isEmpty()) runicSeen.clear();
         // Der eigene Slayer-Boss: nur in SkyBlock und nur mit dem Schalter. Der eigene Name einmal je Tick
         boolean skyblock = GameState.Server.isSkyblock();
         boolean scanSlayer = SlayerBossTarget.scanning() && skyblock;
         boolean scanMiniboss = SlayerMinibossTarget.scanning() && skyblock;
         String ownName = scanSlayer && client.getUser() != null ? client.getUser().getName() : null;
 
-        if (!scanCustom && !scanSparkling && !scanHideyho && !scanSlayer && !scanMiniboss && !scanPests) return;
+        if (!scanCustom && !scanSparkling && !scanHideyho && !scanSlayer && !scanMiniboss && !scanPests && !scanStars && !scanRunic) return;
+
+        if (scanRunic) markRunicGhosts(client);
 
         if (scanCustomType) {
             for (Entity entity : client.level.entitiesForRendering()) {
@@ -340,6 +360,19 @@ public class EntityHighlightManager {
                 registerBox(visual, target);
             }
 
+            // Die Stern-Mobs im Dungeon: das Schild mit dem Sternchen, darunter steht der Mob. Umriss durch die Waende, auf Wunsch Linie und Kasten
+            if (scanStars && entity instanceof ArmorStand && StarMobTarget.isStar(nameStr)) {
+                StarMobTarget target = StarMobTarget.INSTANCE;
+                Entity visualTarget = starBody(client, entity, nameStr);
+                Entity visual = visualTarget != null ? visualTarget : entity;
+                if (visualTarget != null) {
+                    nametagClaimedEntities.add(visualTarget);
+                    if (target.highlight()) registerHighlight(visualTarget, target);
+                }
+                registerTracer(visual, target);
+                registerBox(visual, target);
+            }
+
             // ユーザーが Customize で追加したモブ。エリアを限定しないので毎回見る。
             // 体力表示が変わり続けるため、判定は保存時に整えた名前の部分一致で行う
             for (CustomMob custom : ModConfig.INSTANCE.mobVisuals.customTargets) {
@@ -373,6 +406,46 @@ public class EntityHighlightManager {
         }
 
         if (pestNames != null) markPests(client, pestNames);
+    }
+
+    /**
+     * Der Koerper eines Stern-Mobs. Hypixel legt ihn unmittelbar vor seinem Namensschild an: Entity-ID des Schilds minus 1, beim
+     * Withermancer minus 3 (dazwischen stehen die Wither-Schaedel, die er schiesst). Im Mitschnitt vom 09.11. stimmte das bei allen
+     * 46 Schildern (27 Zombies, 9 Skelette, 8 Spieler-NPCs, 1 Enderman, 1 Withermancer). Findet sich dort nichts Brauchbares, wird wie bei
+     * den anderen Markierungen in der Naehe gesucht.
+     */
+    private static Entity starBody(Minecraft client, Entity nameTag, String name) {
+        Entity byId = client.level.getEntity(nameTag.getId() - StarMobTarget.bodyIdOffset(name));
+        if (byId != null && !(byId instanceof ArmorStand) && byId != client.player) return byId;
+        return customVisual(client, nameTag);
+    }
+
+    /**
+     * Die Ghosts der Mist, die als Runic gelten: Creeper ohne Namen, die mehr Leben gezeigt haben als ein gewoehnlicher. Gemerkt wird der Mob
+     * selbst (nicht seine ID, die in einer anderen Welt wieder vergeben wird): Wer einmal so viel Leben hatte, bleibt markiert, auch wenn man
+     * ihn danach unter die Grenze schlaegt.
+     */
+    private static final Set<Entity> runicSeen = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+
+    private static void markRunicGhosts(Minecraft client) {
+        RunicGhostTarget target = RunicGhostTarget.INSTANCE;
+        if (!runicSeen.isEmpty()) runicSeen.removeIf(Entity::isRemoved);
+        for (Entity entity : client.level.entitiesForRendering()) {
+            if (!RunicGhostTarget.isGhostBody(entity.getType().getDescriptionId())) continue;
+            if (!runicSeen.contains(entity)) {
+                if (!(entity instanceof LivingEntity living) || !RunicGhostTarget.isRunicHealth(living.getHealth())) continue;
+                runicSeen.add(entity);
+                // Einmal je Mob: auf Hypixel hat sich die Deutung (Leben ueber 1,5 Mio. = Runic) noch nicht an einem echten bestaetigt
+                com.shokiteufel.shokimod.ShokiMod.LOGGER.info("[Mist] Runic ghost? {} #{} at {} {} {} with health {}",
+                        entity.getType().getDescriptionId(), entity.getId(), (int) entity.getX(), (int) entity.getY(), (int) entity.getZ(),
+                        living.getHealth());
+            }
+            // Auch unsichtbare Ghosts bekommen den Umriss: Hypixel macht sie unsichtbar (Flag + Effekt), und der Vanilla-Umriss zeichnet ein
+            // leuchtendes Wesen auch dann, wenn sein Koerper nicht gezeichnet wird - gerade deshalb sind sie sonst kaum zu finden
+            if (target.highlight()) registerHighlight(entity, target);
+            registerTracer(entity, target);
+            registerBox(entity, target);
+        }
     }
 
     /** Ist das ein Silverfisch oder eine Fledermaus - die beiden Koerper, die Pests im Garden haben (so fuehrt SkyHanni sie) */

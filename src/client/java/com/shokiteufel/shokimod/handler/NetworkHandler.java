@@ -44,7 +44,8 @@ public class NetworkHandler {
             PestReminder.reset();
             VisitorReminder.reset();
             HotspotTracker.reset();
-            com.shokiteufel.shokimod.scanner.PetState.reset();
+            // Das Pet bleibt ueber den Weltwechsel (im Dungeon steht in der Tab-Liste keins); ein anderes Profil meldet sich per "Profile ID"
+            com.shokiteufel.shokimod.scanner.PetState.worldJoined();
             com.shokiteufel.shokimod.scanner.PerformanceState.reset();
             // Beim Betreten eines Mineshafts setzt Hypixel die Abklingzeit der Faehigkeit zurueck: das ist keine Bereitschaft
             com.shokiteufel.shokimod.scanner.MiningState.worldJoined();
@@ -61,6 +62,14 @@ public class NetworkHandler {
             // hier gezaehlt. Die Zeile kommt in jedem Tick, deshalb erst der billige
             // Blick auf das Wort und nur dann die Arbeit
             if (overlay) {
+                // Der Skill-XP-Zaehler liest den Zugewinn "+3,909.8 Fishing (...)": nur bei einem Plus, und nur wenn er an ist
+                if (FeatureGate.skillXp() && msg.indexOf('+') >= 0 && GameState.Server.isSkyblock()) {
+                    com.shokiteufel.shokimod.handler.SkillXpTracker.onActionBar(COLOUR_CODE.matcher(msg).replaceAll(""));
+                }
+                // Im Dungeon steht dort "0/6 Secrets": wie viele des Raums schon gefunden sind (Funny Map: "3/9" statt nur "9")
+                if (msg.indexOf("Secrets") >= 0 && FeatureGate.funnyMap() && GameState.Server.isSkyblock()) {
+                    com.shokiteufel.shokimod.dungeonkarte.FunnyKarte.onActionBar(COLOUR_CODE.matcher(msg).replaceAll(""));
+                }
                 if (FeatureGate.itemChanges() && GameState.Server.isSkyblock()) {
                     // Auch die Zeile ohne Essence wird gemeldet: An ihr merkt der
                     // Zaehler, dass das Segment weg ist, und laesst denselben Betrag
@@ -90,7 +99,6 @@ public class NetworkHandler {
             // Der Zaehler fuer Faenge, Double Hooks und Cocoons liest dieselbe Zeile
             com.shokiteufel.shokimod.handler.SeaCreatureTracker.onChatMessage(unformattedMsg);
             com.shokiteufel.shokimod.handler.MineshaftProfit.onChatMessage(unformattedMsg);
-            com.shokiteufel.shokimod.scanner.ItemChanges.onChatMessage(unformattedMsg);
             com.shokiteufel.shokimod.handler.EffectsTracker.onChatMessage(unformattedMsg);
             // "Your Plasmaflux Power Orb despawned." - die Meldung, wenn ein Deployable ablaeuft
             com.shokiteufel.shokimod.handler.DeployableReminder.onChatMessage(unformattedMsg);
@@ -115,8 +123,7 @@ public class NetworkHandler {
             com.shokiteufel.shokimod.handler.CorpseKeyCost.onChatMessage(unformattedMsg);
             // Der Collection-Tracker braucht die Nachricht selbst: die Aufstellung haengt am Mauszeiger
             CollectionTracker.onChatMessage(message, unformattedMsg);
-            // Und der Profit-Tracker dieselbe Zeile: was in einen Sack faellt, sieht das Inventar nie
-            com.shokiteufel.shokimod.scanner.ItemChanges.onChatMessage(message, msg, unformattedMsg);
+            // Der Profit-Tracker liest seine Chat-Quellen (Saecke, Leichen, Shards) aus dem Paketstrom (KernAnschluss), nicht hier
 
             // Ein "false" blendet die Originalzeile aus
             boolean zeigen = ChatRuleHandler.handleMessage(message, msg, unformattedMsg);

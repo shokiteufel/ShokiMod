@@ -14,8 +14,12 @@ import java.util.regex.Pattern;
  * (siehe CREDITS.md) und auf Hypixel hier noch nicht gesehen - darum meldet {@link ForgeTracker} unverstandene Zeilen
  * ins Log.
  *
- * Die Zeit steht dort auf die letzte angezeigte Einheit gekuerzt ("2h 15m" heisst zwischen 2h 15m und 2h 16m), wie bei
- * den Effekten: {@link #settle} haelt die Schaetzung des Endes innerhalb dieser Spanne, statt sie jede Minute neu zu setzen.
+ * Die Zeit steht dort auf die Minute AUFgerundet ("1h 14m" heisst mehr als 1h 13m und hoechstens 1h 14m): Ein frisch eingelegtes Stueck
+ * steht sofort auf der vollen Dauer ("2h"; sieben von sieben Plaetzen in beiden Tests von Schiggy am 09.11.), und ein Wechsel auf "1h 13m"
+ * kommt genau in dem Augenblick, in dem die Restzeit 1h 13m erreicht. Unter einer Minute zeigt der Tab Sekunden ("4s", "8s", "10s"). Und die
+ * Zeit laeuft nicht immer in Echtzeit: Beim Ghost-Farmen mit dem Gauntlet sprang die Anzeige alle 21 bis 27 Sekunden um eine Minute
+ * (Mitschnitt, 13:17 bis 13:25), in Ruhe alle 60. {@link ForgeTracker} misst dieses Tempo an den Wechseln und rechnet die Zeit dazwischen
+ * mit; {@link #erstSchaetzung} und {@link #nachWechsel} geben die Ankerpunkte.
  */
 final class ForgeTab {
 
@@ -102,25 +106,77 @@ final class ForgeTab {
         return total;
     }
 
-    /** Die kleinste Einheit, die eine angezeigte Zeit noch aufloest: Sekunden, Minuten, Stunden oder Tage */
+    /**
+     * Die Aufloesung einer angezeigten Zeit: Minuten, wenn sie auf volle Minuten lautet, Sekunden, wenn Sekunden dabeistehen. Eine Anzeige
+     * von N Minuten heisst: mehr als N - 1 Minuten und hoechstens N. Ab einem Tag zaehlen Stunden.
+     */
     static long unitOf(long shownMs) {
-        return shownMs % 60_000L != 0L ? 1000L
-                : shownMs % 3_600_000L != 0L ? 60_000L
-                : shownMs % 86_400_000L != 0L ? 3_600_000L : 86_400_000L;
+        if (shownMs % 60_000L != 0L) return 1000L;
+        if (nurStunden(shownMs)) return 3_600_000L;
+        if (shownMs < 86_400_000L) return 60_000L;
+        return shownMs % 3_600_000L != 0L ? 60_000L : shownMs % 86_400_000L != 0L ? 3_600_000L : 86_400_000L;
     }
 
     /**
-     * Wann der Platz fertig ist, wenn die Tab-Liste jetzt {@code shownMs} nennt.
-     *
-     * Die Anzeige ist auf die letzte Einheit gekuerzt, die wahre Restzeit liegt also in [shown, shown + Einheit). Eine Schaetzung,
-     * die darin liegt, bleibt; liegt sie daneben, wird sie an den Rand gezogen. Ohne bisherige Schaetzung ({@code previous} <= 0)
-     * gilt die angezeigte Zeit. So wackelt das Ende nicht jede Minute um eine Minute, und eine Aenderung im Spiel (ein neues
-     * Stueck, eine Beschleunigung) kommt trotzdem an.
+     * Ab zwei Stunden zeigt der Tab nur noch volle Stunden - und rundet dabei AB, nicht auf: Im Mitschnitt vom 09.11. (17:03 bis 17:19) stand
+     * dort die ganze Zeit "2h", waehrend das Forge-Fenster "Time Remaining: 2h 20m 24s" nannte. "2h" heisst also: mindestens zwei, weniger als
+     * drei Stunden. Unter zwei Stunden steht wieder Stunde und Minute, und dort wird aufgerundet ("1h 59m").
      */
-    static long settle(long previous, long shownMs, long now) {
-        long upper = shownMs + unitOf(shownMs);
-        long estimate = previous <= 0L ? 0L : previous - now;
-        long fixed = estimate < shownMs ? shownMs : estimate >= upper ? upper - 1000L : estimate;
-        return now + fixed;
+    static boolean nurStunden(long shownMs) {
+        return shownMs >= 7_200_000L && shownMs < 86_400_000L && shownMs % 3_600_000L == 0L;
+    }
+
+    /**
+     * Die erste Schaetzung der Restzeit, wenn die Tab-Liste jetzt {@code shownMs} nennt.
+     *
+     * Die wahre Restzeit liegt in (shown - Einheit, shown]. Eine bisherige Schaetzung, die darin liegt, bleibt; liegt sie darueber, gilt
+     * die obere Grenze; ohne brauchbare Schaetzung (nichts bekannt, oder sie lag darunter) gilt die Mitte. Der erste Wechsel der Anzeige
+     * legt die Zeit danach genau fest.
+     */
+    static long erstSchaetzung(long previousRest, long shownMs) {
+        long unit = unitOf(shownMs);
+        if (nurStunden(shownMs)) {
+            // Abgerundet: die wahre Restzeit liegt in [shown, shown + 1h). Eine bisherige Schaetzung darin bleibt, eine darueber gilt als obere
+            // Grenze, sonst die Mitte
+            long upper = shownMs + unit;
+            if (previousRest >= shownMs && previousRest < upper) return previousRest;
+            if (previousRest >= upper) return upper - 1L;
+            return shownMs + unit / 2;
+        }
+        long lower = Math.max(0L, shownMs - unit);
+        if (previousRest > lower && previousRest <= shownMs) return previousRest;
+        if (previousRest > shownMs) return shownMs;
+        return shownMs - unit / 2;
+    }
+
+    /**
+     * Die Restzeit im Augenblick, in dem die Anzeige auf {@code shownMs} gewechselt ist: genau diese Zeit - abzueglich der Verspaetung, mit
+     * der der Tab den Wechsel meldet (er liefert die Zeilen im Abstand von etwa drei Sekunden, im Mittel also anderthalb zu spaet; bei
+     * Sekundenanzeige die halbe Sekunde).
+     */
+    static long nachWechsel(long shownMs) {
+        return Math.max(0L, shownMs - Math.min(1500L, unitOf(shownMs) / 2));
+    }
+
+    /**
+     * Wie {@link #nachWechsel(long)}, mit dem Wert davor: Bei der abgerundeten Stundenanzeige wechselt "3h" auf "2h", wenn die Restzeit unter
+     * drei Stunden faellt - der Wechsel geschieht also bei {@code shown + 1h}, nicht bei {@code shown}.
+     */
+    static long nachWechsel(long vorherMs, long shownMs) {
+        if (nurStunden(shownMs) && vorherMs >= shownMs + 3_600_000L) {
+            return shownMs + 3_600_000L - 1500L;
+        }
+        return nachWechsel(shownMs);
+    }
+
+    /**
+     * Die Grenzen, innerhalb derer die Restzeit liegt, solange der Tab {@code shownMs} nennt: {unten, oben}. Bei Minuten und Sekunden aufgerundet
+     * (shown - Einheit, shown], bei der Stundenanzeige ab zwei Stunden abgerundet [shown, shown + 1h).
+     */
+    static long[] spanne(long shownMs) {
+        if (nurStunden(shownMs)) {
+            return new long[] {shownMs, shownMs + unitOf(shownMs)};
+        }
+        return new long[] {Math.max(0L, shownMs - unitOf(shownMs)), shownMs};
     }
 }

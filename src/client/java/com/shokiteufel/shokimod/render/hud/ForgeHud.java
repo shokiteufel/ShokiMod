@@ -35,7 +35,7 @@ public final class ForgeHud {
         HudPanel panel = new HudPanel();
         panel.title("Forge", TITLE_COLOUR);
 
-        List<Row> rows = ForgeTracker.rows(System.currentTimeMillis());
+        List<Row> rows = ForgeTracker.panelRows(System.currentTimeMillis());
         // HudEditorScreen.isOpen() statt Minecraft.screen: Der Zugriff darauf heisst auf 26.2 und 26.3 anders, das Flag nicht
         if (rows.isEmpty() && HudEditorScreen.isOpen()) {
             panel.pair("1. Refined Diamond", EffectsHud.format(2 * 3_600_000L + 15 * 60_000L), HudColours.GOLD, HudColours.WHITE);
