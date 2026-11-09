@@ -37,6 +37,16 @@ public final class WeltScanner {
     private final RaumTabelle tabelle;
     private final Raster raster;
     private boolean alleChunks;
+    /**
+     * Ein Platz, dessen Chunk geladen ist und der trotzdem nichts ergab (leere Saeule, Raum, den die Tabelle nicht kennt, Tuer ohne Nachbarn),
+     * wird nicht bei jedem Durchgang neu gefragt: Jede Abfrage ist eine Hoehenabfrage von bis zu 257 Bloecken, und die Antwort aendert sich nicht.
+     * Hier steht je Platz der Durchgang, ab dem er wieder gefragt wird. Bringt ein Durchgang etwas Neues, gilt das nicht mehr (siehe
+     * {@link #durchgang}): Ein neuer Raum kann einer Tuer den Nachbarn liefern.
+     */
+    private final int[] ruhtBis = new int[Raster.PLAETZE];
+    private int durchgaenge;
+    /** Wie viele Durchgaenge (je ein viertel Sekunde) ein erfolgloser Platz ruht: etwa drei Sekunden */
+    static final int RUHE = 12;
     private final java.util.Map<Integer, Integer> unbekannteKerne = new java.util.TreeMap<>();
 
     /** Raumplaetze, deren Chunk geladen ist, deren Hash die Tabelle aber nicht kennt: Platz (Zeile mal 11 plus Spalte) -> Hash */
@@ -62,6 +72,7 @@ public final class WeltScanner {
     public int durchgang(Welt welt) {
         int neu = 0;
         boolean alle = true;
+        durchgaenge++;
         for (int x = 0; x < KANTE; x++) {
             for (int z = 0; z < KANTE; z++) {
                 int wx = Raster.weltX(x);
@@ -70,18 +81,27 @@ public final class WeltScanner {
                     alle = false;
                     continue;
                 }
-                Kachel schon = raster.get(z * KANTE + x);
+                int platz = z * KANTE + x;
+                Kachel schon = raster.get(platz);
                 if (schon != null && !(schon.art == Kachel.Art.RAUM && schon.daten != null && schon.daten.istUnbekannt())) continue;
+                if (ruhtBis[platz] > durchgaenge) continue;
                 int dach = welt.hoechsterBlock(wx, wz);
-                if (dach <= 0) continue;
+                if (dach <= 0) {
+                    ruhtBis[platz] = durchgaenge + RUHE;
+                    continue;
+                }
                 Kachel k = kachel(welt, wx, wz, z, x, dach);
                 if (k != null) {
-                    raster.set(z * KANTE + x, k);
+                    raster.set(platz, k);
                     neu++;
+                } else {
+                    ruhtBis[platz] = durchgaenge + RUHE;
                 }
             }
         }
         alleChunks = alle;
+        // Etwas Neues kann den ruhenden Plaetzen helfen (eine Tuer bekommt ihren Nachbarraum): dann alle wieder fragen
+        if (neu > 0) java.util.Arrays.fill(ruhtBis, 0);
         return neu;
     }
 

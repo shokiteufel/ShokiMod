@@ -50,6 +50,8 @@ public final class PerfSampler {
     private static int takt;
     private static long gcAnzahl;
     private static long gcMillis;
+    private static long letztesBild;
+    private static long speicherStart;
 
     private PerfSampler() {
     }
@@ -73,6 +75,33 @@ public final class PerfSampler {
         });
     }
 
+    /** Ein Bild wurde gezeichnet (vom HudRenderer): zaehlt die Bilder und merkt sich die laengste Pause zwischen zwei Bildern */
+    public static void bild() {
+        if (!laeuft) {
+            return;
+        }
+        long jetzt = System.nanoTime();
+        synchronized (SPERRE) {
+            if (letztesBild != 0L) {
+                fenster.bild(jetzt - letztesBild);
+            }
+            letztesBild = jetzt;
+        }
+    }
+
+    /** Wie viel der Spiel-Thread bisher angelegt hat (Bytes), oder -1, wenn die Plattform es nicht kann */
+    private static long angelegt() {
+        try {
+            Thread t = haupt;
+            if (t != null && ManagementFactory.getThreadMXBean() instanceof com.sun.management.ThreadMXBean mx) {
+                return mx.getThreadAllocatedBytes(t.threadId());
+            }
+        } catch (RuntimeException | LinkageError e) {
+            // nicht verfuegbar: der Wert fehlt im Bericht
+        }
+        return -1L;
+    }
+
     /** Haelt den Hilfsfaden im Einklang mit dem Schalter */
     private static void abgleichen() {
         boolean soll = ModConfig.INSTANCE.logs.perfLog;
@@ -93,6 +122,8 @@ public final class PerfSampler {
             fenster = new Fenster();
         }
         merkeGc();
+        letztesBild = 0L;
+        speicherStart = angelegt();
         schreibe("---- Performance log on: " + kopf());
         Thread t = new Thread(PerfSampler::schleife, "shokimod-perf");
         t.setDaemon(true);
@@ -146,7 +177,11 @@ public final class PerfSampler {
                     fertig = fenster;
                     fenster = new Fenster();
                 }
-                schreibe(fertig.bericht(gcText()));
+                long jetztAngelegt = angelegt();
+                String speicher = speicherStart >= 0 && jetztAngelegt >= speicherStart
+                        ? String.format(java.util.Locale.ROOT, "%.0f MB/s", (jetztAngelegt - speicherStart) / 1_048_576.0 / (FENSTER_MILLIS / 1000.0)) : "n/a";
+                speicherStart = jetztAngelegt;
+                schreibe(fertig.bericht(gcText(), speicher));
             }
         }
     }
@@ -190,9 +225,25 @@ public final class PerfSampler {
         int ticks;
         int langeTicks;
         long laengsterTick;
+        int bilder;
+        int bilderUeber33;
+        int bilderUeber50;
+        long laengstesBild;
         final Map<String, Integer> einstieg = new HashMap<>();
         final Map<String, Integer> innerste = new HashMap<>();
         final Map<String, Integer> fremd = new HashMap<>();
+
+        /** Der Abstand zwischen zwei Bildern in Nanosekunden: ueber 33 ms sind unter 30 Bilder je Sekunde, ueber 50 ms unter 20 */
+        void bild(long abstand) {
+            bilder++;
+            if (abstand > 33_000_000L) {
+                bilderUeber33++;
+            }
+            if (abstand > 50_000_000L) {
+                bilderUeber50++;
+            }
+            laengstesBild = Math.max(laengstesBild, abstand);
+        }
 
         void tick(long nanos) {
             ticks++;
@@ -228,10 +279,12 @@ public final class PerfSampler {
             innerste.merge(kurz(stapel[innen].getClassName()) + "." + stapel[innen].getMethodName() + ":" + stapel[innen].getLineNumber(), 1, Integer::sum);
         }
 
-        String bericht(String gc) {
+        String bericht(String gc, String speicher) {
             StringBuilder sb = new StringBuilder();
-            sb.append(String.format(java.util.Locale.ROOT, "window: %d samples, ShokiMod %.1f %% (%d), other %.1f %%; ticks %d, over 50 ms: %d, longest %d ms; GC: %s%n",
-                    proben, prozent(mod), mod, prozent(proben - mod), ticks, langeTicks, laengsterTick / 1_000_000L, gc));
+            sb.append(String.format(java.util.Locale.ROOT, "window: %d samples, ShokiMod %.1f %% (%d), other %.1f %%; ticks %d, over 50 ms: %d, longest %d ms; GC: %s; game thread allocates %s%n",
+                    proben, prozent(mod), mod, prozent(proben - mod), ticks, langeTicks, laengsterTick / 1_000_000L, gc, speicher));
+            sb.append(String.format(java.util.Locale.ROOT, "  frames: %d (%.0f per second), over 33 ms: %d, over 50 ms: %d, longest %d ms%n",
+                    bilder, bilder / (FENSTER_MILLIS / 1000.0), bilderUeber33, bilderUeber50, laengstesBild / 1_000_000L));
             zeilen(sb, "  entry points in ShokiMod (who started it):", einstieg);
             zeilen(sb, "  innermost ShokiMod frames (where the time lay):", innerste);
             zeilen(sb, "  busiest outside ShokiMod:", fremd);
