@@ -31,6 +31,15 @@ public class ColorPickerScreen extends Screen {
     private static final int INVALID_COLOR = 0xFFFF5555;
     private static final int MARKER_COLOR = 0xFFFFFFFF;
     private static final int MARKER_SHADOW = 0xFF000000;
+    private static final int HUE_SEGMENTS = 6;
+    /** Die Farben an den Grenzen der sechs Abschnitte des Farbbalkens: fest, darum einmal gerechnet statt in jedem Bild */
+    private static final int[] HUE_COLORS = new int[HUE_SEGMENTS + 1];
+
+    static {
+        for (int i = 0; i <= HUE_SEGMENTS; i++) {
+            HUE_COLORS[i] = 0xFF000000 | Mth.hsvToRgb((float) i / HUE_SEGMENTS, 1.0F, 1.0F);
+        }
+    }
 
     private final Screen parent;
     private final Result result;
@@ -74,8 +83,35 @@ public class ColorPickerScreen extends Screen {
         brightness = hsv[2];
     }
 
+    // Der RGB-Wert zu Farbton/Saettigung/Helligkeit, gemerkt: die Vorschau fragt ihn mehrmals je Bild, er aendert sich nur beim Ziehen/Klicken
+    private float rgbHue = Float.NaN;
+    private float rgbSaturation;
+    private float rgbBrightness;
+    private int rgbWert;
+
     private int rgb() {
-        return Mth.hsvToRgb(hue, saturation, brightness) & 0xFFFFFF;
+        if (hue != rgbHue || saturation != rgbSaturation || brightness != rgbBrightness) {
+            rgbWert = Mth.hsvToRgb(hue, saturation, brightness) & 0xFFFFFF;
+            rgbHue = hue;
+            rgbSaturation = saturation;
+            rgbBrightness = brightness;
+        }
+        return rgbWert;
+    }
+
+    // Die Farbe jeder Spalte des Saettigung/Helligkeit-Feldes (oben, ohne Helligkeitsverlauf): haengt nur von Farbton und Feldbreite ab,
+    // wird also nur beim Ziehen am Farbbalken oder nach einem Groessenwechsel neu gerechnet, nicht in jedem Bild
+    private int[] feldFarben = new int[0];
+    private float feldFarbenHue = Float.NaN;
+
+    private void feldFarbenAktualisieren() {
+        int breite = Math.max(0, fieldWidth);
+        if (feldFarben.length == breite && feldFarbenHue == hue) return;
+        if (feldFarben.length != breite) feldFarben = new int[breite];
+        for (int i = 0; i < breite; i++) {
+            feldFarben[i] = 0xFF000000 | Mth.hsvToRgb(hue, (float) i / (fieldWidth - 1), 1.0F);
+        }
+        feldFarbenHue = hue;
     }
 
     @Override
@@ -230,20 +266,20 @@ public class ColorPickerScreen extends Screen {
         int centerX = width / 2;
         graphics.centeredText(font, title, centerX, 12, 0xFFFFFFFF);
 
+        feldFarbenAktualisieren();
         drawSaturationValueField(graphics);
         drawHueBar(graphics);
         drawSwatches(graphics);
         drawPreview(graphics);
 
-        graphics.text(font, Component.literal("Presets"), swatchesX, swatchesY - 11, LABEL_COLOR);
+        // Fester Text aus dem Zwischenspeicher (ein geteiltes Component), nicht neu gebaut in jedem Bild
+        graphics.text(font, FensterText.text("Presets"), swatchesX, swatchesY - 11, LABEL_COLOR);
     }
 
     // 1ピクセル幅の縦グラデーションを横に並べる。左右が彩度、上下が明度
     private void drawSaturationValueField(GuiGraphicsExtractor graphics) {
         for (int i = 0; i < fieldWidth; i++) {
-            float columnSaturation = (float) i / (fieldWidth - 1);
-            int top = 0xFF000000 | Mth.hsvToRgb(hue, columnSaturation, 1.0F);
-            graphics.fillGradient(fieldX + i, fieldY, fieldX + i + 1, fieldY + fieldHeight, top, 0xFF000000);
+            graphics.fillGradient(fieldX + i, fieldY, fieldX + i + 1, fieldY + fieldHeight, feldFarben[i], 0xFF000000);
         }
 
         graphics.outline(fieldX - 1, fieldY - 1, fieldWidth + 2, fieldHeight + 2, 0xFF000000);
@@ -255,14 +291,11 @@ public class ColorPickerScreen extends Screen {
     }
 
     private void drawHueBar(GuiGraphicsExtractor graphics) {
-        int segments = 6;
-
-        for (int i = 0; i < segments; i++) {
-            int top = 0xFF000000 | Mth.hsvToRgb((float) i / segments, 1.0F, 1.0F);
-            int bottom = 0xFF000000 | Mth.hsvToRgb((float) (i + 1) / segments, 1.0F, 1.0F);
-            int y0 = fieldY + fieldHeight * i / segments;
-            int y1 = fieldY + fieldHeight * (i + 1) / segments;
-            graphics.fillGradient(hueX, y0, hueX + HUE_WIDTH, y1, top, bottom);
+        // Die Farben der Abschnittsgrenzen stehen fest in HUE_COLORS
+        for (int i = 0; i < HUE_SEGMENTS; i++) {
+            int y0 = fieldY + fieldHeight * i / HUE_SEGMENTS;
+            int y1 = fieldY + fieldHeight * (i + 1) / HUE_SEGMENTS;
+            graphics.fillGradient(hueX, y0, hueX + HUE_WIDTH, y1, HUE_COLORS[i], HUE_COLORS[i + 1]);
         }
 
         graphics.outline(hueX - 1, fieldY - 1, HUE_WIDTH + 2, fieldHeight + 2, 0xFF000000);

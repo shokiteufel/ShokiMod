@@ -43,7 +43,32 @@ public class CollectionPickerScreen extends Screen {
         return list;
     }
 
+    /**
+     * Die gefilterte Liste, einmal gebaut und gehalten (CollectionData.all() legt und sortiert bei jedem Aufruf eine neue
+     * Liste an, und das Fenster fragt mehrmals je Bild danach).
+     *
+     * Ihre Eingaben: der Suchtext (aendert sich nur im Suchfeld, dessen Antwort {@link #rebuild()} ruft - das verwirft sie in
+     * {@link #init()}) und die Liste von Hypixel, die im Hintergrund nachgeladen wird. Dafuer gibt es keinen Versionszaehler;
+     * neu gebaut wird deshalb, wenn sich die Zahl der Eintraege der Quelle aendert (erste Antwort), und sonst nach
+     * spaetestens einer Sekunde (eine neue Antwort mit gleich vielen, aber anderen Eintraegen). Der Aufruf von all() haelt
+     * nebenbei den Nachlade-Takt der Quelle am Laufen, den vorher jedes Bild besorgte.
+     */
+    private List<Collection> sichtbar;
+    private int sichtbarQuelle = -1;
+    private long sichtbarStand;
+    private static final long LISTE_MILLIS = 1_000L;
+    /** "3 selected" und die Ladehinweise - neu gebaut nur, wenn sich Zahl der Haken oder Ladestand aendern */
+    private final FensterText.Gemerkt notiz = new FensterText.Gemerkt();
+
     private List<Collection> visible() {
+        long jetzt = System.currentTimeMillis();
+        if (sichtbar == null || CollectionData.FEED.size() != sichtbarQuelle || jetzt - sichtbarStand >= LISTE_MILLIS) {
+            listeBauen(jetzt);
+        }
+        return sichtbar;
+    }
+
+    private void listeBauen(long jetzt) {
         List<Collection> out = new ArrayList<>();
         String needle = filter.trim().toLowerCase(Locale.ROOT);
         for (Collection collection : CollectionData.all()) {
@@ -52,7 +77,25 @@ public class CollectionPickerScreen extends Screen {
                 out.add(collection);
             }
         }
-        return out;
+        sichtbar = out;
+        // Die Zahl erst nach all() lesen: der erste Aufruf kann die Platte lesen und die Quelle damit fuellen
+        sichtbarQuelle = CollectionData.FEED.size();
+        sichtbarStand = jetzt;
+    }
+
+    /** Der zusammengesetzte Text des Bildes: gebaut nur, wenn sich seine Quellen geaendert haben */
+    private void texteAktualisieren() {
+        boolean fertig = CollectionData.ready();
+        int gewaehlt = selected().size();
+        long schluessel = gewaehlt * 2L + (fertig ? 1L : 0L);
+        if (!notiz.gilt(schluessel)) {
+            String text = fertig
+                    ? (gewaehlt == 0 ? "Nothing selected - everything that comes in is counted"
+                                     : gewaehlt + " selected")
+                    : "Loading the list from Hypixel...";
+            notiz.setze(schluessel, Component.literal(text).withStyle(
+                    gewaehlt == 0 ? ChatFormatting.GRAY : ChatFormatting.GREEN));
+        }
     }
 
     private int rowsPerPage() {
@@ -70,6 +113,8 @@ public class CollectionPickerScreen extends Screen {
     @Override
     protected void init() {
         CollectionData.prefetch();
+        // Jeder Neuaufbau (Suchtext, Seite, Haken) liest die Liste frisch, wie vorher
+        sichtbar = null;
         page = Math.min(page, pageCount() - 1);
 
         List<Collection> items = visible();
@@ -139,18 +184,15 @@ public class CollectionPickerScreen extends Screen {
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
 
         int centerX = width / 2;
-        graphics.centeredText(font, Component.literal("Collections in the tracker"), centerX, 14, 0xFFFFFFFF);
+        // Feste Texte kommen aus dem Zwischenspeicher (je Zeichenkette ein geteiltes Component), nicht aus einem neuen Aufbau je Bild
+        graphics.centeredText(font, FensterText.text("Collections in the tracker"), centerX, 14, 0xFFFFFFFF);
 
-        String note = CollectionData.ready()
-                ? (selected().isEmpty() ? "Nothing selected - everything that comes in is counted"
-                                        : selected().size() + " selected")
-                : "Loading the list from Hypixel...";
-        graphics.centeredText(font, Component.literal(note).withStyle(
-                selected().isEmpty() ? ChatFormatting.GRAY : ChatFormatting.GREEN), centerX, height - 46, 0xFFAAAAAA);
+        texteAktualisieren();
+        graphics.centeredText(font, notiz.component(), centerX, height - 46, 0xFFAAAAAA);
 
         if (pageCount() > 1) {
-            graphics.centeredText(font, Component.literal((page + 1) + " / " + pageCount())
-                    .withStyle(ChatFormatting.GRAY), centerX, height - 58, 0xFFAAAAAA);
+            // "2 / 5" wird nur neu gebaut, wenn sich Seite oder Seitenzahl aendern
+            graphics.centeredText(font, FensterText.seite(page, pageCount()), centerX, height - 58, 0xFFAAAAAA);
         }
     }
 

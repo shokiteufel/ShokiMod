@@ -41,6 +41,45 @@ public class FlipProfitScreen extends Screen {
     private List<Row> cached = null;
     private int lastLiveAge = -1;
 
+    // Gemerkte Texte: gebaut nur, wenn sich ihre Quellen aendern, nicht in jedem Bild
+    /** Die graue Statuszeile oben ("12 goods worth the spread, live prices 3s old ...") - neu gebaut, wenn sich die Zahl der Waren oder das Alter aendert */
+    private final FensterText.Gemerkt info = new FensterText.Gemerkt();
+    /** "Nothing found for ..." - gebaut nur, wenn sich der Suchtext aendert */
+    private final FensterText.Gemerkt nichtsGefunden = new FensterText.Gemerkt();
+
+    /**
+     * Die fertig geformten Texte einer Zeile: gekuerzter Name, Preise, Marge, Mengen.
+     *
+     * Eine {@link Row} ist unveraenderlich (ein Record), und eine neue Liste bekommt neue Zeilen - gerechnet wird also einmal, wenn die
+     * Zeile auf die Seite kommt, nicht in jedem Bild.
+     */
+    private static final class ZeilenText {
+        final String name;
+        final String kauf;
+        final String verkauf;
+        final String gewinn;
+        final String marge;
+        final String gekauft;
+        final String verkauft;
+
+        ZeilenText(Row row) {
+            name = cut(row.name(), 30);
+            kauf = BazaarFlips.coins(row.buyOrder());
+            verkauf = BazaarFlips.coins(row.sellOffer());
+            gewinn = BazaarFlips.coins(row.profit());
+            marge = String.format(Locale.ROOT, "%.1f%%", row.margin());
+            gekauft = ItemValue.format(row.bought());
+            verkauft = ItemValue.format(row.sold());
+        }
+    }
+
+    // Die Texte der Zeilen auf der gezeigten Seite. Neu gebaut, wenn sich die Liste (neue Zeilen-Objekte), der Seitenanfang oder die Zeilenzahl
+    // je Seite aendert
+    private ZeilenText[] zeilenTexte = new ZeilenText[0];
+    private List<Row> zeilenTexteListe;
+    private int zeilenTexteStart = -1;
+    private int zeilenTexteProSeite = -1;
+
     /**
      * Die drei Fragen, die eine Spanne beantworten kann.
      *
@@ -107,6 +146,39 @@ public class FlipProfitScreen extends Screen {
 
     private int pageCount() {
         return Math.max(1, (visible().size() + perPage() - 1) / perPage());
+    }
+
+    /**
+     * Die zusammengesetzten Texte des Bildes (Statuszeile, "Nothing found"): gebaut nur, wenn sich ihre Quellen aendern (Zahl der Waren,
+     * Alter des Live-Stands, Suchtext).
+     */
+    private void texteAktualisieren(int anzahl) {
+        int alter = Math.clamp(BazaarLive.ageSeconds(), 0, 999_999);
+        long schluessel = anzahl * 1_000_000L + alter;
+        if (!info.gilt(schluessel)) {
+            info.setze(schluessel, Component.literal(
+                            anzahl + " goods worth the spread, live prices "
+                            + alter + "s old"
+                            + " - buy order and sell offer each outbid by " + BazaarFlips.STEP
+                            + ", tax taken off - click a row for /bz")
+                    .withStyle(ChatFormatting.DARK_GRAY));
+        }
+        if (anzahl == 0 && !search.isBlank() && !nichtsGefunden.gilt(0L, search)) {
+            nichtsGefunden.setze(0L, search, Component.literal("Nothing found for \"" + search + "\"")
+                    .withStyle(ChatFormatting.GRAY));
+        }
+    }
+
+    /** Die Texte der Zeilen auf der gezeigten Seite: gerechnet, wenn eine andere Seite oder Liste gezeigt wird, sonst dasselbe Feld wie im Bild davor */
+    private void zeilenTexteAktualisieren(List<Row> zeilen, int start, int proSeite) {
+        if (zeilen == zeilenTexteListe && start == zeilenTexteStart && proSeite == zeilenTexteProSeite) return;
+        int n = Math.max(0, Math.min(proSeite, zeilen.size() - start));
+        ZeilenText[] neu = new ZeilenText[n];
+        for (int i = 0; i < n; i++) neu[i] = new ZeilenText(zeilen.get(start + i));
+        zeilenTexte = neu;
+        zeilenTexteListe = zeilen;
+        zeilenTexteStart = start;
+        zeilenTexteProSeite = proSeite;
     }
 
     private void rebuild() {
@@ -252,22 +324,17 @@ public class FlipProfitScreen extends Screen {
         int left = left();
         int centerX = width / 2;
 
-        graphics.centeredText(font, Component.literal("Bazaar flips")
-                .withStyle(ChatFormatting.GOLD), centerX, 14, 0xFFFFAA00);
+        graphics.centeredText(font, FensterText.gold("Bazaar flips"), centerX, 14, 0xFFFFAA00);
 
         if (!BazaarLive.fresh()) {
-            graphics.centeredText(font, Component.literal("Fetching the bazaar ...")
-                    .withStyle(ChatFormatting.GRAY), centerX, listTop + 20, 0xFFAAAAAA);
+            graphics.centeredText(font, FensterText.grau("Fetching the bazaar ..."), centerX, listTop + 20, 0xFFAAAAAA);
             return;
         }
 
         List<Row> zeilen = visible();
-        graphics.centeredText(font, Component.literal(
-                        zeilen.size() + " goods worth the spread, live prices "
-                        + BazaarLive.ageSeconds() + "s old"
-                        + " - buy order and sell offer each outbid by " + BazaarFlips.STEP
-                        + ", tax taken off - click a row for /bz")
-                .withStyle(ChatFormatting.DARK_GRAY), centerX, 28, 0xFF77DD77);
+        // Die Statuszeile ist fertig gebaut und wird nur neu gebaut, wenn sich ihre Zahlen aendern
+        texteAktualisieren(zeilen.size());
+        graphics.centeredText(font, info.component(), centerX, 28, 0xFF77DD77);
 
         graphics.text(font, "Item", left + 4, listTop - 12, 0xFF888888, false);
         graphics.text(font, "Buy order", left + 190, listTop - 12, 0xFF888888, false);
@@ -281,32 +348,34 @@ public class FlipProfitScreen extends Screen {
         graphics.text(font, "Sold/day", left + 500, listTop - 12, 0xFF888888, false);
 
         if (zeilen.isEmpty()) {
-            graphics.centeredText(font, Component.literal(
-                            search.isBlank() ? "Nothing clears the tax at this daily amount"
-                                             : "Nothing found for \"" + search + "\"")
-                    .withStyle(ChatFormatting.GRAY), centerX, listTop + 20, 0xFFAAAAAA);
+            graphics.centeredText(font, search.isBlank()
+                            ? FensterText.grau("Nothing clears the tax at this daily amount")
+                            : nichtsGefunden.component(),
+                    centerX, listTop + 20, 0xFFAAAAAA);
             return;
         }
 
-        int start = page * perPage();
-        for (int i = 0; i < perPage() && start + i < zeilen.size(); i++) {
-            Row row = zeilen.get(start + i);
+        // Die Texte der gezeigten Zeilen liegen fertig vor (gekuerzt, formatiert) und werden nur neu gebaut, wenn Zeilen oder Seite wechseln
+        int proSeite = perPage();
+        int start = page * proSeite;
+        zeilenTexteAktualisieren(zeilen, start, proSeite);
+        ZeilenText[] texte = zeilenTexte;
+        for (int i = 0; i < texte.length; i++) {
+            ZeilenText t = texte[i];
             int y = listTop + i * ROW_HEIGHT;
             if ((i & 1) == 0) graphics.fill(left, y - 3, left + LIST_WIDTH, y + ROW_HEIGHT - 4, 0x30000000);
 
-            graphics.text(font, cut(row.name(), 30), left + 4, y, 0xFFFFCC66, false);
-            graphics.text(font, BazaarFlips.coins(row.buyOrder()), left + 190, y, 0xFFFF7777, false);
-            graphics.text(font, BazaarFlips.coins(row.sellOffer()), left + 254, y, 0xFFAAAAFF, false);
-            graphics.text(font, BazaarFlips.coins(row.profit()), left + 318, y, 0xFF55FF55, false);
-            graphics.text(font, String.format(Locale.ROOT, "%.1f%%", row.margin()),
-                    left + 374, y, 0xFF55FFFF, false);
-            graphics.text(font, ItemValue.format(row.bought()), left + 428, y, 0xFFCCCCCC, false);
-            graphics.text(font, ItemValue.format(row.sold()), left + 500, y, 0xFFCCCCCC, false);
+            graphics.text(font, t.name, left + 4, y, 0xFFFFCC66, false);
+            graphics.text(font, t.kauf, left + 190, y, 0xFFFF7777, false);
+            graphics.text(font, t.verkauf, left + 254, y, 0xFFAAAAFF, false);
+            graphics.text(font, t.gewinn, left + 318, y, 0xFF55FF55, false);
+            graphics.text(font, t.marge, left + 374, y, 0xFF55FFFF, false);
+            graphics.text(font, t.gekauft, left + 428, y, 0xFFCCCCCC, false);
+            graphics.text(font, t.verkauft, left + 500, y, 0xFFCCCCCC, false);
         }
 
         if (pageCount() > 1) {
-            graphics.centeredText(font, Component.literal((page + 1) + " / " + pageCount())
-                    .withStyle(ChatFormatting.GRAY), centerX, height - 44, 0xFFAAAAAA);
+            graphics.centeredText(font, FensterText.seite(page, pageCount()), centerX, height - 44, 0xFFAAAAAA);
         }
     }
 

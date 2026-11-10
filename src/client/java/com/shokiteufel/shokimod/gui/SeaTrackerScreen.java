@@ -38,7 +38,27 @@ public class SeaTrackerScreen extends Screen {
         this.parent = parent;
     }
 
+    /**
+     * Die gefilterte Liste, einmal gebaut und gehalten.
+     *
+     * Ihre Eingaben aendern sich nur ueber die Knoepfe und das Suchfeld dieses Fensters (Suchtext, "Picked/All", Haken - auch
+     * {@code SeaCreatureTracker.togglePicked} wird sonst nirgends gerufen), und jede dieser Aktionen endet in {@link #rebuild()},
+     * das {@link #init()} neu laufen laesst. Dort wird sie verworfen und beim naechsten Zugriff neu gebaut - nicht in jedem Bild.
+     */
+    private List<SeaCreatures.Creature> sichtbar;
+    /** Wie viele Bewohner eine eigene Zeile haben (alle, nicht nur die gefilterten) - gezaehlt zusammen mit der Liste */
+    private int gewaehlt;
+    /** "3 of 90 get their own line ..." - neu gebaut nur, wenn sich die Zahl aendert */
+    private final FensterText.Gemerkt info = new FensterText.Gemerkt();
+    /** "Nothing found for ..." - neu gebaut nur, wenn sich der Suchtext aendert */
+    private final FensterText.Gemerkt nichtsGefunden = new FensterText.Gemerkt();
+
     private List<SeaCreatures.Creature> visible() {
+        if (sichtbar == null) listeBauen();
+        return sichtbar;
+    }
+
+    private void listeBauen() {
         String suche = filter.trim().toLowerCase(Locale.ROOT);
         List<SeaCreatures.Creature> out = new ArrayList<>();
         for (SeaCreatures.Creature c : SeaCreatures.all()) {
@@ -46,7 +66,28 @@ public class SeaTrackerScreen extends Screen {
             if (onlyPicked && !SeaCreatureTracker.picked(c)) continue;
             out.add(c);
         }
-        return out;
+        int anzahl = 0;
+        for (SeaCreatures.Creature c : SeaCreatures.all()) {
+            if (SeaCreatureTracker.picked(c)) anzahl++;
+        }
+        sichtbar = out;
+        gewaehlt = anzahl;
+    }
+
+    /** Die zusammengesetzten Texte des Bildes: gebaut nur, wenn sich ihre Quellen (Zahl der Haken, Suchtext) geaendert haben */
+    private void texteAktualisieren() {
+        boolean leer = visible().isEmpty();
+        long schluessel = gewaehlt * 1000L + SeaCreatures.all().size();
+        if (!info.gilt(schluessel)) {
+            info.setze(schluessel, Component.literal(
+                            gewaehlt + " of " + SeaCreatures.all().size()
+                                    + " get their own line  ·  the rest is counted under Others")
+                    .withStyle(ChatFormatting.DARK_GRAY));
+        }
+        if (leer && !nichtsGefunden.gilt(0L, filter)) {
+            nichtsGefunden.setze(0L, filter, Component.literal("Nothing found for \"" + filter + "\"")
+                    .withStyle(ChatFormatting.GRAY));
+        }
     }
 
     private int rowsPerPage() {
@@ -64,6 +105,8 @@ public class SeaTrackerScreen extends Screen {
 
     @Override
     protected void init() {
+        // Jeder Neuaufbau heisst: Suche, Schalter oder ein Haken haben sich geaendert - die Liste neu bauen lassen
+        sichtbar = null;
         page = Math.clamp(page, 0, pageCount() - 1);
 
         List<SeaCreatures.Creature> liste = visible();
@@ -152,25 +195,17 @@ public class SeaTrackerScreen extends Screen {
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
         int centerX = width / 2;
 
-        graphics.centeredText(font, Component.literal("Sea creature tracker").withStyle(ChatFormatting.GOLD),
-                centerX, 14, 0xFFFFAA00);
+        graphics.centeredText(font, FensterText.gold("Sea creature tracker"), centerX, 14, 0xFFFFAA00);
 
-        int gewaehlt = 0;
-        for (SeaCreatures.Creature c : SeaCreatures.all()) {
-            if (SeaCreatureTracker.picked(c)) gewaehlt++;
-        }
-        graphics.centeredText(font, Component.literal(
-                        gewaehlt + " of " + SeaCreatures.all().size()
-                                + " get their own line  ·  the rest is counted under Others")
-                .withStyle(ChatFormatting.DARK_GRAY), centerX, 14 + 12, 0xFF888888);
+        // Zaehler und Suchtext liegen fertig in gemerkten Feldern; neu gebaut wird nur, wenn sich ihre Quellen aendern
+        texteAktualisieren();
+        graphics.centeredText(font, info.component(), centerX, 14 + 12, 0xFF888888);
 
         if (visible().isEmpty()) {
-            graphics.centeredText(font, Component.literal("Nothing found for \"" + filter + "\"")
-                    .withStyle(ChatFormatting.GRAY), centerX, LIST_TOP + 20, 0xFFAAAAAA);
+            graphics.centeredText(font, nichtsGefunden.component(), centerX, LIST_TOP + 20, 0xFFAAAAAA);
         }
         if (pageCount() > 1) {
-            graphics.centeredText(font, Component.literal((page + 1) + " / " + pageCount())
-                    .withStyle(ChatFormatting.GRAY), centerX, height - 44, 0xFFAAAAAA);
+            graphics.centeredText(font, FensterText.seite(page, pageCount()), centerX, height - 44, 0xFFAAAAAA);
         }
     }
 }

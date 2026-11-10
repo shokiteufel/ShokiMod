@@ -134,13 +134,73 @@ public class EffectsScreen extends Screen {
         return Math.max(1, (height - BOTTOM_SPACE - LIST_TOP) / ROW_HEIGHT);
     }
 
-    /** Eine Zeile der Liste: entweder die Ueberschrift einer Gruppe oder ein Effekt */
-    private record Row(String header, EffectEntry entry) {
+    /**
+     * Eine Zeile der Liste: entweder die Ueberschrift einer Gruppe oder ein Effekt - samt den Texten, die das Bild zeichnet (gekuerzter Name,
+     * Restzeit mit Farbe). Die Texte werden mit der Zeile gebaut, nicht in jedem Bild.
+     */
+    private static final class Row {
+        private final String header;
+        private final EffectEntry entry;
+        /** Der Name, auf die Spaltenbreite gekuerzt (nur bei Effekten) */
+        String name = "";
+        /** Die Restzeit als Text und ihre Farbe */
+        String time = "";
+        int timeColour = 0xFFAAAAAA;
+        /** Zu welcher Sekunde der Restzeit {@link #time} gehoert; Long.MIN_VALUE: noch nicht gebaut */
+        private long timeKey = Long.MIN_VALUE;
+
+        Row(String header, EffectEntry entry) {
+            this.header = header;
+            this.entry = entry;
+        }
+
+        String header() {
+            return header;
+        }
+
+        EffectEntry entry() {
+            return entry;
+        }
+
+        /**
+         * Die Restzeit als Text, neu gebaut nur, wenn sich ihre Sekunde aendert (oder der Effekt ausgeht) - nicht in jedem Bild. Dieselbe
+         * Rechnung wie {@code EffectsTracker.remaining}: ohne Ende "?", ab 0 "off", sonst die Restzeit; ohne den Long, den remaining
+         * je Bild neu verpackte.
+         */
+        void timeUpdate(long now) {
+            long rest = entry.expiry - now;
+            long key = entry.expiry <= 0L ? -2L : rest <= 0L ? -1L : rest / 1000L;
+            if (key == timeKey) return;
+            timeKey = key;
+            if (key == -2L) {
+                time = "?";
+                timeColour = 0xFFAAAAAA;
+            } else if (key == -1L) {
+                time = "off";
+                timeColour = 0xFFFF5555;
+            } else {
+                time = EffectsHud.format(rest);
+                timeColour = 0xFF55FF55;
+            }
+        }
     }
 
     private List<EffectEntry> shown() {
         return showHidden ? EffectsTracker.hiddenEntries() : EffectsTracker.entries();
     }
+
+    // Die Seiten der Liste, einmal gebaut und gehalten. Neu gebaut bei jedem init() (Knopf, Reiter, Groessenaenderung - jede Eingabe der Liste
+    // laeuft ueber rebuild()), bei geaenderter Zahl der gemerkten Effekte oder Zeilen je Seite und sonst spaetestens nach einer Sekunde: Der
+    // Tracker liest im Hintergrund /effects und die Tab-Liste und kann einem Mixin im Lauf den echten Namen geben (Sortierung, Name).
+    private List<List<Row>> pagesCache;
+    private int pagesListSize = -1;
+    private int pagesPer = -1;
+    private long pagesAt;
+    private static final long PAGES_MILLIS = 1_000L;
+    /** Wie viele Effekte der gewaehlte Reiter zeigt (statt EffectsTracker.count in jedem Bild) - gezaehlt zusammen mit den Seiten */
+    private int pagesEntries;
+    /** Was bei leerer Liste steht - gewaehlt zusammen mit den Seiten */
+    private String emptyText = "";
 
     /**
      * Die Seiten der Liste. "All" zeigt zwei Gruppen (ohne God Potion, God Potion), jede mit ihrer Ueberschrift; die anderen Reiter
@@ -148,11 +208,22 @@ public class EffectsScreen extends Screen {
      * naechsten Seite weitergeht, bekommt dort ihre Ueberschrift noch einmal.
      */
     private List<List<Row>> pages() {
+        long now = System.currentTimeMillis();
+        if (pagesCache == null || pagesPer != rowsPerPage() || pagesListSize != ModConfig.INSTANCE.effects.list.size()
+                || now - pagesAt >= PAGES_MILLIS) {
+            pagesBauen(now);
+        }
+        return pagesCache;
+    }
+
+    private void pagesBauen(long now) {
         List<EffectsTracker.Group> groups = EffectsTracker.groups(showHidden, tab);
         int per = rowsPerPage();
+        int nameMax = nameWidth() - 8;
 
         List<List<Row>> pages = new ArrayList<>();
         List<Row> page = new ArrayList<>();
+        int entries = 0;
         for (EffectsTracker.Group group : groups) {
             if (page.size() >= per - 1 && per > 1) {
                 pages.add(page);
@@ -165,11 +236,29 @@ public class EffectsScreen extends Screen {
                     page = new ArrayList<>();
                     if (per > 1) page.add(new Row(group.name() + " (cont.)", null));
                 }
-                page.add(new Row(null, e));
+                Row row = new Row(null, e);
+                row.name = font.plainSubstrByWidth(e.name, nameMax);
+                page.add(row);
+                entries++;
             }
         }
         if (!page.isEmpty() || pages.isEmpty()) pages.add(page);
-        return pages;
+
+        // Der Satz bei leerer Liste: nur dann gebraucht, und nur hier gewaehlt statt in jedem Bild
+        String empty = "";
+        if (entries == 0) {
+            empty = showHidden ? "Nothing hidden"
+                    : tab != EffectsTracker.Tab.ALL && EffectsTracker.count(false, EffectsTracker.Tab.ALL) > 0 ? "Nothing in this tab"
+                    : EffectsTracker.hiddenEntries().isEmpty() ? "Nothing remembered yet"
+                    : "Everything is hidden - see Hidden below";
+        }
+
+        pagesCache = pages;
+        pagesEntries = entries;
+        emptyText = empty;
+        pagesListSize = ModConfig.INSTANCE.effects.list.size();
+        pagesPer = per;
+        pagesAt = now;
     }
 
     private int pageCount() {
@@ -208,6 +297,8 @@ public class EffectsScreen extends Screen {
 
     @Override
     protected void init() {
+        // Jeder Neuaufbau heisst: Knopf, Reiter oder Groesse haben sich geaendert - die Seiten neu bauen lassen
+        pagesCache = null;
         List<List<Row>> pages = pages();
         page = Math.clamp(page, 0, pages.size() - 1);
         List<Row> rows = pages.get(page);
@@ -417,29 +508,27 @@ public class EffectsScreen extends Screen {
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
         int centerX = width / 2;
         graphics.text(font, "Presets", PRESET_X + 2, PRESET_TOP - 36, 0xFFFFAA00, false);
-        graphics.centeredText(font, Component.literal(showHidden ? "Effects - hidden" : "Effects")
-                .withStyle(ChatFormatting.GOLD), centerX, 14, 0xFFFFAA00);
-        graphics.centeredText(font, Component.literal(showHidden
+        // Feste Texte: je Zeichenkette einmal gebaut und geteilt, nicht in jedem Bild
+        graphics.centeredText(font, FensterText.gold(showHidden ? "Effects - hidden" : "Effects"), centerX, 14, 0xFFFFAA00);
+        graphics.centeredText(font, FensterText.dunkelgrau(showHidden
                         ? "Hidden effects stay out of the list, the panel and the alerts"
-                        : "Tabs sort the list - the known Mixins are listed before you have used them")
-                .withStyle(ChatFormatting.DARK_GRAY), centerX, 26, 0xFF888888);
+                        : "Tabs sort the list - the known Mixins are listed before you have used them"),
+                centerX, 26, 0xFF888888);
         if (!ModConfig.INSTANCE.effects.enabled) {
-            graphics.centeredText(font, Component.literal(
-                            "Panel and alerts are off - switch Enabled on below")
-                    .withStyle(ChatFormatting.RED), centerX, 38, 0xFFFF5555);
+            graphics.centeredText(font, FensterText.rot("Panel and alerts are off - switch Enabled on below"),
+                    centerX, 38, 0xFFFF5555);
         }
 
-        if (EffectsTracker.count(showHidden, tab) == 0) {
-            String empty = showHidden ? "Nothing hidden"
-                    : tab != EffectsTracker.Tab.ALL && EffectsTracker.count(false, EffectsTracker.Tab.ALL) > 0 ? "Nothing in this tab"
-                    : EffectsTracker.hiddenEntries().isEmpty() ? "Nothing remembered yet"
-                    : "Everything is hidden - see Hidden below";
-            graphics.centeredText(font, Component.literal(empty).withStyle(ChatFormatting.GRAY),
-                    centerX, LIST_TOP + 20, 0xFFAAAAAA);
+        // Die gehaltenen Seiten (neu gebaut nur bei Aenderung, siehe pages()); die Zahl der Effekte und der Satz bei leerer Liste kommen mit
+        List<List<Row>> pages = pages();
+        if (pagesEntries == 0) {
+            graphics.centeredText(font, FensterText.grau(emptyText), centerX, LIST_TOP + 20, 0xFFAAAAAA);
             return;
         }
         int left = left();
-        List<List<Row>> pages = pages();
+        int nameW = nameWidth();
+        int gridW = gridWidth();
+        long now = System.currentTimeMillis();
         List<Row> rows = pages.get(Math.clamp(page, 0, pages.size() - 1));
         for (int i = 0; i < rows.size(); i++) {
             Row row = rows.get(i);
@@ -447,19 +536,17 @@ public class EffectsScreen extends Screen {
             if (row.entry() == null) {
                 // Die Ueberschrift einer Gruppe, mit einem Strich darunter
                 graphics.text(font, row.header(), left, y, 0xFFFFAA00, false);
-                graphics.fill(left, y + 10, left + gridWidth(), y + 11, 0x66FFAA00);
+                graphics.fill(left, y + 10, left + gridW, y + 11, 0x66FFAA00);
                 continue;
             }
-            EffectEntry e = row.entry();
-            graphics.text(font, font.plainSubstrByWidth(e.name, nameWidth() - 8), left + 6, y, 0xFFFFFFFF, false);
-            Long rest = EffectsTracker.remaining(e);
-            String time = rest == null ? "?" : rest <= 0L ? "off" : EffectsHud.format(rest);
-            int colour = rest == null ? 0xFFAAAAAA : rest <= 0L ? 0xFFFF5555 : 0xFF55FF55;
-            graphics.text(font, time, left + nameWidth() + 4, y, colour, false);
+            // Name und Restzeit liegen in der Zeile; die Restzeit wird nur neu gebaut, wenn eine Sekunde vergangen ist
+            row.timeUpdate(now);
+            graphics.text(font, row.name, left + 6, y, 0xFFFFFFFF, false);
+            graphics.text(font, row.time, left + nameW + 4, y, row.timeColour, false);
         }
-        if (pageCount() > 1) {
-            graphics.centeredText(font, Component.literal((page + 1) + " / " + pageCount())
-                    .withStyle(ChatFormatting.GRAY), left + gridWidth() - 48, height - 46, 0xFFAAAAAA);
+        int pageTotal = Math.max(1, pages.size());
+        if (pageTotal > 1) {
+            graphics.centeredText(font, FensterText.seite(page, pageTotal), left + gridW - 48, height - 46, 0xFFAAAAAA);
         }
     }
 }

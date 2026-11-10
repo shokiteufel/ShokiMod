@@ -28,20 +28,63 @@ public class DayItemScreen extends Screen {
     private static final int LIST_WIDTH = 420;
     private static final int LIST_TOP = 60;
 
-    /** Eine Zeile: Ware, Stueckzahl, Wert */
-    private record Row(String itemId, String name, int count, double worth) {
+    /**
+     * Eine Zeile: Ware, Stueckzahl, Wert - dazu die Texte und Farben, die das Bild zeichnet. Die werden erst gefuellt, wenn die
+     * Zeile auf der gezeigten Seite steht, und dann einmal je Neuaufbau der Liste (nicht in jedem Bild): "x5" und der Wert als
+     * Zeichenkette (String.format) und die Farbe der Ware (ein regulaerer Ausdruck, dazu mehrere Tabellen).
+     */
+    private static final class Row {
+        private final String itemId;
+        private final String name;
+        private final int count;
+        private final double worth;
+        private boolean angezeigt;
+        private String countText;
+        private String worthText;
+        private int nameColour;
+        private int worthColour;
+
+        Row(String itemId, String name, int count, double worth) {
+            this.itemId = itemId;
+            this.name = name;
+            this.count = count;
+            this.worth = worth;
+        }
+
+        String name() {
+            return name;
+        }
+
+        double worth() {
+            return worth;
+        }
+
+        void anzeigeFuellen() {
+            if (angezeigt) return;
+            countText = "x" + count;
+            worthText = worth != 0 ? ItemValue.format(worth) : "?";
+            worthColour = worth > 0 ? 0xFF55FF55 : worth < 0 ? 0xFFFF5555 : 0xFF888888;
+            nameColour = ProfitTracker.colourOf(itemId);
+            angezeigt = true;
+        }
     }
 
     private final Screen parent;
     private final DayRecord tag;
-    private final String titel;
+    /** Die Ueberschrift (Datum, Jahr, Amtszeit) in Gold - der Titel steht fest, also einmal gebaut */
+    private final Component titelText;
     private int page;
+    /**
+     * "12.3m in 5h 20m - priced at ..." - neu gebaut nur, wenn sich die Summe aendert. Dauer und Vermerk gehoeren zu {@code tag}, einem
+     * Satz, der beim Oeffnen des Fensters feststeht (das Log ersetzt Saetze durch Kopien, es aendert keinen an Ort und Stelle).
+     */
+    private final FensterText.Gemerkt untertitel = new FensterText.Gemerkt();
 
     public DayItemScreen(Screen parent, DayRecord tag, String titel) {
         super(Component.literal("Day profit"));
         this.parent = parent;
         this.tag = tag;
-        this.titel = titel;
+        this.titelText = Component.literal(titel).withStyle(ChatFormatting.GOLD);
     }
 
     private int left() {
@@ -59,6 +102,8 @@ public class DayItemScreen extends Screen {
      */
     private List<Row> rowsMemo = null;
     private long rowsMemoAt = 0L;
+    /** Die Summe aller Zeilen von {@link #rowsMemo} - gerechnet beim Neuaufbau der Liste, nicht in jedem Bild */
+    private double rowsGesamt;
 
     private List<Row> rows() {
         long now = System.currentTimeMillis();
@@ -74,9 +119,35 @@ public class DayItemScreen extends Screen {
                     ProfitTracker.worthOf(tag, entry.getKey(), count)));
         }
         out.sort(Comparator.comparingDouble(Row::worth).reversed().thenComparing(Row::name));
+        // Summiert in der Reihenfolge der sortierten Liste, wie das Bild es vorher je Bild tat
+        double summe = 0;
+        for (Row row : out) summe += row.worth();
         rowsMemo = out;
+        rowsGesamt = summe;
         rowsMemoAt = now;
         return out;
+    }
+
+    /**
+     * Alles, was das Bild an gemerkten Texten braucht, und die Zeilen dazu: den Untertitel (neu gebaut nur, wenn sich die Summe
+     * aendert) und die Anzeigetexte der Zeilen auf der gezeigten Seite (gefuellt nur einmal je Neuaufbau der Liste).
+     */
+    private List<Row> vorbereiten() {
+        List<Row> zeilen = rows();
+        long schluessel = Double.doubleToLongBits(rowsGesamt);
+        if (!untertitel.gilt(schluessel, tag.note)) {
+            untertitel.setze(schluessel, tag.note, Component.literal(
+                            ItemValue.format(rowsGesamt) + " in " + DayProfitScreen.clock(tag.uptimeMillis)
+                            + (tag.note == null || tag.note.isBlank()
+                                    ? " - priced at the day's prices"
+                                    : " - older days priced at update time"))
+                    .withStyle(ChatFormatting.DARK_GRAY));
+        }
+        int start = page * perPage();
+        for (int i = 0; i < perPage() && start + i < zeilen.size(); i++) {
+            zeilen.get(start + i).anzeigeFuellen();
+        }
+        return zeilen;
     }
 
     private int pageCount() {
@@ -115,26 +186,19 @@ public class DayItemScreen extends Screen {
         int left = left();
         int centerX = width / 2;
 
-        List<Row> zeilen = rows();
-        double gesamt = 0;
-        for (Row row : zeilen) gesamt += row.worth();
+        List<Row> zeilen = vorbereiten();
 
-        graphics.centeredText(font, Component.literal(titel).withStyle(ChatFormatting.GOLD),
-                centerX, 14, 0xFFFFAA00);
-        graphics.centeredText(font, Component.literal(
-                        ItemValue.format(gesamt) + " in " + DayProfitScreen.clock(tag.uptimeMillis)
-                        + (tag.note == null || tag.note.isBlank()
-                                ? " - priced at the day's prices"
-                                : " - older days priced at update time"))
-                .withStyle(ChatFormatting.DARK_GRAY), centerX, 28, 0xFF888888);
+        // Titel und Untertitel liegen fertig in Feldern; feste Texte kommen aus dem Zwischenspeicher
+        graphics.centeredText(font, titelText, centerX, 14, 0xFFFFAA00);
+        graphics.centeredText(font, untertitel.component(), centerX, 28, 0xFF888888);
 
         graphics.text(font, "Item", left + 4, LIST_TOP - 12, 0xFF888888, false);
         graphics.text(font, "Count", left + 240, LIST_TOP - 12, 0xFF888888, false);
         graphics.text(font, "Worth", left + 330, LIST_TOP - 12, 0xFF888888, false);
 
         if (zeilen.isEmpty()) {
-            graphics.centeredText(font, Component.literal("Nothing was counted on this day")
-                    .withStyle(ChatFormatting.GRAY), centerX, LIST_TOP + 20, 0xFFAAAAAA);
+            graphics.centeredText(font, FensterText.grau("Nothing was counted on this day"),
+                    centerX, LIST_TOP + 20, 0xFFAAAAAA);
             return;
         }
 
@@ -144,15 +208,14 @@ public class DayItemScreen extends Screen {
             int y = LIST_TOP + i * ROW_HEIGHT;
             if ((i & 1) == 0) graphics.fill(left, y - 3, left + LIST_WIDTH, y + ROW_HEIGHT - 4, 0x30000000);
 
-            graphics.text(font, row.name(), left + 4, y, ProfitTracker.colourOf(row.itemId()), false);
-            graphics.text(font, "x" + row.count(), left + 240, y, 0xFFCCCCCC, false);
-            graphics.text(font, row.worth() != 0 ? ItemValue.format(row.worth()) : "?",
-                    left + 330, y, row.worth() > 0 ? 0xFF55FF55 : row.worth() < 0 ? 0xFFFF5555 : 0xFF888888, false);
+            graphics.text(font, row.name(), left + 4, y, row.nameColour, false);
+            graphics.text(font, row.countText, left + 240, y, 0xFFCCCCCC, false);
+            graphics.text(font, row.worthText, left + 330, y, row.worthColour, false);
         }
 
         if (pageCount() > 1) {
-            graphics.centeredText(font, Component.literal((page + 1) + " / " + pageCount())
-                    .withStyle(ChatFormatting.GRAY), centerX, height - 44, 0xFFAAAAAA);
+            // "2 / 5" wird nur neu gebaut, wenn sich Seite oder Seitenzahl aendern
+            graphics.centeredText(font, FensterText.seite(page, pageCount()), centerX, height - 44, 0xFFAAAAAA);
         }
     }
 

@@ -4,7 +4,9 @@ import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.util.AlertVolume;
 import com.shokiteufel.shokimod.util.CustomSoundPlayer;
 import com.shokiteufel.shokimod.util.SoundVolumes;
+import com.shokiteufel.shokimod.util.TextCache;
 import net.minecraft.ChatFormatting;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractSliderButton;
 import net.minecraft.client.gui.components.Button;
@@ -33,12 +35,53 @@ public class SoundSettingsScreen extends Screen {
     /** So schmal wird der Name hoechstens: Die Zeile darunter (Knoepfe) braucht gut 350 Punkte und darf sich nicht ueberlappen */
     private static final int MIN_LABEL = 126;
 
+    /** So oft wird der Ordner im Hintergrund hoechstens neu gelesen, damit eine Datei, die man hineinlegt, in der Zeile oben auftaucht */
+    private static final long NEU_LESEN_NANOS = 1_000_000_000L;
+
     private final Screen parent;
     private int page;
+
+    /**
+     * Die Dateien im Sound-Ordner, einmal gelesen und gehalten. availableSounds() oeffnet das Verzeichnis, filtert und sortiert bei jedem
+     * Aufruf - und das Fenster fragte es in jedem Bild mehrfach (Seitenzahl, Zaehler, Seite). Neu gelesen wird bei jedem init() (Neuaufbau,
+     * "Rescan", "Reset") und danach hoechstens einmal je Sekunde, denn der Ordner kann sich von aussen aendern (der Knopf "Open folder"
+     * fuehrt dorthin).
+     */
+    private List<String> dateien = List.of();
+    private long dateienGelesen;
+    private boolean dateienDa;
+
+    // Die Zeilen der gezeigten Seite: gekuerzte Namen (Textbreite messen und kuerzen) und die Farbe "von 100 abweichend". Neu gebaut, wenn eine
+    // andere Dateiliste, Seite, Zeilenzahl, Namensbreite oder Schrift gilt; die Farben zusaetzlich, wenn ein Regler bewegt wird.
+    private List<String> seitenDateien = List.of();
+    private String[] seitenNamen = new String[0];
+    private boolean[] seitenGeaendert = new boolean[0];
+    private List<String> seiteQuelle;
+    private int seiteNummer = -1;
+    private int seiteZeilen = -1;
+    private int seiteBreite = -1;
+    private Font seiteSchrift;
+
+    // Die Zeilen oben: gebaut nur, wenn sich die Zahl der Dateien, die Fensterbreite oder die Schrift aendert
+    private final FensterText.Gemerkt kopf = new FensterText.Gemerkt();
+    private final FensterText.Gemerkt hinweis = new FensterText.Gemerkt();
 
     public SoundSettingsScreen(Screen parent) {
         super(Component.literal("Sound settings"));
         this.parent = parent;
+    }
+
+    /** Den Ordner jetzt lesen. Bleibt der Inhalt gleich, bleibt auch dasselbe Listenobjekt, damit sich nichts grundlos neu baut */
+    private void dateienLesen() {
+        List<String> neu = CustomSoundPlayer.availableSounds();
+        if (!dateienDa || !neu.equals(dateien)) dateien = neu;
+        dateienGelesen = System.nanoTime();
+        dateienDa = true;
+    }
+
+    private List<String> soundDateien() {
+        if (!dateienDa || System.nanoTime() - dateienGelesen > NEU_LESEN_NANOS) dateienLesen();
+        return dateien;
     }
 
     private int rowsPerPage() {
@@ -46,7 +89,7 @@ public class SoundSettingsScreen extends Screen {
     }
 
     private int pageCount() {
-        return Math.max(1, (CustomSoundPlayer.availableSounds().size() + rowsPerPage() - 1) / rowsPerPage());
+        return Math.max(1, (soundDateien().size() + rowsPerPage() - 1) / rowsPerPage());
     }
 
     /** So breit wird der Dateiname; auf einem schmalen Fenster schrumpft er, der Rest der Zeile nicht */
@@ -64,14 +107,72 @@ public class SoundSettingsScreen extends Screen {
     }
 
     private List<String> pageFiles() {
-        List<String> files = CustomSoundPlayer.availableSounds();
+        return seitenTeil(soundDateien());
+    }
+
+    /** Die Dateien der gezeigten Seite aus einer Dateiliste */
+    private List<String> seitenTeil(List<String> files) {
         int from = Math.min(files.size(), page * rowsPerPage());
         int to = Math.min(files.size(), from + rowsPerPage());
         return files.subList(from, to);
     }
 
+    /**
+     * Die Zeilen der gezeigten Seite, fertig fuers Bild: gekuerzter Name und Farbe je Datei. Gerechnet wird nur, wenn sich die Dateiliste, die
+     * Seite, die Zeilenzahl, die Breite des Namens oder die Schrift aendert - nicht in jedem Bild.
+     */
+    private void seiteAktualisieren() {
+        List<String> quelle = soundDateien();
+        int zeilen = rowsPerPage();
+        int breite = labelWidth() - 4;
+        if (quelle == seiteQuelle && page == seiteNummer && zeilen == seiteZeilen && breite == seiteBreite && font == seiteSchrift) {
+            return;
+        }
+        List<String> teil = seitenTeil(quelle);
+        String[] namen = new String[teil.size()];
+        for (int i = 0; i < namen.length; i++) {
+            namen[i] = fit(teil.get(i), breite);
+        }
+        seitenDateien = teil;
+        seitenNamen = namen;
+        seiteQuelle = quelle;
+        seiteNummer = page;
+        seiteZeilen = zeilen;
+        seiteBreite = breite;
+        seiteSchrift = font;
+        geaendertAktualisieren();
+    }
+
+    /** Welche Dateien von 100 abweichen (gelb geschrieben): gelesen beim Neuaufbau der Seite und wenn ein Regler bewegt wird, nicht in jedem Bild */
+    private void geaendertAktualisieren() {
+        int n = seitenDateien.size();
+        boolean[] g = seitenGeaendert.length == n ? seitenGeaendert : new boolean[n];
+        for (int i = 0; i < n; i++) {
+            g[i] = SoundVolumes.percent(seitenDateien.get(i)) < SoundVolumes.FULL;
+        }
+        seitenGeaendert = g;
+    }
+
+    /** Die zusammengesetzten Texte oben: gebaut nur, wenn sich die Zahl der Dateien, die Breite oder die Schrift aendert */
+    private void texteAktualisieren(int count, int room) {
+        long schluessel = count * 100_000L + room;
+        if (!kopf.gilt(schluessel, font)) {
+            kopf.setze(schluessel, font, Component.literal(
+                            fit(count + " file(s) in config/shokimod/sounds  ·  wav, mp3, ogg", room))
+                    .withStyle(ChatFormatting.GRAY));
+        }
+        if (!hinweis.gilt(room, font)) {
+            hinweis.setze(room, font, Component.literal(
+                            fit("Counts wherever a file is used, on top of Alert Volume", room))
+                    .withStyle(ChatFormatting.DARK_GRAY));
+        }
+    }
+
     @Override
     protected void init() {
+        // Jeder Neuaufbau (Rescan, Reset, Fenstergroesse) liest den Ordner und die Lautstaerken neu
+        dateienLesen();
+        seiteQuelle = null;
         page = Math.min(page, pageCount() - 1);
 
         int left = left();
@@ -81,7 +182,7 @@ public class SoundSettingsScreen extends Screen {
             int y = LIST_TOP + i * ROW_HEIGHT;
             int x = left + labelWidth() + GAP;
 
-            addRenderableWidget(new FileSlider(x, y, file));
+            addRenderableWidget(new FileSlider(x, y, file, this::geaendertAktualisieren));
 
             Button play = Button.builder(Component.literal("▶"), b ->
                     // Wie die Datei als Alarm klingt: mit dem Alert Volume, Regel auf 100
@@ -135,9 +236,13 @@ public class SoundSettingsScreen extends Screen {
         init();
     }
 
-    /** Den Dateinamen auf die Breite kuerzen, mit "…" am Ende */
+    /**
+     * Den Dateinamen auf die Breite kuerzen, mit "…" am Ende. Das Ergebnis haelt das Fenster fest (seiteAktualisieren, texteAktualisieren);
+     * gerechnet wird also nur bei neuem Namen oder neuer Breite. Die erste Messung geht ueber den Zwischenspeicher, das schrittweise Kuerzen
+     * misst direkt, damit die Zwischenschritte dessen Tabelle nicht fuellen.
+     */
     private String fit(String name, int maxWidth) {
-        if (font.width(name) <= maxWidth) return name;
+        if (TextCache.breite(font, name) <= maxWidth) return name;
         String cut = name;
         while (cut.length() > 1 && font.width(cut + "…") > maxWidth) {
             cut = cut.substring(0, cut.length() - 1);
@@ -152,34 +257,28 @@ public class SoundSettingsScreen extends Screen {
         int centerX = width / 2;
         graphics.centeredText(font, this.title, centerX, 12, 0xFFFFFFFF);
 
-        int count = CustomSoundPlayer.availableSounds().size();
-        int room = width - 20;
-        graphics.centeredText(font, Component.literal(
-                        fit(count + " file(s) in config/shokimod/sounds  ·  wav, mp3, ogg", room))
-                .withStyle(ChatFormatting.GRAY), centerX, 26, 0xFFAAAAAA);
-        graphics.centeredText(font, Component.literal(
-                        fit("Counts wherever a file is used, on top of Alert Volume", room))
-                .withStyle(ChatFormatting.DARK_GRAY), centerX, 38, 0xFF808080);
+        // Dateiliste, gekuerzte Namen und die beiden Zeilen oben liegen fertig vor und werden nur neu gebaut, wenn sich ihre Quellen aendern
+        int count = soundDateien().size();
+        texteAktualisieren(count, width - 20);
+        graphics.centeredText(font, kopf.component(), centerX, 26, 0xFFAAAAAA);
+        graphics.centeredText(font, hinweis.component(), centerX, 38, 0xFF808080);
 
         int left = left();
-        List<String> files = pageFiles();
-        for (int i = 0; i < files.size(); i++) {
-            String file = files.get(i);
-            boolean changed = SoundVolumes.percent(file) < SoundVolumes.FULL;
-            graphics.text(font, fit(file, labelWidth() - 4), left, LIST_TOP + i * ROW_HEIGHT + 6,
-                    changed ? 0xFFFFFF55 : 0xFFAAAAAA, false);
+        seiteAktualisieren();
+        String[] namen = seitenNamen;
+        boolean[] geaendert = seitenGeaendert;
+        for (int i = 0; i < namen.length; i++) {
+            graphics.text(font, namen[i], left, LIST_TOP + i * ROW_HEIGHT + 6,
+                    geaendert[i] ? 0xFFFFFF55 : 0xFFAAAAAA, false);
         }
 
         if (count == 0) {
-            graphics.centeredText(font, Component.literal(
-                            "Folder is empty - put a file in, then press Rescan")
-                    .withStyle(ChatFormatting.GRAY), centerX, LIST_TOP + 14, 0xFFAAAAAA);
+            graphics.centeredText(font, FensterText.grau("Folder is empty - put a file in, then press Rescan"),
+                    centerX, LIST_TOP + 14, 0xFFAAAAAA);
         }
 
         if (pageCount() > 1) {
-            graphics.centeredText(font,
-                    Component.literal((page + 1) + " / " + pageCount()).withStyle(ChatFormatting.GRAY),
-                    centerX, height - 46, 0xFFAAAAAA);
+            graphics.centeredText(font, FensterText.seite(page, pageCount()), centerX, height - 46, 0xFFAAAAAA);
         }
     }
 
@@ -192,10 +291,13 @@ public class SoundSettingsScreen extends Screen {
     /** Regler von 0 bis 100 fuer eine Datei; schreibt jede Bewegung in SoundVolumes */
     private static class FileSlider extends AbstractSliderButton {
         private final String file;
+        /** Wird nach jeder Bewegung gerufen: die Zeile des Fensters merkt sich daraus, ob die Datei von 100 abweicht */
+        private final Runnable danach;
 
-        FileSlider(int x, int y, String file) {
+        FileSlider(int x, int y, String file, Runnable danach) {
             super(x, y, SLIDER_WIDTH, 20, Component.empty(), SoundVolumes.percent(file) / 100.0);
             this.file = file;
+            this.danach = danach;
             updateMessage();
         }
 
@@ -212,6 +314,7 @@ public class SoundSettingsScreen extends Screen {
         @Override
         protected void applyValue() {
             SoundVolumes.set(file, percent());
+            if (danach != null) danach.run();
         }
     }
 }

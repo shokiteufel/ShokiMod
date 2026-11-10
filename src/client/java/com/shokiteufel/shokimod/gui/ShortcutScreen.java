@@ -183,21 +183,18 @@ public class ShortcutScreen extends Screen {
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
         int centerX = width / 2;
         graphics.centeredText(font, this.title, centerX, 14, 0xFFFFFFFF);
-        graphics.centeredText(font, Component.literal(
-                        "Press a key to send a command or a message  ·  one send per press")
-                .withStyle(ChatFormatting.DARK_GRAY), centerX, 27, 0xFF808080);
-        graphics.centeredText(font, Component.literal(
-                        "Several on one key: only the ticked one fires. Ticking another switches.")
-                .withStyle(ChatFormatting.DARK_GRAY), centerX, 38, 0xFF808080);
+        // Feste Texte kommen aus dem Zwischenspeicher (je Zeichenkette ein geteiltes Component), "2 / 5" wird nur bei neuer Seite gebaut
+        graphics.centeredText(font, FensterText.dunkelgrau(
+                "Press a key to send a command or a message  ·  one send per press"), centerX, 27, 0xFF808080);
+        graphics.centeredText(font, FensterText.dunkelgrau(
+                "Several on one key: only the ticked one fires. Ticking another switches."), centerX, 38, 0xFF808080);
 
         if (list().isEmpty()) {
-            graphics.centeredText(font, Component.literal("No shortcuts yet - add one below.")
-                    .withStyle(ChatFormatting.GRAY), centerX, LIST_TOP + 12, 0xFFAAAAAA);
+            graphics.centeredText(font, FensterText.grau("No shortcuts yet - add one below."),
+                    centerX, LIST_TOP + 12, 0xFFAAAAAA);
         }
         if (pageCount() > 1) {
-            graphics.centeredText(font,
-                    Component.literal((page + 1) + " / " + pageCount()).withStyle(ChatFormatting.GRAY),
-                    centerX, height - 46, 0xFFAAAAAA);
+            graphics.centeredText(font, FensterText.seite(page, pageCount()), centerX, height - 46, 0xFFAAAAAA);
         }
     }
 
