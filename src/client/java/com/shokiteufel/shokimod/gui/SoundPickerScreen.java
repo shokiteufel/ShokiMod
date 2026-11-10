@@ -33,6 +33,19 @@ public class SoundPickerScreen extends Screen {
     private final float volume;
     private int page;
 
+    /** So oft wird der Ordner im Hintergrund hoechstens neu gelesen, damit eine Datei, die man hineinlegt, in der Zeile oben auftaucht */
+    private static final long NEU_LESEN_NANOS = 1_000_000_000L;
+    /**
+     * Die Dateien im Sound-Ordner, einmal gelesen und gehalten. availableSounds() oeffnet das Verzeichnis, filtert und sortiert bei jedem
+     * Aufruf - und das Fenster fragte es in jedem Bild mehrfach (Seitenzahl, Zaehler). Neu gelesen wird bei jedem init() (Neuaufbau, "Rescan")
+     * und danach hoechstens einmal je Sekunde, denn der Ordner kann sich von aussen aendern (der Knopf "Open folder" fuehrt dorthin).
+     */
+    private List<String> dateien = List.of();
+    private long dateienGelesen;
+    private boolean dateienDa;
+    /** "3 file(s) in ..." - neu gebaut nur, wenn sich die Zahl der Dateien aendert */
+    private final FensterText.Gemerkt anzahl = new FensterText.Gemerkt();
+
     public SoundPickerScreen(Screen parent, Supplier<String> current, Consumer<String> apply,
                              float volume) {
         super(Component.literal("Sound file"));
@@ -40,6 +53,27 @@ public class SoundPickerScreen extends Screen {
         this.current = current;
         this.apply = apply;
         this.volume = volume;
+    }
+
+    /** Den Ordner jetzt lesen. Bleibt der Inhalt gleich, bleibt auch dasselbe Listenobjekt, damit sich nichts grundlos neu baut */
+    private void dateienLesen() {
+        List<String> neu = CustomSoundPlayer.availableSounds();
+        if (!dateienDa || !neu.equals(dateien)) dateien = neu;
+        dateienGelesen = System.nanoTime();
+        dateienDa = true;
+    }
+
+    private List<String> soundDateien() {
+        if (!dateienDa || System.nanoTime() - dateienGelesen > NEU_LESEN_NANOS) dateienLesen();
+        return dateien;
+    }
+
+    /** Der Zaehler oben: gebaut nur, wenn sich die Zahl der Dateien aendert */
+    private void texteAktualisieren(int count) {
+        if (!anzahl.gilt(count)) {
+            anzahl.setze(count, Component.literal(count + " file(s) in config/shokimod/sounds  ·  wav, mp3, ogg")
+                    .withStyle(ChatFormatting.DARK_GRAY));
+        }
     }
 
     private int rowsPerPage() {
@@ -51,14 +85,16 @@ public class SoundPickerScreen extends Screen {
     }
 
     private int pageCount() {
-        return Math.max(1, (CustomSoundPlayer.availableSounds().size() + perPage() - 1) / perPage());
+        return Math.max(1, (soundDateien().size() + perPage() - 1) / perPage());
     }
 
     @Override
     protected void init() {
+        // Jeder Neuaufbau - auch "Rescan" - liest den Ordner neu
+        dateienLesen();
         page = Math.min(page, pageCount() - 1);
 
-        List<String> files = CustomSoundPlayer.availableSounds();
+        List<String> files = soundDateien();
         int gridWidth = COLUMNS * (COLUMN_WIDTH + 4) - 4;
         int left = width / 2 - gridWidth / 2;
         int start = page * perPage();
@@ -124,21 +160,18 @@ public class SoundPickerScreen extends Screen {
         int centerX = width / 2;
         graphics.centeredText(font, this.title, centerX, 14, 0xFFFFFFFF);
 
-        int count = CustomSoundPlayer.availableSounds().size();
-        graphics.centeredText(font, Component.literal(
-                        count + " file(s) in config/shokimod/sounds  ·  wav, mp3, ogg")
-                .withStyle(ChatFormatting.DARK_GRAY), centerX, 28, 0xFF808080);
+        // Die Dateiliste und der Zaehler liegen fertig vor (der Ordner wird nicht in jedem Bild gelesen); feste Texte kommen aus dem Zwischenspeicher
+        int count = soundDateien().size();
+        texteAktualisieren(count);
+        graphics.centeredText(font, anzahl.component(), centerX, 28, 0xFF808080);
 
         if (count == 0) {
-            graphics.centeredText(font, Component.literal(
-                            "Folder is empty - put a file in, then press Rescan")
-                    .withStyle(ChatFormatting.GRAY), centerX, LIST_TOP + 14, 0xFFAAAAAA);
+            graphics.centeredText(font, FensterText.grau("Folder is empty - put a file in, then press Rescan"),
+                    centerX, LIST_TOP + 14, 0xFFAAAAAA);
         }
 
         if (pageCount() > 1) {
-            graphics.centeredText(font,
-                    Component.literal((page + 1) + " / " + pageCount()).withStyle(ChatFormatting.GRAY),
-                    centerX, height - 46, 0xFFAAAAAA);
+            graphics.centeredText(font, FensterText.seite(page, pageCount()), centerX, height - 46, 0xFFAAAAAA);
         }
     }
 

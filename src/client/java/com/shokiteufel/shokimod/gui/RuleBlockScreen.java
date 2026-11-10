@@ -28,6 +28,19 @@ public class RuleBlockScreen extends Screen {
     private final ChatRule rule;
     private int page;
 
+    /**
+     * Die anderen Regeln, einmal gebaut und gehalten. Stream, Filter und toList je Aufruf liefen sonst in jedem Bild, denn others() steckt in
+     * pageCount(), und das fragt das Fenster mehrfach je Bild.
+     *
+     * Die Quelle (die Regelliste) aendert sich nur in den Regel-Fenstern, nicht im Hintergrund: ChatRuleHandler liest sie nur. Verworfen wird
+     * die Liste bei jedem init() (jeder Neuaufbau) und sicherheitshalber, wenn die Regelliste eine andere ist oder ihre Laenge wechselt.
+     */
+    private List<ChatRule> andere;
+    private List<ChatRule> andereQuelle;
+    private int andereGroesse = -1;
+    /** "These rules stay silent when X fires" - neu gebaut nur, wenn sich der Name der Regel aendert */
+    private final FensterText.Gemerkt hinweis = new FensterText.Gemerkt();
+
     public RuleBlockScreen(Screen parent, ChatRule rule) {
         super(Component.literal("Blocked rules"));
         this.parent = parent;
@@ -35,9 +48,24 @@ public class RuleBlockScreen extends Screen {
     }
 
     private List<ChatRule> others() {
-        return ModConfig.INSTANCE.chat.chatRules.stream()
-                .filter(other -> !other.id.equals(rule.id))
-                .toList();
+        List<ChatRule> quelle = ModConfig.INSTANCE.chat.chatRules;
+        if (andere == null || quelle != andereQuelle || quelle.size() != andereGroesse) {
+            andere = quelle.stream()
+                    .filter(other -> !other.id.equals(rule.id))
+                    .toList();
+            andereQuelle = quelle;
+            andereGroesse = quelle.size();
+        }
+        return andere;
+    }
+
+    /** Der zusammengesetzte Text des Bildes: gebaut nur, wenn sich der Name der Regel aendert (label() gibt dasselbe String-Objekt zurueck, solange er gleich ist) */
+    private void texteAktualisieren() {
+        String name = rule.label();
+        if (!hinweis.gilt(0L, name)) {
+            hinweis.setze(0L, name, Component.literal("These rules stay silent when " + name + " fires")
+                    .withStyle(ChatFormatting.GRAY));
+        }
     }
 
     private int rowsPerPage() {
@@ -50,6 +78,8 @@ public class RuleBlockScreen extends Screen {
 
     @Override
     protected void init() {
+        // Jeder Neuaufbau (Knopf, Fenstergroesse) laesst die Liste der anderen Regeln neu bauen
+        andere = null;
         page = Math.min(page, pageCount() - 1);
 
         List<ChatRule> list = others();
@@ -113,18 +143,15 @@ public class RuleBlockScreen extends Screen {
 
         int centerX = width / 2;
         graphics.centeredText(font, this.title, centerX, 14, 0xFFFFFFFF);
-        graphics.centeredText(font, Component.literal(
-                        "These rules stay silent when " + rule.label() + " fires")
-                .withStyle(ChatFormatting.GRAY), centerX, 28, 0xFFAAAAAA);
+        // Der Hinweis mit dem Regelnamen liegt fertig in einem gemerkten Feld; feste Texte und "2 / 5" kommen aus dem Zwischenspeicher
+        texteAktualisieren();
+        graphics.centeredText(font, hinweis.component(), centerX, 28, 0xFFAAAAAA);
 
         if (others().isEmpty()) {
-            graphics.centeredText(font, Component.literal("No other rules yet.")
-                    .withStyle(ChatFormatting.GRAY), centerX, LIST_TOP + 12, 0xFFAAAAAA);
+            graphics.centeredText(font, FensterText.grau("No other rules yet."), centerX, LIST_TOP + 12, 0xFFAAAAAA);
         }
         if (pageCount() > 1) {
-            graphics.centeredText(font,
-                    Component.literal((page + 1) + " / " + pageCount()).withStyle(ChatFormatting.GRAY),
-                    centerX, height - 46, 0xFFAAAAAA);
+            graphics.centeredText(font, FensterText.seite(page, pageCount()), centerX, height - 46, 0xFFAAAAAA);
         }
     }
 

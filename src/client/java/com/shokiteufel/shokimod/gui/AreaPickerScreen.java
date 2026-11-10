@@ -3,6 +3,7 @@ package com.shokiteufel.shokimod.gui;
 import com.shokiteufel.shokimod.data.ChatRule;
 import com.shokiteufel.shokimod.data.GameState;
 import com.shokiteufel.shokimod.data.KnownAreas;
+import com.shokiteufel.shokimod.data.ModConfig;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
@@ -60,15 +61,56 @@ public class AreaPickerScreen extends Screen {
         return rowsPerPage() * COLUMNS;
     }
 
+    /**
+     * Die Gebietsliste, einmal gebaut und gehalten: KnownAreas.all() legt bei jedem Aufruf Set und Liste neu an, und das
+     * Fenster fragt mehrmals je Bild danach. Neu gebaut wird nur, wenn ein Gebiet dazukommt (KnownAreas.observe haengt
+     * betretene Gebiete an die Liste der entdeckten an, sonst aendert sie niemand) oder die Config eine andere Liste hat -
+     * und bei jedem Neuaufbau des Fensters ({@link #init()}).
+     */
+    private List<String> gebiete;
+    private List<String> gebieteQuelle;
+    private int gebieteStand = -1;
+    /** "2 area(s) selected" - neu gebaut nur, wenn sich die Zahl der Haken aendert */
+    private final FensterText.Gemerkt auswahl = new FensterText.Gemerkt();
+    /** "... 3 area(s) added by visiting them" - neu gebaut nur, wenn ein Gebiet dazukommt */
+    private final FensterText.Gemerkt entdeckt = new FensterText.Gemerkt();
+
+    private List<String> areas() {
+        List<String> quelle = ModConfig.INSTANCE.chat.discoveredAreas;
+        int stand = quelle == null ? 0 : quelle.size();
+        if (gebiete == null || quelle != gebieteQuelle || stand != gebieteStand) {
+            gebiete = KnownAreas.all();
+            gebieteQuelle = quelle;
+            gebieteStand = stand;
+        }
+        return gebiete;
+    }
+
+    /** Die zusammengesetzten Texte des Bildes: gebaut nur, wenn sich ihre Quellen geaendert haben */
+    private void texteAktualisieren() {
+        int gewaehlt = selection.size();
+        if (!auswahl.gilt(gewaehlt)) {
+            auswahl.setze(gewaehlt, Component.literal(gewaehlt == 0 ? emptyHint : gewaehlt + " area(s) selected")
+                    .withStyle(gewaehlt == 0 ? ChatFormatting.GRAY : ChatFormatting.GREEN));
+        }
+        int dazu = KnownAreas.discoveredCount();
+        if (!entdeckt.gilt(dazu)) {
+            entdeckt.setze(dazu, Component.literal("▸ marks where you are now  ·  " + dazu
+                    + " area(s) added by visiting them").withStyle(ChatFormatting.DARK_GRAY));
+        }
+    }
+
     private int pageCount() {
-        return Math.max(1, (KnownAreas.all().size() + perPage() - 1) / perPage());
+        return Math.max(1, (areas().size() + perPage() - 1) / perPage());
     }
 
     @Override
     protected void init() {
+        // Jeder Neuaufbau liest die Liste frisch, wie vorher
+        gebiete = null;
         page = Math.min(page, pageCount() - 1);
 
-        List<String> areas = KnownAreas.all();
+        List<String> areas = areas();
         int gridWidth = COLUMNS * (COLUMN_WIDTH + 4) - 4;
         int left = width / 2 - gridWidth / 2;
         int start = page * perPage();
@@ -135,20 +177,14 @@ public class AreaPickerScreen extends Screen {
         int centerX = width / 2;
         graphics.centeredText(font, this.title, centerX, 14, 0xFFFFFFFF);
 
-        String hint = selection.isEmpty() ? emptyHint : selection.size() + " area(s) selected";
-        graphics.centeredText(font, Component.literal(hint).withStyle(
-                        selection.isEmpty() ? ChatFormatting.GRAY : ChatFormatting.GREEN),
-                centerX, 28, 0xFFAAAAAA);
-
-        graphics.centeredText(font, Component.literal(
-                        "▸ marks where you are now  ·  " + KnownAreas.discoveredCount()
-                                + " area(s) added by visiting them")
-                .withStyle(ChatFormatting.DARK_GRAY), centerX, 40, 0xFF808080);
+        // Beide Zeilen liegen fertig in gemerkten Feldern; neu gebaut wird nur, wenn sich ihre Quellen aendern
+        texteAktualisieren();
+        graphics.centeredText(font, auswahl.component(), centerX, 28, 0xFFAAAAAA);
+        graphics.centeredText(font, entdeckt.component(), centerX, 40, 0xFF808080);
 
         if (pageCount() > 1) {
-            graphics.centeredText(font,
-                    Component.literal((page + 1) + " / " + pageCount()).withStyle(ChatFormatting.GRAY),
-                    centerX, height - 46, 0xFFAAAAAA);
+            // "2 / 5" wird nur neu gebaut, wenn sich Seite oder Seitenzahl aendern
+            graphics.centeredText(font, FensterText.seite(page, pageCount()), centerX, height - 46, 0xFFAAAAAA);
         }
     }
 

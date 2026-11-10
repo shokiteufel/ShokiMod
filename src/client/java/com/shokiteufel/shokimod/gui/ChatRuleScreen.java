@@ -231,21 +231,20 @@ public class ChatRuleScreen extends Screen {
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
         int centerX = width / 2;
         graphics.centeredText(font, this.title, centerX, 16, 0xFFFFFFFF);
-        graphics.centeredText(font, Component.literal(
-                        "React to words in chat  ·  the order decides who goes first")
-                .withStyle(ChatFormatting.DARK_GRAY), centerX, 30, 0xFF808080);
+        // Feste Texte kommen aus dem Zwischenspeicher (je Zeichenkette ein geteiltes Component), nicht aus einem neuen Aufbau je Bild
+        graphics.centeredText(font, FensterText.dunkelgrau(
+                "React to words in chat  ·  the order decides who goes first"), centerX, 30, 0xFF808080);
 
         if (rules().isEmpty()) {
-            graphics.centeredText(font, Component.literal("No rules yet - add one below.")
-                    .withStyle(ChatFormatting.GRAY), centerX, LIST_TOP + 12, 0xFFAAAAAA);
+            graphics.centeredText(font, FensterText.grau("No rules yet - add one below."),
+                    centerX, LIST_TOP + 12, 0xFFAAAAAA);
         }
         if (status != null) {
             graphics.centeredText(font, status, centerX, height - 58, 0xFFFFFFFF);
         }
         if (pageCount() > 1) {
-            graphics.centeredText(font,
-                    Component.literal((page + 1) + " / " + pageCount()).withStyle(ChatFormatting.GRAY),
-                    centerX, height - 46, 0xFFAAAAAA);
+            // "2 / 5" wird nur neu gebaut, wenn sich Seite oder Seitenzahl aendern
+            graphics.centeredText(font, FensterText.seite(page, pageCount()), centerX, height - 46, 0xFFAAAAAA);
         }
     }
 

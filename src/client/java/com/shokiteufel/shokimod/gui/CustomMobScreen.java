@@ -63,6 +63,8 @@ public class CustomMobScreen extends Screen {
     private int page;
     private boolean hideNpcs = true;
     private List<Candidate> candidates = new ArrayList<>();
+    /** "Named mobs within 48 blocks ..." - neu gebaut nur, wenn sich die Radius-Eingabe in der Config aendert */
+    private final FensterText.Gemerkt hinweisNamed = new FensterText.Gemerkt();
 
     /** 周囲でまとめた候補。名前モードでは pattern を、型モードでは残りを使う */
     private record Candidate(String label, String pattern, String typeId, boolean invisible,
@@ -401,40 +403,58 @@ public class CustomMobScreen extends Screen {
         int centerX = width / 2;
         graphics.centeredText(font, this.title, centerX, 10, 0xFFFFFFFF);
 
-        String hint = switch (tab) {
-            case LIST -> "Applies to highlight, tracer and nameplate – anywhere, not just one area.";
-            case NAMED -> "Named mobs within " + (int) radius() + " blocks. Click to keep one.";
-            case TYPED -> "Mobs without a name, grouped by entity type. Click to keep one.";
-        };
-        graphics.centeredText(font, Component.literal(hint).withStyle(ChatFormatting.DARK_GRAY),
-                centerX, LIST_TOP - 24, 0xFF808080);
+        // Feste Texte kommen aus dem Zwischenspeicher (je Zeichenkette ein geteiltes Component), nicht aus einem neuen Aufbau je Bild
+        graphics.centeredText(font, hinweis(), centerX, LIST_TOP - 24, 0xFF808080);
 
         // Spaltenueberschriften, damit klar ist welches Feld was tut
         if (tab == Tab.LIST && !targets().isEmpty()) {
             int left = centerX - ROW_WIDTH / 2;
-            graphics.text(font, Component.literal("Shown name").withStyle(ChatFormatting.DARK_GRAY),
+            graphics.text(font, FensterText.dunkelgrau("Shown name"),
                     left + COLUMN_LABEL, LIST_TOP - 11, 0xFF808080);
-            graphics.text(font, Component.literal("Matches").withStyle(ChatFormatting.DARK_GRAY),
+            graphics.text(font, FensterText.dunkelgrau("Matches"),
                     left + COLUMN_MATCH, LIST_TOP - 11, 0xFF808080);
-            graphics.text(font, Component.literal("Color").withStyle(ChatFormatting.DARK_GRAY),
+            graphics.text(font, FensterText.dunkelgrau("Color"),
                     left + COLUMN_SWATCH, LIST_TOP - 11, 0xFF808080);
         }
 
         if (itemCount() == 0) {
-            String message = switch (tab) {
-                case LIST -> "No entries yet – use the two tabs above.";
-                case NAMED -> "Nothing named nearby.";
-                case TYPED -> "Nothing unnamed nearby.";
-            };
-            graphics.centeredText(font, Component.literal(message).withStyle(ChatFormatting.GRAY),
-                    centerX, LIST_TOP + 12, 0xFFAAAAAA);
+            graphics.centeredText(font, leerMeldung(), centerX, LIST_TOP + 12, 0xFFAAAAAA);
         }
 
         if (pageCount() > 1) {
-            graphics.centeredText(font,
-                    Component.literal((page + 1) + " / " + pageCount()).withStyle(ChatFormatting.GRAY),
-                    centerX, height - 46, 0xFFAAAAAA);
+            // "2 / 5" wird nur neu gebaut, wenn sich Seite oder Seitenzahl aendern
+            graphics.centeredText(font, FensterText.seite(page, pageCount()), centerX, height - 46, 0xFFAAAAAA);
         }
+    }
+
+    /**
+     * Der Hinweis unter dem Titel. Je Reiter ein fester Text; nur der des Namen-Reiters enthaelt den Radius, und der kommt aus
+     * einer frei getippten Zeichenkette der Config (pickRadiusBlocks liest sie mit parseDouble) - deshalb ueber ihre Identitaet
+     * gemerkt statt in jedem Bild gelesen und umgerechnet.
+     */
+    private Component hinweis() {
+        return switch (tab) {
+            case LIST -> FensterText.dunkelgrau("Applies to highlight, tracer and nameplate – anywhere, not just one area.");
+            case NAMED -> {
+                String eingabe = ModConfig.INSTANCE.mobVisuals.pickRadius;
+                if (!hinweisNamed.gilt(0L, eingabe)) {
+                    hinweisNamed.setze(0L, eingabe, Component.literal(
+                            "Named mobs within " + (int) radius() + " blocks. Click to keep one.")
+                            .withStyle(ChatFormatting.DARK_GRAY));
+                }
+                yield hinweisNamed.component();
+            }
+            case TYPED -> FensterText.dunkelgrau("Mobs without a name, grouped by entity type. Click to keep one.");
+        };
+    }
+
+    /** Was bei leerer Liste dasteht - je Reiter ein fester Text */
+    private Component leerMeldung() {
+        return switch (tab) {
+            case LIST -> FensterText.grau("No entries yet – use the two tabs above.");
+            case NAMED -> FensterText.grau("Nothing named nearby.");
+            case TYPED -> FensterText.grau("Nothing unnamed nearby.");
+        };
     }
 
     @Override

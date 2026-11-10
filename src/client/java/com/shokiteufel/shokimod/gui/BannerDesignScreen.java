@@ -58,6 +58,9 @@ public class BannerDesignScreen extends Screen {
             .excludeFieldsWithoutExposeAnnotation()
             .create();
 
+    /** Der Titel des Fensters - als Zeichenkette, damit das Bild sie nicht erst aus dem Component herausholen muss */
+    private static final String TITEL = "Banner sandbox";
+
     private static final int ROW = 22;
     private static final int LIST_LEFT = 8;
     private static final int LIST_WIDTH = 150;
@@ -104,8 +107,13 @@ public class BannerDesignScreen extends Screen {
      */
     private static Tab tab = Tab.LAYOUT;
 
+    /** Rechter Rand des dunklen Grundes hinter Liste und Reglern: haengt nur von Fensterbreite und Spaltenbreite ab, also in init() gerechnet */
+    private int panelRechts;
+    /** "Design: Name" - neu gebaut nur, wenn sich der Name aendert (Namensfeld, anderes Design gewaehlt) */
+    private final FensterText.Gemerkt entwurfName = new FensterText.Gemerkt();
+
     public BannerDesignScreen(Screen parent) {
-        super(Component.literal("Banner sandbox"));
+        super(Component.literal(TITEL));
         this.parent = parent;
     }
 
@@ -134,6 +142,7 @@ public class BannerDesignScreen extends Screen {
         BannerDesign d = design();
         int fixed = LIST_LEFT + LIST_WIDTH + 16 + COLUMN_GAP + USE_GAP + USE_WIDTH + 6;
         columnWidth = Math.clamp((width - fixed) / 2, MIN_COLUMN, MAX_COLUMN);
+        panelRechts = Math.min(width, LIST_LEFT + LIST_WIDTH + 16 + columnWidth * 2 + COLUMN_GAP + USE_GAP + USE_WIDTH + 8);
         int col1 = LIST_LEFT + LIST_WIDTH + 16;
         int col2 = col1 + columnWidth + COLUMN_GAP;
 
@@ -756,20 +765,31 @@ public class BannerDesignScreen extends Screen {
     public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
     }
 
+    /** Das gewaehlte Design fuer dieses Bild; der Text "Design: Name" wird dabei nur neu gebaut, wenn sich der Name geaendert hat */
+    private BannerDesign vorbereiten() {
+        BannerDesign d = design();
+        if (!entwurfName.gilt(0L, d.name)) {
+            entwurfName.setze(0L, d.name, "Design: " + d.name);
+        }
+        return d;
+    }
+
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
-        // Ein dunkler Grund hinter Liste und Reglern, damit die Schrift lesbar bleibt
-        int panelRight = LIST_LEFT + LIST_WIDTH + 16 + columnWidth * 2 + COLUMN_GAP + USE_GAP + USE_WIDTH + 8;
-        graphics.fill(0, 0, Math.min(width, panelRight), height, 0xB0101010);
+        // Ein dunkler Grund hinter Liste und Reglern, damit die Schrift lesbar bleibt (Rand steht seit init() fest)
+        graphics.fill(0, 0, panelRechts, height, 0xB0101010);
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
-        graphics.text(font, this.title.getString(), LIST_LEFT, 10, 0xFFFFFFFF, true);
-        graphics.text(font, "Design: " + design().name, LIST_LEFT + LIST_WIDTH + 16, 10, 0xFFFFAA00, true);
-        for (Label label : labels) {
+        BannerDesign d = vorbereiten();
+        graphics.text(font, TITEL, LIST_LEFT, 10, 0xFFFFFFFF, true);
+        graphics.text(font, entwurfName.text(), LIST_LEFT + LIST_WIDTH + 16, 10, 0xFFFFAA00, true);
+        // Mit Index statt Iterator: kein Iterator-Objekt je Bild
+        for (int i = 0; i < labels.size(); i++) {
+            Label label = labels.get(i);
             graphics.text(font, label.text(), label.x(), label.y(), 0xFFCCCCCC, true);
         }
         // Die Vorschau steht, solange das Fenster offen ist, und zuletzt gezeichnet liegt sie
         // ueber dem Fenster - der HUD-Durchgang laesst sie hier aus
-        DropBanner.keepPreview(design());
+        DropBanner.keepPreview(d);
         DropBanner.render(graphics);
     }
 

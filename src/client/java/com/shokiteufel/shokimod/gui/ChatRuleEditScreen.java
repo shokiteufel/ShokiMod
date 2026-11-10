@@ -281,24 +281,52 @@ public class ChatRuleEditScreen extends Screen {
                 : Component.literal("Sound file: " + rule.soundFile).withStyle(ChatFormatting.YELLOW);
     }
 
+    /**
+     * Ob Filter und Ausnahme als Regex lesbar sind, gemerkt: ChatRule haelt ein ungueltiges Muster nicht fest (compiled bleibt
+     * null) und uebersetzt es deshalb bei jedem Aufruf neu - mit einer PatternSyntaxException, also in jedem Bild, solange der
+     * Fehler dasteht. Neu geprueft wird nur, wenn sich Filtertext, Ausnahmetext oder einer der beiden Schalter geaendert hat
+     * (die Texte werden bei jeder Eingabe durch eine neue Zeichenkette ersetzt, darum genuegt der Identitaetsvergleich).
+     */
+    private String geprueftFilter;
+    private String geprueftExcept;
+    private boolean geprueftRegex;
+    private boolean geprueftIgnoreCase;
+    private boolean geprueft;
+    private boolean filterGueltig = true;
+    private boolean exceptGueltig = true;
+
+    private void gueltigkeitPruefen() {
+        if (geprueft && rule.filter == geprueftFilter && rule.except == geprueftExcept
+                && rule.regex == geprueftRegex && rule.ignoreCase == geprueftIgnoreCase) {
+            return;
+        }
+        filterGueltig = rule.filterIsValid();
+        exceptGueltig = rule.exceptIsValid();
+        geprueftFilter = rule.filter;
+        geprueftExcept = rule.except;
+        geprueftRegex = rule.regex;
+        geprueftIgnoreCase = rule.ignoreCase;
+        geprueft = true;
+    }
+
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
         int centerX = width / 2;
         graphics.centeredText(font, this.title, centerX, 14, 0xFFFFFFFF);
 
-        graphics.text(font, Component.literal("When").withStyle(ChatFormatting.DARK_GRAY),
-                centerX - COLUMN_WIDTH - 8, 34, 0xFF808080);
-        graphics.text(font, Component.literal("Then").withStyle(ChatFormatting.DARK_GRAY),
-                centerX + 8, 34, 0xFF808080);
+        // Feste Texte kommen aus dem Zwischenspeicher (je Zeichenkette ein geteiltes Component), nicht aus einem neuen Aufbau je Bild
+        graphics.text(font, FensterText.dunkelgrau("When"), centerX - COLUMN_WIDTH - 8, 34, 0xFF808080);
+        graphics.text(font, FensterText.dunkelgrau("Then"), centerX + 8, 34, 0xFF808080);
 
-        if (!rule.filterIsValid()) {
-            graphics.centeredText(font, Component.literal("Invalid regex - the rule will not fire")
-                    .withStyle(ChatFormatting.RED), centerX, height - 44, 0xFFFF5555);
-        } else if (!rule.exceptIsValid()) {
+        gueltigkeitPruefen();
+        if (!filterGueltig) {
+            graphics.centeredText(font, FensterText.rot("Invalid regex - the rule will not fire"),
+                    centerX, height - 44, 0xFFFF5555);
+        } else if (!exceptGueltig) {
             // Eine kaputte Ausnahme haelt nichts auf - die Regel feuert dann wieder ueberall
-            graphics.centeredText(font, Component.literal("Invalid regex in Except - nothing is excluded")
-                    .withStyle(ChatFormatting.RED), centerX, height - 44, 0xFFFF5555);
+            graphics.centeredText(font, FensterText.rot("Invalid regex in Except - nothing is excluded"),
+                    centerX, height - 44, 0xFFFF5555);
         }
     }
 

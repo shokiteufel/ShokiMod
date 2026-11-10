@@ -41,6 +41,26 @@ public class PetHudBuilderScreen extends Screen {
         return ModConfig.INSTANCE.hud.pet;
     }
 
+    /**
+     * Die Vorschau, einmal gebaut und gehalten (vorher baute das Bild in jedem Bild einen neuen Kasten mit allen Zeilen).
+     *
+     * Eingaben: die Einstellungen dieses Fensters - jede endet in {@link #rebuild()} und damit in {@link #init()}, das die Vorschau verwirft -
+     * und die Pet-Daten ({@code PetState}: Name, Stufe, Fortschritt, Bild), die im Hintergrund aus Chat und Tab-Liste kommen und keinen
+     * Versionszaehler haben. Dafuer gilt die Obergrenze von einer Sekunde.
+     */
+    private HudPanel vorschauCache;
+    private long vorschauAt;
+    private static final long VORSCHAU_MILLIS = 1_000L;
+
+    private HudPanel vorschau() {
+        long now = System.currentTimeMillis();
+        if (vorschauCache == null || now - vorschauAt >= VORSCHAU_MILLIS) {
+            vorschauCache = PetHud.build();
+            vorschauAt = now;
+        }
+        return vorschauCache;
+    }
+
     private void rebuild() {
         clearWidgets();
         init();
@@ -48,6 +68,8 @@ public class PetHudBuilderScreen extends Screen {
 
     @Override
     protected void init() {
+        // Jeder Neuaufbau heisst: eine Einstellung hat sich geaendert - die Vorschau neu bauen lassen
+        vorschauCache = null;
         ModConfig.PetHudCategory c = cfg();
         List<Part> teile = PetHud.order(c);
         int left = width / 2 - LIST_WIDTH - 12;
@@ -156,15 +178,14 @@ public class PetHudBuilderScreen extends Screen {
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
-        graphics.centeredText(font, Component.literal("Pet display")
-                .withStyle(ChatFormatting.GOLD), width / 2, 14, 0xFFFFAA00);
-        graphics.centeredText(font, Component.literal("Order the parts, pick what shows, set the size")
-                .withStyle(ChatFormatting.DARK_GRAY), width / 2, 28, 0xFF888888);
+        // Feste Texte: je Zeichenkette einmal gebaut und geteilt, nicht in jedem Bild
+        graphics.centeredText(font, FensterText.gold("Pet display"), width / 2, 14, 0xFFFFAA00);
+        graphics.centeredText(font, FensterText.dunkelgrau("Order the parts, pick what shows, set the size"), width / 2, 28, 0xFF888888);
 
-        // Die Vorschau kommt aus demselben Bauplan wie der Kasten im Spiel
+        // Die Vorschau kommt aus demselben Bauplan wie der Kasten im Spiel; sie liegt fertig vor und wird nur neu gebaut, wenn sich etwas aendert
         int previewLeft = width / 2 + 12;
         graphics.text(font, "Preview", previewLeft, LIST_TOP - 14, 0xFF888888, false);
-        HudPanel vorschau = PetHud.build();
+        HudPanel vorschau = vorschau();
         float scale = cfg().hudScale;
         graphics.pose().pushMatrix();
         graphics.pose().translate(previewLeft, LIST_TOP);
