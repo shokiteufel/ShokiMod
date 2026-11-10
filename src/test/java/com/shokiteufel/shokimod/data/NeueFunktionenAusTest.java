@@ -46,6 +46,10 @@ class NeueFunktionenAusTest {
         assertFalse(c.ikohS.dungeon.starMobs.enabled, "Stern-Mobs");
         assertFalse(c.ikohS.dungeon.starMobs.line, "Stern-Mobs Linie");
         assertFalse(c.ikohS.dungeon.starMobs.box, "Stern-Mobs Kasten");
+        assertFalse(c.ikohS.dungeon.starMobs.onlyCurrentRoom, "Stern-Mobs nur im eigenen Raum");
+        assertFalse(c.ikohS.dungeon.iHateDoors.enabled, "I hate doors");
+        assertFalse(FeatureGate.iHateDoors(), "I hate doors (und die Dungeon-Abfrage dafuer)");
+        assertFalse(FeatureGate.roomScan(), "der Welt-Scan der Funny Map fuer die Raum-Regel");
     }
 
     @Test

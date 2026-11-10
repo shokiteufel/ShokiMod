@@ -255,6 +255,10 @@ public class EntityHighlightManager {
         boolean scanPests = PestTarget.scanning();
         boolean scanStars = StarMobTarget.scanning();
         if (scanStars) com.shokiteufel.shokimod.util.DungeonLog.zaehlen(com.shokiteufel.shokimod.util.DungeonLog.Zaehler.STERN_MOBS);
+        // "Only in my room": der Raum, in dem man steht, einmal je Durchgang; null (nicht bekannt) heisst: alle Stern-Mobs zeigen
+        boolean nurRaum = scanStars && StarMobTarget.onlyCurrentRoom();
+        java.util.List<Integer> meinRaum = nurRaum
+                ? com.shokiteufel.shokimod.dungeonkarte.FunnyKarte.raumPlaetzeAn(client.player.getX(), client.player.getZ()) : null;
         // Die Runic Ghosts der Mist: Creeper ohne Namen, erkannt am Leben (kein Namensschild zum Suchen)
         boolean scanRunic = RunicGhostTarget.scanning();
         if (!scanRunic && !runicSeen.isEmpty()) runicSeen.clear();
@@ -368,10 +372,13 @@ public class EntityHighlightManager {
                 Entity visual = visualTarget != null ? visualTarget : entity;
                 if (visualTarget != null) {
                     nametagClaimedEntities.add(visualTarget);
-                    if (target.highlight()) registerHighlight(visualTarget, target);
                 }
-                registerTracer(visual, target);
-                registerBox(visual, target);
+                // Mit der Raum-Regel nur die Mobs im Raum, in dem man steht (den Koerper des Mobs fragen, nicht das Schild)
+                if (!nurRaum || com.shokiteufel.shokimod.dungeonkarte.RaumRegel.erlaubt(meinRaum, visual.getX(), visual.getZ())) {
+                    if (visualTarget != null && target.highlight()) registerHighlight(visualTarget, target);
+                    registerTracer(visual, target);
+                    registerBox(visual, target);
+                }
             }
 
             // ユーザーが Customize で追加したモブ。エリアを限定しないので毎回見る。
