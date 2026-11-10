@@ -76,6 +76,77 @@ public class ShardProfitScreen extends Screen {
     /** Wurde die Gewinnschranke uebergangen, weil sonst nichts dastuende? */
     private boolean fallbackShown = false;
     private int page;
+    /** Zaehlt mit, wie oft ein neuer Live-Stand eingetroffen ist (das Alter wurde kleiner) - die Spalte "Sold/day" haengt an ihm */
+    private int liveStand;
+
+    // Gemerkte Texte: gebaut nur, wenn sich ihre Quellen aendern, nicht in jedem Bild
+    /** Die Zeile zum Bestandsschalter ("12 of 46 shards matched ...") - als Zeichenkette, sie wird mit graphics.text gezeichnet */
+    private final FensterText.Gemerkt bestand = new FensterText.Gemerkt();
+    private String bestandText = "";
+    private int bestandFarbe = 0xFFFFAA00;
+    /** Die graue Zeile oben ("40 of 128000 combinations shown - live prices, 3s old") */
+    private final FensterText.Gemerkt preisZeile = new FensterText.Gemerkt();
+    /** Warum die Liste leer ist - gerechnet wird ueber alle Kombinationen, darum nur bei neuem Bestand oder neuen Fusionsdaten */
+    private final FensterText.Gemerkt leerGrund = new FensterText.Gemerkt();
+    /**
+     * Die Altersangaben ("5 minutes ago") laufen mit der Uhr weiter. Sie werden hoechstens einmal je Sekunde neu gelesen, und das Ergebnis
+     * bleibt dasselbe String-Objekt, solange der Text gleich ist - daran haengt, ob die Zeile neu gebaut wird.
+     */
+    private long alterSekunde = Long.MIN_VALUE;
+    private String bestandAlter = "";
+    private String preisAlter = "";
+
+    /**
+     * Die fertig geformten Texte einer Zeile: gekuerzte Namen, Zahlen mit "k/m/b", Farben.
+     *
+     * Eine Zeile aendert sich nicht, solange es dieselbe {@link Row} ist (Preise und Mengen stehen in ihr) und dieselben Handelswege gelten;
+     * nur der Tagesumsatz kommt aus den Live-Preisen. Gerechnet wird also einmal, wenn die Zeile auf die Seite kommt, nicht in jedem Bild.
+     */
+    private static final class ZeilenText {
+        final String zeile;
+        final int zeileFarbe;
+        final String ergebnis;
+        final int ergebnisFarbe;
+        final String kosten;
+        final String erloes;
+        final String gewinn;
+        final int gewinnFarbe;
+        final String tag;
+        final int tagFarbe;
+
+        ZeilenText(Row row, boolean kaufen, boolean verkaufen, long proTag) {
+            long gewinnWert = row.profit(kaufen, verkaufen);
+            // Wie oft das mit dem Vorrat geht - vorangestellt und knapp, damit es
+            // die Zeile nicht sprengt. Ohne Bestandsfilter steht dort nichts
+            String text = row.affordable() >= 0
+                    ? "(" + row.affordable() + ") " + row.recipe()
+                    : row.recipe();
+            zeile = cut(text, 44);
+            zeileFarbe = row.affordable() > 0 ? 0xFFCCCCCC : 0xFF999999;
+            ergebnis = cut(row.yield(), 17);
+            ergebnisFarbe = colour(row.rarity());
+            kosten = ItemValue.format(row.cost(kaufen));
+            erloes = ItemValue.format(row.revenue(verkaufen));
+            gewinn = ItemValue.format(gewinnWert);
+            gewinnFarbe = gewinnWert > 0 ? 0xFF55FF55 : 0xFFFF5555;
+            // Der Tagesumsatz kommt aus den Live-Daten; die gespeicherte Datei fuehrt
+            // ihn nicht. Liegt keiner vor, steht hier ein Strich statt einer Zahl,
+            // die niemand nachpruefen koennte
+            tag = proTag < 0 ? "-" : ItemValue.format(proTag);
+            tagFarbe = mengeFarbe(proTag);
+        }
+    }
+
+    // Die Texte der Zeilen auf der gezeigten Seite. Neu gebaut, wenn sich die Liste (neue Zeilen-Objekte), der Seitenanfang, die Zeilenzahl je
+    // Seite, die Handelswege, der Live-Zustand der Preise oder der Live-Stand aendert
+    private ZeilenText[] zeilenTexte = new ZeilenText[0];
+    private List<Row> zeilenTexteListe;
+    private int zeilenTexteStart = -1;
+    private int zeilenTexteProSeite = -1;
+    private boolean zeilenTexteKaufen;
+    private boolean zeilenTexteVerkaufen;
+    private boolean zeilenTexteLive;
+    private int zeilenTexteStand = -1;
 
     public ShardProfitScreen(Screen parent) {
         super(Component.literal("Shard fusions"));
@@ -145,6 +216,117 @@ public class ShardProfitScreen extends Screen {
 
     private int pageCount() {
         return Math.max(1, (rowCount() + perPage() - 1) / perPage());
+    }
+
+    /**
+     * Die Altersangaben neu lesen - hoechstens einmal je Sekunde. Beide Quellen rechnen aus der Uhr (ShardProfitData.age() liest dazu einen
+     * Zeitstempel ein), und geaendert hat sich das Wort ("just now", "5 minutes ago") nur selten; wer sie als Schluessel nimmt, baut den Text
+     * nur dann neu.
+     */
+    private void alterAktualisieren() {
+        long sekunde = System.currentTimeMillis() / 1000L;
+        if (sekunde == alterSekunde) return;
+        alterSekunde = sekunde;
+        String bestandNeu = ShardStock.age();
+        if (!bestandNeu.equals(bestandAlter)) bestandAlter = bestandNeu;
+        String preisNeu = ShardProfitData.age();
+        if (!preisNeu.equals(preisAlter)) preisAlter = preisNeu;
+    }
+
+    /**
+     * Die zusammengesetzten Texte des Bildes (Bestandszeile, Preiszeile, "warum leer"): gebaut nur, wenn sich ihre Quellen aendern - Bestand,
+     * Fusionsdaten, Zahl der Zeilen, Live-Zustand und Alter der Preise, Altersangabe.
+     *
+     * @param live      liegt ein frischer Live-Stand vor
+     * @param liveAlter wie alt er ist, in Sekunden
+     */
+    private void texteAktualisieren(boolean live, int liveAlter) {
+        alterAktualisieren();
+        int daten = ShardProfitData.combinations();
+        int zeilenAnzahl = rowCount();
+
+        // Was der Bestandsschalter gerade bedeutet - sonst wundert man sich ueber eine leere Liste
+        if (onlyOwned) {
+            if (!ShardStock.known()) {
+                bestandText = "Nothing counted yet - open the box and page through it";
+                bestandFarbe = 0xFFFFAA00;
+            } else {
+                long schluessel = ShardStock.stand() * 1_000_000L + daten % 1_000_000L;
+                if (!bestand.gilt(schluessel, bestandAlter)) {
+                    // Drei Angaben, und jede beantwortet eine eigene Frage: Wie viele
+                    // Sorten liegen da, wie viele davon kennt die Fusionsliste, und ueber
+                    // wie viele Seiten wurde gezaehlt. Die letzte ist die wichtigste -
+                    // gelesen wird nur, was im Fenster stand, und wer nicht blaettert,
+                    // hat nur die erste Seite erwischt
+                    int erkannt = ShardProfitData.matched(ShardStock.counts());
+                    bestand.setze(schluessel, bestandAlter,
+                            erkannt + " of " + ShardStock.kinds() + " shards matched over "
+                                    + ShardStock.pages() + " page(s), seen " + bestandAlter);
+                    bestandFarbe = erkannt == 0 ? 0xFFFF5555 : 0xFF55FF55;
+                }
+                bestandText = bestand.text();
+            }
+        }
+
+        // Woher die Preise gerade kommen. Der Unterschied ist keine Kleinigkeit:
+        // Sekunden gegen Minuten, und bei Shards bewegt sich viel in Minuten.
+        // Live zaehlt das Alter in Sekunden (der Schluessel hat es), sonst die Altersangabe der Preisdatei (ihr String ist der Bezug)
+        long preisSchluessel = zeilenAnzahl * 4_000_000L + daten % 4_000_000L;
+        preisSchluessel = preisSchluessel * 2 + (live ? 1 : 0);
+        preisSchluessel = preisSchluessel * 1_000_000L + (live ? Math.clamp(liveAlter, 0, 999_999) : 0);
+        String preisBezug = live ? null : preisAlter;
+        if (!preisZeile.gilt(preisSchluessel, preisBezug)) {
+            String preisStand = live
+                    ? "live prices, " + liveAlter + "s old"
+                    : "prices " + preisAlter;
+            preisZeile.setze(preisSchluessel, preisBezug, Component.literal(
+                            zeilenAnzahl + " of " + daten
+                            + " combinations shown - " + preisStand)
+                    .withStyle(ChatFormatting.DARK_GRAY));
+        }
+
+        // Mit Bestandsfilter hat eine leere Liste andere Gruende als ohne, und
+        // "versuch den anderen Weg" waere dort schlicht falsch. Der Grund wird ueber alle Kombinationen gezaehlt - also nur neu, wenn sich
+        // der Bestand oder die Fusionsdaten aendern
+        if (zeilenAnzahl == 0) {
+            boolean ausBestand = onlyOwned && ShardStock.known();
+            long leerSchluessel = (ShardStock.stand() * 1_000_000L + daten % 1_000_000L) * 2 + (ausBestand ? 1 : 0);
+            if (!leerGrund.gilt(leerSchluessel)) {
+                String grund = ausBestand
+                        ? ShardProfitData.explainEmpty(ShardStock.counts())
+                        : "";
+                if (grund.isEmpty()) {
+                    grund = "Nothing pays off on this route right now - try the other one";
+                }
+                leerGrund.setze(leerSchluessel, Component.literal(grund).withStyle(ChatFormatting.GRAY));
+            }
+        }
+    }
+
+    /**
+     * Die Texte der Zeilen auf der gezeigten Seite: gerechnet, wenn eine andere Seite oder Liste gezeigt wird, sich die Handelswege oder die
+     * Live-Preise aendern (Sold/day) - sonst kommt dasselbe Feld zurueck wie im Bild davor.
+     */
+    private void zeilenTexteAktualisieren(List<Row> zeilen, int start, int proSeite, boolean kaufen, boolean verkaufen, boolean live) {
+        if (zeilen == zeilenTexteListe && start == zeilenTexteStart && proSeite == zeilenTexteProSeite
+                && kaufen == zeilenTexteKaufen && verkaufen == zeilenTexteVerkaufen
+                && live == zeilenTexteLive && liveStand == zeilenTexteStand) {
+            return;
+        }
+        int n = Math.max(0, Math.min(proSeite, zeilen.size() - start));
+        ZeilenText[] neu = new ZeilenText[n];
+        for (int i = 0; i < n; i++) {
+            Row row = zeilen.get(start + i);
+            neu[i] = new ZeilenText(row, kaufen, verkaufen, BazaarLive.soldPerDay(row.resultBazaarId()));
+        }
+        zeilenTexte = neu;
+        zeilenTexteListe = zeilen;
+        zeilenTexteStart = start;
+        zeilenTexteProSeite = proSeite;
+        zeilenTexteKaufen = kaufen;
+        zeilenTexteVerkaufen = verkaufen;
+        zeilenTexteLive = live;
+        zeilenTexteStand = liveStand;
     }
 
     private void rebuild() {
@@ -296,54 +478,34 @@ public class ShardProfitScreen extends Screen {
         // werden. Der Zeitstempel sagt, wann das noetig ist
         int alter = BazaarLive.ageSeconds();
         if (alter >= 0 && alter != lastLiveAge) {
+            // Ein kleineres Alter als zuvor heisst: ein neuer Stand ist eingetroffen - die Zeilentexte (Sold/day) haengen daran
+            if (alter < lastLiveAge) liveStand++;
             lastLiveAge = alter;
             if (alter <= 1) invalidate();
         }
         int left = left();
         int centerX = width / 2;
 
-        graphics.centeredText(font, Component.literal("Shard fusions")
-                .withStyle(ChatFormatting.GOLD), centerX, 14, 0xFFFFAA00);
+        // Feste Texte kommen aus dem Zwischenspeicher (je Zeichenkette ein geteiltes Component)
+        graphics.centeredText(font, FensterText.gold("Shard fusions"), centerX, 14, 0xFFFFAA00);
 
         if (!ShardProfitData.ready()) {
-            graphics.centeredText(font, Component.literal("Loading the list ...")
-                    .withStyle(ChatFormatting.GRAY), centerX, listTop + 20, 0xFFAAAAAA);
+            graphics.centeredText(font, FensterText.grau("Loading the list ..."), centerX, listTop + 20, 0xFFAAAAAA);
             return;
         }
+
+        // Bestandszeile, Preiszeile und "warum leer" sind fertig gebaut und werden nur neu gebaut, wenn sich ihre Quellen aendern
+        boolean live = BazaarLive.fresh();
+        texteAktualisieren(live, alter);
 
         // Was der Bestandsschalter gerade bedeutet - sonst wundert man sich ueber
         // eine leere Liste
         if (onlyOwned) {
-            String hinweis;
-            int farbe;
-            if (!ShardStock.known()) {
-                hinweis = "Nothing counted yet - open the box and page through it";
-                farbe = 0xFFFFAA00;
-            } else {
-                // Drei Angaben, und jede beantwortet eine eigene Frage: Wie viele
-                // Sorten liegen da, wie viele davon kennt die Fusionsliste, und ueber
-                // wie viele Seiten wurde gezaehlt. Die letzte ist die wichtigste -
-                // gelesen wird nur, was im Fenster stand, und wer nicht blaettert,
-                // hat nur die erste Seite erwischt
-                int erkannt = ShardProfitData.matched(ShardStock.counts());
-                hinweis = erkannt + " of " + ShardStock.kinds() + " shards matched over "
-                        + ShardStock.pages() + " page(s), seen " + ShardStock.age();
-                farbe = erkannt == 0 ? 0xFFFF5555 : 0xFF55FF55;
-            }
-            graphics.text(font, hinweis, left + 4, listTop - 32, farbe, false);
+            graphics.text(font, bestandText, left + 4, listTop - 32, bestandFarbe, false);
         }
 
-        // Woher die Preise gerade kommen. Der Unterschied ist keine Kleinigkeit:
-        // Sekunden gegen Minuten, und bei Shards bewegt sich viel in Minuten
-        int liveAlter = BazaarLive.ageSeconds();
-        String preisStand = BazaarLive.fresh()
-                ? "live prices, " + liveAlter + "s old"
-                : "prices " + ShardProfitData.age();
-        graphics.centeredText(font, Component.literal(
-                        rowCount() + " of " + ShardProfitData.combinations()
-                        + " combinations shown - " + preisStand)
-                .withStyle(ChatFormatting.DARK_GRAY), centerX, 28,
-                BazaarLive.fresh() ? 0xFF77DD77 : 0xFF888888);
+        // Woher die Preise gerade kommen (die Zeile selbst baut texteAktualisieren)
+        graphics.centeredText(font, preisZeile.component(), centerX, 28, live ? 0xFF77DD77 : 0xFF888888);
 
         graphics.text(font, "Fusion", left + 4, listTop - 12, 0xFF888888, false);
         graphics.text(font, "Result", left + 210, listTop - 12, 0xFF888888, false);
@@ -358,33 +520,23 @@ public class ShardProfitScreen extends Screen {
         boolean kaufen = instantBuy();
         boolean verkaufen = instantSell();
         List<Row> zeilen = visible();
-        int start = page * perPage();
-        for (int i = 0; i < perPage() && start + i < zeilen.size(); i++) {
-            Row row = zeilen.get(start + i);
+        // Die Texte der gezeigten Zeilen liegen fertig vor (gekuerzt, formatiert, mit Farbe) und werden nur neu gebaut, wenn Zeilen, Seite,
+        // Handelswege oder Live-Preise wechseln
+        int proSeite = perPage();
+        int start = page * proSeite;
+        zeilenTexteAktualisieren(zeilen, start, proSeite, kaufen, verkaufen, live);
+        ZeilenText[] texte = zeilenTexte;
+        for (int i = 0; i < texte.length; i++) {
+            ZeilenText t = texte[i];
             int y = listTop + i * ROW_HEIGHT;
             if ((i & 1) == 0) graphics.fill(left, y - 3, left + LIST_WIDTH, y + ROW_HEIGHT - 4, 0x30000000);
 
-            long gewinn = row.profit(kaufen, verkaufen);
-            // Wie oft das mit dem Vorrat geht - vorangestellt und knapp, damit es
-            // die Zeile nicht sprengt. Ohne Bestandsfilter steht dort nichts
-            String zeile = row.affordable() >= 0
-                    ? "(" + row.affordable() + ") " + row.recipe()
-                    : row.recipe();
-            graphics.text(font, cut(zeile, 44), left + 4, y,
-                    row.affordable() > 0 ? 0xFFCCCCCC : 0xFF999999, false);
-            graphics.text(font, cut(row.yield(), 17), left + 210, y, colour(row.rarity()), false);
-            graphics.text(font, ItemValue.format(row.cost(kaufen)), left + 320, y, 0xFFFF7777, false);
-            graphics.text(font, ItemValue.format(row.revenue(verkaufen)), left + 380, y, 0xFFAAAAFF, false);
-            graphics.text(font, ItemValue.format(gewinn), left + 444, y,
-                    gewinn > 0 ? 0xFF55FF55 : 0xFFFF5555, false);
-
-            // Der Tagesumsatz kommt aus den Live-Daten; die gespeicherte Datei fuehrt
-            // ihn nicht. Liegt keiner vor, steht hier ein Strich statt einer Zahl,
-            // die niemand nachpruefen koennte
-            long proTag = com.shokiteufel.shokimod.util.BazaarLive.soldPerDay(
-                    row.resultBazaarId());
-            graphics.text(font, proTag < 0 ? "-" : ItemValue.format(proTag),
-                    left + 506, y, mengeFarbe(proTag), false);
+            graphics.text(font, t.zeile, left + 4, y, t.zeileFarbe, false);
+            graphics.text(font, t.ergebnis, left + 210, y, t.ergebnisFarbe, false);
+            graphics.text(font, t.kosten, left + 320, y, 0xFFFF7777, false);
+            graphics.text(font, t.erloes, left + 380, y, 0xFFAAAAFF, false);
+            graphics.text(font, t.gewinn, left + 444, y, t.gewinnFarbe, false);
+            graphics.text(font, t.tag, left + 506, y, t.tagFarbe, false);
         }
 
         drawFooter(graphics, centerX);
@@ -393,29 +545,19 @@ public class ShardProfitScreen extends Screen {
     private void drawFooter(GuiGraphicsExtractor graphics, int centerX) {
         // Ohne diesen Satz saehe es aus, als waere der Gewinnfilter kaputt
         if (fallbackShown) {
-            graphics.centeredText(font, Component.literal(
-                            "Nothing from your box pays off - showing what you could make anyway")
-                    .withStyle(ChatFormatting.YELLOW), centerX, listTop - 20, 0xFFFFAA00);
+            graphics.centeredText(font, FensterText.gelb(
+                    "Nothing from your box pays off - showing what you could make anyway"), centerX, listTop - 20, 0xFFFFAA00);
         }
         if (rowCount() == 0) {
-            // Mit Bestandsfilter hat eine leere Liste andere Gruende als ohne, und
-            // "versuch den anderen Weg" waere dort schlicht falsch
-            String grund = onlyOwned && ShardStock.known()
-                    ? ShardProfitData.explainEmpty(ShardStock.counts())
-                    : "";
-            if (grund.isEmpty()) {
-                grund = "Nothing pays off on this route right now - try the other one";
-            }
-            graphics.centeredText(font, Component.literal(grund)
-                    .withStyle(ChatFormatting.GRAY), centerX, listTop + 20, 0xFFFFAA00);
+            // Der Satz liegt fertig in leerGrund (texteAktualisieren, vor diesem Aufruf im selben Bild)
+            graphics.centeredText(font, leerGrund.component(), centerX, listTop + 20, 0xFFFFAA00);
         }
         if (pageCount() > 1) {
             // Knapp ueber der Knopfreihe. Die Knoepfe stehen bei height-28 und sind
             // zwanzig hoch; zwoelf darueber liegt die Zeile frei, ohne den halben
             // Bildschirm nach oben zu wandern
             // Mittig zwischen den beiden Pfeilen, auf ihrer Hoehe
-            graphics.centeredText(font, Component.literal((page + 1) + " / " + pageCount())
-                    .withStyle(ChatFormatting.GRAY), centerX, height - 44, 0xFFAAAAAA);
+            graphics.centeredText(font, FensterText.seite(page, pageCount()), centerX, height - 44, 0xFFAAAAAA);
         }
     }
 

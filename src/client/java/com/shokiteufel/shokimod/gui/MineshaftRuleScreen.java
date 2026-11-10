@@ -13,6 +13,7 @@ import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Ab wann die Leichen-Marker eines Schachts erscheinen - je Bauplan einzeln.
@@ -66,6 +67,26 @@ public class MineshaftRuleScreen extends Screen {
      * Der Schacht, in dem man gerade steht, kommt nach oben.
      */
     private List<String> shafts() {
+        long now = System.currentTimeMillis();
+        String current = MineshaftState.type();
+        if (shaftsCache == null || MineshaftCorpses.FEED.size() != shaftsFeedSize
+                || !Objects.equals(current, shaftsCurrent) || now - shaftsAt >= SHAFTS_MILLIS) {
+            shaftsBauen(now, current);
+        }
+        return shaftsCache;
+    }
+
+    // Die Bauplaene samt den Zeilentexten, einmal gebaut und gehalten (vorher je Bild mehrfach: shafts() und pageCount()). Eingaben: die Liste
+    // aus dem Netz (kommt nach dem Oeffnen im Hintergrund an - ihre Zahl steht im Schluessel), der Schacht, in dem man steht (Reihenfolge, "(here)"),
+    // und sonst spaetestens nach einer Sekunde, falls eine Aktualisierung der Liste dieselbe Zahl hat. Jeder init() baut neu.
+    private List<String> shaftsCache;
+    private Component[] shaftTexte = new Component[0];
+    private int shaftsFeedSize = -1;
+    private String shaftsCurrent;
+    private long shaftsAt;
+    private static final long SHAFTS_MILLIS = 1_000L;
+
+    private void shaftsBauen(long now, String current) {
         List<String> out = new ArrayList<>();
         for (String key : MineshaftCorpses.FEED.keys()) {
             String type = key.contains("_") ? key.substring(0, key.indexOf('_')) : key;
@@ -74,9 +95,22 @@ public class MineshaftRuleScreen extends Screen {
         }
         out.sort(String::compareTo);
 
-        String current = MineshaftState.type();
         if (current != null && out.remove(current)) out.add(0, current);
-        return out;
+
+        // Der Text je Zeile ("Umber (here)", gruen; sonst weiss) steht gleich mit der Liste fertig da
+        Component[] texte = new Component[out.size()];
+        for (int i = 0; i < texte.length; i++) {
+            String shaft = out.get(i);
+            boolean here = shaft.equals(current);
+            texte[i] = FensterText.format(MineshaftState.readable(shaft) + (here ? " (here)" : ""),
+                    here ? ChatFormatting.GREEN : ChatFormatting.WHITE);
+        }
+
+        shaftsCache = out;
+        shaftTexte = texte;
+        shaftsFeedSize = MineshaftCorpses.FEED.size();
+        shaftsCurrent = current;
+        shaftsAt = now;
     }
 
     private static MineshaftRule rule(String shaft) {
@@ -98,6 +132,8 @@ public class MineshaftRuleScreen extends Screen {
     @Override
     protected void init() {
         MineshaftCorpses.prefetch();
+        // Jeder Neuaufbau (auch nach "Clear all" oder Groessenaenderung): die Liste neu bauen lassen
+        shaftsCache = null;
         page = Math.min(page, pageCount() - 1);
 
         List<String> shafts = shafts();
@@ -201,29 +237,26 @@ public class MineshaftRuleScreen extends Screen {
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
 
         int centerX = width / 2;
-        graphics.centeredText(font, Component.literal("Mineshaft - when to mark the gemstone veins"),
-                centerX, 16, 0xFFFFFFFF);
-        graphics.centeredText(font, Component.literal(
-                        "Per layout: from how many corpses in the shaft on. Lapis always counts; Umber and Tungsten add to the same number when switched on.")
-                .withStyle(ChatFormatting.GRAY), centerX, 32, 0xFFAAAAAA);
+        // Feste Texte: je Zeichenkette einmal gebaut und geteilt, nicht in jedem Bild
+        graphics.centeredText(font, FensterText.text("Mineshaft - when to mark the gemstone veins"), centerX, 16, 0xFFFFFFFF);
+        graphics.centeredText(font, FensterText.grau(
+                "Per layout: from how many corpses in the shaft on. Lapis always counts; Umber and Tungsten add to the same number when switched on."),
+                centerX, 32, 0xFFAAAAAA);
 
+        // Liste und Zeilentexte liegen fertig vor (neu gebaut nur bei Aenderung, siehe shafts())
         List<String> shafts = shafts();
+        Component[] texte = shaftTexte;
         int left = width / 2 - gridWidth() / 2;
-        String current = MineshaftState.type();
-        int start = page * rowsPerPage();
+        int proSeite = rowsPerPage();
+        int start = page * proSeite;
 
-        for (int i = 0; i < rowsPerPage() && start + i < shafts.size(); i++) {
-            String shaft = shafts.get(start + i);
-            boolean here = shaft.equals(current);
-            graphics.text(font,
-                    Component.literal(MineshaftState.readable(shaft) + (here ? " (here)" : ""))
-                            .withStyle(here ? ChatFormatting.GREEN : ChatFormatting.WHITE),
-                    left, LIST_TOP + i * ROW_HEIGHT + 6, 0xFFFFFFFF);
+        for (int i = 0; i < proSeite && start + i < shafts.size(); i++) {
+            graphics.text(font, texte[start + i], left, LIST_TOP + i * ROW_HEIGHT + 6, 0xFFFFFFFF);
         }
 
-        if (pageCount() > 1) {
-            graphics.centeredText(font, Component.literal((page + 1) + " / " + pageCount())
-                    .withStyle(ChatFormatting.GRAY), centerX, height - 46, 0xFFAAAAAA);
+        int seiten = Math.max(1, (shafts.size() + proSeite - 1) / proSeite);
+        if (seiten > 1) {
+            graphics.centeredText(font, FensterText.seite(page, seiten), centerX, height - 46, 0xFFAAAAAA);
         }
     }
 

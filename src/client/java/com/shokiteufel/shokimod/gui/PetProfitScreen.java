@@ -58,16 +58,114 @@ public class PetProfitScreen extends Screen {
         return Math.max(1, (height - 40 - listTop) / ROW_HEIGHT);
     }
 
+    // Die gefilterte Liste, einmal gebaut und gehalten (vorher baute jede Frage eine neue, und ein Bild fragt mehrmals). Eingaben: die Liste aus
+    // dem Netz (PetProfitData.rows() ist eine unveraenderliche Kopie, die bei jedem neuen Stand durch eine neue ersetzt wird - ihre Identitaet
+    // ist der Versionszaehler) und die drei Schalter dieses Fensters (Sparte, "Level 1 only", "No pet candy"). Beides wird in jedem Bild
+    // verglichen, gebaut wird nur bei einer Aenderung.
+    private List<Row> sichtbar;
+    private List<Row> sichtbarQuelle;
+    private String sichtbarSparte;
+    private boolean sichtbarNurEins;
+    private boolean sichtbarOhneBonbon;
+
     /** Die Zeilen der gewaehlten Sparte, beste zuerst */
     private List<Row> visible() {
-        List<Row> out = new ArrayList<>();
-        for (Row row : PetProfitData.rows()) {
-            if (!category.isEmpty() && !category.equals(row.category())) continue;
-            if (onlyLevelOne && row.level() != 1) continue;
-            if (noCandy && row.candy() > 0) continue;
-            out.add(row);
+        // rows() holt auch nach, solange das Fenster offen ist (prefetch) - deshalb in jedem Bild gerufen, nicht nur beim Bauen
+        List<Row> quelle = PetProfitData.rows();
+        if (sichtbar == null || quelle != sichtbarQuelle || !category.equals(sichtbarSparte)
+                || onlyLevelOne != sichtbarNurEins || noCandy != sichtbarOhneBonbon) {
+            List<Row> out = new ArrayList<>();
+            for (Row row : quelle) {
+                if (!category.isEmpty() && !category.equals(row.category())) continue;
+                if (onlyLevelOne && row.level() != 1) continue;
+                if (noCandy && row.candy() > 0) continue;
+                out.add(row);
+            }
+            sichtbar = out;
+            sichtbarQuelle = quelle;
+            sichtbarSparte = category;
+            sichtbarNurEins = onlyLevelOne;
+            sichtbarOhneBonbon = noCandy;
         }
-        return out;
+        return sichtbar;
+    }
+
+    // Gemerkte Texte: gebaut nur, wenn sich ihre Quellen aendern, nicht in jedem Bild
+    /** Die graue Statuszeile oben ("123 auctions checked - updated 3 minutes ago ...") */
+    private final FensterText.Gemerkt info = new FensterText.Gemerkt();
+    /**
+     * "updated 3 minutes ago": age() parst bei jedem Aufruf den Zeitstempel, also hoechstens einmal je Sekunde gefragt (das Alter zaehlt in
+     * Minuten) und nur bei geaendertem Text ein neues Objekt
+     */
+    private String standText = "";
+    private String standQuelle;
+    private long standAt;
+
+    private void texteAktualisieren() {
+        long jetzt = System.currentTimeMillis();
+        String quelle = PetProfitData.updatedAt();
+        if (quelle != standQuelle || jetzt - standAt >= 1_000L) {
+            String neu = PetProfitData.age();
+            if (!neu.equals(standText)) standText = neu;
+            standQuelle = quelle;
+            standAt = jetzt;
+        }
+        long angebote = PetProfitData.auctionsSeen();
+        if (!info.gilt(angebote, standText)) {
+            info.setze(angebote, standText, Component.literal(
+                            angebote + " auctions checked"
+                            + (standText.isEmpty() ? "" : " - updated " + standText)
+                            + " - click a row to open the auction")
+                    .withStyle(ChatFormatting.DARK_GRAY));
+        }
+    }
+
+    /**
+     * Die fertig geformten Texte einer Zeile: gekuerzter Name, Zahlen mit "k/m/b", Farbe der Seltenheit.
+     *
+     * Eine {@link Row} ist unveraenderlich (ein Record), und ein neuer Stand bringt neue Zeilen - gerechnet wird also einmal, wenn die Zeile
+     * auf die Seite kommt, nicht in jedem Bild.
+     */
+    private static final class ZeilenText {
+        final String name;
+        final int nameFarbe;
+        final String stufe;
+        final String preis;
+        final String gewinn;
+        final String ziel;
+        final String proXp;
+
+        ZeilenText(Row row) {
+            name = cut(row.name(), 30);
+            nameFarbe = colour(row.rarity());
+            stufe = String.valueOf(row.level());
+            preis = ItemValue.format(row.price());
+            gewinn = ItemValue.format(row.profit());
+            // Was dasselbe Pet fertig kostet. Die Drachen gehen bis 200, dort steht
+            // zusaetzlich der Preis eines Hundertsten - da steigen die meisten ein
+            ziel = row.twoTargets()
+                    ? ItemValue.format(row.price100()) + "/" + ItemValue.format(row.targetPrice())
+                    : ItemValue.format(row.targetPrice());
+            proXp = String.format(Locale.US, "%.2f", row.perXp());
+        }
+    }
+
+    // Die Texte der Zeilen auf der gezeigten Seite. Neu gebaut, wenn sich die Liste (neue Zeilen-Objekte), der Seitenanfang oder die Zeilenzahl
+    // je Seite aendert
+    private ZeilenText[] zeilenTexte = new ZeilenText[0];
+    private List<Row> zeilenTexteListe;
+    private int zeilenTexteStart = -1;
+    private int zeilenTexteProSeite = -1;
+
+    private void zeilenTexteAktualisieren(List<Row> zeilen, int start, int proSeite) {
+        if (zeilen == zeilenTexteListe && start == zeilenTexteStart && proSeite == zeilenTexteProSeite) return;
+        int n = Math.max(0, Math.min(proSeite, zeilen.size() - start));
+        ZeilenText[] neu = new ZeilenText[n];
+        for (int i = 0; i < n; i++) neu[i] = new ZeilenText(zeilen.get(start + i));
+        zeilenTexte = neu;
+        zeilenTexteListe = zeilen;
+        zeilenTexteStart = start;
+        zeilenTexteProSeite = proSeite;
     }
 
     private int rowCount() {
@@ -197,21 +295,17 @@ public class PetProfitScreen extends Screen {
         int left = left();
         int centerX = width / 2;
 
-        graphics.centeredText(font, Component.literal("Best pets to level")
-                .withStyle(ChatFormatting.GOLD), centerX, 14, 0xFFFFAA00);
+        // Feste Texte: je Zeichenkette einmal gebaut und geteilt, nicht in jedem Bild
+        graphics.centeredText(font, FensterText.gold("Best pets to level"), centerX, 14, 0xFFFFAA00);
 
         if (!PetProfitData.ready()) {
-            graphics.centeredText(font, Component.literal("Loading the list ...")
-                    .withStyle(ChatFormatting.GRAY), centerX, listTop + 20, 0xFFAAAAAA);
+            graphics.centeredText(font, FensterText.grau("Loading the list ..."), centerX, listTop + 20, 0xFFAAAAAA);
             return;
         }
 
-        String stand = PetProfitData.age();
-        graphics.centeredText(font, Component.literal(
-                        PetProfitData.auctionsSeen() + " auctions checked"
-                        + (stand.isEmpty() ? "" : " - updated " + stand)
-                        + " - click a row to open the auction")
-                .withStyle(ChatFormatting.DARK_GRAY), centerX, 28, 0xFF888888);
+        // Die Statuszeile ist fertig gebaut und wird nur neu gebaut, wenn sich ihre Zahlen oder der Stand aendern
+        texteAktualisieren();
+        graphics.centeredText(font, info.component(), centerX, 28, 0xFF888888);
 
         // Spaltenkoepfe: dieselben x-Werte wie die Zeilen darunter, damit beides nie
         // auseinanderlaeuft
@@ -223,38 +317,36 @@ public class PetProfitScreen extends Screen {
         graphics.text(font, "per XP", left + 424, listTop - 12, 0xFF888888, false);
 
         List<Row> zeilen = visible();
-        int start = page * perPage();
-        for (int i = 0; i < perPage() && start + i < zeilen.size(); i++) {
-            Row row = zeilen.get(start + i);
+        // Die Texte der gezeigten Zeilen liegen fertig vor (gekuerzt, formatiert, mit Farbe) und werden nur neu gebaut, wenn Zeilen oder Seite wechseln
+        int proSeite = perPage();
+        int start = page * proSeite;
+        zeilenTexteAktualisieren(zeilen, start, proSeite);
+        ZeilenText[] texte = zeilenTexte;
+        for (int i = 0; i < texte.length; i++) {
+            ZeilenText t = texte[i];
             int y = listTop + i * ROW_HEIGHT;
             if ((i & 1) == 0) graphics.fill(left, y - 3, left + LIST_WIDTH, y + ROW_HEIGHT - 4, 0x30000000);
 
-            graphics.text(font, cut(row.name(), 30), left + 4, y, colour(row.rarity()), false);
-            graphics.text(font, String.valueOf(row.level()), left + 186, y, 0xFFCCCCCC, false);
-            graphics.text(font, ItemValue.format(row.price()), left + 216, y, 0xFFCCCCCC, false);
-            graphics.text(font, ItemValue.format(row.profit()), left + 280, y, 0xFF55FF55, false);
-            // Was dasselbe Pet fertig kostet. Die Drachen gehen bis 200, dort steht
-            // zusaetzlich der Preis eines Hundertsten - da steigen die meisten ein
-            String ziel = row.twoTargets()
-                    ? ItemValue.format(row.price100()) + "/" + ItemValue.format(row.targetPrice())
-                    : ItemValue.format(row.targetPrice());
-            graphics.text(font, ziel, left + 344, y, 0xFF55FFFF, false);
-            graphics.text(font, String.format(Locale.US, "%.2f", row.perXp()), left + 424, y, 0xFFFFAA00, false);
+            graphics.text(font, t.name, left + 4, y, t.nameFarbe, false);
+            graphics.text(font, t.stufe, left + 186, y, 0xFFCCCCCC, false);
+            graphics.text(font, t.preis, left + 216, y, 0xFFCCCCCC, false);
+            graphics.text(font, t.gewinn, left + 280, y, 0xFF55FF55, false);
+            graphics.text(font, t.ziel, left + 344, y, 0xFF55FFFF, false);
+            graphics.text(font, t.proXp, left + 424, y, 0xFFFFAA00, false);
         }
 
-        drawFooter(graphics, centerX);
+        drawFooter(graphics, centerX, zeilen.size());
     }
 
-    private void drawFooter(GuiGraphicsExtractor graphics, int centerX) {
-        if (rowCount() == 0) {
-            graphics.centeredText(font, Component.literal("Nothing worth levelling here right now")
-                    .withStyle(ChatFormatting.GRAY), centerX, listTop + 20, 0xFFAAAAAA);
+    private void drawFooter(GuiGraphicsExtractor graphics, int centerX, int anzahl) {
+        if (anzahl == 0) {
+            graphics.centeredText(font, FensterText.grau("Nothing worth levelling here right now"), centerX, listTop + 20, 0xFFAAAAAA);
         }
-        if (pageCount() > 1) {
+        int seiten = Math.max(1, (anzahl + perPage() - 1) / perPage());
+        if (seiten > 1) {
             // Mittig zwischen den beiden Pfeilen und ueber der Knopfreihe. Vorher lag
             // sie bei height-22 und damit mitten im Knopf "No pet candy"
-            graphics.centeredText(font, Component.literal((page + 1) + " / " + pageCount())
-                    .withStyle(ChatFormatting.GRAY), centerX, height - 44, 0xFFAAAAAA);
+            graphics.centeredText(font, FensterText.seite(page, seiten), centerX, height - 44, 0xFFAAAAAA);
         }
     }
 

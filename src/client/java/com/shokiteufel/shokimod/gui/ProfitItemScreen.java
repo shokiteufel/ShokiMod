@@ -72,8 +72,29 @@ public class ProfitItemScreen extends Screen {
     private final List<String> order = new ArrayList<>();
     private final java.util.Set<String> ordered = new java.util.HashSet<>();
 
+    // Die Liste, einmal gebaut und gehalten (vorher baute das Bild sie bis zu viermal je Bild neu: Kopie aller Kennungen, Namen klein
+    // geschrieben, Sortierung). Eingaben: der Zaehlstand des Trackers (ProfitTracker hat keinen Versionszaehler - Identitaet und Groesse
+    // der Zaehl-Tabelle zeigen, dass Funde dazukamen oder wegfielen, und sonst gilt die Obergrenze von einer Sekunde, falls sich nur
+    // ein Vorzeichen oder eine Menge geaendert hat), der Suchtext dieses Fensters und jeder init() (jede Eingabe endet in rebuild()).
+    private List<String> sichtbar;
+    private java.util.Map<String, Integer> sichtbarQuelle;
+    private int sichtbarGroesse = -1;
+    private String sichtbarFilter;
+    private long sichtbarAt;
+    private static final long SICHTBAR_MILLIS = 1_000L;
+
     /** Alle Funde in der Reihenfolge dieses Fensters; was waehrend es offen ist neu dazukommt, steht unten (nach Wert untereinander) */
     private List<String> visible() {
+        long now = System.currentTimeMillis();
+        java.util.Map<String, Integer> quelle = ProfitTracker.activeCounts();
+        if (sichtbar == null || quelle != sichtbarQuelle || quelle.size() != sichtbarGroesse
+                || filter != sichtbarFilter || now - sichtbarAt >= SICHTBAR_MILLIS) {
+            listeBauen(now, quelle);
+        }
+        return sichtbar;
+    }
+
+    private void listeBauen(long now, java.util.Map<String, Integer> quelle) {
         String needle = filter.trim().toLowerCase(Locale.ROOT);
         List<String> present = new ArrayList<>();
         List<String> fresh = new ArrayList<>();
@@ -106,7 +127,11 @@ public class ProfitItemScreen extends Screen {
             }
             out.add(itemId);
         }
-        return out;
+        sichtbar = out;
+        sichtbarQuelle = quelle;
+        sichtbarGroesse = quelle.size();
+        sichtbarFilter = filter;
+        sichtbarAt = now;
     }
 
     private static double worth(String itemId) {
@@ -124,6 +149,8 @@ public class ProfitItemScreen extends Screen {
 
     @Override
     protected void init() {
+        // Jeder Neuaufbau heisst: Suche, Schalter oder eine Ware haben sich geaendert - die Liste neu bauen lassen
+        sichtbar = null;
         page = Math.min(page, pageCount() - 1);
 
         List<String> items = visible();
@@ -370,24 +397,38 @@ public class ProfitItemScreen extends Screen {
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
 
         int centerX = width / 2;
-        graphics.centeredText(font, Component.literal("Profit Tracker - items"), centerX, 14, 0xFFFFFFFF);
+        // Feste Texte: je Zeichenkette einmal gebaut und geteilt, nicht in jedem Bild
+        graphics.centeredText(font, FensterText.text("Profit Tracker - items"), centerX, 14, 0xFFFFFFFF);
 
-        String note = cfg().selection == ModConfig.ProfitSelection.PICKED
-                ? "Only picked: an item shows up once you click it"
-                : "Everything but hidden: click an item to take it out";
-        graphics.centeredText(font, Component.literal(note).withStyle(ChatFormatting.GRAY),
+        graphics.centeredText(font, FensterText.grau(cfg().selection == ModConfig.ProfitSelection.PICKED
+                        ? "Only picked: an item shows up once you click it"
+                        : "Everything but hidden: click an item to take it out"),
                 centerX, 60, 0xFFAAAAAA);
 
-        String foot = visible().isEmpty()
-                ? "Nothing found yet - the tracker fills this list while you play"
-                : "Default follows the panel setting: " + ProfitTracker.mode();
-        graphics.centeredText(font, Component.literal(foot).withStyle(ChatFormatting.GRAY),
+        // Die Liste liegt fertig vor (neu gebaut nur bei Aenderung, siehe visible()); der Fuss mit der Betriebsart wird nur bei Wechsel gebaut
+        List<String> liste = visible();
+        boolean leer = liste.isEmpty();
+        graphics.centeredText(font, leer
+                        ? FensterText.grau("Nothing found yet - the tracker fills this list while you play")
+                        : fussText(),
                 centerX, height - 46, 0xFFAAAAAA);
 
-        if (pageCount() > 1) {
-            graphics.centeredText(font, Component.literal((page + 1) + " / " + pageCount())
-                    .withStyle(ChatFormatting.GRAY), centerX, height - 58, 0xFFAAAAAA);
+        int seiten = Math.max(1, (liste.size() + rowsPerPage() - 1) / rowsPerPage());
+        if (seiten > 1) {
+            graphics.centeredText(font, FensterText.seite(page, seiten), centerX, height - 58, 0xFFAAAAAA);
         }
+    }
+
+    /** "Default follows the panel setting: INSTANT_SELL" - gebaut nur, wenn sich die Voreinstellung des Kastens aendert */
+    private final FensterText.Gemerkt fuss = new FensterText.Gemerkt();
+
+    private Component fussText() {
+        SellMode modus = ProfitTracker.mode();
+        if (!fuss.gilt(0L, modus)) {
+            fuss.setze(0L, modus, Component.literal("Default follows the panel setting: " + modus)
+                    .withStyle(ChatFormatting.GRAY));
+        }
+        return fuss.component();
     }
 
     @Override

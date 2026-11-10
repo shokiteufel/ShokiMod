@@ -234,7 +234,9 @@ public class ChatRule {
 
     /** Ungueltige Regex darf den Chat nicht sprengen - dann greift die Regel nicht */
     private Pattern compiled() {
-        if (compiled == null || !filter.equals(compiledFor) || compiledIgnoreCase != ignoreCase) {
+        // Auch ein Fehlschlag wird gemerkt (compiledFor ist gesetzt, compiled bleibt null): sonst uebersetzt jeder Aufruf - also jede Chatzeile -
+        // ein ungueltiges Muster neu und wirft dabei jedes Mal eine Ausnahme
+        if (compiledFor == null || !filter.equals(compiledFor) || compiledIgnoreCase != ignoreCase) {
             compiledFor = filter;
             compiledIgnoreCase = ignoreCase;
             try {
@@ -248,7 +250,7 @@ public class ChatRule {
 
     /** Wie compiled(), nur fuer die Ausnahme. Ungueltiges Muster heisst: keine Ausnahme */
     private Pattern compiledExcept() {
-        if (compiledExcept == null || !except.equals(compiledExceptFor)
+        if (compiledExceptFor == null || !except.equals(compiledExceptFor)
                 || compiledExceptIgnoreCase != ignoreCase) {
             compiledExceptFor = except;
             compiledExceptIgnoreCase = ignoreCase;

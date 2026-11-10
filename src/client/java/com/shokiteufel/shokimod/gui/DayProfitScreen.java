@@ -6,7 +6,6 @@ import com.shokiteufel.shokimod.handler.ProfitLog;
 import com.shokiteufel.shokimod.handler.ProfitTracker;
 import com.shokiteufel.shokimod.util.ItemValue;
 
-import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
@@ -152,6 +151,12 @@ public class DayProfitScreen extends Screen {
     private long rowsMemoAt = 0L;
     private static final long ROWS_MEMO_MILLIS = 1_000L;
 
+    /** Die fertigen Texte der Zeilen auf der gezeigten Seite, und wofuer sie gebaut sind (Liste, Seite, Zeilen je Seite) */
+    private ZeilenText[] zeilenTexte = new ZeilenText[0];
+    private List<DayRecord> texteQuelle;
+    private int texteSeite = -1;
+    private int texteProSeite = -1;
+
     /** Dieselbe Rechnung ohne Fenster - so laesst sie sich ohne laufendes Spiel pruefen */
     static List<DayRecord> group(List<DayRecord> tage, Tab welcher) {
         if (welcher == Tab.DAYS) return tage;
@@ -267,11 +272,11 @@ public class DayProfitScreen extends Screen {
         int left = left();
         int centerX = width / 2;
 
-        graphics.centeredText(font, Component.literal("Day profit").withStyle(ChatFormatting.GOLD),
-                centerX, 14, 0xFFFFAA00);
-        graphics.centeredText(font, Component.literal(
-                        "Day's own prices - each find counts 30 s of Active - click a row for its items")
-                .withStyle(ChatFormatting.DARK_GRAY), centerX, 28, 0xFF888888);
+        // Feste Texte kommen aus dem Zwischenspeicher (je Zeichenkette ein geteiltes Component), nicht aus einem neuen Aufbau je Bild
+        graphics.centeredText(font, FensterText.gold("Day profit"), centerX, 14, 0xFFFFAA00);
+        graphics.centeredText(font, FensterText.dunkelgrau(
+                "Day's own prices - each find counts 30 s of Active - click a row for its items"),
+                centerX, 28, 0xFF888888);
 
         graphics.text(font, switch (tab) {
             case DAYS -> "Day";
@@ -282,43 +287,91 @@ public class DayProfitScreen extends Screen {
         graphics.text(font, "Active", left + 240, LIST_TOP - 12, 0xFF888888, false);
         graphics.text(font, "Worth", left + 320, LIST_TOP - 12, 0xFF888888, false);
 
-        List<DayRecord> tage = rows();
+        // Die Zeilentexte der gezeigten Seite liegen fertig im Feld; gebaut werden sie nur, wenn die Liste neu
+        // zusammengelegt wurde (hoechstens einmal je Sekunde) oder die Seite wechselt
+        List<DayRecord> tage = zeilenVorbereiten();
         if (tage.isEmpty()) {
-            graphics.centeredText(font, Component.literal("No day has finished yet")
-                    .withStyle(ChatFormatting.GRAY), centerX, LIST_TOP + 20, 0xFFAAAAAA);
+            graphics.centeredText(font, FensterText.grau("No day has finished yet"),
+                    centerX, LIST_TOP + 20, 0xFFAAAAAA);
             return;
         }
 
-        int start = page * perPage();
-        for (int i = 0; i < perPage() && start + i < tage.size(); i++) {
-            DayRecord tag = tage.get(start + i);
+        for (int i = 0; i < zeilenTexte.length; i++) {
+            ZeilenText zeile = zeilenTexte[i];
             int y = LIST_TOP + i * ROW_HEIGHT;
             if ((i & 1) == 0) graphics.fill(left, y - 3, left + LIST_WIDTH, y + ROW_HEIGHT - 4, 0x30000000);
 
-            boolean laeuft = start + i == 0 && laufend(tag);
-            graphics.text(font, label(tag) + (laeuft ? (tab == Tab.DAYS ? " (today)" : " (now)") : ""),
-                    left + 4, y, laeuft ? 0xFFFFAA00 : 0xFFFFFFFF, false);
-            graphics.text(font, String.valueOf(tag.counts.size()), left + 170, y, 0xFFCCCCCC, false);
-            graphics.text(font, clock(tag.uptimeMillis), left + 240, y, 0xFF55FFFF, false);
-            graphics.text(font, ItemValue.format(rowsWorth.getOrDefault(tag, 0.0)), left + 320, y, 0xFF55FF55, false);
+            graphics.text(font, zeile.name, left + 4, y, zeile.nameFarbe, false);
+            graphics.text(font, zeile.items, left + 170, y, 0xFFCCCCCC, false);
+            graphics.text(font, zeile.aktiv, left + 240, y, 0xFF55FFFF, false);
+            graphics.text(font, zeile.worth, left + 320, y, 0xFF55FF55, false);
 
-            // Im Jahres-Reiter darunter die beguenstigten Farben. Sie stehen in keiner
-            // Schnittstelle, nur in der Kiste von /dyes - wer sie einmal im Jahr
-            // oeffnet, hat die Angabe fuer immer. Steht sie noch nicht da, sagt die
-            // Zeile genau das, statt einfach leer zu bleiben
-            if (tab == Tab.YEARS) {
-                String farben = com.shokiteufel.shokimod.scanner.DyeRotation.of(
-                        com.shokiteufel.shokimod.util.SkyBlockYear.yearOf(tag.start));
-                graphics.text(font,
-                        farben.isEmpty() ? "boosted dyes unknown - open /dyes during the year" : "boosted: " + farben,
-                        left + 4, y + 10, farben.isEmpty() ? 0xFF666666 : 0xFF55FFFF, false);
+            // Im Jahres-Reiter darunter die beguenstigten Farben (Text und Farbe stehen in zeile, siehe zeilenVorbereiten)
+            if (zeile.farben != null) {
+                graphics.text(font, zeile.farben, left + 4, y + 10, zeile.farbenFarbe, false);
             }
         }
 
         if (pageCount() > 1) {
-            graphics.centeredText(font, Component.literal((page + 1) + " / " + pageCount())
-                    .withStyle(ChatFormatting.GRAY), centerX, height - 44, 0xFFAAAAAA);
+            // "2 / 5" wird nur neu gebaut, wenn sich Seite oder Seitenzahl aendern
+            graphics.centeredText(font, FensterText.seite(page, pageCount()), centerX, height - 44, 0xFFAAAAAA);
         }
+    }
+
+    /** Die Texte einer Zeile, fertig zum Zeichnen */
+    private static final class ZeilenText {
+        String name;
+        int nameFarbe;
+        String items;
+        String aktiv;
+        String worth;
+        /** Nur im Jahres-Reiter: die beguenstigten Farben, sonst null */
+        String farben;
+        int farbenFarbe;
+    }
+
+    /**
+     * Die Zeilentexte der gezeigten Seite: Beschriftung (Datum formatieren), Zaehler, Dauer, Wert (String.format) und im
+     * Jahres-Reiter die Farben (Regex je Eintrag) - bisher je Zeile und je Bild neu gebaut. Neu gebaut werden sie, wenn
+     * {@link #rows()} eine neue Liste geliefert hat (Reiterwechsel, neue Version des Logs, spaetestens nach einer Sekunde -
+     * dann sind auch Preise, laufender Tag und /dyes-Angaben wieder frisch) oder sich Seite oder Seitengroesse aendern.
+     * Liefert die Zeilen des Reiters.
+     */
+    private List<DayRecord> zeilenVorbereiten() {
+        List<DayRecord> tage = rows();
+        int proSeite = perPage();
+        if (tage != texteQuelle || page != texteSeite || proSeite != texteProSeite) {
+            int start = page * proSeite;
+            int anzahl = Math.max(0, Math.min(proSeite, tage.size() - start));
+            ZeilenText[] neu = new ZeilenText[anzahl];
+            for (int i = 0; i < anzahl; i++) {
+                DayRecord tag = tage.get(start + i);
+                ZeilenText zeile = new ZeilenText();
+                boolean laeuft = start + i == 0 && laufend(tag);
+                zeile.name = label(tag) + (laeuft ? (tab == Tab.DAYS ? " (today)" : " (now)") : "");
+                zeile.nameFarbe = laeuft ? 0xFFFFAA00 : 0xFFFFFFFF;
+                zeile.items = String.valueOf(tag.counts.size());
+                zeile.aktiv = clock(tag.uptimeMillis);
+                zeile.worth = ItemValue.format(rowsWorth.getOrDefault(tag, 0.0));
+
+                // Im Jahres-Reiter darunter die beguenstigten Farben. Sie stehen in keiner
+                // Schnittstelle, nur in der Kiste von /dyes - wer sie einmal im Jahr
+                // oeffnet, hat die Angabe fuer immer. Steht sie noch nicht da, sagt die
+                // Zeile genau das, statt einfach leer zu bleiben
+                if (tab == Tab.YEARS) {
+                    String farben = com.shokiteufel.shokimod.scanner.DyeRotation.of(
+                            com.shokiteufel.shokimod.util.SkyBlockYear.yearOf(tag.start));
+                    zeile.farben = farben.isEmpty() ? "boosted dyes unknown - open /dyes during the year" : "boosted: " + farben;
+                    zeile.farbenFarbe = farben.isEmpty() ? 0xFF666666 : 0xFF55FFFF;
+                }
+                neu[i] = zeile;
+            }
+            zeilenTexte = neu;
+            texteQuelle = tage;
+            texteSeite = page;
+            texteProSeite = proSeite;
+        }
+        return tage;
     }
 
     /** Laeuft dieser Zeitraum noch? */

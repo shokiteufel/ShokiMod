@@ -48,6 +48,12 @@ public class MarkerSettingsScreen extends Screen {
         this.parent = parent;
     }
 
+    /**
+     * Die Zeilen, einmal gebaut (in {@link #init()}) und gehalten: Beschriftung und Hinweis sind feste Texte, und die Lambdas lesen die
+     * Einstellung erst, wenn man sie ruft. Das Bild baut sie nicht jedes Mal neu (sechs Zeilen mit 17 Lambdas).
+     */
+    private List<Row> zeilen;
+
     private static List<Row> rows() {
         ModConfig.SafariCategory c = ModConfig.INSTANCE.safari;
         return List.of(
@@ -81,6 +87,7 @@ public class MarkerSettingsScreen extends Screen {
     protected void init() {
         int left = width / 2 - ROW_WIDTH / 2;
         List<Row> rows = rows();
+        zeilen = rows;
 
         for (int i = 0; i < rows.size(); i++) {
             Row row = rows.get(i);
@@ -129,17 +136,15 @@ public class MarkerSettingsScreen extends Screen {
         int centerX = width / 2;
         int left = centerX - ROW_WIDTH / 2;
         graphics.centeredText(font, this.title, centerX, 16, 0xFFFFFFFF);
-        graphics.centeredText(font,
-                Component.literal("Switch and colour side by side").withStyle(ChatFormatting.DARK_GRAY),
-                centerX, 30, 0xFF808080);
+        // Feste Texte: je Zeichenkette einmal gebaut und geteilt, nicht in jedem Bild
+        graphics.centeredText(font, FensterText.dunkelgrau("Switch and colour side by side"), centerX, 30, 0xFF808080);
 
-        List<Row> rows = rows();
+        List<Row> rows = zeilen;
         for (int i = 0; i < rows.size(); i++) {
             Row row = rows.get(i);
             int y = LIST_TOP + i * ROW_HEIGHT;
-            graphics.text(font, Component.literal(row.label()), left + COLUMN_LABEL, y + 2, 0xFFFFFFFF);
-            graphics.text(font, Component.literal(row.hint()).withStyle(ChatFormatting.DARK_GRAY),
-                    left + COLUMN_LABEL, y + 12, 0xFF707070);
+            graphics.text(font, FensterText.text(row.label()), left + COLUMN_LABEL, y + 2, 0xFFFFFFFF);
+            graphics.text(font, FensterText.dunkelgrau(row.hint()), left + COLUMN_LABEL, y + 12, 0xFF707070);
         }
     }
 

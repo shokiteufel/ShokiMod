@@ -35,8 +35,20 @@ public class HudEditorScreen extends Screen {
     private static final int BANNER_BASE_WIDTH = 120;
     private static final int BANNER_BASE_HEIGHT = 26;
 
+    /** Alle Kaesten und alle Zeitpunkte, einmal geholt: values() legt bei jedem Aufruf eine neue Kopie an, und das Bild fragt sie mehrfach */
+    private static final SafariHud.Panel[] PANELS = SafariHud.Panel.values();
+    private static final ModConfig.HudCategory.HudWhen[] WHENS = ModConfig.HudCategory.HudWhen.values();
+
     private final Screen parent;
     private final Map<SafariHud.Panel, HudPanel> content = new EnumMap<>(SafariHud.Panel.class);
+
+    // Gemerkte Texte: gebaut nur, wenn sich ihre Quellen aendern, nicht in jedem Bild
+    /** "Anchor Top edge has a fixed place ..." - gebaut nur, wenn die Verankerung des Designs wechselt */
+    private final FensterText.Gemerkt ankerHinweis = new FensterText.Gemerkt();
+    /** "progress   size 120%" ueber einem Kasten unter der Maus - gebaut nur, wenn der Kasten oder seine Groesse wechselt */
+    private final FensterText.Gemerkt panelGroesse = new FensterText.Gemerkt();
+    /** Dasselbe fuer das Banner-Design */
+    private final FensterText.Gemerkt bannerGroesse = new FensterText.Gemerkt();
 
     /** Wahr: Banner-Ansicht. Falsch: Kasten-Ansicht */
     private boolean bannerMode;
@@ -361,6 +373,16 @@ public class HudEditorScreen extends Screen {
     private static final int MENU_ROW = 14;
     /** Die Zeilen des Menues: die drei Zeitpunkte, dann der Weg zu den Einstellungen */
     private static final String[] MENU_ROWS = {"Always", "Outside only", "Inventory only", "Settings ..."};
+    /** Dieselben Zeilen mit "> " (die gewaehlte) und mit zwei Leerzeichen davor - einmal zusammengesetzt statt in jedem Bild */
+    private static final String[] MENU_ROWS_GEWAEHLT = new String[MENU_ROWS.length];
+    private static final String[] MENU_ROWS_FREI = new String[MENU_ROWS.length];
+
+    static {
+        for (int i = 0; i < MENU_ROWS.length; i++) {
+            MENU_ROWS_GEWAEHLT[i] = "> " + MENU_ROWS[i];
+            MENU_ROWS_FREI[i] = "  " + MENU_ROWS[i];
+        }
+    }
 
     // ---- Maus ----
 
@@ -467,17 +489,50 @@ public class HudEditorScreen extends Screen {
             drawPanels(graphics, mouseX, mouseY);
         }
 
-        graphics.centeredText(font, Component.literal(bannerMode ? "Drop banners" : "Panels"), width / 2, 12, 0xFFFFFFFF);
-        String hint = bannerMode
-                ? (freeAnchor() ? "Drag to move  ·  scroll to resize  ·  pick the design below"
-                : "Anchor " + design().anchor.label + " has a fixed place  ·  scroll to resize  ·  pick the design below")
-                : "Drag to move  ·  scroll to resize  ·  slider below for the background";
-        graphics.centeredText(font, Component.literal(hint).withStyle(ChatFormatting.GRAY), width / 2, 26, 0xFFAAAAAA);
+        // Feste Texte: je Zeichenkette einmal gebaut und geteilt, nicht in jedem Bild
+        graphics.centeredText(font, FensterText.text(bannerMode ? "Drop banners" : "Panels"), width / 2, 12, 0xFFFFFFFF);
+        graphics.centeredText(font, hinweis(), width / 2, 26, 0xFFAAAAAA);
         drawPanelMenu(graphics);
     }
 
+    /** Der graue Hinweis unter der Ueberschrift; nur der mit dem Namen der Verankerung ist zusammengesetzt und wird gemerkt */
+    private Component hinweis() {
+        if (!bannerMode) return FensterText.grau("Drag to move  ·  scroll to resize  ·  slider below for the background");
+        if (freeAnchor()) return FensterText.grau("Drag to move  ·  scroll to resize  ·  pick the design below");
+        String label = design().anchor.label;
+        if (!ankerHinweis.gilt(0L, label)) {
+            ankerHinweis.setze(0L, label, Component.literal(
+                            "Anchor " + label + " has a fixed place  ·  scroll to resize  ·  pick the design below")
+                    .withStyle(ChatFormatting.GRAY));
+        }
+        return ankerHinweis.component();
+    }
+
+    /** "progress   size 120%": gebaut nur, wenn sich der Kasten unter der Maus oder seine Groesse aendert (der Schluessel haelt die Bits der Groesse) */
+    private Component panelGroesseText(SafariHud.Panel panel) {
+        long schluessel = ((long) panel.ordinal() << 32) | (Float.floatToIntBits(panel.scale()) & 0xFFFFFFFFL);
+        if (!panelGroesse.gilt(schluessel)) {
+            panelGroesse.setze(schluessel, Component.literal(String.format("%s   size %.0f%%",
+                    panel.name().toLowerCase(), panel.scale() * 100)).withStyle(ChatFormatting.YELLOW));
+        }
+        return panelGroesse.component();
+    }
+
+    /** Dasselbe fuer das Banner-Design: Name (ueber seine Identitaet verglichen) und Groesse bestimmen den Text */
+    private Component bannerGroesseText() {
+        BannerDesign d = design();
+        long schluessel = Float.floatToIntBits(d.scale) & 0xFFFFFFFFL;
+        if (!bannerGroesse.gilt(schluessel, d.name)) {
+            bannerGroesse.setze(schluessel, d.name, Component.literal(String.format("%s   size %.0f%%", d.name, d.scale * 100))
+                    .withStyle(ChatFormatting.YELLOW));
+        }
+        return bannerGroesse.component();
+    }
+
     private void drawPanels(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
-        for (SafariHud.Panel panel : SafariHud.Panel.values()) {
+        // Der erste Kasten unter der Maus bekommt am Ende die Groessenangabe; die Frage "liegt die Maus drauf?" wird je Kasten nur einmal gestellt
+        SafariHud.Panel unterMaus = null;
+        for (SafariHud.Panel panel : PANELS) {
             HudPanel built = content.get(panel);
             if (built == null || built.isEmpty()) continue;
 
@@ -485,15 +540,14 @@ public class HudEditorScreen extends Screen {
             int top = SafariHud.originY(panel);
             int right = left + SafariHud.scaledWidth(panel, built, font);
             int bottom = top + SafariHud.scaledHeight(panel, built);
-            int colour = panel == selectedPanel ? 0xFFFFAA00 : isOver(panel, mouseX, mouseY) ? 0xC0FFFFFF : 0x50FFFFFF;
+            boolean ueber = isOver(panel, mouseX, mouseY);
+            if (ueber && unterMaus == null) unterMaus = panel;
+            int colour = panel == selectedPanel ? 0xFFFFAA00 : ueber ? 0xC0FFFFFF : 0x50FFFFFF;
             frame(graphics, left, top, right, bottom, colour);
             SafariHud.draw(graphics, font, panel, built);
         }
-        for (SafariHud.Panel panel : SafariHud.Panel.values()) {
-            if (!isOver(panel, mouseX, mouseY)) continue;
-            graphics.centeredText(font, Component.literal(String.format("%s   size %.0f%%",
-                    panel.name().toLowerCase(), panel.scale() * 100)).withStyle(ChatFormatting.YELLOW), width / 2, 38, 0xFFFFFF55);
-            break;
+        if (unterMaus != null) {
+            graphics.centeredText(font, panelGroesseText(unterMaus), width / 2, 38, 0xFFFFFF55);
         }
     }
 
@@ -504,14 +558,14 @@ public class HudEditorScreen extends Screen {
         int bottom = top + bannerHeight();
         int colour = 0xFF000000 | bannerColour();
 
+        boolean ueber = isOverBanner(mouseX, mouseY);
         graphics.fill(left, top, right, bottom, 0xA0101010);
-        frame(graphics, left, top, right, bottom, isOverBanner(mouseX, mouseY) ? 0xFFFFFFFF : 0xFFFFAA00);
+        frame(graphics, left, top, right, bottom, ueber ? 0xFFFFFFFF : 0xFFFFAA00);
         graphics.fill(left, top, left + 3, bottom, colour);
         graphics.centeredText(font, design().name, (left + right) / 2, (top + bottom) / 2 - 4, 0xFFFFFFFF);
 
-        if (isOverBanner(mouseX, mouseY)) {
-            graphics.centeredText(font, Component.literal(String.format("%s   size %.0f%%", design().name, design().scale * 100))
-                    .withStyle(ChatFormatting.YELLOW), width / 2, 38, 0xFFFFFF55);
+        if (ueber) {
+            graphics.centeredText(font, bannerGroesseText(), width / 2, 38, 0xFFFFFF55);
         }
     }
 
@@ -557,10 +611,11 @@ public class HudEditorScreen extends Screen {
 
         ModConfig.HudCategory.HudWhen jetzt = ModConfig.INSTANCE.hud.whenFor(menuPanel.name());
         for (int i = 0; i < MENU_ROWS.length; i++) {
-            boolean gewaehlt = i < 3 && ModConfig.HudCategory.HudWhen.values()[i] == jetzt;
+            boolean gewaehlt = i < 3 && WHENS[i] == jetzt;
             int farbe = i == MENU_ROWS.length - 1 ? 0xFF55FFFF
                     : (gewaehlt ? 0xFFFFAA00 : 0xFFCCCCCC);
-            graphics.text(font, (gewaehlt ? "> " : "  ") + MENU_ROWS[i],
+            // Die Zeilen mit und ohne "> " liegen fertig vor
+            graphics.text(font, gewaehlt ? MENU_ROWS_GEWAEHLT[i] : MENU_ROWS_FREI[i],
                     menuX + 2, menuY + i * MENU_ROW + 2, farbe, false);
         }
     }

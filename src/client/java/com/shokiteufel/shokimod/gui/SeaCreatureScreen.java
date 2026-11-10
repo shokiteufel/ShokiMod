@@ -54,12 +54,36 @@ public class SeaCreatureScreen extends Screen {
     private static boolean onlyPicked = false;
     private static int page = 0;
 
+    /**
+     * Die gefilterte Liste, einmal gebaut und gehalten (Suchtext klein schreiben, je Eintrag den Namen klein schreiben und die Auswahl pruefen
+     * liefen sonst in jedem Bild, denn visible() steckt auch in pageCount()).
+     *
+     * Ihre Eingaben aendern sich nur ueber die Knoepfe und das Suchfeld dieses Fensters (Suchtext, "Picked/All", die Schalter je Bewohner - die
+     * Aufrufe von toggleOwn/toggleParty/toggleShare/toggle gibt es sonst nirgends; der Sound-Dialog aendert nur den Klang), und jede dieser
+     * Aktionen endet in {@link #rebuild()}, das {@link #init()} neu laufen laesst (auch die Rueckkehr aus dem Sound-Dialog). Dort wird sie
+     * verworfen und beim naechsten Zugriff neu gebaut - nicht in jedem Bild.
+     */
+    private List<SeaCreatures.Creature> sichtbar;
+    /** Wie viele sich melden (eigener Fang), wie viele in der HP-Liste und im Naehe-Alarm stehen - gezaehlt zusammen mit der Liste */
+    private int gewaehlt;
+    private int hpGewaehlt;
+    private int naheGewaehlt;
+    /** "3 of 90 announce themselves ..." - neu gebaut nur, wenn sich eine der Zahlen aendert */
+    private final FensterText.Gemerkt info = new FensterText.Gemerkt();
+    /** "Nothing found for ..." - neu gebaut nur, wenn sich der Suchtext aendert */
+    private final FensterText.Gemerkt nichtsGefunden = new FensterText.Gemerkt();
+
     public SeaCreatureScreen(Screen parent) {
         super(Component.literal("Sea creatures"));
         this.parent = parent;
     }
 
     private List<SeaCreatures.Creature> visible() {
+        if (sichtbar == null) listeBauen();
+        return sichtbar;
+    }
+
+    private void listeBauen() {
         String suche = filter.trim().toLowerCase(Locale.ROOT);
         List<SeaCreatures.Creature> out = new ArrayList<>();
         for (SeaCreatures.Creature c : SeaCreatures.withHpOnly()) {
@@ -68,7 +92,32 @@ public class SeaCreatureScreen extends Screen {
                     && !SeaCreatureHp.wants(c) && !SeaCreatureNear.wants(c)) continue;
             out.add(c);
         }
-        return out;
+        int anzahl = 0;
+        for (SeaCreatures.Creature c : SeaCreatures.all()) {
+            if (RareCatchAlert.wantsOwn(c)) anzahl++;
+        }
+        sichtbar = out;
+        gewaehlt = anzahl;
+        hpGewaehlt = SeaCreatureHp.pickedCount();
+        naheGewaehlt = nearPicked();
+    }
+
+    /** Die zusammengesetzten Texte des Bildes: gebaut nur, wenn sich ihre Quellen (die Zahlen der Haken, der Suchtext) geaendert haben */
+    private void texteAktualisieren() {
+        boolean leer = visible().isEmpty();
+        int alle = SeaCreatures.all().size();
+        long schluessel = ((gewaehlt * 4096L + alle) * 4096L + hpGewaehlt) * 4096L + naheGewaehlt;
+        if (!info.gilt(schluessel)) {
+            info.setze(schluessel, Component.literal(
+                            gewaehlt + " of " + alle + " announce themselves  ·  "
+                            + hpGewaehlt + " in the HP list  ·  "
+                            + naheGewaehlt + " in the nearby alert")
+                    .withStyle(ChatFormatting.DARK_GRAY));
+        }
+        if (leer && !nichtsGefunden.gilt(0L, filter)) {
+            nichtsGefunden.setze(0L, filter, Component.literal("Nothing found for \"" + filter + "\"")
+                    .withStyle(ChatFormatting.GRAY));
+        }
     }
 
     private int rowsPerPage() {
@@ -125,6 +174,8 @@ public class SeaCreatureScreen extends Screen {
 
     @Override
     protected void init() {
+        // Jeder Neuaufbau heisst: Suche, Schalter oder ein Haken haben sich geaendert - die Liste neu bauen lassen
+        sichtbar = null;
         page = Math.clamp(page, 0, pageCount() - 1);
 
         List<SeaCreatures.Creature> liste = visible();
@@ -350,34 +401,24 @@ public class SeaCreatureScreen extends Screen {
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
         int centerX = width / 2;
 
-        graphics.centeredText(font, Component.literal("Sea creatures").withStyle(ChatFormatting.GOLD),
-                centerX, 14, 0xFFFFAA00);
+        // Feste Texte kommen aus dem Zwischenspeicher (je Zeichenkette ein geteiltes Component); die Zaehler und der Suchtext liegen fertig in
+        // gemerkten Feldern und werden nur neu gebaut, wenn sich ihre Quellen aendern
+        graphics.centeredText(font, FensterText.gold("Sea creatures"), centerX, 14, 0xFFFFAA00);
 
         List<SeaCreatures.Creature> liste = visible();
-        int gewaehlt = 0;
-        for (SeaCreatures.Creature c : SeaCreatures.all()) {
-            if (RareCatchAlert.wantsOwn(c)) gewaehlt++;
-        }
+        texteAktualisieren();
         // Kurze Zeilen statt einer langen: Bei der Oberflaeche "2" ist das Fenster nur 427 Punkte breit. Die zwei letzten Spalten stehen unten links
-        graphics.centeredText(font, Component.literal(
-                        "Own: your catch  ·  Party: others' catch  ·  Share: tell your party")
-                .withStyle(ChatFormatting.DARK_GRAY), centerX, 24, 0xFF888888);
+        graphics.centeredText(font, FensterText.dunkelgrau(
+                "Own: your catch  ·  Party: others' catch  ·  Share: tell your party"), centerX, 24, 0xFF888888);
         // Unten steht sie ueber der Welt statt ueber dem dunklen Rand, darum heller als die Zeilen oben
-        graphics.text(font, Component.literal("HP: the HP list  ·  Near: seen near you")
-                .withStyle(ChatFormatting.GRAY), soundX, height - 22, 0xFFAAAAAA, true);
-        graphics.centeredText(font, Component.literal(
-                        gewaehlt + " of " + SeaCreatures.all().size() + " announce themselves  ·  "
-                        + SeaCreatureHp.pickedCount() + " in the HP list  ·  "
-                        + nearPicked() + " in the nearby alert")
-                .withStyle(ChatFormatting.DARK_GRAY), centerX, 60, 0xFF888888);
+        graphics.text(font, FensterText.grau("HP: the HP list  ·  Near: seen near you"), soundX, height - 22, 0xFFAAAAAA, true);
+        graphics.centeredText(font, info.component(), centerX, 60, 0xFF888888);
 
         if (liste.isEmpty()) {
-            graphics.centeredText(font, Component.literal("Nothing found for \"" + filter + "\"")
-                    .withStyle(ChatFormatting.GRAY), centerX, LIST_TOP + 20, 0xFFAAAAAA);
+            graphics.centeredText(font, nichtsGefunden.component(), centerX, LIST_TOP + 20, 0xFFAAAAAA);
         }
         if (pageCount() > 1) {
-            graphics.centeredText(font, Component.literal((page + 1) + " / " + pageCount())
-                    .withStyle(ChatFormatting.GRAY), centerX, height - 44, 0xFFAAAAAA);
+            graphics.centeredText(font, FensterText.seite(page, pageCount()), centerX, height - 44, 0xFFAAAAAA);
         }
     }
 }
