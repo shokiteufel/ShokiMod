@@ -60,6 +60,8 @@ public final class WeltScanner {
         return java.util.Collections.unmodifiableMap(unbekannteKerne);
     }
 
+    private int fragen;
+
     public WeltScanner(RaumTabelle tabelle, Raster raster) {
         this.tabelle = tabelle;
         this.raster = raster;
@@ -98,6 +100,7 @@ public final class WeltScanner {
                 if (schon != null && !(schon.art == Kachel.Art.RAUM && schon.daten != null && schon.daten.istUnbekannt())) continue;
                 if (ruhtBis[platz] > durchgaenge) continue;
                 int dach = welt.hoechsterBlock(wx, wz);
+                fragen++;
                 if (dach <= 0) {
                     ruhtBis[platz] = durchgaenge + RUHE;
                     continue;
@@ -157,6 +160,11 @@ public final class WeltScanner {
      * Merkt, welche Wither- und Blut-Tueren schon offen sind: Dort, wo auf Hoehe 69 Luft oder eine Barriere steht, ist die Tuer
      * aufgemacht. Nur fuer Plaetze, deren Chunk geladen ist.
      */
+    /** Wie oft der Scan bisher die Welt nach der Hoehe eines Platzes gefragt hat (fuer das Dungeon log: es soll nach dem Abschluss ruhen) */
+    public int weltFragen() {
+        return fragen;
+    }
+
     public void tuerenPruefen(Welt welt) {
         for (int i = 0; i < Raster.PLAETZE; i++) {
             Kachel k = raster.get(i);

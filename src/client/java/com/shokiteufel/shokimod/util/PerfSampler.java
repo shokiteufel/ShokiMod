@@ -145,7 +145,7 @@ public final class PerfSampler {
         return "mod " + FabricLoader.getInstance().getModContainer("shokimod").map(m -> m.getMetadata().getVersion().getFriendlyString()).orElse("?")
                 + ", Java " + System.getProperty("java.version") + ", " + Runtime.getRuntime().availableProcessors() + " CPUs, "
                 + (Runtime.getRuntime().maxMemory() >> 20) + " MB heap | on: "
-                + an("profit", c.profit.enabled) + an("funnyMap", c.ikohS.funnyMap.enabled) + an("starMobs", c.ikohS.starMobs.enabled)
+                + an("profit", c.profit.enabled) + an("funnyMap", c.ikohS.dungeon.funnyMap.enabled) + an("starMobs", c.ikohS.dungeon.starMobs.enabled)
                 + an("mist", c.ikohS.mist.runicGhosts || c.ikohS.mist.showGhosts) + an("forge", c.mining.forge.enabled)
                 + an("skillXp", c.skillXp.enabled) + an("hidePlayers", c.odin.hidePlayers) + an("mobVisuals", c.mobVisuals.masterEnabled);
     }

@@ -8,6 +8,7 @@ import com.shokiteufel.shokimod.handler.HidePlayers;
 import com.shokiteufel.shokimod.paket.PaketBus;
 import com.shokiteufel.shokimod.paket.PaketPhase;
 import com.shokiteufel.shokimod.scanner.TabListScanner;
+import com.shokiteufel.shokimod.util.DungeonLog;
 import com.shokiteufel.shokimod.util.ScoreboardUtils;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -16,10 +17,14 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.protocol.game.ClientboundMapItemDataPacket;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.saveddata.maps.MapDecoration;
+import net.minecraft.world.level.saveddata.maps.MapDecorationTypes;
 import net.minecraft.world.level.saveddata.maps.MapId;
 import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Die Funny Map: der ganze Dungeon auf einer Karte, ab den ersten Sekunden.
@@ -62,7 +67,10 @@ public final class FunnyKarte {
         try {
             // Nach dem Spiel: Dann liegen die neuen Farben schon in den Kartendaten
             PaketBus.abonnieren(ClientboundMapItemDataPacket.class, PaketPhase.NACH, "Funny Map Karte", (p, k) -> {
-                if (FeatureGate.funnyMap()) KARTENTAKT.paket();
+                if (FeatureGate.funnyMap()) {
+                    KARTENTAKT.paket();
+                    DungeonLog.zaehlen(DungeonLog.Zaehler.KARTENPAKETE);
+                }
             });
         } catch (Throwable t) {
             ShokiMod.LOGGER.warn("[FunnyMap] could not listen for map packets, the map is read on a timer instead: {}", t.toString());
@@ -93,13 +101,13 @@ public final class FunnyKarte {
      */
     public static KartenEinstellungen einstellungen() {
         // Im Abgleich stehen Noamms Werte schon in den eigenen Feldern; nur wenn er nicht zu erreichen ist, gilt seine Datei
-        if (ModConfig.INSTANCE.ikohS.funnyMap.followNoamm && !abgeglichen) {
+        if (ModConfig.INSTANCE.ikohS.dungeon.funnyMap.followNoamm && !abgeglichen) {
             KartenEinstellungen n = noammEinst;
             if (n != null) return n;
         }
         long jetzt = System.nanoTime();
         if (eigene == null || jetzt - eigeneVon > 500_000_000L) {
-            KartenEinstellungen neu = KartenEinstellungen.ausFeldern(ModConfig.INSTANCE.ikohS.funnyMap);
+            KartenEinstellungen neu = KartenEinstellungen.ausFeldern(ModConfig.INSTANCE.ikohS.dungeon.funnyMap);
             // Gleiche Werte: dasselbe Objekt behalten. Wer daraus Gerechnetes merkt (das Kartenbild), erkennt eine Aenderung an der Identitaet
             if (eigene == null || !eigene.gleich(neu)) eigene = neu;
             eigeneVon = jetzt;
@@ -118,7 +126,7 @@ public final class FunnyKarte {
      */
     public static NoammLage.Lage noamm() {
         if (abgeglichen) {
-            ModConfig.FunnyMapCategory c = ModConfig.INSTANCE.ikohS.funnyMap;
+            ModConfig.FunnyMapCategory c = ModConfig.INSTANCE.ikohS.dungeon.funnyMap;
             // Dieselben Zahlen: dasselbe Objekt (die Karte fragt in jedem Bild, ein neues Objekt braucht es nur bei einer Aenderung)
             NoammLage.Lage l = abgeglicheneLage;
             if (l == null || l.x() != c.x || l.y() != c.y || l.scale() != c.scale || l.extraInfo() != c.extraLine) {
@@ -150,7 +158,7 @@ public final class FunnyKarte {
      * einem Dungeon mit eingeschalteter Karte).
      */
     private static void abgleichTakt() {
-        ModConfig.FunnyMapCategory c = ModConfig.INSTANCE.ikohS.funnyMap;
+        ModConfig.FunnyMapCategory c = ModConfig.INSTANCE.ikohS.dungeon.funnyMap;
         if (!c.followNoamm) {
             letzterNoamm = null;
             letzterEigener = null;
@@ -228,6 +236,7 @@ public final class FunnyKarte {
     // ------------------------------------------------------------------ Takt
 
     private static void zuruecksetzen() {
+        Mitspieler.zuruecksetzen();
         NoammLage.gemerktesVergessen();
         gefunden.clear();
         RASTER.leeren();
@@ -308,17 +317,31 @@ public final class FunnyKarte {
         }
     }
 
+    private static int letzteFragen;
+    private static int letzterStand;
+
     private static void arbeiten(Minecraft client) {
+        // Das Dungeon log zaehlt, wie oft der Scan laeuft und fragt und wie oft sich das Raster aendert, und misst die Arbeit (ohne Log: nichts davon)
+        long messung = DungeonLog.beginn();
         ClientWelt welt = new ClientWelt(client.level);
         boolean neu = scanner.durchgang(welt) > 0;
         scanner.tuerenPruefen(welt);
         boolean gelesen = KARTENTAKT.lesen(PaketBus.ausgeschaltet());
         if (gelesen) karteLesen(client);
         if (neu || gelesen || ticks % 100 == 0) protokollieren();
+        if (DungeonLog.aktiv()) {
+            DungeonLog.zaehlen(DungeonLog.Zaehler.SCAN_DURCHGAENGE);
+            DungeonLog.zaehlen(DungeonLog.Zaehler.SCAN_WELTFRAGEN, scanner.weltFragen() - letzteFragen);
+            DungeonLog.zaehlen(DungeonLog.Zaehler.RASTER_AENDERUNGEN, RASTER.stand() - letzterStand);
+        }
+        letzteFragen = scanner.weltFragen();
+        letzterStand = RASTER.stand();
+        DungeonLog.ende(DungeonLog.Zeit.KARTE_ARBEITEN, messung);
     }
 
     /** Der Zustand der Hypixel-Karte kommt ins Raster, sobald die Karte im Hotbar-Platz 9 liegt und kalibriert werden kann */
     private static void karteLesen(Minecraft client) {
+        DungeonLog.zaehlen(DungeonLog.Zaehler.KARTE_GELESEN);
         ItemStack karte = client.player.getInventory().getItem(8);
         MapId id = karte.get(DataComponents.MAP_ID);
         if (id == null) return;
@@ -327,6 +350,22 @@ public final class FunnyKarte {
         if (kalibrierung == null) kalibrierung = KartenLeser.kalibriere(daten.colors, stockwerk);
         if (kalibrierung == null) return;
         RASTER.vonKarte(KartenLeser.lesen(daten.colors, kalibrierung));
+        mitspielerLesen(client, daten);
+    }
+
+    /**
+     * Die Mitspieler, auch die weit weg: Hypixel legt alle als Markierungen in die Karte. Die Tab-Liste sagt, wer im Dungeon ist und wer tot ist; die
+     * Markierung "player-N" gehoert dem N-ten lebenden Mitspieler (siehe {@link Mitspieler}). Gelesen wird nur, wenn die Karte gelesen wurde.
+     */
+    private static void mitspielerLesen(Minecraft client, MapItemSavedData daten) {
+        Mitspieler.tabLesen(TabListScanner.lastLines(), client.getUser() == null ? null : client.getUser().getName());
+        Map<String, Mitspieler.Marke> marken = new LinkedHashMap<>();
+        for (Map.Entry<String, MapDecoration> e : daten.decorations.entrySet()) {
+            MapDecoration d = e.getValue();
+            boolean rahmen = d.type().value() == MapDecorationTypes.FRAME.value();
+            marken.put(e.getKey(), new Mitspieler.Marke(rahmen, d.x(), d.y(), d.rot()));
+        }
+        Mitspieler.markenLesen(marken, kalibrierung, System.nanoTime());
     }
 
     /**
@@ -341,5 +380,10 @@ public final class FunnyKarte {
         zuletztGeloggt = stand;
         ShokiMod.LOGGER.info("[FunnyMap] floor {}: {} rooms recognised, {} only on the map, all chunks loaded: {}, hashes the table does not know (grid place -> hash): {}",
                 stockwerk == null ? "?" : stockwerk, z[0], z[1], scanner.alleChunksGeladen(), scanner.unbekannteKerne());
+        // Dieselbe Zeile ins Dungeon log (nur waehrend eines Laufs): so steht dort, welche Raeume der Tabelle fehlen
+        if (DungeonLog.aktiv()) {
+            DungeonLog.ereignis("rooms: floor " + (stockwerk == null ? "?" : stockwerk) + ", " + z[0] + " recognised, " + z[1]
+                    + " only on the map, all chunks loaded: " + scanner.alleChunksGeladen() + ", unknown hashes (grid place -> hash): " + scanner.unbekannteKerne());
+        }
     }
 }

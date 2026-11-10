@@ -146,9 +146,21 @@ public class ModConfig extends Config {
     static boolean migrateIkohS(ModConfig config) {
         boolean moved = false;
         if (config.ikohS == null) config.ikohS = new IkohSCategory();
+        if (config.ikohS.dungeon == null) config.ikohS.dungeon = new DungeonCategory();
+        // Ganz alte Dateien: die Funny Map oben im Stamm -> Stand 2.2.10: unter ikohS -> jetzt unter ikohS > Dungeon
         if (config.funnyMap != null) {
             config.ikohS.funnyMap = config.funnyMap;
             config.funnyMap = null;
+            moved = true;
+        }
+        if (config.ikohS.funnyMap != null) {
+            config.ikohS.dungeon.funnyMap = config.ikohS.funnyMap;
+            config.ikohS.funnyMap = null;
+            moved = true;
+        }
+        if (config.ikohS.starMobs != null) {
+            config.ikohS.dungeon.starMobs = config.ikohS.starMobs;
+            config.ikohS.starMobs = null;
             moved = true;
         }
         if (config.mining != null && config.mining.mist != null) {
@@ -156,9 +168,9 @@ public class ModConfig extends Config {
             config.mining.mist = null;
             moved = true;
         }
-        if (config.ikohS.funnyMap == null) config.ikohS.funnyMap = new FunnyMapCategory();
+        if (config.ikohS.dungeon.funnyMap == null) config.ikohS.dungeon.funnyMap = new FunnyMapCategory();
+        if (config.ikohS.dungeon.starMobs == null) config.ikohS.dungeon.starMobs = new StarMobsCategory();
         if (config.ikohS.mist == null) config.ikohS.mist = new MistCategory();
-        if (config.ikohS.starMobs == null) config.ikohS.starMobs = new StarMobsCategory();
         return moved;
     }
 
@@ -359,7 +371,7 @@ public class ModConfig extends Config {
         INSTANCE.skillXp.maxRows = Math.max(1, Math.min(12, INSTANCE.skillXp.maxRows));
         // Funny Map und The Mist wohnten in der ersten Fassung von 0.2.1 an anderen Stellen, jetzt unter ikohS
         if (migrateIkohS(INSTANCE)) INSTANCE.saveNow();
-        clampFunnyMap(INSTANCE.ikohS.funnyMap);
+        clampFunnyMap(INSTANCE.ikohS.dungeon.funnyMap);
         if (INSTANCE.fishing.hotspot == null) INSTANCE.fishing.hotspot = new HotspotCategory();
         if (INSTANCE.fishing.tracker == null) INSTANCE.fishing.tracker = new SeaTrackerCategory();
         if (INSTANCE.fishing.tracker.view == null) INSTANCE.fishing.tracker.view = SeaView.TOTAL;
@@ -716,7 +728,7 @@ public class ModConfig extends Config {
         INSTANCE.collections.tracker.resetTracker = () -> Minecraft.getInstance().execute(CollectionTracker::askReset);
         INSTANCE.collections.tracker.openPicker = () -> Minecraft.getInstance().execute(() ->
                 Minecraft.getInstance().setScreenAndShow(new CollectionPickerScreen(Minecraft.getInstance().gui.screen())));
-        INSTANCE.ikohS.funnyMap.openNoammMap = () -> Minecraft.getInstance().execute(
+        INSTANCE.ikohS.dungeon.funnyMap.openNoammMap = () -> Minecraft.getInstance().execute(
                 com.shokiteufel.shokimod.dungeonkarte.NoammBruecke::oeffnen);
         INSTANCE.profit.resetTracker = () -> Minecraft.getInstance().execute(ProfitTracker::askReset);
         INSTANCE.profit.openItems = () -> Minecraft.getInstance().execute(() ->
@@ -1132,7 +1144,7 @@ public class ModConfig extends Config {
     public SkillXpCategory skillXp = new SkillXpCategory();
 
     @Expose
-    @Category(name = "ikohS", desc = "ShokiMod's own functions, apart from the normal ones: the Funny Map, The Mist and the Star mobs. Everything in here is off until you turn it on.")
+    @Category(name = "ikohS", desc = "ShokiMod's own functions, apart from the normal ones: the Dungeon functions (Funny Map, Star mobs) and The Mist. Everything in here is off until you turn it on.")
     public IkohSCategory ikohS = new IkohSCategory();
 
     /**
@@ -3990,24 +4002,48 @@ public class ModConfig extends Config {
         public transient String about = "";
 
         @Expose
-        @Category(name = "Funny Map", desc = "The whole dungeon map from the first seconds: every room, door and secret count, read from the chunks the server has already sent. Lays itself over the map of NoammAddons, on its position and at its size. Off until you turn it on.")
-        public FunnyMapCategory funnyMap = new FunnyMapCategory();
+        @Category(name = "Dungeon", desc = "Everything for the Catacombs: the Funny Map and the Star mobs, each in its own folder. Off until you turn it on.")
+        public DungeonCategory dungeon = new DungeonCategory();
 
         @Expose
         @Category(name = "The Mist", desc = "The Mist in the Dwarven Mines: shows the invisible Ghosts as Creepers and marks the Runic Ghosts. Off until you turn it on.")
         public MistCategory mist = new MistCategory();
 
+        /**
+         * Bis 2.2.10 standen die Funny Map und die Stern-Mobs direkt unter ikohS. Sie wohnen jetzt unter ikohS > Dungeon
+         * ({@link DungeonCategory}); diese Felder gibt es nur noch, damit alte Dateien gelesen werden koennen (siehe {@link #migrateIkohS}).
+         * Sind sie uebernommen, stehen sie auf null und werden nicht mehr geschrieben.
+         */
         @Expose
-        @Category(name = "Star mobs", desc = "Marks the star mobs (✯) of a dungeon room, through walls. Off until you turn it on.")
+        public FunnyMapCategory funnyMap = null;
+
+        @Expose
+        public StarMobsCategory starMobs = null;
+    }
+
+    /**
+     * ikohS > Dungeon: alle Funktionen fuer die Catacombs. MoulConfig kennt nur zwei Ebenen von Kategorien (Reiter und Unterkategorie), deshalb
+     * sind die Funny Map und die Stern-Mobs hier einklappbare Gruppen (eine Gruppe in einer Gruppe geht).
+     */
+    public static class DungeonCategory {
+
+        @ConfigOption(name = "Dungeon", desc = "Everything for the Catacombs, in folders: the Funny Map and the Star mobs. Everything here is off until you turn it on.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Funny Map", desc = "The whole dungeon map from the first seconds: every room, door and secret count, read from the chunks the server has already sent. Lays itself over the map of NoammAddons, on its position and at its size. The server's rules decide whether that is allowed: it is your choice and your risk. Off until you turn it on.")
+        @Accordion
+        public FunnyMapCategory funnyMap = new FunnyMapCategory();
+
+        @Expose
+        @ConfigOption(name = "Star mobs", desc = "Marks the star mobs (✯) of a dungeon room, through walls. Off until you turn it on.")
+        @Accordion
         public StarMobsCategory starMobs = new StarMobsCategory();
     }
 
     /** Die Stern-Mobs im Dungeon (wohnten bis 2.2.3 bei Odin; dort gestrichen, damit sie von Haus aus aus sind) */
     public static class StarMobsCategory {
-
-        @ConfigOption(name = "Star mobs", desc = "The mobs a dungeon room guards carry a star (✯) before their name. This outlines them through walls, so you see where the rest of a room is hiding. Read from the tab list and the sidebar, only in the Catacombs. It does not need the switches of Mob Visuals. Everything here is off until you turn it on.")
-        @ConfigEditorInfoText
-        public transient String about = "";
 
         @Expose
         @ConfigOption(name = "Mark star mobs", desc = "Glows every mob with a star (✯) before its name, through walls. Only in the Catacombs. Off from the start.")
@@ -4293,10 +4329,6 @@ public class ModConfig extends Config {
      * Platz und in dessen Groesse.
      */
     public static class FunnyMapCategory {
-
-        @ConfigOption(name = "Funny Map", desc = "Shows every room of the dungeon - also the ones nobody has entered yet - with its type, name and number of secrets, drawn from the chunks the server has already sent you. The server's rules decide whether that is allowed: it is your choice and your risk. With NoammAddons installed it lays itself over its dungeon map, on its position and at its size, and hides it. Works in the Catacombs only.")
-        @ConfigEditorInfoText
-        public transient String about = "";
 
         @Expose
         @ConfigOption(name = "Enabled", desc = "Show the Funny Map in dungeons. Off from the start.")
@@ -4870,6 +4902,11 @@ public class ModConfig extends Config {
         @ConfigOption(name = "Performance log", desc = "For when the game lags: looks twenty times a second at what the game thread is busy with and writes, once a minute, which part of ShokiMod took how much time (and the long ticks and the garbage collection) into logs/shokimod-perf.log. Costs almost nothing. Switch it on, play a few minutes where it lags, then hand the file over.")
         @ConfigEditorBoolean
         public boolean perfLog = false;
+
+        @Expose
+        @ConfigOption(name = "Dungeon log", desc = "Only during a dungeon run: writes everything that matters for the dungeon functions into logs/shokimod-dungeon.log, next to latest.log - the run (floor, party, boss, deaths, doors), the rooms the Funny Map knows and the hashes it does not, and every 10 seconds how often the map was read, scanned and repainted and how long drawing took, with the frames per second. Lines marked TOO OFTEN show where something is loaded or drawn more often than it should, which costs frames. Off from the start; switch it on for one run, then hand the file over.")
+        @ConfigEditorBoolean
+        public boolean dungeonLog = false;
 
         @Expose
         @ConfigOption(name = "Profit core log", desc = "Writes every decision of the packet core behind the Profit Tracker - what arrived in the inventory and why it counted or not - into logs/shokimod-kern.jsonl, next to latest.log. It grows with every hour of play, so switch it on for one run, then hand the file over.")
