@@ -103,7 +103,8 @@ class StarMobTargetTest {
     void theMarkerGateSeesTheStarMobs() {
         ModConfig.INSTANCE.ikohS.dungeon.starMobs.enabled = true;
         assertTrue(FeatureGate.mobMarkers());
-        assertEquals(0xFFFF55, StarMobTarget.INSTANCE.glowColorRGB());
+        // Gelb wie bei NoammAddons (Star Mob Color); bis 2.2.12 war es ein helleres Gelb
+        assertEquals(0xFFFF00, StarMobTarget.INSTANCE.glowColorRGB());
     }
 
     @Test
@@ -114,7 +115,94 @@ class StarMobTargetTest {
         ModConfig.INSTANCE.ikohS.dungeon.starMobs.enabled = true;
         assertTrue(StarMobTarget.onlyCurrentRoom());
         assertTrue(FeatureGate.roomScan(), "die Regel braucht die Raeume des Welt-Scans, auch ohne die Karte");
-        ModConfig.INSTANCE.ikohS.dungeon.starMobs.onlyCurrentRoom = false;
-        assertFalse(FeatureGate.roomScan());
+    }
+
+    @Test
+    void theWorldScanRunsForTheStarMobsAndOnlyForThem() {
+        assertFalse(FeatureGate.roomScan(), "alles aus: kein Scan");
+        ModConfig.INSTANCE.ikohS.dungeon.starMobs.enabled = true;
+        assertTrue(FeatureGate.roomScan(), "die Stern-Mobs brauchen die Raumnamen (benannte Figuren) und die Raum-Regel");
+        ModConfig.INSTANCE.ikohS.dungeon.starMobs.enabled = false;
+        ModConfig.INSTANCE.ikohS.dungeon.funnyMap.enabled = true;
+        assertTrue(FeatureGate.roomScan());
+    }
+
+    @Test
+    void aStarTagNeedsTheStarAndTheHeartAtTheEnd() {
+        assertTrue(StarMobTarget.isStarTag("✯ Zombie Soldier 240k❤"));
+        assertTrue(StarMobTarget.isStarTag("✯ Withermancer 1.5M❤  "), "Leerzeichen am Ende stoeren nicht");
+        assertFalse(StarMobTarget.isStarTag("✯ Zombie Soldier"), "ohne das Herz ist es ein anderer Ruestungsstaender");
+        assertFalse(StarMobTarget.isStarTag("Zombie Soldier 240k❤"), "ohne Sternchen kein Stern-Mob");
+        assertFalse(StarMobTarget.isStarTag(null));
+        assertFalse(StarMobTarget.isStarTag(""));
+    }
+
+    @Test
+    void theFourNamedFiguresAreAlwaysStarMobs() {
+        assertTrue(StarMobTarget.isNamedStar("Shadow Assassin"));
+        assertTrue(StarMobTarget.isNamedStar("Lost Adventurer"));
+        assertTrue(StarMobTarget.isNamedStar("Diamond Guy"));
+        assertTrue(StarMobTarget.isNamedStar("King Midas"));
+        assertFalse(StarMobTarget.isNamedStar("Shadow Assassin 2"));
+        assertFalse(StarMobTarget.isNamedStar("shadow assassin"), "Gross- und Kleinschreibung zaehlt, wie bei Noamm");
+        assertFalse(StarMobTarget.isNamedStar("Notch"));
+        assertFalse(StarMobTarget.isNamedStar(null));
+    }
+
+    @Test
+    void theNamedFiguresDoNotCountInTheRoomsWhereTheyAreOnlyBystanders() {
+        for (String raum : new String[] {"Duncan", "Balcony", "Wizard", "Pit", "Waterfall", "Atlas", "Chambers", "Layers", "Perch", "Golden Oasis"}) {
+            assertFalse(StarMobTarget.raumErlaubt(raum, 70), raum);
+        }
+        assertTrue(StarMobTarget.raumErlaubt("Blaze", 70));
+        assertTrue(StarMobTarget.raumErlaubt("Stairs", 80), "in Stairs bis Hoehe 80 zaehlen sie");
+        assertFalse(StarMobTarget.raumErlaubt("Stairs", 80.5), "darueber nicht");
+        assertTrue(StarMobTarget.raumErlaubt(null, 200), "Raum nicht bekannt: sie zaehlen");
+    }
+
+    @Test
+    void theBatsOfTheDungeonHaveFixedHealth() {
+        assertTrue(StarMobTarget.isDungeonBatHealth(100f));
+        assertTrue(StarMobTarget.isDungeonBatHealth(200f));
+        assertTrue(StarMobTarget.isDungeonBatHealth(400f));
+        assertTrue(StarMobTarget.isDungeonBatHealth(800f));
+        assertFalse(StarMobTarget.isDungeonBatHealth(6f), "eine gewoehnliche Fledermaus");
+        assertFalse(StarMobTarget.isDungeonBatHealth(300f));
+    }
+
+    @Test
+    void theBatsAreOnByDefaultButOnlyCountWithTheMarkingOn() {
+        assertTrue(ModConfig.INSTANCE.ikohS.dungeon.starMobs.highlightBats, "bei Noamm an");
+        assertFalse(StarMobTarget.highlightBats(), "ohne die Markierung nicht");
+        ModConfig.INSTANCE.ikohS.dungeon.starMobs.enabled = true;
+        assertTrue(StarMobTarget.highlightBats());
+        assertTrue(StarMobTarget.BAT.highlight());
+        assertFalse(StarMobTarget.BAT.tracer(), "Fledermaeuse: nur der Umriss");
+        assertFalse(StarMobTarget.BAT.box());
+        ModConfig.INSTANCE.ikohS.dungeon.starMobs.highlightBats = false;
+        assertFalse(StarMobTarget.BAT.highlight());
+    }
+
+    @Test
+    void theColoursAreTheOnesOfNoammAddons() {
+        assertEquals(0xFFFF00, StarMobTarget.INSTANCE.glowColorRGB(), "Star Mob Color: gelb");
+        assertEquals(0xFFAFAF, StarMobTarget.FEL.glowColorRGB(), "Fel Color: rosa");
+        assertEquals(0x00FF00, StarMobTarget.BAT.glowColorRGB(), "Bat Color: gruen");
+    }
+
+    @Test
+    void aChosenColourIsUsed() {
+        ModConfig.INSTANCE.ikohS.dungeon.starMobs.starColour = com.shokiteufel.shokimod.data.ColourText.ofRgb(0x112233);
+        assertEquals(0x112233, StarMobTarget.INSTANCE.glowColorRGB());
+    }
+
+    @Test
+    void theFelFollowsTheSwitchesOfTheStarMobs() {
+        ModConfig.INSTANCE.ikohS.dungeon.starMobs.enabled = true;
+        ModConfig.INSTANCE.ikohS.dungeon.starMobs.line = true;
+        ModConfig.INSTANCE.ikohS.dungeon.starMobs.box = true;
+        assertTrue(StarMobTarget.FEL.highlight());
+        assertTrue(StarMobTarget.FEL.tracer());
+        assertTrue(StarMobTarget.FEL.box());
     }
 }
