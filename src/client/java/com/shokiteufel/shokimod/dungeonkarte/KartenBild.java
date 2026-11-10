@@ -67,6 +67,7 @@ final class KartenBild {
         versch0 = versch[0];
         versch1 = versch[1];
         malungen++;
+        com.shokiteufel.shokimod.util.DungeonLog.zaehlen(com.shokiteufel.shokimod.util.DungeonLog.Zaehler.BILD_GEMALT);
     }
 
     private static void ausgefallen(Throwable t) {

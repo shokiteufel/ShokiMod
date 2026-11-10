@@ -177,7 +177,12 @@ public final class FeatureGate {
 
     /** Die Funny Map liest alle halbe Sekunde die Welt und die Karte - nur wenn sie an ist. Braucht den Ort (nur in SkyBlock) */
     public static boolean funnyMap() {
-        return ModConfig.INSTANCE.ikohS.funnyMap.enabled;
+        return ModConfig.INSTANCE.ikohS.dungeon.funnyMap.enabled;
+    }
+
+    /** Das Dungeon log schreibt nur waehrend eines Laufs - und fragt dafuer den Dungeon-Zustand ab (DungeonLauf), nur wenn es an ist */
+    public static boolean dungeonLog() {
+        return ModConfig.INSTANCE.logs.dungeonLog;
     }
 
     /** Der Skill-XP-Zaehler liest die Aktionsleiste - nur wenn er an ist */

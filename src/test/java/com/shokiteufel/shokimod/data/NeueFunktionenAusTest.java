@@ -39,13 +39,13 @@ class NeueFunktionenAusTest {
         assertFalse(c.skillXp.enabled, "Skill XP");
         assertFalse(c.mining.forge.enabled, "Forge");
         assertFalse(c.mining.forge.alert, "Forge-Alarm");
-        assertFalse(c.ikohS.funnyMap.enabled, "Funny Map");
+        assertFalse(c.ikohS.dungeon.funnyMap.enabled, "Funny Map");
         assertFalse(c.ikohS.mist.showGhosts, "Show Ghosts");
         assertFalse(c.ikohS.mist.runicGhosts, "Runic Ghosts");
         assertEquals(ModConfig.MistFloor.WHITE, c.ikohS.mist.floor, "Boden der Mist: unveraendert");
-        assertFalse(c.ikohS.starMobs.enabled, "Stern-Mobs");
-        assertFalse(c.ikohS.starMobs.line, "Stern-Mobs Linie");
-        assertFalse(c.ikohS.starMobs.box, "Stern-Mobs Kasten");
+        assertFalse(c.ikohS.dungeon.starMobs.enabled, "Stern-Mobs");
+        assertFalse(c.ikohS.dungeon.starMobs.line, "Stern-Mobs Linie");
+        assertFalse(c.ikohS.dungeon.starMobs.box, "Stern-Mobs Kasten");
     }
 
     @Test

@@ -85,6 +85,8 @@ public class NetworkHandler {
 
             // Die Lauf-Mitschrift liest nur mit und aendert an der Zeile nichts
             SessionManager.onChatMessage(msg);
+            // Das Dungeon log merkt sich, was fuer den Lauf wichtig ist (Tueren, Boss, Tode, Wertung) - nur waehrend eines Laufs
+            com.shokiteufel.shokimod.util.DungeonLog.chat(unformattedMsg);
             // Seltene Funde ebenso: bewerten und melden, die Zeile bleibt
             RareLootHandler.onChatMessage(unformattedMsg);
             // Ein Pet auf Hoechststufe gehoert in den Kasten - es faellt nie ins Inventar

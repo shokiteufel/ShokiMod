@@ -26,7 +26,7 @@ public final class StarMobTarget implements MobVisual {
     }
 
     private static ModConfig.StarMobsCategory cfg() {
-        return ModConfig.INSTANCE.ikohS.starMobs;
+        return ModConfig.INSTANCE.ikohS.dungeon.starMobs;
     }
 
     /** Ist die Funktion an? Eigener Schalter unter ikohS, ohne den Hauptschalter der Mob-Markierungen (wie bei den Pests und den Runic Ghosts) */
