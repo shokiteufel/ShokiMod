@@ -13,6 +13,7 @@ public class HudRenderer {
     public static void render(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
         // Fuers Performance log (Reiter Logs): ein Aufruf je Bild, ohne den Schalter kostet es einen Blick auf ein Flag
         com.shokiteufel.shokimod.util.PerfSampler.bild();
+        com.shokiteufel.shokimod.util.DungeonLog.bild();
         // Die Einblendung läuft auch außerhalb von SkyBlock, damit der Testknopf
         // im Einstellungsfenster überall etwas zeigt.
         // Der Sandbox zeichnet die Vorschau selbst, ueber seinem Fenster - hier wuerde sie darunter liegen

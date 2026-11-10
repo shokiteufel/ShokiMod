@@ -3,6 +3,7 @@ package com.shokiteufel.shokimod.dungeonkarte;
 import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.data.ModConfig.FunnyMapCategory;
 import com.shokiteufel.shokimod.scanner.ItemChanges;
+import com.shokiteufel.shokimod.util.DungeonLog;
 import com.shokiteufel.shokimod.util.TextCache;
 
 import net.minecraft.client.Minecraft;
@@ -12,6 +13,7 @@ import net.minecraft.client.gui.components.PlayerFaceExtractor;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.entity.player.PlayerSkin;
 import net.minecraft.world.item.ItemStack;
 
 import static com.shokiteufel.shokimod.dungeonkarte.KartenOption.*;
@@ -52,7 +54,9 @@ public final class FunnyKarteHud {
 
     public static void render(GuiGraphicsExtractor g) {
         if (!FunnyKarte.sichtbar()) return;
-        FunnyMapCategory c = ModConfig.INSTANCE.ikohS.funnyMap;
+        // Das Dungeon log misst, wie lange das Zeichnen der Karte dauert (ohne Log: keine Uhr)
+        long messung = DungeonLog.beginn();
+        FunnyMapCategory c = ModConfig.INSTANCE.ikohS.dungeon.funnyMap;
         KartenEinstellungen e = FunnyKarte.einstellungen();
         Minecraft client = Minecraft.getInstance();
         Font font = client.font;
@@ -86,6 +90,8 @@ public final class FunnyKarteHud {
         if (zeile) zusatzzeile(g, font, raster, hoehe);
 
         g.pose().popMatrix();
+        DungeonLog.ende(DungeonLog.Zeit.KARTE_ZEICHNEN, messung);
+        DungeonLog.zaehlen(DungeonLog.Zaehler.KARTE_GEZEICHNET);
     }
 
     // ------------------------------------------------------------------ Verschiebung des Rasters
@@ -329,14 +335,51 @@ public final class FunnyKarteHud {
 
     // ------------------------------------------------------------------ Spieler
 
+    /** Die Namen der Spieler, die in diesem Bild als geladene Spieler gezeichnet wurden - wer fehlt, kommt aus der Karte (siehe {@link Mitspieler}) */
+    private static final java.util.HashSet<String> GEZEICHNET = new java.util.HashSet<>();
+
     private static void spieler(GuiGraphicsExtractor g, Minecraft client, Font font, int[] versch, KartenEinstellungen e) {
         if (client.level == null) return;
+        GEZEICHNET.clear();
         for (AbstractClientPlayer p : client.level.players()) {
             // Nur echte Spieler (NPCs tragen keine Version-4-Kennung); man selbst wird zuletzt gezeichnet, damit er oben liegt
             if (p == client.player || p.getUUID().version() != 4) continue;
+            GEZEICHNET.add(spielername(p));
             kopf(g, font, versch, p, false, client, e);
         }
+        // Mitspieler, die nicht geladen sind (zu weit weg): ihr Ort kommt aus den Markierungen der Karte von Hypixel
+        ferne(g, client, font, versch, e);
         if (client.player != null) kopf(g, font, versch, client.player, true, client, e);
+    }
+
+    /** Die Mitspieler ohne geladenen Spieler: Kopf an dem Ort, den die Karte nennt */
+    private static void ferne(GuiGraphicsExtractor g, Minecraft client, Font font, int[] versch, KartenEinstellungen e) {
+        java.util.List<Mitspieler.Eintrag> team = Mitspieler.eintraege();
+        if (team.isEmpty()) return;
+        long jetzt = System.nanoTime();
+        for (int i = 0, n = team.size(); i < n; i++) {
+            Mitspieler.Eintrag t = team.get(i);
+            if (t.tot || t.ich || !t.hatOrt || GEZEICHNET.contains(t.name)) continue;
+            t.fortschreiben(jetzt);
+            float px = versch[0] + KartenGeometrie.weltZuLeinwand(t.x);
+            float py = versch[1] + KartenGeometrie.weltZuLeinwand(t.z);
+            if (px < 0 || py < 0 || px > KartenGeometrie.LEINWAND || py > KartenGeometrie.LEINWAND) continue;
+            PlayerSkin haut = haut(client, t, jetzt);
+            if (haut == null) continue;
+            markieren(g, font, px, py, Math.toRadians(t.gier + 180f), t.name, haut, false, client, e);
+        }
+    }
+
+    /** Das Bild eines Mitspielers aus der Spielerliste, hoechstens alle zwei Sekunden neu gelesen (es aendert sich selten) */
+    private static PlayerSkin haut(Minecraft client, Mitspieler.Eintrag t, long jetzt) {
+        if (t.haut instanceof PlayerSkin s && jetzt - t.hautGelesen < 2_000_000_000L) return s;
+        if (client.getConnection() == null) return t.haut instanceof PlayerSkin s ? s : null;
+        net.minecraft.client.multiplayer.PlayerInfo info = client.getConnection().getPlayerInfo(t.name);
+        if (info != null) {
+            t.haut = info.getSkin();
+            t.hautGelesen = jetzt;
+        }
+        return t.haut instanceof PlayerSkin s ? s : null;
     }
 
     /** Die Namen der Spieler, je Kennung einmal gelesen (das Component des Spielers ist bei jedem Abruf ein neues Objekt) */
@@ -362,10 +405,13 @@ public final class FunnyKarteHud {
         float py = versch[1] + KartenGeometrie.weltZuLeinwand(p.getZ());
         // ausserhalb der Leinwand (Boss-Raum, weit weg) gibt es nichts zu zeigen
         if (px < 0 || py < 0 || px > KartenGeometrie.LEINWAND || py > KartenGeometrie.LEINWAND) return;
-        String name = spielername(p);
-        Integer klasse = DungeonKlassen.farbe(name);
+        markieren(g, font, px, py, Math.toRadians(p.getYRot() + 180f), spielername(p), p.getSkin(), selbst, client, e);
+    }
 
-        double gier = Math.toRadians(p.getYRot() + 180f);
+    /** Ein Spieler an einem Ort der Leinwand: Kopf (oder Pfeil) mit Rahmen, gedreht, dazu auf Wunsch der Name - fuer geladene und ferne Spieler gleich */
+    private static void markieren(GuiGraphicsExtractor g, Font font, float px, float py, double gier, String name, PlayerSkin haut,
+                                  boolean selbst, Minecraft client, KartenEinstellungen e) {
+        Integer klasse = DungeonKlassen.farbe(name);
         g.pose().pushMatrix();
         g.pose().translate(px, py);
         g.pose().rotate((float) gier);
@@ -377,7 +423,7 @@ public final class FunnyKarteHud {
         } else {
             int rahmen = e.janein(HEAD_BORDER_CLASS) && klasse != null ? 0xFF000000 | klasse : e.farbe(HEAD_BORDER);
             g.fill(-7, -7, 7, 7, rahmen);
-            PlayerFaceExtractor.extractRenderState(g, p.getSkin(), -6, -6, 12);
+            PlayerFaceExtractor.extractRenderState(g, haut, -6, -6, 12);
         }
 
         int namen = e.ganz(PLAYER_NAMES);

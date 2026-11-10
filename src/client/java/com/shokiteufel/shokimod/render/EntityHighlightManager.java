@@ -253,6 +253,7 @@ public class EntityHighlightManager {
         // Die Pests im Garden: nur dort, mit eigenen Schaltern
         boolean scanPests = PestTarget.scanning();
         boolean scanStars = StarMobTarget.scanning();
+        if (scanStars) com.shokiteufel.shokimod.util.DungeonLog.zaehlen(com.shokiteufel.shokimod.util.DungeonLog.Zaehler.STERN_MOBS);
         // Die Runic Ghosts der Mist: Creeper ohne Namen, erkannt am Leben (kein Namensschild zum Suchen)
         boolean scanRunic = RunicGhostTarget.scanning();
         if (!scanRunic && !runicSeen.isEmpty()) runicSeen.clear();

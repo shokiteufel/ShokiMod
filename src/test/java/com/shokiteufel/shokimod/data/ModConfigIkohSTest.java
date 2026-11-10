@@ -21,11 +21,11 @@ class ModConfigIkohSTest {
     void aFreshConfigHasBothCategoriesUnderIkohSAndNothingAtTheOldPlaces() {
         ModConfig c = new ModConfig();
         assertNotNull(c.ikohS);
-        assertNotNull(c.ikohS.funnyMap);
+        assertNotNull(c.ikohS.dungeon.funnyMap);
         assertNotNull(c.ikohS.mist);
         assertNull(c.funnyMap, "der alte Platz bleibt leer");
         assertNull(c.mining.mist, "der alte Platz bleibt leer");
-        assertFalse(c.ikohS.funnyMap.enabled, "von Haus aus aus");
+        assertFalse(c.ikohS.dungeon.funnyMap.enabled, "von Haus aus aus");
         assertFalse(c.ikohS.mist.runicGhosts, "von Haus aus aus");
     }
 
@@ -42,9 +42,9 @@ class ModConfigIkohSTest {
 
         assertTrue(ModConfig.migrateIkohS(c));
 
-        assertTrue(c.ikohS.funnyMap.enabled);
-        assertFalse(c.ikohS.funnyMap.followNoamm);
-        assertEquals(77, c.ikohS.funnyMap.x);
+        assertTrue(c.ikohS.dungeon.funnyMap.enabled);
+        assertFalse(c.ikohS.dungeon.funnyMap.followNoamm);
+        assertEquals(77, c.ikohS.dungeon.funnyMap.x);
         assertTrue(c.ikohS.mist.runicGhosts);
         assertTrue(c.ikohS.mist.runicGhostsBox);
         assertNull(c.funnyMap);
@@ -61,8 +61,8 @@ class ModConfigIkohSTest {
 
         assertTrue(ModConfig.migrateIkohS(c));
 
-        assertTrue(c.ikohS.funnyMap.enabled);
-        assertEquals(ModConfig.FunnyStyle.SECRETS, c.ikohS.funnyMap.style);
+        assertTrue(c.ikohS.dungeon.funnyMap.enabled);
+        assertEquals(ModConfig.FunnyStyle.SECRETS, c.ikohS.dungeon.funnyMap.style);
         assertTrue(c.ikohS.mist.runicGhosts);
         assertTrue(c.ikohS.mist.runicGhostsLine);
     }
@@ -79,7 +79,7 @@ class ModConfigIkohSTest {
         ModConfig back = ModConfig.GSON.fromJson(json, ModConfig.class);
         assertNull(back.funnyMap);
         assertNull(back.mining.mist);
-        assertNotNull(back.ikohS.funnyMap);
+        assertNotNull(back.ikohS.dungeon.funnyMap);
     }
 
     @Test
@@ -88,7 +88,7 @@ class ModConfigIkohSTest {
         c.ikohS = null;
         assertFalse(ModConfig.migrateIkohS(c));
         assertNotNull(c.ikohS);
-        assertNotNull(c.ikohS.funnyMap);
+        assertNotNull(c.ikohS.dungeon.funnyMap);
         assertNotNull(c.ikohS.mist);
     }
 
@@ -119,5 +119,52 @@ class ModConfigIkohSTest {
         assertFalse(f.extraLine, "seine Zeile unter der Karte ist von Haus aus aus");
         assertEquals(50, f.darken);
         assertEquals(6, f.doorWidth);
+    }
+
+    @Test
+    void theFileOf2210MovesFunnyMapAndStarMobsIntoTheDungeonCategory() {
+        // Bis 2.2.10 standen beide direkt unter ikohS; seit 2.2.11 unter ikohS > Dungeon
+        String json = "{\"ikohS\":{\"funnyMap\":{\"enabled\":true,\"x\":55.0,\"followNoamm\":false},"
+                + "\"starMobs\":{\"enabled\":true,\"box\":true},\"mist\":{\"runicGhosts\":true}}}";
+        ModConfig c = ModConfig.GSON.fromJson(json, ModConfig.class);
+        assertNotNull(c.ikohS.funnyMap, "die alte Stelle wird gelesen");
+        assertNotNull(c.ikohS.starMobs, "die alte Stelle wird gelesen");
+
+        assertTrue(ModConfig.migrateIkohS(c));
+
+        assertTrue(c.ikohS.dungeon.funnyMap.enabled);
+        assertEquals(55f, c.ikohS.dungeon.funnyMap.x);
+        assertFalse(c.ikohS.dungeon.funnyMap.followNoamm);
+        assertTrue(c.ikohS.dungeon.starMobs.enabled);
+        assertTrue(c.ikohS.dungeon.starMobs.box);
+        assertTrue(c.ikohS.mist.runicGhosts, "The Mist bleibt, wo sie war");
+        assertNull(c.ikohS.funnyMap, "die alte Stelle ist leer");
+        assertNull(c.ikohS.starMobs, "die alte Stelle ist leer");
+        assertFalse(ModConfig.migrateIkohS(c), "ein zweiter Lauf aendert nichts mehr");
+    }
+
+    @Test
+    void theSavedFileWritesTheDungeonCategoryAndNoLegacyKeys() {
+        ModConfig c = new ModConfig();
+        c.ikohS.dungeon.starMobs.enabled = true;
+        String json = ModConfig.GSON.toJson(c);
+        com.google.gson.JsonObject ikohS = com.google.gson.JsonParser.parseString(json).getAsJsonObject().getAsJsonObject("ikohS");
+        assertTrue(ikohS.has("dungeon"));
+        assertFalse(ikohS.has("funnyMap"), "unter ikohS steht die Funny Map nicht mehr");
+        assertFalse(ikohS.has("starMobs"), "unter ikohS stehen die Stern-Mobs nicht mehr");
+        assertTrue(ikohS.getAsJsonObject("dungeon").has("funnyMap"));
+        assertTrue(ikohS.getAsJsonObject("dungeon").getAsJsonObject("starMobs").get("enabled").getAsBoolean());
+        ModConfig back = ModConfig.GSON.fromJson(json, ModConfig.class);
+        assertTrue(back.ikohS.dungeon.starMobs.enabled, "und kommt so wieder herein");
+    }
+
+    @Test
+    void aFileWithAnEmptyDungeonGetsFreshGroups() {
+        ModConfig c = ModConfig.GSON.fromJson("{\"ikohS\":{\"dungeon\":{}}}", ModConfig.class);
+        c.ikohS.dungeon.funnyMap = null;
+        c.ikohS.dungeon.starMobs = null;
+        ModConfig.migrateIkohS(c);
+        assertNotNull(c.ikohS.dungeon.funnyMap);
+        assertNotNull(c.ikohS.dungeon.starMobs);
     }
 }

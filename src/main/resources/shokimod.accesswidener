@@ -8,3 +8,7 @@ accessible field net/minecraft/network/protocol/game/ClientboundRotateHeadPacket
 accessible field net/minecraft/network/protocol/game/ClientboundSetCameraPacket cameraId I
 accessible field net/minecraft/network/protocol/game/ClientboundPlayerLookAtPacket entity I
 accessible field net/minecraft/network/protocol/game/ClientboundPlayerLookAtPacket atEntity Z
+
+# Die Markierungen der Dungeon-Karte (Mitspieler): die Schluessel "player-0" ... gibt es nur im Feld, getDecorations() liefert nur die Werte.
+# Gleich in 26.1.2, 26.2 und 26.3 (javap).
+accessible field net/minecraft/world/level/saveddata/maps/MapItemSavedData decorations Ljava/util/Map;
