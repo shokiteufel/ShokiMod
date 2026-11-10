@@ -4038,7 +4038,7 @@ public class ModConfig extends Config {
         public FunnyMapCategory funnyMap = new FunnyMapCategory();
 
         @Expose
-        @ConfigOption(name = "Star mobs", desc = "Marks the star mobs (✯) of a dungeon room, through walls. Off until you turn it on.")
+        @ConfigOption(name = "Star mobs", desc = "Marks the star mobs of a dungeon room through walls, the way Star Mob ESP of NoammAddons does: the mobs with a star (✯) on their name, the Shadow Assassins, Lost Adventurers, Diamond Guys and King Midas (they carry no star), the Fels in pink and, if you like, the bats. Off until you turn it on.")
         @Accordion
         public StarMobsCategory starMobs = new StarMobsCategory();
 
@@ -4146,6 +4146,26 @@ public class ModConfig extends Config {
         @ConfigOption(name = "Box", desc = "Also draws a box around every star mob.")
         @ConfigEditorBoolean
         public boolean box = false;
+
+        @Expose
+        @ConfigOption(name = "Highlight Bats", desc = "Also outlines the bats of the dungeon (the ones with 100, 200, 400 or 800 health), like Star Mob ESP of NoammAddons. On from the start, as there; it only counts while the star mobs are marked.")
+        @ConfigEditorBoolean
+        public boolean highlightBats = true;
+
+        @Expose
+        @ConfigOption(name = "Star Mob Color", desc = "The outline colour of the star mobs, the Shadow Assassins and the others. Yellow by default, as at NoammAddons. Click the colour to pick one; the opacity slider of the picker changes nothing here.")
+        @ConfigEditorColour
+        public String starColour = ColourText.ofRgb(0xFFFF00);
+
+        @Expose
+        @ConfigOption(name = "Fel Color", desc = "The outline colour of the Fels (the star Endermen). Pink by default, as at NoammAddons.")
+        @ConfigEditorColour
+        public String felColour = ColourText.ofRgb(0xFFAFAF);
+
+        @Expose
+        @ConfigOption(name = "Bat Color", desc = "The outline colour of the highlighted bats. Green by default, as at NoammAddons.")
+        @ConfigEditorColour
+        public String batColour = ColourText.ofRgb(0x00FF00);
 
         @Expose
         @ConfigOption(name = "Only in my room", desc = "Marks only the star mobs of the room you stand in, not the ones of the other rooms behind the walls. The rooms come from the world scan of the Funny Map (the Funny Map itself does not have to be on). Where the room is not known yet - at the start, or in the boss room - all star mobs show. Off from the start.")

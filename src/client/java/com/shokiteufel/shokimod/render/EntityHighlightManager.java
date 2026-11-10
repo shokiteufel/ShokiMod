@@ -23,6 +23,8 @@ import net.minecraft.world.entity.Display;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.ExperienceOrb;
+import net.minecraft.world.entity.boss.wither.WitherBoss;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.entity.animal.fish.TropicalFish;
@@ -253,7 +255,10 @@ public class EntityHighlightManager {
         // Die Pests im Garden: nur dort, mit eigenen Schaltern
         boolean scanPests = PestTarget.scanning();
         boolean scanStars = StarMobTarget.scanning();
-        if (scanStars) com.shokiteufel.shokimod.util.DungeonLog.zaehlen(com.shokiteufel.shokimod.util.DungeonLog.Zaehler.STERN_MOBS);
+        if (scanStars) {
+            com.shokiteufel.shokimod.util.DungeonLog.zaehlen(com.shokiteufel.shokimod.util.DungeonLog.Zaehler.STERN_MOBS);
+            starClaimed.clear();
+        }
         // "Only in my room": der Raum, in dem man steht, einmal je Durchgang; null (nicht bekannt) heisst: alle Stern-Mobs zeigen
         boolean nurRaum = scanStars && StarMobTarget.onlyCurrentRoom();
         java.util.List<Integer> meinRaum = nurRaum
@@ -270,6 +275,7 @@ public class EntityHighlightManager {
         if (!scanCustom && !scanSparkling && !scanHideyho && !scanSlayer && !scanMiniboss && !scanPests && !scanStars && !scanRunic) return;
 
         if (scanRunic) markRunicGhosts(client);
+        if (scanStars) markStarExtras(client, nurRaum, meinRaum);
 
         if (scanCustomType) {
             for (Entity entity : client.level.entitiesForRendering()) {
@@ -365,10 +371,12 @@ public class EntityHighlightManager {
             }
 
             // Die Stern-Mobs im Dungeon: das Schild mit dem Sternchen, darunter steht der Mob. Umriss durch die Waende, auf Wunsch Linie und Kasten
-            if (scanStars && entity instanceof ArmorStand && StarMobTarget.isStar(nameStr)) {
-                StarMobTarget target = StarMobTarget.INSTANCE;
+            if (scanStars && entity instanceof ArmorStand && StarMobTarget.isStarTag(nameStr)) {
                 Entity visualTarget = starBody(client, entity, nameStr);
                 Entity visual = visualTarget != null ? visualTarget : entity;
+                // Ein Enderman unter dem Schild ist ein Fel: eigene Farbe (bei Noamm rosa)
+                MobVisual target = visualTarget != null && visualTarget.getType().getDescriptionId().equals("entity.minecraft.enderman")
+                        ? StarMobTarget.FEL : StarMobTarget.INSTANCE;
                 if (visualTarget != null) {
                     nametagClaimedEntities.add(visualTarget);
                 }
@@ -423,8 +431,59 @@ public class EntityHighlightManager {
      */
     private static Entity starBody(Minecraft client, Entity nameTag, String name) {
         Entity byId = client.level.getEntity(nameTag.getId() - StarMobTarget.bodyIdOffset(name));
-        if (byId != null && !(byId instanceof ArmorStand) && byId != client.player) return byId;
-        return customVisual(client, nameTag);
+        if (byId != null && !(byId instanceof ArmorStand) && byId != client.player && starClaimed.add(byId.getId())) return byId;
+        // Wie bei Noamm (checkStarMob): sonst im Kasten des Schilds, einen Block nach unten verschoben, der erste Koerper, den noch kein Schild hat -
+        // kein Ruestungsstaender, keine Erfahrungskugel; ein Spieler nur, wenn er sichtbar ist und eine NPC-Kennung (Version 2) hat; kein Wither, kein Pfeil
+        AABB kasten = nameTag.getBoundingBox().move(0.0, -1.0, 0.0);
+        List<Entity> kandidaten = client.level.getEntities(nameTag, kasten, e -> !(e instanceof ArmorStand) && !(e instanceof ExperienceOrb));
+        for (int i = 0, n = kandidaten.size(); i < n; i++) {
+            Entity e = kandidaten.get(i);
+            if (starClaimed.contains(e.getId())) continue;
+            boolean gilt;
+            if (e instanceof Player p) {
+                gilt = !p.isInvisible() && p.getUUID().version() == 2 && p != client.player;
+            } else if (e instanceof WitherBoss) {
+                gilt = false;
+            } else {
+                String art = e.getType().getDescriptionId();
+                gilt = !(art.equals("entity.minecraft.arrow") || art.equals("entity.minecraft.spectral_arrow") || art.equals("entity.minecraft.trident"));
+            }
+            if (gilt) {
+                starClaimed.add(e.getId());
+                return e;
+            }
+        }
+        return null;
+    }
+
+    /** Die Koerper, die in diesem Durchgang schon ein Stern-Schild bekommen haben (Noamm: {@code starMobs}) - zwei Schilder teilen sich keinen Mob */
+    private static final Set<Integer> starClaimed = new HashSet<>();
+
+    /**
+     * Stern-Mobs ohne Schild und die Fledermaeuse (NoammAddons, {@code StarMobESP}): Spieler-Figuren, deren Name in der Spielerliste Shadow
+     * Assassin, Lost Adventurer, Diamond Guy oder King Midas lautet, sind immer Stern-Mobs - sie tragen kein Sternchen-Schild; Umriss auch dann, wenn
+     * sie unsichtbar sind (der Shadow Assassin ist es). Ausnahme: die Raeume, in denen diese Namen nur Figuren am Rand sind. Dazu auf Wunsch die
+     * Fledermaeuse des Dungeons (Leben 100, 200, 400, 800). Mit "Only in my room" nur die Figuren des eigenen Raums.
+     */
+    private static void markStarExtras(Minecraft client, boolean nurRaum, List<Integer> meinRaum) {
+        boolean fledermaeuse = StarMobTarget.highlightBats();
+        net.minecraft.client.multiplayer.ClientPacketListener verbindung = client.getConnection();
+        StarMobTarget stern = StarMobTarget.INSTANCE;
+        for (Entity entity : client.level.entitiesForRendering()) {
+            if (entity instanceof Player spieler) {
+                if (spieler == client.player || verbindung == null) continue;
+                net.minecraft.client.multiplayer.PlayerInfo info = verbindung.getPlayerInfo(spieler.getUUID());
+                if (info == null || !StarMobTarget.isNamedStar(info.getProfile().name())) continue;
+                if (!StarMobTarget.raumErlaubt(com.shokiteufel.shokimod.dungeonkarte.FunnyKarte.raumNameAn(spieler.getX(), spieler.getZ()), spieler.getY())) continue;
+                if (nurRaum && !com.shokiteufel.shokimod.dungeonkarte.RaumRegel.erlaubt(meinRaum, spieler.getX(), spieler.getZ())) continue;
+                if (stern.highlight()) registerHighlight(spieler, stern);
+                registerTracer(spieler, stern);
+                registerBox(spieler, stern);
+            } else if (fledermaeuse && entity instanceof LivingEntity tier && entity.getType().getDescriptionId().equals("entity.minecraft.bat")
+                    && StarMobTarget.isDungeonBatHealth(tier.getMaxHealth())) {
+                registerHighlight(entity, StarMobTarget.BAT);
+            }
+        }
     }
 
     /**

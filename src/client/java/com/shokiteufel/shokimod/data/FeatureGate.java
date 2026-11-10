@@ -191,12 +191,12 @@ public final class FeatureGate {
     }
 
     /**
-     * Der Welt-Scan der Funny Map (die Raeume des Dungeons) laeuft fuer die Karte und fuer die Raum-Regel der Stern-Mobs. Die Karte selbst wird nur
-     * mit {@link #funnyMap()} gezeichnet.
+     * Der Welt-Scan der Funny Map (die Raeume des Dungeons) laeuft fuer die Karte und fuer die Stern-Mobs (Raum-Regel, und die Namen der Raeume, in
+     * denen die benannten Figuren nicht zaehlen). Die Karte selbst wird nur mit {@link #funnyMap()} gezeichnet.
      */
     public static boolean roomScan() {
         ModConfig.DungeonCategory d = ModConfig.INSTANCE.ikohS.dungeon;
-        return d.funnyMap.enabled || (d.starMobs.enabled && d.starMobs.onlyCurrentRoom);
+        return d.funnyMap.enabled || d.starMobs.enabled;
     }
 
     /** Der Skill-XP-Zaehler liest die Aktionsleiste - nur wenn er an ist */

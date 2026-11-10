@@ -115,6 +115,24 @@ public final class FunnyKarte {
         return eigene;
     }
 
+    /** Steht man im Boss-Raum (ausserhalb des Rasters)? Gilt nur im Dungeon und solange der Scan laeuft */
+    public static boolean imBoss() {
+        return imDungeon && imBoss;
+    }
+
+    /** Der Name des Raums, in dem diese Weltstelle liegt, oder null (nicht im Dungeon, Boss-Raum, ausserhalb, noch nicht erkannt) */
+    public static String raumNameAn(double x, double z) {
+        if (!imDungeon || imBoss) return null;
+        int platz = SecretsLeiste.platz(x, z);
+        if (platz < 0) return null;
+        List<Raster.Raum> raeume = RASTER.raeume();
+        for (int i = 0, n = raeume.size(); i < n; i++) {
+            Raster.Raum raum = raeume.get(i);
+            if (raum.plaetze().contains(platz)) return raum.daten().istUnbekannt() ? null : raum.daten().name();
+        }
+        return null;
+    }
+
     /**
      * Die Plaetze des Raums, in dem diese Weltstelle liegt (fuer die Raum-Regel der Stern-Mobs), oder null, wenn der Raum nicht bekannt ist: nicht im
      * Dungeon, im Boss-Raum, ausserhalb des Rasters oder vom Scan noch nicht erkannt. Gerechnet wird mit den gemerkten Raeumen des Rasters.
