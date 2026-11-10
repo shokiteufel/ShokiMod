@@ -1,6 +1,7 @@
 package com.shokiteufel.shokimod.render.hud;
 
 import com.shokiteufel.shokimod.data.ModConfig;
+import com.shokiteufel.shokimod.util.TextCache;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 
@@ -157,15 +158,17 @@ public class HudPanel {
     private void drawCell(GuiGraphicsExtractor graphics, Font font, String cell, int right,
                           int numberWidth, int shareWidth, int y, int colour) {
         if (cell.isEmpty()) return;
-        if (cell.indexOf(CELL_SPLIT) < 0) {
-            text(graphics, font, cell, stripColours(cell), right - font.width(cell), y, colour);
+        // Zerlegen, Breite und Farbcodes je Zelle nur einmal (TextCache): das Zeichnen laeuft in jedem Bild
+        String[] teile = TextCache.zelle(cell, CELL_SPLIT);
+        if (teile == null) {
+            text(graphics, font, cell, TextCache.ohneFarben(cell), right - TextCache.breite(font, cell), y, colour);
             return;
         }
-        String number = numberOf(cell);
-        String share = shareOf(cell);
-        text(graphics, font, share, stripColours(share), right - font.width(share), y, colour);
+        String number = teile[0];
+        String share = teile[1];
+        text(graphics, font, share, TextCache.ohneFarben(share), right - TextCache.breite(font, share), y, colour);
         int numberRight = right - (shareWidth > 0 ? shareWidth + CELL_GAP : 0);
-        text(graphics, font, number, stripColours(number), numberRight - font.width(number), y, colour);
+        text(graphics, font, number, TextCache.ohneFarben(number), numberRight - TextCache.breite(font, number), y, colour);
     }
     /** Dieselben Zeilen ohne Farbcodes - der Umriss soll einfarbig dunkel sein */
     private String[] labelOutline = null;
@@ -425,21 +428,7 @@ public class HudPanel {
      * Breite aendern und der Umriss sonst verrutschte.
      */
     private static String stripColours(String text) {
-        if (text == null) return "";
-        if (text.indexOf('§') < 0) return text;
-        StringBuilder out = new StringBuilder(text.length());
-        for (int i = 0; i < text.length(); i++) {
-            char c = text.charAt(i);
-            if (c == '§' && i + 1 < text.length()) {
-                char code = Character.toLowerCase(text.charAt(i + 1));
-                if ((code >= '0' && code <= '9') || (code >= 'a' && code <= 'f') || code == 'r') {
-                    i++;
-                    continue;
-                }
-            }
-            out.append(c);
-        }
-        return out.toString();
+        return TextCache.stripColours(text);
     }
 
     /**
@@ -569,7 +558,7 @@ public class HudPanel {
                 }
                 if (!row.value().isEmpty()) {
                     int vx = anchored && twoColumns ? x + valueX
-                            : tx + (row.label().isEmpty() ? 0 : font.width(row.label()) + font.width(" "));
+                            : tx + (row.label().isEmpty() ? 0 : TextCache.breite(font, row.label()) + TextCache.breite(font, " "));
                     text(graphics, font, row.value(), valueOutline[index], vx, textY, row.valueColour());
                 }
             }
@@ -579,7 +568,7 @@ public class HudPanel {
                     text(graphics, font, row.label(), labelOutline[index], ax, y, row.labelColour());
                     if (!row.value().isEmpty()) {
                         int vx = twoColumns ? x + valueX
-                                : ax + (row.label().isEmpty() ? 0 : font.width(row.label()) + font.width(" "));
+                                : ax + (row.label().isEmpty() ? 0 : TextCache.breite(font, row.label()) + TextCache.breite(font, " "));
                         text(graphics, font, row.value(), valueOutline[index], vx, y, row.valueColour());
                     }
                 } else {
@@ -601,11 +590,11 @@ public class HudPanel {
                 for (int i = 0; i < row.parts().size(); i++) {
                     if (i > 0) {
                         text(graphics, font, SEGMENT_SEPARATOR, SEGMENT_SEPARATOR, cursor, 0, SEPARATOR_COLOUR);
-                        cursor += font.width(SEGMENT_SEPARATOR);
+                        cursor += TextCache.breite(font, SEGMENT_SEPARATOR);
                     }
                     Segment part = row.parts().get(i);
-                    text(graphics, font, part.text(), stripColours(part.text()), cursor, 0, part.colour());
-                    cursor += font.width(part.text());
+                    text(graphics, font, part.text(), TextCache.ohneFarben(part.text()), cursor, 0, part.colour());
+                    cursor += TextCache.breite(font, part.text());
                 }
                 graphics.pose().popMatrix();
             }

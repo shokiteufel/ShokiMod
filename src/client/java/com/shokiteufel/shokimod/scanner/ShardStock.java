@@ -108,6 +108,11 @@ public final class ShardStock {
     /** Wie viele Seiten die Box hat, laut ihrem eigenen Titel */
     private static volatile int totalPages = 0;
     private static long lastLook = 0L;
+    /** Zaehlt jede Aenderung am Bestand; wer daraus Texte baut, baut sie nur bei einem neuen Stand neu */
+    private static volatile int stand;
+    /** Das Fenster, fuer das {@link #inBox} zuletzt gerechnet hat, und die Antwort - der Titel eines Fensters aendert sich nicht */
+    private static Object boxFenster;
+    private static boolean boxAntwort;
 
     private ShardStock() {
     }
@@ -133,7 +138,17 @@ public final class ShardStock {
     public static boolean inBox() {
         Minecraft client = Minecraft.getInstance();
         if (!(client.screen instanceof AbstractContainerScreen<?> screen)) return false;
-        return TITLE.matcher(clean(screen.getTitle().getString())).matches();
+        // Der Titel eines Fensters steht fest: je Fenster einmal pruefen, nicht in jedem Bild (Zeichenkette holen, Farbcodes entfernen, Muster)
+        if (screen != boxFenster) {
+            boxAntwort = TITLE.matcher(clean(screen.getTitle().getString())).matches();
+            boxFenster = screen;
+        }
+        return boxAntwort;
+    }
+
+    /** Der Stand des Bestands: aendert sich, sobald etwas gelesen oder vergessen wurde */
+    public static int stand() {
+        return stand;
     }
 
     /** Wurde schon einmal hineingesehen? */
@@ -154,6 +169,7 @@ public final class ShardStock {
         pages = 0;
         slotsSeen = 0;
         seenAt = 0L;
+        stand++;
     }
 
     /**
@@ -284,6 +300,7 @@ public final class ShardStock {
         pages = perPage.size();
         slotsSeen = felderGesamt;
         seenAt = now;
+        stand++;
         lastTitle = clean(screen.getTitle().getString());
         lastSlots = slotsSeen;
         howCounted = ausText ? (ausStapel ? "lore and stack size" : "lore") : "stack size";

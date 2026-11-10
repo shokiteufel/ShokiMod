@@ -71,7 +71,7 @@ public class BossNameplateRenderer {
             // 以降はスケール後の座標系。2行分の高さの中心が原点に来るように上へずらす
             int topY = -lines.length * font.lineHeight / 2;
             for (int i = 0; i < lines.length; i++) {
-                graphics.text(font, lines[i], -font.width(lines[i]) / 2, topY + i * font.lineHeight, 0xFFFFFFFF, true);
+                graphics.text(font, lines[i], -com.shokiteufel.shokimod.util.TextCache.breite(font, lines[i]) / 2, topY + i * font.lineHeight, 0xFFFFFFFF, true);
             }
             graphics.pose().popMatrix();
         }

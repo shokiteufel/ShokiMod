@@ -75,6 +75,11 @@ public final class NearbyOverlay {
         drawNegativeTooltip(graphics);
     }
 
+    private static HudPanel tooltipKasten;
+    private static net.minecraft.client.gui.Font tooltipSchrift;
+    private static java.util.List<String> tooltipZeilen = java.util.List.of();
+    private static int tooltipBreite;
+
     /** Zeiger auf "Negative:" im Profit-Tracker: zeigt, was wie viel abgezogen hat */
     private static void drawNegativeTooltip(GuiGraphicsExtractor graphics) {
         Minecraft client = Minecraft.getInstance();
@@ -90,17 +95,26 @@ public final class NearbyOverlay {
                 panel.scale(), mouseX, mouseY);
         if (row < 0 || row != ProfitHud.negativeRow()) return;
 
-        java.util.Map<String, Double> parts = com.shokiteufel.shokimod.handler.ProfitTracker.negatives();
-        java.util.List<String> lines = new java.util.ArrayList<>();
-        if (parts.isEmpty()) lines.add("Nothing deducted yet");
-        java.util.Map<String, Long> used = com.shokiteufel.shokimod.handler.ProfitTracker.negativeCounts();
-        for (var entry : parts.entrySet()) {
-            Long amount = used.get(entry.getKey());
-            lines.add(entry.getKey() + (amount == null ? "" : " x" + amount) + " - "
-                    + com.shokiteufel.shokimod.util.ItemValue.format(-entry.getValue()));
+        // Die Zeilen gelten, solange der Kasten derselbe ist: SafariHud baut ihn nur neu, wenn sich sein Inhalt aendert - nicht in jedem Bild
+        if (content != tooltipKasten || client.font != tooltipSchrift) {
+            tooltipKasten = content;
+            tooltipSchrift = client.font;
+            java.util.Map<String, Double> parts = com.shokiteufel.shokimod.handler.ProfitTracker.negatives();
+            java.util.List<String> built = new java.util.ArrayList<>();
+            if (parts.isEmpty()) built.add("Nothing deducted yet");
+            java.util.Map<String, Long> used = com.shokiteufel.shokimod.handler.ProfitTracker.negativeCounts();
+            for (var entry : parts.entrySet()) {
+                Long amount = used.get(entry.getKey());
+                built.add(entry.getKey() + (amount == null ? "" : " x" + amount) + " - "
+                        + com.shokiteufel.shokimod.util.ItemValue.format(-entry.getValue()));
+            }
+            int breit = 0;
+            for (String line : built) breit = Math.max(breit, client.font.width(line));
+            tooltipZeilen = built;
+            tooltipBreite = breit;
         }
-        int width = 0;
-        for (String line : lines) width = Math.max(width, client.font.width(line));
+        java.util.List<String> lines = tooltipZeilen;
+        int width = tooltipBreite;
         int x = (int) mouseX + 10;
         int y = (int) mouseY + 10;
         int height = lines.size() * 10 + 6;

@@ -32,6 +32,33 @@ public final class HuntingBoxOverlay {
     private HuntingBoxOverlay() {
     }
 
+    /** Die beiden Textzeilen, gerechnet fuer einen Stand des Bestands - neu nur, wenn sich der Bestand aendert, nicht in jedem Bild */
+    private static int textStand = -1;
+    private static int erkanntGemerkt;
+    private static int sortenGemerkt;
+    private static String zeileGemerkt = "";
+    private static String seitenGemerkt = "";
+    private static boolean seitenUnvollstaendig;
+    private static int fusionenBreite;
+    private static Font textSchrift;
+
+    private static void textePruefen(Font font) {
+        // Auch die Fusionsdaten gehoeren zum Stand: kommen sie spaeter als der Bestand, aendert sich die Zahl der erkannten Sorten
+        int stand = ShardStock.stand() * 31 + ShardProfitData.combinations();
+        if (stand == textStand && font == textSchrift) return;
+        textStand = stand;
+        textSchrift = font;
+        erkanntGemerkt = ShardProfitData.matched(ShardStock.counts());
+        sortenGemerkt = ShardStock.kinds();
+        zeileGemerkt = sortenGemerkt == 0
+                ? "No shards read yet"
+                : erkanntGemerkt + " of " + sortenGemerkt + " shards recognised";
+        String note = ShardStock.pageNote();
+        seitenUnvollstaendig = ShardStock.incomplete();
+        seitenGemerkt = note.isEmpty() ? "" : note + (seitenUnvollstaendig ? " - page on!" : " - all read");
+        fusionenBreite = font.width("Fusions");
+    }
+
     /** Nur sichtbar, solange in der Box gelesen wird */
     public static boolean shown() {
         return ShardStock.inBox();
@@ -63,21 +90,18 @@ public final class HuntingBoxOverlay {
         graphics.fill(left, top, left + WIDTH, top + HEIGHT, 0xD0101010);
         graphics.fill(left, top, left + WIDTH, top + 1, 0xFF55FF55);
 
-        int erkannt = ShardProfitData.matched(ShardStock.counts());
-        int sorten = ShardStock.kinds();
-        String zeile = sorten == 0
-                ? "No shards read yet"
-                : erkannt + " of " + sorten + " shards recognised";
-        graphics.text(font, zeile, left + 6, top + 6,
+        textePruefen(font);
+        int erkannt = erkanntGemerkt;
+        int sorten = sortenGemerkt;
+        graphics.text(font, zeileGemerkt, left + 6, top + 6,
                 erkannt == 0 && sorten > 0 ? 0xFFFF5555 : 0xFF55FF55, false);
 
         // Was noch fehlt. Die Box nennt ihre Seitenzahl im eigenen Titel, deshalb
         // laesst sich das genau sagen statt nur zu ahnen
-        String seiten = ShardStock.pageNote();
-        if (!seiten.isEmpty()) {
-            graphics.text(font, seiten + (ShardStock.incomplete() ? " - page on!" : " - all read"),
+        if (!seitenGemerkt.isEmpty()) {
+            graphics.text(font, seitenGemerkt,
                     left + 6, top + 19,
-                    ShardStock.incomplete() ? 0xFFFFAA00 : 0xFF55FF55, false);
+                    seitenUnvollstaendig ? 0xFFFFAA00 : 0xFF55FF55, false);
         } else if (sorten > 0) {
             graphics.text(font, "page on to read the rest", left + 6, top + 19, 0xFFAAAAAA, false);
         }
@@ -87,7 +111,7 @@ public final class HuntingBoxOverlay {
         int bt = buttonTop();
         graphics.fill(bl, bt, bl + BUTTON_WIDTH, bt + BUTTON_HEIGHT, drauf ? 0xFF3C6E3C : 0xFF2A2A2A);
         graphics.fill(bl, bt, bl + BUTTON_WIDTH, bt + 1, 0xFF55FF55);
-        graphics.text(font, "Fusions", bl + (BUTTON_WIDTH - font.width("Fusions")) / 2, bt + 3,
+        graphics.text(font, "Fusions", bl + (BUTTON_WIDTH - fusionenBreite) / 2, bt + 3,
                 0xFFFFFFFF, false);
     }
 
