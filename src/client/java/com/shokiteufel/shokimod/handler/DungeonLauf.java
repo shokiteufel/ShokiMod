@@ -26,8 +26,9 @@ public final class DungeonLauf {
     private static final int BOSS_GRENZE_MIN = Raster.START - 40;
     private static final int BOSS_GRENZE_MAX = Raster.START + 10 * (Raster.RAUM / 2) + 40;
 
-    private static boolean drin;
-    private static boolean imBoss;
+    // Von den Zeichenfaeden der Chunks gelesen (I hate doors): darum volatile
+    private static volatile boolean drin;
+    private static volatile boolean imBoss;
     private static Integer stockwerk;
     private static int ticks;
 
@@ -40,7 +41,7 @@ public final class DungeonLauf {
 
     /** Braucht gerade eine Einstellung die Antwort? */
     private static boolean gebraucht() {
-        return ModConfig.INSTANCE.profit.hideInDungeons || FeatureGate.dungeonLog();
+        return ModConfig.INSTANCE.profit.hideInDungeons || FeatureGate.dungeonLog() || FeatureGate.iHateDoors();
     }
 
     private static void tick(Minecraft client) {

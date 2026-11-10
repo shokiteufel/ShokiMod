@@ -185,6 +185,20 @@ public final class FeatureGate {
         return ModConfig.INSTANCE.logs.dungeonLog;
     }
 
+    /** "I hate doors" ersetzt die Tueren im Dungeon durch Glas - nur wenn es an ist (dann fragt DungeonLauf, ob man in einem Dungeon steht) */
+    public static boolean iHateDoors() {
+        return ModConfig.INSTANCE.ikohS.dungeon.iHateDoors.enabled;
+    }
+
+    /**
+     * Der Welt-Scan der Funny Map (die Raeume des Dungeons) laeuft fuer die Karte und fuer die Raum-Regel der Stern-Mobs. Die Karte selbst wird nur
+     * mit {@link #funnyMap()} gezeichnet.
+     */
+    public static boolean roomScan() {
+        ModConfig.DungeonCategory d = ModConfig.INSTANCE.ikohS.dungeon;
+        return d.funnyMap.enabled || (d.starMobs.enabled && d.starMobs.onlyCurrentRoom);
+    }
+
     /** Der Skill-XP-Zaehler liest die Aktionsleiste - nur wenn er an ist */
     public static boolean skillXp() {
         return ModConfig.INSTANCE.skillXp.enabled;

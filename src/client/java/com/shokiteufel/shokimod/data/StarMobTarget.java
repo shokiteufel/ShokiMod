@@ -34,6 +34,11 @@ public final class StarMobTarget implements MobVisual {
         return cfg().enabled;
     }
 
+    /** Nur die Stern-Mobs des Raums, in dem man steht? */
+    public static boolean onlyCurrentRoom() {
+        return enabled() && cfg().onlyCurrentRoom;
+    }
+
     /** Lohnt sich der Durchgang durch die Mobs: an und im Dungeon */
     public static boolean scanning() {
         return enabled() && inDungeon;

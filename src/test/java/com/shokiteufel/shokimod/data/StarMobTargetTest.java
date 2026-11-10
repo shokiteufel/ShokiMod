@@ -105,4 +105,16 @@ class StarMobTargetTest {
         assertTrue(FeatureGate.mobMarkers());
         assertEquals(0xFFFF55, StarMobTarget.INSTANCE.glowColorRGB());
     }
+
+    @Test
+    void theRoomRuleIsOffByDefaultAndNeedsTheMarkingToBeOn() {
+        assertFalse(StarMobTarget.onlyCurrentRoom(), "von Haus aus aus");
+        ModConfig.INSTANCE.ikohS.dungeon.starMobs.onlyCurrentRoom = true;
+        assertFalse(StarMobTarget.onlyCurrentRoom(), "ohne die Markierung gilt auch die Regel nicht");
+        ModConfig.INSTANCE.ikohS.dungeon.starMobs.enabled = true;
+        assertTrue(StarMobTarget.onlyCurrentRoom());
+        assertTrue(FeatureGate.roomScan(), "die Regel braucht die Raeume des Welt-Scans, auch ohne die Karte");
+        ModConfig.INSTANCE.ikohS.dungeon.starMobs.onlyCurrentRoom = false;
+        assertFalse(FeatureGate.roomScan());
+    }
 }

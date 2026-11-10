@@ -24,7 +24,9 @@
 		"SoundMuteMixin",
 		"SoundManagerMixin",
 		"AbstractSoundInstanceAccessor",
-		"AbstractContainerScreenAccessor"
+		"AbstractContainerScreenAccessor",
+		"RenderSectionRegionMixin",
+		"SodiumLevelSliceMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
