@@ -170,6 +170,7 @@ public class ModConfig extends Config {
         }
         if (config.ikohS.dungeon.funnyMap == null) config.ikohS.dungeon.funnyMap = new FunnyMapCategory();
         if (config.ikohS.dungeon.starMobs == null) config.ikohS.dungeon.starMobs = new StarMobsCategory();
+        if (config.ikohS.dungeon.iHateDoors == null) config.ikohS.dungeon.iHateDoors = new IHateDoorsCategory();
         if (config.ikohS.mist == null) config.ikohS.mist = new MistCategory();
         return moved;
     }
@@ -1144,7 +1145,7 @@ public class ModConfig extends Config {
     public SkillXpCategory skillXp = new SkillXpCategory();
 
     @Expose
-    @Category(name = "ikohS", desc = "ShokiMod's own functions, apart from the normal ones: the Dungeon functions (Funny Map, Star mobs) and The Mist. Everything in here is off until you turn it on.")
+    @Category(name = "ikohS", desc = "ShokiMod's own functions, apart from the normal ones: the Dungeon functions (Funny Map, Star mobs, I hate doors) and The Mist. Everything in here is off until you turn it on.")
     public IkohSCategory ikohS = new IkohSCategory();
 
     /**
@@ -4027,7 +4028,7 @@ public class ModConfig extends Config {
      */
     public static class DungeonCategory {
 
-        @ConfigOption(name = "Dungeon", desc = "Everything for the Catacombs, in folders: the Funny Map and the Star mobs. Everything here is off until you turn it on.")
+        @ConfigOption(name = "Dungeon", desc = "Everything for the Catacombs, in folders: the Funny Map, the Star mobs and I hate doors. Everything here is off until you turn it on.")
         @ConfigEditorInfoText
         public transient String about = "";
 
@@ -4040,6 +4041,92 @@ public class ModConfig extends Config {
         @ConfigOption(name = "Star mobs", desc = "Marks the star mobs (✯) of a dungeon room, through walls. Off until you turn it on.")
         @Accordion
         public StarMobsCategory starMobs = new StarMobsCategory();
+
+        @Expose
+        @ConfigOption(name = "I hate doors", desc = "Visually replaces the doors of the dungeon with glass. Taken one to one from NoammAddons (CC0; it is part of its 'cheat' build there). Only on your screen: the server builds nothing different, and every door stays as solid as it is. The server's rules decide whether that is allowed: it is your choice and your risk. Off until you turn it on.")
+        @Accordion
+        public IHateDoorsCategory iHateDoors = new IHateDoorsCategory();
+    }
+
+    /**
+     * "I hate doors" von NoammAddons, eins zu eins: Die Tueren des Dungeons (Eingang, Wither, Blut) werden im Client durch Glas ersetzt, in der
+     * Farbe, die man waehlt. Nur die Darstellung: Der Server baut nichts anders, die Tuer bleibt so fest, wie sie ist.
+     */
+    public static class IHateDoorsCategory {
+
+        @Expose
+        @ConfigOption(name = "Enabled", desc = "Shows the doors chosen below as glass. Off from the start.")
+        @ConfigEditorBoolean
+        public boolean enabled = false;
+
+        @Expose
+        @ConfigOption(name = "Glass Entrance Door", desc = "The door of the entrance room (infested chiseled stone bricks) shows as glass.")
+        @ConfigEditorBoolean
+        public boolean glassEntrance = false;
+
+        @Expose
+        @ConfigOption(name = "Glass Wither Door", desc = "The Wither doors (coal blocks) show as glass.")
+        @ConfigEditorBoolean
+        public boolean glassWither = false;
+
+        @Expose
+        @ConfigOption(name = "Glass Blood Door", desc = "The Blood door (red terracotta) shows as glass.")
+        @ConfigEditorBoolean
+        public boolean glassBlood = false;
+
+        @Expose
+        @ConfigOption(name = "Entrance Door Glass", desc = "The glass for the entrance door. White by default, as at NoammAddons.")
+        @ConfigEditorDropdown
+        public GlassColour entranceGlass = GlassColour.WHITE;
+
+        @Expose
+        @ConfigOption(name = "Wither Door Glass", desc = "The glass for the Wither doors. Black by default, as at NoammAddons.")
+        @ConfigEditorDropdown
+        public GlassColour witherGlass = GlassColour.BLACK;
+
+        @Expose
+        @ConfigOption(name = "Blood Door Glass", desc = "The glass for the Blood door. Red by default, as at NoammAddons.")
+        @ConfigEditorDropdown
+        public GlassColour bloodGlass = GlassColour.RED;
+    }
+
+    /** Die Glasarten zur Auswahl, in der Reihenfolge von NoammAddons: das gewoehnliche Glas und die 16 Farben */
+    public enum GlassColour {
+        DEFAULT("Default", "glass"),
+        WHITE("White", "white_stained_glass"),
+        BLACK("Black", "black_stained_glass"),
+        CYAN("Cyan", "cyan_stained_glass"),
+        LIGHT_BLUE("Light Blue", "light_blue_stained_glass"),
+        RED("Red", "red_stained_glass"),
+        PINK("Pink", "pink_stained_glass"),
+        ORANGE("Orange", "orange_stained_glass"),
+        MAGENTA("Magenta", "magenta_stained_glass"),
+        YELLOW("Yellow", "yellow_stained_glass"),
+        LIME("Lime", "lime_stained_glass"),
+        GRAY("Gray", "gray_stained_glass"),
+        LIGHT_GRAY("Light Gray", "light_gray_stained_glass"),
+        PURPLE("Purple", "purple_stained_glass"),
+        BLUE("Blue", "blue_stained_glass"),
+        BROWN("Brown", "brown_stained_glass"),
+        GREEN("Green", "green_stained_glass");
+
+        private final String label;
+        private final String blockId;
+
+        GlassColour(String label, String blockId) {
+            this.label = label;
+            this.blockId = blockId;
+        }
+
+        /** Der Name des Blocks im Register (ohne "minecraft:") */
+        public String blockId() {
+            return blockId;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
     }
 
     /** Die Stern-Mobs im Dungeon (wohnten bis 2.2.3 bei Odin; dort gestrichen, damit sie von Haus aus aus sind) */
@@ -4059,6 +4146,11 @@ public class ModConfig extends Config {
         @ConfigOption(name = "Box", desc = "Also draws a box around every star mob.")
         @ConfigEditorBoolean
         public boolean box = false;
+
+        @Expose
+        @ConfigOption(name = "Only in my room", desc = "Marks only the star mobs of the room you stand in, not the ones of the other rooms behind the walls. The rooms come from the world scan of the Funny Map (the Funny Map itself does not have to be on). Where the room is not known yet - at the start, or in the boss room - all star mobs show. Off from the start.")
+        @ConfigEditorBoolean
+        public boolean onlyCurrentRoom = false;
     }
 
     /** Die Mist in den Dwarven Mines */

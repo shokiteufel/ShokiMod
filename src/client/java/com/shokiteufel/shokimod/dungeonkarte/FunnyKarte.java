@@ -67,7 +67,7 @@ public final class FunnyKarte {
         try {
             // Nach dem Spiel: Dann liegen die neuen Farben schon in den Kartendaten
             PaketBus.abonnieren(ClientboundMapItemDataPacket.class, PaketPhase.NACH, "Funny Map Karte", (p, k) -> {
-                if (FeatureGate.funnyMap()) {
+                if (FeatureGate.roomScan()) {
                     KARTENTAKT.paket();
                     DungeonLog.zaehlen(DungeonLog.Zaehler.KARTENPAKETE);
                 }
@@ -113,6 +113,22 @@ public final class FunnyKarte {
             eigeneVon = jetzt;
         }
         return eigene;
+    }
+
+    /**
+     * Die Plaetze des Raums, in dem diese Weltstelle liegt (fuer die Raum-Regel der Stern-Mobs), oder null, wenn der Raum nicht bekannt ist: nicht im
+     * Dungeon, im Boss-Raum, ausserhalb des Rasters oder vom Scan noch nicht erkannt. Gerechnet wird mit den gemerkten Raeumen des Rasters.
+     */
+    public static java.util.List<Integer> raumPlaetzeAn(double x, double z) {
+        if (!imDungeon || imBoss) return null;
+        int platz = SecretsLeiste.platz(x, z);
+        if (platz < 0) return null;
+        List<Raster.Raum> raeume = RASTER.raeume();
+        for (int i = 0, n = raeume.size(); i < n; i++) {
+            List<Integer> plaetze = raeume.get(i).plaetze();
+            if (plaetze.contains(platz)) return plaetze;
+        }
+        return null;
     }
 
     /** Wo das Raster in der Karte von Hypixel beginnt (Pixel), oder null, solange die Karte im Hotbar-Platz 9 noch nicht zu lesen war */
@@ -258,7 +274,7 @@ public final class FunnyKarte {
                 ShokiMod.LOGGER.warn("[FunnyMap] syncing with NoammAddons failed: {}", e.toString());
             }
         }
-        if (!FeatureGate.funnyMap()) {
+        if (!FeatureGate.roomScan()) {
             imDungeon = false;
             return;
         }

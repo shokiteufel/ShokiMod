@@ -88,7 +88,7 @@ class ModConfigDungeonStrukturTest {
             if (editor.contains("Accordion") && o.getAccordionId() < 0) gruppen++;
             if (o.getAccordionId() >= 0) optionenInGruppen++;
         }
-        assertTrue(gruppen >= 2, "Funny Map und Stern-Mobs: gezaehlt " + gruppen);
+        assertTrue(gruppen >= 3, "Funny Map, Stern-Mobs und I hate doors: gezaehlt " + gruppen);
         assertTrue(optionenInGruppen > 10, "die Optionen stehen in den Gruppen: " + optionenInGruppen);
     }
 

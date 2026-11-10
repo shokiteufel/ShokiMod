@@ -163,8 +163,10 @@ class ModConfigIkohSTest {
         ModConfig c = ModConfig.GSON.fromJson("{\"ikohS\":{\"dungeon\":{}}}", ModConfig.class);
         c.ikohS.dungeon.funnyMap = null;
         c.ikohS.dungeon.starMobs = null;
+        c.ikohS.dungeon.iHateDoors = null;
         ModConfig.migrateIkohS(c);
         assertNotNull(c.ikohS.dungeon.funnyMap);
         assertNotNull(c.ikohS.dungeon.starMobs);
+        assertNotNull(c.ikohS.dungeon.iHateDoors, "auch die Gruppe I hate doors ist immer da (eine Datei bis 2.2.11 kennt sie nicht)");
     }
 }
