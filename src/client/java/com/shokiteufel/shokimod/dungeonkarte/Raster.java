@@ -28,6 +28,16 @@ public final class Raster {
         return kacheln[index];
     }
 
+    /** Der Stand des Rasters: aendert sich bei jeder Aenderung (neue Kachel, anderer Zustand, offene Tuer), sonst nie - wer daraus Gerechnetes merkt, rechnet nur dann neu */
+    public int stand() {
+        return stand;
+    }
+
+    /** Eine Kachel wurde an Ort und Stelle veraendert (zum Beispiel eine Tuer ging auf): der Stand zaehlt weiter */
+    public void geaendert() {
+        stand++;
+    }
+
     public void set(int index, Kachel kachel) {
         kacheln[index] = kachel;
         stand++;
@@ -151,7 +161,8 @@ public final class Raster {
      * ein Rueckschritt, der gelten soll.
      */
     public void vonKarte(KartenLeser.Zelle[] karte) {
-        stand++;
+        // Der Stand zaehlt nur, wenn sich etwas aendert: Die Karte wird oft gelesen (jedes Kartenpaket), meist ohne Neues
+        boolean geaendert = false;
         for (int i = 0; i < PLAETZE; i++) {
             KartenLeser.Zelle m = karte[i];
             if (m.art() == null) continue;
@@ -166,13 +177,19 @@ public final class Raster {
                 };
                 neu.zustand = m.zustand();
                 kacheln[i] = neu;
+                geaendert = true;
                 continue;
             }
             boolean puzzle = k.art == Kachel.Art.RAUM && k.daten != null && k.daten.typ() == RaumTyp.PUZZLE && m.art() == Kachel.Art.RAUM;
-            if (m.zustand().ordinal() < k.zustand.ordinal() || puzzle) k.zustand = m.zustand();
+            if ((m.zustand().ordinal() < k.zustand.ordinal() || puzzle) && k.zustand != m.zustand()) {
+                k.zustand = m.zustand();
+                geaendert = true;
+            }
             if (k.art == Kachel.Art.TUER && m.art() == Kachel.Art.TUER && m.tuer() == TuerTyp.WITHER && k.tuer != TuerTyp.WITHER) {
                 k.tuer = TuerTyp.WITHER;
+                geaendert = true;
             }
         }
+        if (geaendert) stand++;
     }
 }

@@ -99,7 +99,9 @@ public final class FunnyKarte {
         }
         long jetzt = System.nanoTime();
         if (eigene == null || jetzt - eigeneVon > 500_000_000L) {
-            eigene = KartenEinstellungen.ausFeldern(ModConfig.INSTANCE.ikohS.funnyMap);
+            KartenEinstellungen neu = KartenEinstellungen.ausFeldern(ModConfig.INSTANCE.ikohS.funnyMap);
+            // Gleiche Werte: dasselbe Objekt behalten. Wer daraus Gerechnetes merkt (das Kartenbild), erkennt eine Aenderung an der Identitaet
+            if (eigene == null || !eigene.gleich(neu)) eigene = neu;
             eigeneVon = jetzt;
         }
         return eigene;
@@ -117,10 +119,18 @@ public final class FunnyKarte {
     public static NoammLage.Lage noamm() {
         if (abgeglichen) {
             ModConfig.FunnyMapCategory c = ModConfig.INSTANCE.ikohS.funnyMap;
-            return new NoammLage.Lage(c.x, c.y, c.scale, c.extraLine);
+            // Dieselben Zahlen: dasselbe Objekt (die Karte fragt in jedem Bild, ein neues Objekt braucht es nur bei einer Aenderung)
+            NoammLage.Lage l = abgeglicheneLage;
+            if (l == null || l.x() != c.x || l.y() != c.y || l.scale() != c.scale || l.extraInfo() != c.extraLine) {
+                l = new NoammLage.Lage(c.x, c.y, c.scale, c.extraLine);
+                abgeglicheneLage = l;
+            }
+            return l;
         }
         return noamm;
     }
+
+    private static NoammLage.Lage abgeglicheneLage;
 
     // ------------------------------------------------------------------ Abgleich mit Noamm (beide Richtungen)
 

@@ -164,7 +164,10 @@ public final class WeltScanner {
             if (k.tuer != TuerTyp.WITHER && k.tuer != TuerTyp.BLUT && k.tuer != TuerTyp.EINGANG) continue;
             if (!welt.chunkGeladen(k.x, k.z)) continue;
             String block = welt.blockName(k.x, TUER_HOEHE, k.z);
-            if ("minecraft:air".equals(block) || "minecraft:cave_air".equals(block) || "minecraft:barrier".equals(block)) k.offen = true;
+            if ("minecraft:air".equals(block) || "minecraft:cave_air".equals(block) || "minecraft:barrier".equals(block)) {
+                k.offen = true;
+                raster.geaendert();
+            }
         }
     }
 }
