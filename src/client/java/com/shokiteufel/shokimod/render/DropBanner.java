@@ -103,7 +103,134 @@ public final class DropBanner {
         long startedAt;
         /** Ob beim Anfangen der grosse Auftritt dazugehoert */
         boolean withEffects = true;
+        /** Die Texte und ihre Breiten: gebaut, wenn sich Design oder Fund aendern, nicht in jedem Bild */
+        final Texte texte = new Texte();
     }
+
+    /**
+     * Die Texte einer Einblendung - Ueberschrift, Wert, Stufe, die Zeilen des Titel-Stils samt ihren Breiten und Components. Sie haengen nur an
+     * Design und Fund; das Bild fragt sie in jedem Bild, und neu gebaut werden sie nur, wenn sich eine Quelle aendert (Vergleich der
+     * Zeichenketten ueber ihre Identitaet: eine Aenderung im Einrichtungsfenster setzt ein neues Objekt, sonst bleibt es dasselbe).
+     */
+    private static final class Texte {
+        private BannerDesign design;
+        private Font font;
+        private String prefix, suffix, valuePrefix, valueSuffix, headline, byline, worth, tierLabel, colourText;
+        private int flags = -1;
+        private int tint;
+
+        String headStyle = "";
+        String head = "";
+        String value = "";
+        String tier = "";
+        /** Die Ueberschrift ohne die Steuerzeichen vorn - davon wird beim Tippen ein Stueck gezeigt */
+        private String rumpf = "";
+        int farbe;
+        int headBreite;
+        int bylineBreite;
+        int valueBreite;
+        int tierBreite;
+        /** Titel-Stil: die Zeile ueber dem Kopf, die darunter */
+        String oben = "";
+        String unten = "";
+
+        private int tippAnzahl = -1;
+        private boolean tippCursor;
+        private String tippText = "";
+
+        final Zeile kopfZeile = new Zeile();
+        final Zeile untenZeile = new Zeile();
+        final Zeile obenZeile = new Zeile();
+
+        private static int flagsVon(BannerDesign d) {
+            return (d.headlineBold ? 1 : 0) | (d.headlineItalic ? 2 : 0) | (d.headlineUnderline ? 4 : 0) | (d.headlineStrike ? 8 : 0)
+                    | (d.valueBold ? 16 : 0) | (d.valueItalic ? 32 : 0) | (d.valueUnderline ? 64 : 0) | (d.valueStrike ? 128 : 0)
+                    | (d.showValue ? 256 : 0) | (d.showTier ? 512 : 0) | (d.nameAbove ? 1024 : 0);
+        }
+
+        void pruefen(BannerDesign d, Shown b, Font f) {
+            if (design == d && font == f && flags == flagsVon(d) && tint == b.tint
+                    && prefix == d.prefix && suffix == d.suffix && valuePrefix == d.valuePrefix && valueSuffix == d.valueSuffix
+                    && colourText == d.colour
+                    && headline == b.headline && byline == b.byline && worth == b.worth && tierLabel == b.tierLabel) {
+                return;
+            }
+            design = d;
+            font = f;
+            flags = flagsVon(d);
+            tint = b.tint;
+            prefix = d.prefix;
+            suffix = d.suffix;
+            valuePrefix = d.valuePrefix;
+            valueSuffix = d.valueSuffix;
+            colourText = d.colour;
+            headline = b.headline;
+            byline = b.byline;
+            worth = b.worth;
+            tierLabel = b.tierLabel;
+
+            headStyle = style(d.headlineBold, d.headlineItalic, d.headlineUnderline, d.headlineStrike);
+            String valueStyle = style(d.valueBold, d.valueItalic, d.valueUnderline, d.valueStrike);
+            head = headStyle + d.prefix + b.headline + d.suffix;
+            value = d.showValue && !b.worth.isEmpty() ? valueStyle + d.valuePrefix + b.worth + d.valueSuffix : "";
+            tier = d.showTier ? b.tierLabel : "";
+            rumpf = head.substring(headStyle.length());
+            farbe = parseColour(d.colour, b.tint);
+            headBreite = f.width(head);
+            bylineBreite = b.byline.isEmpty() ? 0 : f.width(b.byline);
+            valueBreite = value.isEmpty() ? 0 : f.width(value);
+            tierBreite = tier.isEmpty() ? 0 : f.width(tier);
+            tippAnzahl = -1;
+
+            // Titel-Stil: Der Fangende traegt dieselben Klammern wie der Wert (im Spiel kam er bisher als Wert herein und sah so aus)
+            String nameLine = b.byline.isEmpty() ? "" : valueStyle + d.valuePrefix + b.byline + d.valueSuffix;
+            String worthLine = value;
+            if (d.nameAbove) {
+                oben = nameLine;
+                unten = worthLine;
+            } else {
+                oben = "";
+                unten = !worthLine.isEmpty() ? worthLine : d.showValue ? nameLine : "";
+            }
+        }
+
+        /** Die Ueberschrift beim Tippen: die Steuerzeichen bleiben stehen, nur der sichtbare Text wird gekuerzt */
+        String tippen(int gezeigt, boolean cursor) {
+            if (gezeigt != tippAnzahl || cursor != tippCursor) {
+                tippAnzahl = gezeigt;
+                tippCursor = cursor;
+                tippText = headStyle + rumpf.substring(0, gezeigt) + (cursor ? "_" : "");
+            }
+            return tippText;
+        }
+    }
+
+    /** Ein Component mit Farbe samt seiner Breite, neu gebaut nur bei anderem Text, anderer Farbe oder anderer Schrift */
+    private static final class Zeile {
+        private String quelle;
+        private int rgb = -1;
+        private Font font;
+        Component text;
+        int breite;
+
+        Component holen(String s, int rgb, Font f) {
+            if (text == null || quelle != s || this.rgb != rgb || font != f) {
+                quelle = s;
+                this.rgb = rgb;
+                font = f;
+                text = Component.literal(s).withStyle(st -> st.withColor(rgb));
+                breite = f.width(text);
+            }
+            return text;
+        }
+    }
+
+    /** Hilfsfelder fuer die Form-Rechnung: Der Render-Thread ist der einzige, der sie braucht - ein Feld statt eines neuen Feldes je Bildzeile */
+    private static final int[] SPAN_A = new int[2];
+    private static final int[] SPAN_B = new int[2];
+    /** Die Kiste: das Stueck wird je Kennung einmal gebaut */
+    private static String truheKennung;
+    private static ItemStack truheStueck;
 
     /** Eingetroffen, aber noch nicht angefangen - in der Reihenfolge des Eintreffens */
     private static final java.util.List<Shown> waiting = new java.util.ArrayList<>();
@@ -311,8 +438,13 @@ public final class DropBanner {
      * weitere darunter.
      */
     public static void render(GuiGraphicsExtractor g) {
+        // Ohne laufende und ohne wartende Einblendung gibt es nichts zu tun: keine Uhr, keine Lambda, kein Objekt in diesem Bild
+        if (running.isEmpty() && waiting.isEmpty()) return;
         long now = System.currentTimeMillis();
-        running.removeIf(s -> now - s.startedAt > s.displayMillis);
+        for (int i = running.size() - 1; i >= 0; i--) {
+            Shown laeuft = running.get(i);
+            if (now - laeuft.startedAt > laeuft.displayMillis) running.remove(i);
+        }
         if (!waiting.isEmpty() && now - lastArrival >= GRACE_MILLIS) start(now);
         if (running.isEmpty()) return;
 
@@ -342,8 +474,10 @@ public final class DropBanner {
         int width = g.guiWidth();
         int height = g.guiHeight();
         BannerDesign d = banner.design;
-        if (d.background == Background.TITLE) return renderTitle(g, banner, age, offsetY);
-        int colour = parseColour(d.colour, banner.tint);
+        Texte tex = banner.texte;
+        tex.pruefen(d, banner, font);
+        if (d.background == Background.TITLE) return renderTitle(g, banner, age, offsetY, tex);
+        int colour = tex.farbe;
         float scale = clamp(d.scale, 0.3f, 4.0f);
         Shape shape = d.shape == null ? Shape.RECTANGLE : d.shape;
         Align align = d.align == null ? Align.CENTER : d.align;
@@ -354,13 +488,9 @@ public final class DropBanner {
         // Die Schnitte stehen als Steuerzeichen vor dem Text. Das Spiel liest sie beim
         // Zeichnen und beim Messen gleichermassen - fett ist je Zeichen einen Punkt
         // breiter, und genau diese Breite braucht der Kasten
-        String headStyle = style(d.headlineBold, d.headlineItalic, d.headlineUnderline, d.headlineStrike);
-        String valueStyle = style(d.valueBold, d.valueItalic, d.valueUnderline, d.valueStrike);
-        String head = headStyle + d.prefix + banner.headline + d.suffix;
-        String value = d.showValue && !banner.worth.isEmpty()
-                ? valueStyle + d.valuePrefix + banner.worth + d.valueSuffix
-                : "";
-        String tier = d.showTier ? banner.tierLabel : "";
+        String head = tex.head;
+        String value = tex.value;
+        String tier = tex.tier;
         float hs = clamp(d.headlineSize, 0.5f, 6.0f) * scale;
         float vs = clamp(d.valueSize, 0.5f, 6.0f) * scale;
         float ts = Math.max(0.8f, scale);
@@ -400,20 +530,20 @@ public final class DropBanner {
         if (d.animation == Animation.TYPEWRITER) {
             // Nur der sichtbare Text wird gekuerzt, die Steuerzeichen bleiben stehen -
             // sonst faellt der Schnitt mitten im Tippen weg
-            String rumpf = head.substring(headStyle.length());
+            int laenge = head.length() - tex.headStyle.length();
             float progress = Math.min(1.0f, age / (float) TYPE_MILLIS);
-            int shown = Math.min(rumpf.length(), Math.round(rumpf.length() * progress));
-            shownHead = headStyle + rumpf.substring(0, shown) + (progress < 1.0f ? "_" : "");
+            int shown = Math.min(laenge, Math.round(laenge * progress));
+            shownHead = tex.tippen(shown, progress < 1.0f);
             typing = progress < 1.0f;
         }
 
-        int headW = (int) (font.width(head) * hs * pop);
+        int headW = (int) (tex.headBreite * hs * pop);
         int headH = (int) (10 * hs * pop);
-        int bylineW = byline.isEmpty() ? 0 : (int) (font.width(byline) * bs);
+        int bylineW = byline.isEmpty() ? 0 : (int) (tex.bylineBreite * bs);
         int bylineH = byline.isEmpty() ? 0 : (int) (10 * bs);
-        int valueW = value.isEmpty() ? 0 : (int) (font.width(value) * vs);
+        int valueW = value.isEmpty() ? 0 : (int) (tex.valueBreite * vs);
         int valueH = value.isEmpty() ? 0 : (int) (10 * vs);
-        int tierW = tier.isEmpty() ? 0 : (int) (font.width(tier) * ts);
+        int tierW = tier.isEmpty() ? 0 : (int) (tex.tierBreite * ts);
         int tierH = tier.isEmpty() ? 0 : (int) (10 * ts);
         int iconSize = d.icon == Icon.NONE || banner.icon == null ? 0 : (int) (16 * clamp(d.iconScale, 0.5f, 6.0f) * scale);
         int gap = (int) (4 * scale);
@@ -638,10 +768,10 @@ public final class DropBanner {
      *
      * @return die Hoehe, die der Banner belegt - fuer die, die darunter stehen
      */
-    private static int renderTitle(GuiGraphicsExtractor g, Shown banner, long age, int offsetY) {
+    private static int renderTitle(GuiGraphicsExtractor g, Shown banner, long age, int offsetY, Texte tex) {
         BannerDesign d = banner.design;
         Font font = Minecraft.getInstance().font;
-        int colour = parseColour(d.colour, banner.tint);
+        int colour = tex.farbe;
         float scale = clamp(d.scale, 0.3f, 4.0f);
 
         long fadeStart = banner.displayMillis - TITLE_FADE_MILLIS;
@@ -649,22 +779,10 @@ public final class DropBanner {
         int a = Math.clamp((int) (alpha * 255), 0, 255);
         if (a <= 0) return 0;
 
-        String head = style(d.headlineBold, d.headlineItalic, d.headlineUnderline, d.headlineStrike)
-                + d.prefix + banner.headline + d.suffix;
-        String valueStyle = style(d.valueBold, d.valueItalic, d.valueUnderline, d.valueStrike);
-        // Der Fangende traegt dieselben Klammern wie der Wert: Im Spiel kam er bisher als Wert herein und sah so aus
-        String nameLine = banner.byline.isEmpty() ? "" : valueStyle + d.valuePrefix + banner.byline + d.valueSuffix;
-        String worthLine = d.showValue && !banner.worth.isEmpty()
-                ? valueStyle + d.valuePrefix + banner.worth + d.valueSuffix
-                : "";
-        String sub;
-        String above = "";
-        if (d.nameAbove) {
-            above = nameLine;
-            sub = worthLine;
-        } else {
-            sub = !worthLine.isEmpty() ? worthLine : d.showValue ? nameLine : "";
-        }
+        // Die Zeilen (Kopf, darunter, darueber) sind in Texte fertig gebaut
+        String head = tex.head;
+        String sub = tex.unten;
+        String above = tex.oben;
         float hs = clamp(d.headlineSize, 0.5f, 6.0f) * scale;
         float vs = clamp(d.valueSize, 0.5f, 6.0f) * scale;
         // Der Fangende darueber: Zwischen der Unterkante seiner Zeile und der Oberkante des Namens liegt derselbe
@@ -700,8 +818,8 @@ public final class DropBanner {
         g.pose().pushMatrix();
         g.pose().scale(hs, hs);
         int headRgb = textColour(d.headlineColour, colour);
-        Component headText = Component.literal(head).withStyle(st -> st.withColor(headRgb));
-        int headWidth = font.width(headText);
+        Component headText = tex.kopfZeile.holen(head, headRgb, font);
+        int headWidth = tex.kopfZeile.breite;
         g.textWithBackdrop(font, headText, -headWidth / 2, -10, headWidth, white);
         g.pose().popMatrix();
 
@@ -709,8 +827,8 @@ public final class DropBanner {
             g.pose().pushMatrix();
             g.pose().scale(vs, vs);
             int valueRgb = textColour(d.valueColour, colour);
-            Component subText = Component.literal(sub).withStyle(st -> st.withColor(valueRgb));
-            int subWidth = font.width(subText);
+            Component subText = tex.untenZeile.holen(sub, valueRgb, font);
+            int subWidth = tex.untenZeile.breite;
             g.textWithBackdrop(font, subText, -subWidth / 2, 5, subWidth, white);
             g.pose().popMatrix();
         }
@@ -719,8 +837,8 @@ public final class DropBanner {
             g.pose().pushMatrix();
             g.pose().scale(vs, vs);
             int nameRgb = textColour(d.valueColour, colour);
-            Component aboveText = Component.literal(above).withStyle(st -> st.withColor(nameRgb));
-            int aboveWidth = font.width(aboveText);
+            Component aboveText = tex.obenZeile.holen(above, nameRgb, font);
+            int aboveWidth = tex.obenZeile.breite;
             int aboveY = Math.round((-10f * hs - aboveGap - 9f * vs) / vs);
             g.textWithBackdrop(font, aboveText, -aboveWidth / 2, aboveY, aboveWidth, white);
             g.pose().popMatrix();
@@ -767,11 +885,16 @@ public final class DropBanner {
 
         // Was das Design will. Kennt das Spiel die Kennung nicht - etwa nach einer
         // Umbenennung -, bleibt die Endertruhe als Rueckfall
-        net.minecraft.world.item.Item gewaehlt = net.minecraft.core.registries.BuiltInRegistries.ITEM
-                .getOptional(net.minecraft.resources.Identifier.tryParse(
-                        "minecraft:" + (art == null ? "ender_chest" : art.item)))
-                .orElse(net.minecraft.world.item.Items.ENDER_CHEST);
-        ItemStack truhe = new ItemStack(gewaehlt);
+        // Das Stueck je Kennung einmal bauen (Suche in der Registrierung, neue Zeichenketten und ein neuer Stapel in jedem Bild sind unnoetig)
+        String kennung = art == null ? "ender_chest" : art.item;
+        if (truheStueck == null || truheKennung != kennung) {
+            net.minecraft.world.item.Item gewaehlt = net.minecraft.core.registries.BuiltInRegistries.ITEM
+                    .getOptional(net.minecraft.resources.Identifier.tryParse("minecraft:" + kennung))
+                    .orElse(net.minecraft.world.item.Items.ENDER_CHEST);
+            truheStueck = new ItemStack(gewaehlt);
+            truheKennung = kennung;
+        }
+        ItemStack truhe = truheStueck;
         int kante = Math.round(groesse);
         float s = kante / 16f;
         g.pose().pushMatrix();
@@ -850,7 +973,7 @@ public final class DropBanner {
             g.fill(Math.max(left, clipLeft), top, Math.min(right, clipRight), bottom, colourTop);
             return;
         }
-        int[] s = new int[2];
+        int[] s = SPAN_A;
         for (int y = 0; y < h; y++) {
             if (!span(shape, w, h, y, radius, s)) continue;
             int x0 = Math.max(left + s[0], clipLeft);
@@ -878,8 +1001,8 @@ public final class DropBanner {
             frame(g, left, top, right, bottom, t, colour);
             return;
         }
-        int[] aussen = new int[2];
-        int[] innen = new int[2];
+        int[] aussen = SPAN_A;
+        int[] innen = SPAN_B;
         for (int y = 0; y < h; y++) {
             if (!span(shape, w, h, y, radius, aussen)) continue;
             boolean hatInnen = y >= t && y < h - t
@@ -952,7 +1075,7 @@ public final class DropBanner {
                                  int rgb, TextEffect effect, float alpha, int accent) {
         if (text == null || text.isEmpty()) return;
         int colour = argb(alpha, rgb);
-        int x = (int) (centreX / size) - font.width(text) / 2;
+        int x = (int) (centreX / size) - com.shokiteufel.shokimod.util.TextCache.breite(font, text) / 2;
         int sy = (int) (y / size);
 
         g.pose().pushMatrix();

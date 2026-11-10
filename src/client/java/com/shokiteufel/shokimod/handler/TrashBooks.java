@@ -305,13 +305,37 @@ public final class TrashBooks {
         if (!(slot.container instanceof Inventory)) return;
         ItemStack stack = slot.getItem();
         if (stack.isEmpty() || !stack.is(Items.ENCHANTED_BOOK)) return;
-        paint(graphics, slot, bookName(stack));
+        // Name und Farbe eines Buches ruehren sich nicht, solange es dasselbe Stueck ist und die Liste dieselbe: je Stueck einmal lesen, nicht in
+        // jedem Bild (Name holen, Beschreibung lesen, Farbcodes entfernen, klein schreiben)
+        Map<String, BookMark> liste = cfg().marks;
+        if (slotListe != liste || slotVersion != version) {
+            SLOT_MARKEN.clear();
+            slotListe = liste;
+            slotVersion = version;
+        }
+        BookMark mark = SLOT_MARKEN.get(stack);
+        if (mark == null) {
+            String name = bookName(stack);
+            mark = name == null ? BookMark.NEUTRAL : wanted(name);
+            if (SLOT_MARKEN.size() >= SLOT_GRENZE) SLOT_MARKEN.clear();
+            SLOT_MARKEN.put(stack, mark);
+        }
+        paintMark(graphics, slot, mark);
     }
+
+    /** Wie ein Stueck im Inventar zuletzt eingestuft wurde (nach Stueck, nicht nach Name) - gilt bis zur naechsten Aenderung der Liste */
+    private static final java.util.IdentityHashMap<ItemStack, BookMark> SLOT_MARKEN = new java.util.IdentityHashMap<>();
+    private static final int SLOT_GRENZE = 64;
+    private static Map<String, BookMark> slotListe;
+    private static int slotVersion = -1;
 
     /** Der Untergrund selbst: nur im eigenen Inventar und nur fuer ein Buch, das rot oder gruen sein soll */
     static void paint(GuiGraphicsExtractor graphics, Slot slot, String name) {
         if (name == null || !(slot.container instanceof Inventory)) return;
-        BookMark mark = wanted(name);
+        paintMark(graphics, slot, wanted(name));
+    }
+
+    private static void paintMark(GuiGraphicsExtractor graphics, Slot slot, BookMark mark) {
         if (mark == BookMark.NEUTRAL) return;
         int fill = mark == BookMark.RED ? RED : GREEN;
         int edge = mark == BookMark.RED ? RED_EDGE : GREEN_EDGE;
