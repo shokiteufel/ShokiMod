@@ -94,6 +94,49 @@ public final class FunnyKarteHud {
         DungeonLog.zaehlen(DungeonLog.Zaehler.KARTE_GEZEICHNET);
     }
 
+    // ------------------------------------------------------------------ Leap Menu (Map-Modus)
+
+    /**
+     * Die Karte fuer das Leap Menu im Map-Modus: auf der Leinwand (128 Punkte) bei der Matrix des Aufrufers, mit allen Spielern - auch wenn
+     * "Show Players" aus ist, denn man klickt ihre Koepfe an. Ohne die Zeile unter der Karte und unabhaengig davon, wo das HUD die Karte zeigt.
+     *
+     * @return die Verschiebung des Rasters auf der Leinwand (fuer {@link #punktDesSpielers})
+     */
+    public static int[] zeichneFuerSprung(GuiGraphicsExtractor g) {
+        FunnyMapCategory c = ModConfig.INSTANCE.ikohS.dungeon.funnyMap;
+        KartenEinstellungen e = FunnyKarte.einstellungen();
+        Minecraft client = Minecraft.getInstance();
+        Raster raster = FunnyKarte.raster();
+        NoammLage.Lage noamm = c.followNoamm ? FunnyKarte.noamm() : null;
+        KartenLeser.Kalibrierung kal = noamm != null ? FunnyKarte.kalibrierung() : null;
+        int[] versch = verschiebung(raster, kal);
+        if (!KartenBild.zeichnen(g, raster, versch, e, HOEHE)) einzeln(g, raster, versch, e, HOEHE);
+        inhalt(g, client.font, raster, versch, e);
+        spieler(g, client, client.font, versch, e);
+        return versch;
+    }
+
+    /** Wo der Kopf eines Mitspielers auf der Leinwand steht (Punkte), oder null, wenn weder das Spiel noch die Karte von Hypixel ihn kennt */
+    public static float[] punktDesSpielers(String name, int[] versch) {
+        if (name == null || versch == null) return null;
+        Minecraft client = Minecraft.getInstance();
+        if (client.level != null) {
+            for (AbstractClientPlayer p : client.level.players()) {
+                if (p == client.player || p.getUUID().version() != 4) continue;
+                if (name.equals(spielername(p))) {
+                    return new float[] {versch[0] + KartenGeometrie.weltZuLeinwand(p.getX()), versch[1] + KartenGeometrie.weltZuLeinwand(p.getZ())};
+                }
+            }
+        }
+        long jetzt = System.nanoTime();
+        for (Mitspieler.Eintrag t : Mitspieler.eintraege()) {
+            if (t.ich || !t.hatOrt || !name.equals(t.name)) continue;
+            t.fortschreiben(jetzt);
+            return new float[] {versch[0] + KartenGeometrie.weltZuLeinwand(t.x), versch[1] + KartenGeometrie.weltZuLeinwand(t.z)};
+        }
+        return null;
+    }
+
     // ------------------------------------------------------------------ Verschiebung des Rasters
 
     private static Raster verschRaster;
