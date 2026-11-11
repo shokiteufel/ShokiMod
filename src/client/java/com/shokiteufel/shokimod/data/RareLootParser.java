@@ -135,6 +135,16 @@ public final class RareLootParser {
             "^LOOT SHARE!? +You received " + SHARE_AMOUNT + " (?<shard>.+?) Shards? "
                     + "from .+? catching .+?!?$",
             Pattern.CASE_INSENSITIVE);
+    /**
+     * Der Fang in der Safari: "CAPTURE! You caught a Bloodbat and gained 2x Bloodbat Shard! (3)".
+     *
+     * Die Shards kommen dort nur ueber diese Zeile: Sie wandern still in die Hunting Box der normalen Welt, ohne eine weitere Meldung (User,
+     * 11.11.) - wer die Zeile nicht liest, verliert jeden Safari-Fang im Profit Tracker. Das Tier steht vorn und gehoert nicht zum Shard; ein
+     * Zusatz wie "SPARKLING" darf davor stehen. Die Zahl in Klammern am Ende ist nicht die Menge.
+     */
+    private static final Pattern SAFARI_CAPTURE = Pattern.compile(
+            "^CAPTURE!\\s+.*?You caught\\s+.+?\\s+and gained " + SHARE_AMOUNT + " (?<shard>.+?) Shards?!?(?:\\s*\\(\\d+\\))?$",
+            Pattern.CASE_INSENSITIVE);
     private static final String SHARD_PREFIX = "SHARD_";
 
     /**
@@ -311,6 +321,9 @@ public final class RareLootParser {
 
         Matcher caught = CAUGHT.matcher(clean);
         if (caught.matches()) return shardDrop(caught.group("amount"), caught.group("shard"));
+
+        Matcher safari = SAFARI_CAPTURE.matcher(clean);
+        if (safari.matches()) return shardDrop(safari.group("amount"), safari.group("shard"));
 
         Matcher shared = LOOT_SHARE.matcher(clean);
         if (shared.matches()) return shardDrop(shared.group("amount"), shared.group("shard"));

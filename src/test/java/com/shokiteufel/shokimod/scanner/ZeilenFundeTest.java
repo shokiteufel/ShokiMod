@@ -52,6 +52,12 @@ class ZeilenFundeTest {
     }
 
     @Test
+    void theSafariCaptureNamesAnAnimalAndAShardButNoGood() {
+        // Ohne die Ausnahme las "and" die Zeile in "Bloodbat" und "gained 2x ... Shard" auf, und "Bloodbat" waere ein Anspruch geworden
+        assertTrue(ZeilenFunde.lesen("CAPTURE! You caught a Bloodbat and gained 2x Bloodbat Shard! (3)", ALLES).isEmpty());
+    }
+
+    @Test
     void powderIsACurrencyNotAnItem() {
         assertTrue(ZeilenFunde.lesen("GRUB! You received 800 ᠅ Mithril Powder from killing a Mithril Grubber!", ALLES).isEmpty());
     }

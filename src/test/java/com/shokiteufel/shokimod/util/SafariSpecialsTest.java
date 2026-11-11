@@ -52,6 +52,14 @@ class SafariSpecialsTest {
     }
 
     @Test
+    void aShardOrEssenceIsNeverASpecialEvenWithoutAPrice() {
+        // Ein Safari-Fang bringt Shards; fuehrt der Basar einen nicht, steht er mit "?" im Tracker - aber er steht
+        assertFalse(SafariSpecials.keinFund("SHARD_BLOODBAT", "Bloodbat Shard", true, false, true));
+        assertFalse(SafariSpecials.keinFund("ATTRIBUTE_SHARD_FISHING_SPEED", "Fishing Speed Shard", true, false, true));
+        assertFalse(SafariSpecials.keinFund("ESSENCE_SAFARI", "Safari Essence", true, false, true));
+    }
+
+    @Test
     void withoutAnIdThereIsNothingToHide() {
         assertFalse(SafariSpecials.keinFund(null, "Critter Capsule", true, false, true));
     }

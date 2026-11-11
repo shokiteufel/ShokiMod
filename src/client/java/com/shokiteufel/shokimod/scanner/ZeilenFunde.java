@@ -51,6 +51,11 @@ public final class ZeilenFunde {
         String t = zeile.trim().replaceFirst("^[^\\p{L}\\p{N}\\[]+", "");
         Matcher e = ETIKETT.matcher(t);
         if (e.find()) {
+            // Der Fang in der Safari ("CAPTURE! You caught a Bloodbat and gained 2x Bloodbat Shard!") nennt Tier und Shard, keine Ware: der Shard
+            // zaehlt ueber seine Zeile, und "Bloodbat" waere ein Anspruch auf eine Ware, die es nicht gibt
+            if (e.group().trim().equals("CAPTURE!")) {
+                return out;
+            }
             t = t.substring(e.end());
         }
         Matcher z = ZUSATZ.matcher(t);
