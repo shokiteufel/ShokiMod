@@ -275,7 +275,11 @@ public class EntityHighlightManager {
         if (!scanCustom && !scanSparkling && !scanHideyho && !scanSlayer && !scanMiniboss && !scanPests && !scanStars && !scanRunic) return;
 
         if (scanRunic) markRunicGhosts(client);
-        if (scanStars) markStarExtras(client, nurRaum, meinRaum);
+        if (scanStars) {
+            long sternMessung = com.shokiteufel.shokimod.util.DungeonLog.beginn();
+            markStarExtras(client, nurRaum, meinRaum);
+            com.shokiteufel.shokimod.util.DungeonLog.ende(com.shokiteufel.shokimod.util.DungeonLog.Zeit.STERN_ARBEIT, sternMessung);
+        }
 
         if (scanCustomType) {
             for (Entity entity : client.level.entitiesForRendering()) {
@@ -372,7 +376,9 @@ public class EntityHighlightManager {
 
             // Die Stern-Mobs im Dungeon: das Schild mit dem Sternchen, darunter steht der Mob. Umriss durch die Waende, auf Wunsch Linie und Kasten
             if (scanStars && entity instanceof ArmorStand && StarMobTarget.isStarTag(nameStr)) {
+                long sternMessung = com.shokiteufel.shokimod.util.DungeonLog.beginn();
                 Entity visualTarget = starBody(client, entity, nameStr);
+                com.shokiteufel.shokimod.util.DungeonLog.ende(com.shokiteufel.shokimod.util.DungeonLog.Zeit.STERN_ARBEIT, sternMessung);
                 Entity visual = visualTarget != null ? visualTarget : entity;
                 // Ein Enderman unter dem Schild ist ein Fel: eigene Farbe (bei Noamm rosa)
                 MobVisual target = visualTarget != null && visualTarget.getType().getDescriptionId().equals("entity.minecraft.enderman")
