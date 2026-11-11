@@ -11,6 +11,7 @@ import com.shokiteufel.shokimod.paket.kern.Kern;
 import com.shokiteufel.shokimod.paket.kern.KernProtokoll;
 import com.shokiteufel.shokimod.util.ItemNames;
 import com.shokiteufel.shokimod.util.ItemValue;
+import com.shokiteufel.shokimod.util.SafariSpecials;
 import com.shokiteufel.shokimod.util.ScoreboardUtils;
 import com.shokiteufel.shokimod.util.SkyBlockItems;
 import java.util.ArrayList;
@@ -822,6 +823,28 @@ public final class ItemChanges {
         dispatch(fund, "shard catch", nr);
     }
 
+    /** Welche Safari-Spezialitems schon im Log standen - je Kennung eine Zeile, nicht je Fund */
+    private static final java.util.Set<String> safariGemeldet = new java.util.HashSet<>();
+
+    /** Ob diese Ware ein Safari-Spezialitem ist (siehe {@link SafariSpecials}) und darum nicht in den Tracker kommt */
+    private static boolean safariSpezial(String id) {
+        // Die abgeschnittene Menge einer Sack-Meldung hat absichtlich keinen Preis und steht ohne Wert im Kasten
+        if (id == null || UNGEKLAERT.equals(id)) {
+            return false;
+        }
+        boolean hatPreis = com.shokiteufel.shokimod.handler.ProfitTracker.unitPrice(id) > 0;
+        if (hatPreis) {
+            return false;
+        }
+        boolean preiseGeladen = ItemValue.BAZAAR.ready() && ItemValue.LOWEST_BIN.ready();
+        boolean spezial = SafariSpecials.keinFund(id, com.shokiteufel.shokimod.handler.ProfitTracker.nameOf(id), GameState.Server.isSafari(),
+                false, preiseGeladen);
+        if (spezial && safariGemeldet.add(id)) {
+            ShokiMod.LOGGER.info("[Profit] Safari special item {} has no price - not a find, not counted", id);
+        }
+        return spezial;
+    }
+
     // ------------------------------------------------------------------ Ausgabe
 
     /**
@@ -846,6 +869,16 @@ public final class ItemChanges {
             gains = new LinkedHashMap<>(gains);
             gains.keySet().removeIf(GESCHMIEDETE_SCHLUESSEL::contains);
             ShokiMod.LOGGER.info("[Profit] Umber/Tungsten key via {} - not a find, not counted (only a corpse's own loot counts it)", source);
+            if (gains.isEmpty()) {
+                return;
+            }
+        }
+        // Spezialitems der Safari (Critter Capsule, Gems, Shining Coin ...) haben keinen Preis und standen als Zeilen mit "?" im Tracker (User 11.11.):
+        // kein Fund. Hat eine Ware doch einen Preis (auch einen selbst eingetragenen), bleibt sie
+        if (gains.keySet().stream().anyMatch(ItemChanges::safariSpezial)) {
+            // Die Karte gehoert dem Aufrufer, und manche sind nicht aenderbar: erst kopieren
+            gains = new LinkedHashMap<>(gains);
+            gains.keySet().removeIf(ItemChanges::safariSpezial);
             if (gains.isEmpty()) {
                 return;
             }
