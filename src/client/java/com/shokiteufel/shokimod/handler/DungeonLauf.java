@@ -41,7 +41,7 @@ public final class DungeonLauf {
 
     /** Braucht gerade eine Einstellung die Antwort? */
     private static boolean gebraucht() {
-        return ModConfig.INSTANCE.profit.hideInDungeons || FeatureGate.dungeonLog() || FeatureGate.iHateDoors();
+        return ModConfig.INSTANCE.profit.hideInDungeons || FeatureGate.dungeonLog() || FeatureGate.iHateDoors() || FeatureGate.leapMenu();
     }
 
     private static void tick(Minecraft client) {

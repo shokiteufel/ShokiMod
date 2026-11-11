@@ -121,6 +121,7 @@ public class ShokiMod implements ClientModInitializer {
         com.shokiteufel.shokimod.util.PerfSampler.register();
         com.shokiteufel.shokimod.util.DungeonLog.register();
         com.shokiteufel.shokimod.handler.IHateDoors.register();
+        com.shokiteufel.shokimod.sprung.SprungTeam.register();
         com.shokiteufel.shokimod.handler.MistBoden.register();
         com.shokiteufel.shokimod.handler.HotspotShare.register();
         com.shokiteufel.shokimod.handler.PartyInvites.register();

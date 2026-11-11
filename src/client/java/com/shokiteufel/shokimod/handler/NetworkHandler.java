@@ -87,6 +87,8 @@ public class NetworkHandler {
             SessionManager.onChatMessage(msg);
             // Das Dungeon log merkt sich, was fuer den Lauf wichtig ist (Tueren, Boss, Tode, Wertung) - nur waehrend eines Laufs
             com.shokiteufel.shokimod.util.DungeonLog.chat(unformattedMsg);
+            // Das Leap Menu: die Meldung nach einem Sprung (Partychat, Spieler ausblenden) und der Stand von Tuer, Blutraum und Kern
+            com.shokiteufel.shokimod.sprung.SprungMenue.chat(unformattedMsg);
             // Seltene Funde ebenso: bewerten und melden, die Zeile bleibt
             RareLootHandler.onChatMessage(unformattedMsg);
             // Ein Pet auf Hoechststufe gehoert in den Kasten - es faellt nie ins Inventar

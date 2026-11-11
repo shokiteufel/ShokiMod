@@ -80,6 +80,11 @@ public final class HidePlayers {
     public static boolean shouldRender(Entity entity) {
         // Fishing > Frozen Blaze > Hide damage numbers: Ein Ruestungsstaender mit einer Schadenszahl als Namen wird nicht gezeichnet
         if (entity instanceof net.minecraft.world.entity.decoration.ArmorStand stand) return !FrozenBlaze.hidesDamage(stand);
+        // Leap Menu > Hide Players: nach einem Sprung sind die Mitspieler nebenan ein paar Sekunden weg (ein Vergleich, solange es nicht laeuft)
+        if (com.shokiteufel.shokimod.sprung.SprungMenue.versteckenAktiv() && entity instanceof Player figur
+                && com.shokiteufel.shokimod.sprung.SprungMenue.versteckt(figur)) {
+            return false;
+        }
         ModConfig.OdinCategory cfg = ModConfig.INSTANCE.odin;
         boolean frozenBlaze = FrozenBlaze.hidesPlayers();
         if (!cfg.hidePlayers && !frozenBlaze) return true;

@@ -4028,7 +4028,7 @@ public class ModConfig extends Config {
      */
     public static class DungeonCategory {
 
-        @ConfigOption(name = "Dungeon", desc = "Everything for the Catacombs, in folders: the Funny Map, the Star mobs and I hate doors. Everything here is off until you turn it on.")
+        @ConfigOption(name = "Dungeon", desc = "Everything for the Catacombs, in folders: the Funny Map, the Star mobs, I hate doors and the Leap menu. Everything here is off until you turn it on.")
         @ConfigEditorInfoText
         public transient String about = "";
 
@@ -4046,6 +4046,11 @@ public class ModConfig extends Config {
         @ConfigOption(name = "I hate doors", desc = "Visually replaces the doors of the dungeon with glass. Taken one to one from NoammAddons (CC0; it is part of its 'cheat' build there). Only on your screen: the server builds nothing different, and every door stays as solid as it is. The server's rules decide whether that is allowed: it is your choice and your risk. Off until you turn it on.")
         @Accordion
         public IHateDoorsCategory iHateDoors = new IHateDoorsCategory();
+
+        @Expose
+        @ConfigOption(name = "Leap menu", desc = "The Spirit Leap menu of NoammAddons, with all its settings: a menu of your own for the leap (2x2 grid, the dungeon map or a wheel), leap order, keys, the leap message and hiding the players after a leap. It works without the map of NoammAddons - the Map mode uses the Funny Map. Off until you turn it on.")
+        @Accordion
+        public LeapMenuCategory leapMenu = new LeapMenuCategory();
     }
 
     /**
@@ -4088,6 +4093,288 @@ public class ModConfig extends Config {
         @ConfigOption(name = "Blood Door Glass", desc = "The glass for the Blood door. Red by default, as at NoammAddons.")
         @ConfigEditorDropdown
         public GlassColour bloodGlass = GlassColour.RED;
+    }
+
+    /**
+     * Das Leap Menu von NoammAddons ({@code LeapMenu.kt}, CC0) mit allen Einstellungen, in denselben Gruppen und mit denselben Vorgaben. Bei
+     * Noamm haengt der Map-Modus an seiner eigenen Karte (er geht nur mit ihr an); hier zeichnet die Funny Map. Die Reihenfolge nach Wahl
+     * ("/na leaporder" dort, ein Textfeld hier) steht als Liste in einem Feld.
+     */
+    public static class LeapMenuCategory {
+
+        @Expose
+        @ConfigOption(name = "Enabled", desc = "Switches this whole folder on: the leap menu, the leap message and hiding players after a leap. Off from the start.")
+        @ConfigEditorBoolean
+        public boolean enabled = false;
+
+        @Expose
+        @ConfigOption(name = "Leap Menu", desc = "Replaces the Spirit Leap menu with the menu of this folder. Only in the Catacombs. With Enabled on, this is on from the start (at NoammAddons it is off from the start).")
+        @ConfigEditorBoolean
+        public boolean customMenu = true;
+
+        @Expose
+        @ConfigOption(name = "Render Mode", desc = "Default is the standard 2x2 grid leap menu. Map lets you click a teammate's head on the Funny Map to leap to them (it needs the Funny Map on; before it has a map, and in the boss room, the grid shows). Wheel shows all 5 players including yourself, so the order stays the same when you change class.")
+        @ConfigEditorDropdown
+        public LeapRender renderMode = LeapRender.DEFAULT;
+
+        @Expose
+        @ConfigOption(name = "Leap Order", desc = "How the menu is sorted. A-Z Class: Archer, Berserk, Healer, Mage, Tank. Odin Sorting: the places the players of Odin know, by your own class. Custom sorting: the order you write below. No Sorting: the order of the tab list.")
+        @ConfigEditorDropdown
+        public LeapOrder sorting = LeapOrder.CLASS;
+
+        @Expose
+        @ConfigOption(name = "Custom Leap Type", desc = "For Custom sorting: whether the list below holds player names or classes.")
+        @ConfigEditorDropdown
+        public LeapCustomType customType = LeapCustomType.NAME;
+
+        @Expose
+        @ConfigOption(name = "Custom Leap Order", desc = "For Custom sorting: names (or classes, see above) separated by commas, first = first place. Capital letters do not matter. Whoever is not in the list comes after those who are, A-Z.")
+        @ConfigEditorText
+        public String customOrder = "";
+
+        @Expose
+        @ConfigOption(name = "Left Click Only", desc = "Prevents leaping unless you click with the left mouse button.")
+        @ConfigEditorBoolean
+        public boolean leftClickOnly = false;
+
+        @ConfigOption(name = "Default", desc = "The grid and the wheel.")
+        @ConfigEditorAccordion(id = 110)
+        public transient boolean defaultFolder = false;
+
+        @Expose
+        @ConfigOption(name = "Menu Scale", desc = "Size of the grid and of the wheel in percent.")
+        @ConfigEditorSlider(minValue = 30f, maxValue = 100f, minStep = 1f)
+        @ConfigAccordionId(id = 110)
+        public float scale = 50f;
+
+        @Expose
+        @ConfigOption(name = "Show Last Door Opener", desc = "Colours the box of the player who opened the last Wither door grey (white when you point at it) until the Blood door is open.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 110)
+        public boolean showLastDoorOpener = false;
+
+        @Expose
+        @ConfigOption(name = "Tint Dead Players", desc = "Colours the box of a dead player red.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 110)
+        public boolean tintDeadPlayers = true;
+
+        @Expose
+        @ConfigOption(name = "Highlight Players in core", desc = "Highlights teammates in green if they are inside the core in F7/M7 S3 (from the moment the Core entrance opens).")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 110)
+        public boolean highlightInCore = true;
+
+        @ConfigOption(name = "Map", desc = "The Map mode.")
+        @ConfigEditorAccordion(id = 111)
+        public transient boolean mapFolder = false;
+
+        @Expose
+        @ConfigOption(name = "Map Leap Scale", desc = "Size of the map in the Map mode: 1 is 128 points wide.")
+        @ConfigEditorSlider(minValue = 0.5f, maxValue = 3f, minStep = 0.1f)
+        @ConfigAccordionId(id = 111)
+        public float mapScale = 1.5f;
+
+        @Expose
+        @ConfigOption(name = "After Blood Only", desc = "Use the grid until the Blood opens, then switch to the map.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 111)
+        public boolean mapAfterBlood = false;
+
+        @ConfigOption(name = "Leap Keybinds", desc = "Leap with a key instead of a click.")
+        @ConfigEditorAccordion(id = 112)
+        public transient boolean keysFolder = false;
+
+        @Expose
+        @ConfigOption(name = "Leap Keybinds", desc = "Leaps with the keys below while the menu is open.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 112)
+        public boolean keybinds = false;
+
+        @Expose
+        @ConfigOption(name = "Mode", desc = "Corners: one key per place in the menu (1 to 4 from the top left, line by line). Class: one key per class.")
+        @ConfigEditorDropdown
+        @ConfigAccordionId(id = 112)
+        public LeapKeyMode keyMode = LeapKeyMode.CORNERS;
+
+        @Expose
+        @ConfigOption(name = "Slot 1", desc = "Corners mode: the first place (top left). Key 1 from the start.")
+        @ConfigEditorKeybind(defaultKey = 49)
+        @ConfigAccordionId(id = 112)
+        public int slot1 = 49;
+
+        @Expose
+        @ConfigOption(name = "Slot 2", desc = "Corners mode: the second place (top right). Key 2 from the start.")
+        @ConfigEditorKeybind(defaultKey = 50)
+        @ConfigAccordionId(id = 112)
+        public int slot2 = 50;
+
+        @Expose
+        @ConfigOption(name = "Slot 3", desc = "Corners mode: the third place (bottom left). Key 3 from the start.")
+        @ConfigEditorKeybind(defaultKey = 51)
+        @ConfigAccordionId(id = 112)
+        public int slot3 = 51;
+
+        @Expose
+        @ConfigOption(name = "Slot 4", desc = "Corners mode: the fourth place (bottom right). Key 4 from the start.")
+        @ConfigEditorKeybind(defaultKey = 52)
+        @ConfigAccordionId(id = 112)
+        public int slot4 = 52;
+
+        @Expose
+        @ConfigOption(name = "Archer", desc = "Class mode: the key for the Archer. No key is set from the start.")
+        @ConfigEditorKeybind(defaultKey = -1)
+        @ConfigAccordionId(id = 112)
+        public int keyArcher = -1;
+
+        @Expose
+        @ConfigOption(name = "Berserk", desc = "Class mode: the key for the Berserk. No key is set from the start.")
+        @ConfigEditorKeybind(defaultKey = -1)
+        @ConfigAccordionId(id = 112)
+        public int keyBerserk = -1;
+
+        @Expose
+        @ConfigOption(name = "Healer", desc = "Class mode: the key for the Healer. No key is set from the start.")
+        @ConfigEditorKeybind(defaultKey = -1)
+        @ConfigAccordionId(id = 112)
+        public int keyHealer = -1;
+
+        @Expose
+        @ConfigOption(name = "Mage", desc = "Class mode: the key for the Mage. No key is set from the start.")
+        @ConfigEditorKeybind(defaultKey = -1)
+        @ConfigAccordionId(id = 112)
+        public int keyMage = -1;
+
+        @Expose
+        @ConfigOption(name = "Tank", desc = "Class mode: the key for the Tank. No key is set from the start.")
+        @ConfigEditorKeybind(defaultKey = -1)
+        @ConfigAccordionId(id = 112)
+        public int keyTank = -1;
+
+        @ConfigOption(name = "Extras", desc = "The leap message and hiding players.")
+        @ConfigEditorAccordion(id = 113)
+        public transient boolean extrasFolder = false;
+
+        @Expose
+        @ConfigOption(name = "Announce Leap", desc = "Writes to the party chat when you have leaped (\"You have teleported to ...\"). On from the start, like at NoammAddons.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 113)
+        public boolean announceLeap = true;
+
+        @Expose
+        @ConfigOption(name = "Leap Message", desc = "What is written. {name} becomes the player's name. Empty writes nothing.")
+        @ConfigEditorText
+        @ConfigAccordionId(id = 113)
+        public String leapMessage = "Leaping to {name}";
+
+        @Expose
+        @ConfigOption(name = "Hide Players", desc = "Hides the players next to you for a certain time after you leap.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 113)
+        public boolean hideAfterLeap = false;
+
+        @Expose
+        @ConfigOption(name = "Hide Time", desc = "How long the players stay hidden after a leap, in seconds.")
+        @ConfigEditorSlider(minValue = 0.5f, maxValue = 5f, minStep = 0.1f)
+        @ConfigAccordionId(id = 113)
+        public float hideTime = 3.5f;
+
+        /** Die Taste des Platzes {@code i} (0 bis 3), oder 0, wenn keine gewaehlt ist (MoulConfig fuehrt "keine" als -1; die Tastaturtasten beginnen bei 32) */
+        public int slotKey(int i) {
+            int k = switch (i) {
+                case 0 -> slot1;
+                case 1 -> slot2;
+                case 2 -> slot3;
+                case 3 -> slot4;
+                default -> -1;
+            };
+            return k >= 32 ? k : 0;
+        }
+
+        /** Die Taste einer Klasse (0 Archer, 1 Berserk, 2 Healer, 3 Mage, 4 Tank), oder 0 */
+        public int classKey(int klasse) {
+            int k = switch (klasse) {
+                case 0 -> keyArcher;
+                case 1 -> keyBerserk;
+                case 2 -> keyHealer;
+                case 3 -> keyMage;
+                case 4 -> keyTank;
+                default -> -1;
+            };
+            return k >= 32 ? k : 0;
+        }
+    }
+
+    /** Wie das Leap Menu aussieht ("Render Mode" bei NoammAddons) */
+    public enum LeapRender {
+        DEFAULT("Default"),
+        MAP("Map"),
+        WHEEL("Wheel");
+
+        private final String label;
+
+        LeapRender(String label) {
+            this.label = label;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
+    }
+
+    /** Wie das Leap Menu sortiert ist ("Leap Order" bei NoammAddons) */
+    public enum LeapOrder {
+        CLASS("A-Z Class"),
+        NAME("A-Z Name"),
+        ODIN("Odin Sorting"),
+        CUSTOM("Custom sorting"),
+        NONE("No Sorting");
+
+        private final String label;
+
+        LeapOrder(String label) {
+            this.label = label;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
+    }
+
+    /** Ob die eigene Reihenfolge Namen oder Klassen nennt */
+    public enum LeapCustomType {
+        NAME("Name"),
+        CLASS("Class");
+
+        private final String label;
+
+        LeapCustomType(String label) {
+            this.label = label;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
+    }
+
+    /** Wie die Tasten des Leap Menus gelten: je Platz oder je Klasse */
+    public enum LeapKeyMode {
+        CORNERS("Corners"),
+        CLASS("Class");
+
+        private final String label;
+
+        LeapKeyMode(String label) {
+            this.label = label;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
     }
 
     /** Die Glasarten zur Auswahl, in der Reihenfolge von NoammAddons: das gewoehnliche Glas und die 16 Farben */
