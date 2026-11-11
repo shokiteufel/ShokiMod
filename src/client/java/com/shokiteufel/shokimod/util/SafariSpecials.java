@@ -17,7 +17,8 @@ import java.util.Set;
  *   <li>die Insel ist die Safari: dort ist jede Ware ohne Preis ein Spezialitem, auch eine, die noch nicht in der Liste steht. Das gilt erst,
  *       wenn die Preislisten geladen sind - vorher haette jede Ware "keinen Preis", auch die Essence.</li>
  * </ul>
- * Ein Pet nimmt keiner der beiden Wege: Seine Preise kommen aus anderen Listen, und ein Drop-Pet ist echte Beute.
+ * Ein Pet nimmt keiner der beiden Wege: Seine Preise kommen aus anderen Listen, und ein Drop-Pet ist echte Beute. Ebenso Shards und Essence:
+ * ein gefangener Shard (aus der Safari-Zeile) ist der Fund, den man dort sucht, auch wenn der Basar ihn nicht fuehrt.
  */
 public final class SafariSpecials {
 
@@ -46,6 +47,9 @@ public final class SafariSpecials {
      */
     public static boolean keinFund(String id, String name, boolean inSafari, boolean hatPreis, boolean preiseGeladen) {
         if (id == null || hatPreis || id.indexOf(';') >= 0) return false;
+        // Shards und Essence sind echte Funde, auch ohne Preis: ein Safari-Fang bringt Shards (User, 11.11.: "sie sollen in den Profit Tracker"),
+        // und die Safari Essence ist die Waehrung der Runde. Ohne Preis stehen sie mit "?" im Kasten, aber sie stehen
+        if (id.contains("SHARD") || id.startsWith("ESSENCE_")) return false;
         if (name != null && NAMEN.contains(name.trim().toLowerCase(Locale.ROOT))) return true;
         return inSafari && preiseGeladen;
     }
