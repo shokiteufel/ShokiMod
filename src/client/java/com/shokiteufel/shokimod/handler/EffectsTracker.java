@@ -110,14 +110,25 @@ public final class EffectsTracker {
             "alchemy xp boost iii", "combat xp boost iii", "enchanting xp boost iii", "farming xp boost iii",
             "fishing xp boost iii", "foraging xp boost iii", "mining xp boost iii", "rabbit vi", "resistance viii",
             "archery iv", "jump boost iv", "magic find iv", "pet luck iv", "spirit iv", "spelunker v",
-            "adrenaline viii", "fire resistance i", "haste iv", "true resistance iv", "jerry candy");
+            "adrenaline viii", "fire resistance i", "haste iv", "true resistance iv",
+            // Das Wiki fuehrt Regeneration IX; im Spiel steht es auch als Healing IX (Rueckmeldung Cobnick 2026-11-11: gleiche Restzeit wie Jerry Candy)
+            "healing ix");
+
+    /**
+     * Effekte, die das Wiki ohne Stufe fuehrt: Im Spiel steht "Jerry Candy I", das Wiki schreibt nur "Jerry Candy".
+     * Hier zaehlt der Name allein, welche Stufe auch dahinter steht.
+     */
+    private static final Set<String> GOD_POTION_ANY_LEVEL = Set.of("jerry candy");
 
     /**
      * Gehoert der Effekt zur God Potion? Name und Stufe muessen stimmen: Ein "Speed VI" aus einem
      * gewoehnlichen Trank bleibt bei den anderen, ein "Speed VIII" zaehlt zur God Potion.
+     * Ausnahme: Effekte ohne Stufe im Wiki (GOD_POTION_ANY_LEVEL) zaehlen mit jeder Stufe.
      */
     public static boolean isGodPotion(String name) {
-        return name != null && GOD_POTION_EFFECTS.contains(name.trim().replaceAll("\\s+", " ").toLowerCase(Locale.ROOT));
+        if (name == null) return false;
+        String n = name.trim().replaceAll("\\s+", " ").toLowerCase(Locale.ROOT);
+        return GOD_POTION_EFFECTS.contains(n) || GOD_POTION_ANY_LEVEL.contains(baseOf(n));
     }
 
     /** Die Effekte in zwei Gruppen: was die God Potion verleiht und alles andere. Eine leere Gruppe fehlt */
