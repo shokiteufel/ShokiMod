@@ -190,6 +190,11 @@ public final class FeatureGate {
         return ModConfig.INSTANCE.ikohS.dungeon.iHateDoors.enabled;
     }
 
+    /** Das Leap Menu (ikohS > Dungeon) liest die Tab-Liste und den Chat im Dungeon - nur wenn es an ist (dann fragt DungeonLauf, ob man in einem Dungeon steht) */
+    public static boolean leapMenu() {
+        return ModConfig.INSTANCE.ikohS.dungeon.leapMenu.enabled;
+    }
+
     /**
      * Der Welt-Scan der Funny Map (die Raeume des Dungeons) laeuft fuer die Karte und fuer die Stern-Mobs (Raum-Regel, und die Namen der Raeume, in
      * denen die benannten Figuren nicht zaehlen). Die Karte selbst wird nur mit {@link #funnyMap()} gezeichnet.
@@ -298,6 +303,8 @@ public final class FeatureGate {
     public static boolean location() {
         return forge() || forgeAlert() || funnyMap() || contest() || safari() || nearbyPanel() || rareLoot() || huntingTracker() || mobMarkers() || chatRules()
                 || cakeReminder() || hotspots() || collectionTracker() || pestTraps() || gardenVisitors() || seaHp() || mute() || outOfAir() || coldAlert() || petHud() || deployableHud() || hotspotShare()
-                || slayerSpawn() || darkAuction() || darkAuctionTimer() || hidePlayersDungeon() || nearbyRare() || ModConfig.INSTANCE.effects.enabled || mineshaftAnnounce();
+                || slayerSpawn() || darkAuction() || darkAuctionTimer() || hidePlayersDungeon() || nearbyRare() || ModConfig.INSTANCE.effects.enabled || mineshaftAnnounce()
+                // Die Dungeon-Funktionen fragen die Tab-Liste und die Seitenleiste (DungeonLauf, Funny Map): ohne diese Zeile stuende sie nur, solange eine der Funktionen oben an ist
+                || roomScan() || iHateDoors() || dungeonLog() || leapMenu();
     }
 }
