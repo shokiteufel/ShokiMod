@@ -67,24 +67,32 @@ public final class DungeonLog {
         }
     }
 
-    /** Gemessene Zeit, mit der Grenze in Millisekunden je Sekunde */
+    /**
+     * Gemessene Zeit, mit der Grenze in Millisekunden je Sekunde - oder je Bild ({@code jeBild}): Das Zeichnen kostet in jedem Bild gleich viel,
+     * eine Grenze je Sekunde wuerde nur sagen, wie viele Bilder der Rechner schafft (bei 140 Bildern je Sekunde mehr als bei 40).
+     */
     public enum Zeit {
-        KARTE_ZEICHNEN("map drawing", 25.0, "drawing the map takes more than 2.5 % of the time"),
-        KARTE_ARBEITEN("map scan and read work", 40.0, "the map's scan and read work takes more than 4 % of the time");
+        KARTE_ZEICHNEN("map drawing", 0.4, true, "drawing the map costs more than 0.4 ms in every frame"),
+        KARTE_ARBEITEN("map scan and read work", 40.0, false, "the map's scan and read work takes more than 4 % of the time"),
+        STERN_ARBEIT("star mob work", 60.0, false, "finding the bodies of the star mobs takes more than 3 ms in every tick");
 
         final String name;
         final double grenzeMs;
+        final boolean jeBild;
         final String hinweis;
 
-        Zeit(String name, double grenzeMs, String hinweis) {
+        Zeit(String name, double grenzeMs, boolean jeBild, String hinweis) {
             this.name = name;
             this.grenzeMs = grenzeMs;
+            this.jeBild = jeBild;
             this.hinweis = hinweis;
         }
     }
 
     static final long FENSTER_TICKS = 200;
     static final double FPS_UNTEN = 30.0;
+    /** Kuerzere Fenster (der Rest am Ende eines Laufs) sind zu kurz zum Urteilen: ein Ruckler von 0,2 s liesse die Bilder je Sekunde abstuerzen */
+    static final double MIN_FENSTER_SEKUNDEN = 3.0;
     private static final long DATEI_MAX = 3_000_000L;
     private static final DateTimeFormatter UHR = DateTimeFormatter.ofPattern("HH:mm:ss.SSS", Locale.ROOT);
 
@@ -98,6 +106,8 @@ public final class DungeonLog {
     private static long laufBeginn;
     private static long fensterBeginn;
     private static long fensterTicks;
+    /** Das erste Fenster eines Laufs: die Karte fuellt sich, die Raeume werden erkannt - das darf in Schueben kommen */
+    private static boolean anlauf;
     private static int bilder;
     private static long letztesBild;
     private static long laengstesBild;
@@ -216,16 +226,21 @@ public final class DungeonLog {
         letztesBild = 0L;
         laengstesBild = 0L;
         fensterTicks = 0;
+        anlauf = true;
         laufBeginn = System.nanoTime();
         fensterBeginn = laufBeginn;
         warImBoss = false;
         warStockwerk = null;
         gcLesen();
         aktiv = true;
+        letzteGruppe = gruppe();
         zeile("RUN START", "ShokiMod " + FabricLoader.getInstance().getModContainer("shokimod")
                 .map(m -> m.getMetadata().getVersion().getFriendlyString()).orElse("?")
-                + " | " + gruppe());
+                + " | " + letzteGruppe);
     }
+
+    /** Die Gruppe, wie sie zuletzt ins Log kam: beim Start ist die Tab-Liste oft noch nicht voll ("(EMPTY)", nur man selbst) */
+    private static String letzteGruppe = "";
 
     private static String gruppe() {
         List<String> zeilen = com.shokiteufel.shokimod.scanner.TabListScanner.lastLines();
@@ -286,8 +301,15 @@ public final class DungeonLog {
 
         String fensterText = fensterText(sekunden, fps, laengstes, zaehlerDelta, zeitDelta, frames, heapMb, gcAnzahl - gc0, gcMillis - gcMs0);
         zeile("WINDOW", fensterText);
-        for (String warnung : bewerten(zaehlerDelta, zeitDelta, sekunden, fps, frames > 0, serie, serieZeit)) {
+        for (String warnung : bewerten(zaehlerDelta, zeitDelta, sekunden, fps, frames, anlauf, serie, serieZeit)) {
             zeile("WARN", warnung);
+        }
+        anlauf = false;
+        // Die Gruppe fuellt sich nach dem Start: jede Aenderung kommt als eigene Zeile, damit man sieht, wann die Mitspieler in der Tab-Liste standen
+        String gruppe = gruppe();
+        if (!gruppe.equals(letzteGruppe)) {
+            letzteGruppe = gruppe;
+            zeile("EVENT", gruppe);
         }
     }
 
@@ -315,14 +337,21 @@ public final class DungeonLog {
     /**
      * Welche Zeilen "zu oft" ein Fenster ausloest. {@code serie} und {@code serieZeit} zaehlen, in wie vielen Fenstern hintereinander dieselbe
      * Grenze verletzt wurde (wird hier fortgeschrieben); ab dem zweiten Fenster steht es dabei.
+     *
+     * <p>Nicht beurteilt werden Fenster unter {@link #MIN_FENSTER_SEKUNDEN} (der Rest am Ende eines Laufs) und, bei den Zaehlern, das erste Fenster
+     * eines Laufs ({@code anlauf}): dort fuellt sich die Karte, und Dutzende Rasteraenderungen in zehn Sekunden sind der Normalfall (gemessen an
+     * einem echten Lauf: 46 bis 71 im ersten Fenster, danach 0 bis 8). {@code frames} sind die gezeichneten Bilder des Fensters (0: keine gezaehlt).
      */
-    static List<String> bewerten(long[] zaehlerDelta, long[] zeitDelta, double sekunden, double fps, boolean bilderGezaehlt,
+    static List<String> bewerten(long[] zaehlerDelta, long[] zeitDelta, double sekunden, double fps, int frames, boolean anlauf,
                                  int[] serie, int[] serieZeit) {
         List<String> aus = new ArrayList<>();
+        if (sekunden < MIN_FENSTER_SEKUNDEN) return aus;
         for (Zaehler z : Zaehler.values()) {
             int i = z.ordinal();
             double rate = zaehlerDelta[i] / sekunden;
-            if (z.grenze > 0 && rate > z.grenze) {
+            if (anlauf) {
+                serie[i] = 0;
+            } else if (z.grenze > 0 && rate > z.grenze) {
                 serie[i]++;
                 aus.add(String.format(Locale.ROOT, "TOO OFTEN: %s %.1f/s (limit %.0f/s)%s - %s", z.name, rate, z.grenze,
                         serie[i] > 1 ? " for " + serie[i] + " windows in a row" : "", z.hinweis));
@@ -332,16 +361,19 @@ public final class DungeonLog {
         }
         for (Zeit z : Zeit.values()) {
             int i = z.ordinal();
-            double msJeSekunde = zeitDelta[i] / 1e6 / sekunden;
-            if (msJeSekunde > z.grenzeMs) {
+            double ms = zeitDelta[i] / 1e6;
+            double wert = z.jeBild ? (frames > 0 ? ms / frames : 0.0) : ms / sekunden;
+            if (wert > z.grenzeMs) {
                 serieZeit[i]++;
-                aus.add(String.format(Locale.ROOT, "TOO OFTEN: %s takes %.1f ms every second (limit %.0f ms)%s - %s", z.name, msJeSekunde,
-                        z.grenzeMs, serieZeit[i] > 1 ? " for " + serieZeit[i] + " windows in a row" : "", z.hinweis));
+                String reihe = serieZeit[i] > 1 ? " for " + serieZeit[i] + " windows in a row" : "";
+                aus.add(z.jeBild
+                        ? String.format(Locale.ROOT, "TOO OFTEN: %s takes %.2f ms per frame (limit %.2f ms)%s - %s", z.name, wert, z.grenzeMs, reihe, z.hinweis)
+                        : String.format(Locale.ROOT, "TOO OFTEN: %s takes %.1f ms every second (limit %.0f ms)%s - %s", z.name, wert, z.grenzeMs, reihe, z.hinweis));
             } else {
                 serieZeit[i] = 0;
             }
         }
-        if (bilderGezaehlt && fps < FPS_UNTEN) {
+        if (frames > 0 && fps < FPS_UNTEN) {
             aus.add(String.format(Locale.ROOT, "LOW FPS: %.0f frames per second in this window (below %.0f) - see the counters above for what ran more than it should",
                     fps, FPS_UNTEN));
         }
