@@ -114,6 +114,12 @@ public final class ItemChanges {
     private static final long ANSPRUCH_NANOS = 120_000_000_000L;
     /** Das Fenster einer Sack-Meldung ("Last 30s") ist auf ein paar Sekunden genau */
     private static final long FENSTER_SPIELRAUM_NANOS = 3_000_000_000L;
+    /**
+     * Mehr Spielraum, wenn die Meldung gegen Zugaenge ins Inventar rechnet: Die Spanne einer "Last 30s"-Meldung beginnt bei der ersten Aenderung
+     * und endet erst mit dem Senden, und das lag im Log vom 12.11. gut 31 s auseinander (vier Entnahmen aus dem Sack, die erste fiel heraus).
+     * Zu weit gefasst schadet das kaum: Was eine fruehere Meldung schon verrechnet hat, steht nicht mehr im Konto.
+     */
+    private static final long ZUGANG_SPIELRAUM_NANOS = 8_000_000_000L;
     /** Der abgeschnittene Rest einer Sack-Meldung, den keine Zeile belegt: kein Gegenstand, nur eine ehrliche Zahl im Kasten */
     public static final String UNGEKLAERT = "SHOKI_UNRESOLVED_SACK";
     private static final String SACK_REST = "sack remainder";
@@ -754,7 +760,7 @@ public final class ItemChanges {
                 continue;
             }
             String id = ids.get(0);
-            int verbraucht = kern != null ? kern.zugangAbziehen(id, zeile.menge(), fensterNanos) : zeile.menge();
+            int verbraucht = kern != null ? kern.zugangAbziehen(id, zeile.menge(), zugangsFenster(fensterNanos)) : zeile.menge();
             int geholt = zeile.menge() - verbraucht;
             if (geholt > 0) {
                 ShokiMod.LOGGER.info("[Profit] {} left the sack, {} of it came into the inventory - not consumed", id, geholt);
@@ -772,6 +778,11 @@ public final class ItemChanges {
                 ShokiMod.LOGGER.info("[Profit] bait used from the sack: {} -{}", id, verbraucht);
             }
         }
+    }
+
+    /** Das Fenster, gegen das eine Sack-Meldung die Zugaenge ins Inventar rechnet: das genannte plus Spielraum */
+    static long zugangsFenster(long fensterNanos) {
+        return fensterNanos + ZUGANG_SPIELRAUM_NANOS;
     }
 
     /** Jede Aufstellung einmal, ohne Farbcodes. */
