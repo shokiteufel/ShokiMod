@@ -9,6 +9,7 @@ import com.shokiteufel.shokimod.data.RareLootParser.Drop;
 import com.shokiteufel.shokimod.paket.kern.FundRegel;
 import com.shokiteufel.shokimod.paket.kern.Kern;
 import com.shokiteufel.shokimod.paket.kern.KernProtokoll;
+import com.shokiteufel.shokimod.paket.kern.PetItems;
 import com.shokiteufel.shokimod.util.ItemNames;
 import com.shokiteufel.shokimod.util.ItemValue;
 import com.shokiteufel.shokimod.util.SafariSpecials;
@@ -259,6 +260,10 @@ public final class ItemChanges {
             Map<String, Integer> fund = new LinkedHashMap<>();
             fund.put(z.id(), z.menge());
             dispatch(fund, FundRegel.quelle(z.ursache()), z.nr());
+        } else if (PetItems.ist(z.id())) {
+            // Ein Pet Item ohne Beute: das alte aus einem Tausch (Rechtsklick mit dem neuen auf das Pet); Hypixel schreibt dazu nichts in den Chat
+            ShokiMod.LOGGER.info("[Profit] pet item {} x{} not counted ({}: {})", z.id(), z.menge(),
+                    z.ursache().name().toLowerCase(java.util.Locale.ROOT), z.beleg());
         } else if (z.container() != 0 && (z.ursache() == Kern.Ursache.UNBEKANNT || z.ursache() == Kern.Ursache.MEHRDEUTIG)) {
             ShokiMod.LOGGER.info("[Profit] {} x{} came into the open window ({}: {}) - not counted", z.id(), z.menge(),
                     z.ursache().name().toLowerCase(java.util.Locale.ROOT), z.beleg());

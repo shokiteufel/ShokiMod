@@ -34,7 +34,9 @@ public final class FundRegel {
         }
         return switch (z.ursache()) {
             case MOB_DROP, MEHRERE_TODE, AUFGESAMMELT -> true;
-            case UNBEKANNT -> z.container() == 0;
+            // Ein Pet Item ohne jeden Beleg ist fast immer das alte aus einem Tausch (kein Chat, kein Klick); echte Pet-Item-Beute meldet
+            // Hypixel als Drop-Zeile, die der Profit-Tracker aus dem Chat nachtraegt (siehe FundBuch), oder sie kommt von einem Mob-Tod
+            case UNBEKANNT -> z.container() == 0 && !PetItems.ist(z.id());
             case KAUF, KLICK_ANTWORT, UMZUG, RUECKKEHR, WURF, RESYNC, MEHRDEUTIG -> false;
         };
     }
