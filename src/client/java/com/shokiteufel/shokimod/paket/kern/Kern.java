@@ -64,6 +64,13 @@ public final class Kern {
     /** Gemessen: groesster Abstand Klick bis Platz-Update bei drei Kaeufen. Waechst mit jedem belegten Kauf. */
     public static final int KLICK_FENSTER_STANDARD = 78;
     /**
+     * Wie lange ein Klick (oder Befehl) als Beleg gilt, in Zeit statt in Paketen. In dichten Gebieten laufen sehr viele Pakete je Sekunde (Glacite
+     * Mineshaft: 700): Mitschnitt 12.11., 17:37:47 - Klick im Bazaar-Menue, 0,48 s und 344 Pakete spaeter lagen 10 Plasma aus dem Sack im Inventar,
+     * der Klick war mit 78 Paketen schon zu alt und das Plasma stand als Fund im Tracker. Es gilt, was weiter reicht: Pakete oder diese Zeit.
+     * Ohne Uhr (Tests) gilt nur das Paketfenster.
+     */
+    public static final long KLICK_FENSTER_NANOS = 1_000_000_000L;
+    /**
      * Gemessen: groesster Abstand Chat-Drop-Zeile ("RARE DROP! ...") bis Platz-Update im Inventar, an neun Paarungen (Mitschnitt Schiggy
      * 08.11.): 9, 10, 20, 24, 29, 30, 36, 59, 84 Pakete. Startfenster der Drop-Zeilen ({@code FundBuch}); es waechst mit jeder
      * verspaeteten Paarung weiter.
@@ -121,7 +128,7 @@ public final class Kern {
         }
     }
 
-    private record KlickInfo(long nr, int container, int platz, String art, Stapel angeklickt) {
+    private record KlickInfo(long nr, int container, int platz, String art, Stapel angeklickt, long nanos) {
     }
 
     private record Pickup(long nr, int entity, Stapel wurf) {
@@ -153,6 +160,8 @@ public final class Kern {
     private String entferntName;
     /** Wann zuletzt ein Pet Item das Inventar verliess (siehe {@link #PET_TAUSCH_FENSTER_STANDARD}), sonst -1 */
     private long petAbgangNr = -1;
+    /** Der letzte Klick oder Befehl, auch ueber Menuewechsel hinweg (die setzen {@code klick} zurueck); nur seine Zeit zaehlt (siehe belegKlick) */
+    private KlickInfo letzterKlick;
     private Wurf wurfOffen;
     private final Map<Integer, Stapel> wurfEntitaeten = new HashMap<>();
     private final ArrayDeque<Pickup> pickups = new ArrayDeque<>();
@@ -347,7 +356,10 @@ public final class Kern {
             case Ereignis.Platz p -> platz(p);
             case Ereignis.Inhalt i -> inhalt(i);
             case Ereignis.Klick k -> klick(k);
-            case Ereignis.Befehl b -> klick = new KlickInfo(b.nr(), -1, -1, "BEFEHL", null);
+            case Ereignis.Befehl b -> {
+                klick = new KlickInfo(b.nr(), -1, -1, "BEFEHL", null, jetzt);
+                letzterKlick = klick;
+            }
             case Ereignis.MobTod t -> mobTod(t);
             case Ereignis.ItemEntity ie -> itemEntity(ie);
             case Ereignis.Aufsammeln a -> aufsammeln(a);
@@ -365,6 +377,7 @@ public final class Kern {
         kaufNr = -1;
         entferntNr = -1;
         petAbgangNr = -1;
+        letzterKlick = null;
         wurfOffen = null;
         wurfEntitaeten.clear();
         pickups.clear();
@@ -576,6 +589,7 @@ public final class Kern {
     private void abgang(long nr, int platz, int container, Stapel s, int menge, Anlass anlass) {
         Ursache u;
         String beleg;
+        KlickInfo bk = belegKlick(nr);
         if (anlass == Anlass.KLICK) {
             u = Ursache.UMZUG;
             beleg = "eigener Klick (Vorhersage)";
@@ -593,9 +607,9 @@ public final class Kern {
         } else if (s.uuid() != null && uuidAnderswo(s.uuid(), platz)) {
             u = Ursache.UMZUG;
             beleg = "dieselbe uuid liegt noch anderswo";
-        } else if (klick != null && nr - klick.nr() <= klickFenster) {
+        } else if (bk != null) {
             u = Ursache.KLICK_ANTWORT;
-            beleg = "eigener Klick " + (nr - klick.nr()) + " Pakete davor";
+            beleg = "eigener Klick " + klickAbstand(bk, nr);
         } else {
             u = Ursache.UNBEKANNT;
             beleg = "kein Beleg";
@@ -706,17 +720,18 @@ public final class Kern {
 
         // 3. Eigener Klick im Fenster davor
         int anzahlTode = zaehleTode(nr);
-        if (k != null && nr - k.nr() <= klickFenster) {
-            boolean passt = k.angeklickt() != null && !k.angeklickt().leer()
-                    && Objects.equals(k.angeklickt().vanilla(), s.vanilla()) && namenPassen(k.angeklickt().name(), s.name());
+        KlickInfo bk = belegKlick(nr);
+        if (bk != null) {
+            boolean passt = bk.angeklickt() != null && !bk.angeklickt().leer()
+                    && Objects.equals(bk.angeklickt().vanilla(), s.vanilla()) && namenPassen(bk.angeklickt().name(), s.name());
             if (passt) {
-                return z(nr, Ursache.KLICK_ANTWORT, s, menge, container, platz, "Item entspricht dem angeklickten Platz (Klick " + (nr - k.nr()) + " Pakete davor)");
+                return z(nr, Ursache.KLICK_ANTWORT, s, menge, container, platz, "Item entspricht dem angeklickten Platz (Klick " + klickAbstand(bk, nr) + ")");
             }
             if (anzahlTode == 0) {
-                return z(nr, Ursache.KLICK_ANTWORT, s, menge, container, platz, "eigener Klick " + (nr - k.nr()) + " Pakete davor");
+                return z(nr, Ursache.KLICK_ANTWORT, s, menge, container, platz, "eigener Klick " + klickAbstand(bk, nr));
             }
             return z(nr, Ursache.MEHRDEUTIG, s, menge, container, platz,
-                    "eigener Klick " + (nr - k.nr()) + " Pakete davor und " + anzahlTode + " Mob-Tod im Fenster");
+                    "eigener Klick " + klickAbstand(bk, nr) + " und " + anzahlTode + " Mob-Tod im Fenster");
         }
 
         // 4. Mob-Tod
@@ -732,6 +747,40 @@ public final class Kern {
 
     private static Zugang z(long nr, Ursache u, Stapel s, int menge, int container, int platz, String beleg) {
         return new Zugang(nr, u, s.id(), menge, s.uuid(), s.name(), container, platz, beleg);
+    }
+
+    /** Liegt der Klick noch im Fenster? In Paketen (ruhige Gebiete) oder in Zeit (dichte Gebiete) - was weiter reicht */
+    private boolean klickNah(KlickInfo k, long nr) {
+        return nr - k.nr() <= klickFenster || zeitNah(k);
+    }
+
+    /** Liegt der Klick der Zeit nach im Fenster? Ohne Uhr (jetzt = 0, Tests) nie */
+    private boolean zeitNah(KlickInfo k) {
+        long vergangen = jetzt - k.nanos();
+        return k.nanos() > 0L && jetzt > 0L && vergangen >= 0L && vergangen <= KLICK_FENSTER_NANOS;
+    }
+
+    /**
+     * Der Klick, der eine Ankunft erklaert: der aktuelle im Menue (Pakete oder Zeit), sonst der letzte ueberhaupt, wenn er der Zeit nach noch nahe
+     * ist. Der zweite Fall ist der Menuewechsel: Hypixel oeffnet nach einem Klick oft ein neues Fenster (Sack, Bazaar) und schliesst es wieder, und
+     * beides setzt {@code klick} zurueck - die Ware kommt trotzdem als Antwort auf den ersten Klick.
+     */
+    private KlickInfo belegKlick(long nr) {
+        KlickInfo k = klick;
+        if (k != null && klickNah(k, nr)) {
+            return k;
+        }
+        KlickInfo l = letzterKlick;
+        return l != null && zeitNah(l) ? l : null;
+    }
+
+    /** Fuer das Protokoll: wie lange der Klick her ist ("12 Pakete davor", ausserhalb des Paketfensters mit der Zeit dazu) */
+    private String klickAbstand(KlickInfo k, long nr) {
+        String s = (nr - k.nr()) + " Pakete davor";
+        if (nr - k.nr() > klickFenster) {
+            s += " (" + ((jetzt - k.nanos()) / 1_000_000L) + " ms)";
+        }
+        return s;
     }
 
     private int zaehleTode(long nr) {
@@ -763,7 +812,8 @@ public final class Kern {
         if (!imMenue && !inv0) {
             return;
         }
-        klick = new KlickInfo(k.nr(), k.container(), k.platz(), k.art(), stapelAm(k.container(), k.platz()));
+        klick = new KlickInfo(k.nr(), k.container(), k.platz(), k.art(), stapelAm(k.container(), k.platz()), jetzt);
+        letzterKlick = klick;
         boolean wurf = "THROW".equals(k.art());
 
         // Was der Klick leert oder vermindert, liefert die Identitaet fuer das, was er fuellt
