@@ -7,6 +7,7 @@ import com.shokiteufel.shokimod.paket.PaketPhase;
 import com.shokiteufel.shokimod.paket.kern.Ereignis;
 import com.shokiteufel.shokimod.paket.kern.Kern;
 import com.shokiteufel.shokimod.paket.kern.KernProtokoll;
+import com.shokiteufel.shokimod.paket.kern.PetItems;
 import com.shokiteufel.shokimod.paket.kern.Stapel;
 import com.shokiteufel.shokimod.paket.zustand.PaketAnsicht;
 import com.shokiteufel.shokimod.paket.zustand.PaketZustaende;
@@ -40,6 +41,7 @@ import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
+import net.minecraft.world.item.component.ItemLore;
 
 /**
  * Anschluss des Paket-Kerns an den {@link PaketBus}: die einzige Stelle, die Minecraft-Pakete fuer das Inventar kennt. Uebersetzt sie in
@@ -244,6 +246,13 @@ public final class KernAnschluss {
         String uuid = null;
         if (id != null) {
             ItemChanges.beobachte(id, s);
+            // Pet Items erkennt der Kern an der letzten Zeile der Beschreibung ("LEGENDARY PET ITEM"); einmal je Kennung gelesen
+            if (PetItems.lesenNoetig(id)) {
+                ItemLore lore = s.get(DataComponents.LORE);
+                if (lore != null && !lore.lines().isEmpty()) {
+                    PetItems.pruefen(id, lore.lines().get(lore.lines().size() - 1).getString());
+                }
+            }
             CustomData daten = s.get(DataComponents.CUSTOM_DATA);
             if (daten != null) {
                 String u = daten.copyTag().getStringOr("uuid", "");
