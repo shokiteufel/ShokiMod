@@ -95,6 +95,12 @@ public final class Kern {
     private static final Pattern ENTFERNT = Pattern.compile("^You removed an? (.+?)\\.\\s*\\(\\d+/\\d+\\)\\s*$");
     /** Gemessen: Chat "removed" bis Platz-Update 5, 7, 10 und 15 Pakete (Insel, Mitschnitt Schiggy 09.11.); mit Luft dazu */
     public static final int ENTFERNEN_FENSTER_STANDARD = 40;
+    /**
+     * Pet Item getauscht: Das neue verlaesst das Inventar (Rechtsklick auf das Pet), das alte kommt zurueck - ohne Chatzeile, ohne Klick, ohne
+     * Mob-Tod. Wie weit beide auseinander liegen duerfen, ist nicht gemessen (die Bestaetigung beim Ersetzen kann dazwischen liegen); das
+     * Fenster ist weit, weil es nur gilt, wenn vorher ein Pet Item das Inventar verliess und das Ankommende selbst ein Pet Item ist.
+     */
+    public static final int PET_TAUSCH_FENSTER_STANDARD = 200;
     private static final int BESITZ_MAX = 8192;
 
     private enum Anlass { SERVER, SNAPSHOT, KLICK, WURF }
@@ -145,6 +151,8 @@ public final class Kern {
     private String kaufName;
     private long entferntNr = -1;
     private String entferntName;
+    /** Wann zuletzt ein Pet Item das Inventar verliess (siehe {@link #PET_TAUSCH_FENSTER_STANDARD}), sonst -1 */
+    private long petAbgangNr = -1;
     private Wurf wurfOffen;
     private final Map<Integer, Stapel> wurfEntitaeten = new HashMap<>();
     private final ArrayDeque<Pickup> pickups = new ArrayDeque<>();
@@ -356,6 +364,7 @@ public final class Kern {
         klick = null;
         kaufNr = -1;
         entferntNr = -1;
+        petAbgangNr = -1;
         wurfOffen = null;
         wurfEntitaeten.clear();
         pickups.clear();
@@ -591,6 +600,9 @@ public final class Kern {
             u = Ursache.UNBEKANNT;
             beleg = "kein Beleg";
         }
+        if (u != Ursache.WURF && u != Ursache.RESYNC && PetItems.ist(s.id())) {
+            petAbgangNr = nr;
+        }
         if (u != Ursache.WURF && u != Ursache.RESYNC && s.id() != null) {
             Posten posten = abgangMerken(s.id(), menge);
             // Ein Klick bei offenem Menue, der etwas aus dem Inventar nimmt: eine Einlagerung von Hand (Sack, Hunting Box ...)
@@ -654,6 +666,14 @@ public final class Kern {
     // ------------------------------------------------------------------ Herkunft eines Zugangs vom Server
 
     private Zugang herkunft(long nr, int platz, int container, Stapel s, int menge) {
+        // 0. Pet Item getauscht: kurz davor verliess ein Pet Item das Inventar (das neue, per Rechtsklick auf das Pet verbraucht), und was jetzt
+        //    kommt, ist selbst eins - das alte, zurueckgegeben. Hypixel schreibt dazu nichts in den Chat. Die eigene Ware, kein Fund.
+        if (PetItems.ist(s.id()) && petAbgangNr >= 0 && nr - petAbgangNr >= 0 && nr - petAbgangNr <= PET_TAUSCH_FENSTER_STANDARD) {
+            int abstand = (int) (nr - petAbgangNr);
+            petAbgangNr = -1;
+            return z(nr, Ursache.UMZUG, s, menge, container, platz, "Pet-Item-Tausch: ein Pet Item verliess das Inventar " + abstand + " Pakete davor");
+        }
+
         // 1. Eigenes Aufsammeln unmittelbar davor
         Pickup p = pickups.pollLast();
         if (p != null && nr - p.nr() > aufsammelFenster) {
