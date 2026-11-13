@@ -78,6 +78,8 @@ public final class HidePlayers {
 
     /** Soll diese Figur gezeichnet werden? Vom Einsprung in {@code EntityRenderer.shouldRender} gerufen */
     public static boolean shouldRender(Entity entity) {
+        // Fishing > Hooks > Hide other players' fishing hooks: Ein fremder Haken wird nicht gezeichnet (nach Feesh)
+        if (entity instanceof net.minecraft.world.entity.projectile.FishingHook hook) return !HideOtherHooks.hides(hook);
         // Fishing > Frozen Blaze > Hide damage numbers: Ein Ruestungsstaender mit einer Schadenszahl als Namen wird nicht gezeichnet
         if (entity instanceof net.minecraft.world.entity.decoration.ArmorStand stand) return !FrozenBlaze.hidesDamage(stand);
         // Leap Menu > Hide Players: nach einem Sprung sind die Mitspieler nebenan ein paar Sekunden weg (ein Vergleich, solange es nicht laeuft)

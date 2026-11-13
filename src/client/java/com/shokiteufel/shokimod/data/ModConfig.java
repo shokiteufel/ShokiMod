@@ -2145,6 +2145,10 @@ public class ModConfig extends Config {
         public MuteCategory mute = new MuteCategory();
 
         @Expose
+        @Category(name = "Hooks", desc = "Hides the fishing hooks and lines of other players, so only your own stays in view. Ported from Feesh.")
+        public HooksCategory hooks = new HooksCategory();
+
+        @Expose
         @Category(name = "Out of air", desc = "Warns when you are about to run out of air while diving. Ported from Feesh.")
         public OutOfAirCategory air = new OutOfAirCategory();
 
@@ -3070,6 +3074,24 @@ public class ModConfig extends Config {
         @ConfigOption(name = "Mute Reindrake gifts", desc = "Mutes the loud 'item.totem.use' sound while you pick up gifts from a Reindrake in Jerry's Workshop. A real Totem of Undying stays audible. If you use the Sound Controller mod, this setting might be overridden by it!")
         @ConfigEditorBoolean
         public boolean reindrakeGifts = false;
+    }
+
+    /**
+     * Die Angelhaken der anderen Spieler.
+     *
+     * Aus Feesh (Apache 2.0): "Hide other players' fishing hooks" - ein Haken, dessen Besitzer nicht man selbst ist, wird nicht gezeichnet
+     * (samt Schnur). Wie dort von Haus aus aus.
+     */
+    public static class HooksCategory {
+
+        @ConfigOption(name = "Hooks", desc = "Ported from Feesh. Only the drawing changes: the other players' hooks are still there, and they still see yours.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Hide other players' fishing hooks", desc = "Hides the bobbers and fishing lines of other players, so you can see only your own hook. Works in SkyBlock, except where nobody fishes (Rift, Garden, Kuudra, Dungeons, The End, Glacite Mineshaft, Safari). Off from the start, as in Feesh.")
+        @ConfigEditorBoolean
+        public boolean hideOthers = false;
     }
 
     /** Wie ein Buch gefaerbt wird: gar nicht, rot (loswerden) oder gruen (gut, hervorheben) */
