@@ -294,6 +294,11 @@ public final class FeatureGate {
         return c.hidePlayers || c.hideLootshare || c.hideTribeMember || c.hideDamage;
     }
 
+    /** Fishing > Hooks: Die fremden Haken ausblenden - nur wenn an. Braucht den Ort (nur in SkyBlock, nicht dort, wo niemand angelt) */
+    public static boolean hideOtherHooks() {
+        return ModConfig.INSTANCE.fishing.hooks.hideOthers;
+    }
+
     /** Die Stummschaltung schaut bei jedem Ton nach - nur wenn mindestens einer der beiden Schalter an ist */
     public static boolean mute() {
         ModConfig.MuteCategory c = ModConfig.INSTANCE.fishing.mute;
@@ -305,6 +310,6 @@ public final class FeatureGate {
                 || cakeReminder() || hotspots() || collectionTracker() || pestTraps() || gardenVisitors() || seaHp() || mute() || outOfAir() || coldAlert() || petHud() || deployableHud() || hotspotShare()
                 || slayerSpawn() || darkAuction() || darkAuctionTimer() || hidePlayersDungeon() || nearbyRare() || ModConfig.INSTANCE.effects.enabled || mineshaftAnnounce()
                 // Die Dungeon-Funktionen fragen die Tab-Liste und die Seitenleiste (DungeonLauf, Funny Map): ohne diese Zeile stuende sie nur, solange eine der Funktionen oben an ist
-                || roomScan() || iHateDoors() || dungeonLog() || leapMenu();
+                || roomScan() || iHateDoors() || dungeonLog() || leapMenu() || hideOtherHooks();
     }
 }
