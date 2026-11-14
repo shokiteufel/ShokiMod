@@ -86,6 +86,8 @@ public class ShokiMod implements ClientModInitializer {
             // (Schalter -Dshokimod.paketzugaenge=aus|beobachten|an und -Dshokimod.kern.schatten=aus)
             com.shokiteufel.shokimod.paket.anschluss.KernAnschluss.init();
             com.shokiteufel.shokimod.paket.PaketDiagnose.init();
+            // Serverkorrekturen der eigenen Position ins Log (Schalter Logs > Position log), nur lesend
+            com.shokiteufel.shokimod.handler.RubberbandLog.init();
         } catch (Throwable t) {
             com.mojang.logging.LogUtils.getLogger().error("ShokiMod Pakete: Start fehlgeschlagen, die Paket-Schicht bleibt aus", t);
         }
