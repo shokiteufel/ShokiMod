@@ -139,6 +139,10 @@ public final class RubberbandLog {
                 default -> { }
             }
         });
+        // Der Takt des Clients: Stockt das Spiel kurz, holt es die Ticks nachher in einem Rutsch nach und schickt die Bewegung
+        // gebuendelt - der Server sieht dann zwei, drei Ticks Weg auf einmal
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.START_CLIENT_TICK.register(c -> tickStart(System.nanoTime()));
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(c -> tickEnd(System.nanoTime()));
     }
 
     private static boolean on() {
@@ -172,8 +176,79 @@ public final class RubberbandLog {
         }
         double attribute = me.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED);
         write(now, line(dx, dy, dz, yaw, speed, me.onGround(), slot, item, now)
-                + extra(from.x, from.y, from.z, dx, dz, motion.x, motion.z, attribute, target, now));
+                + extra(from.x, from.y, from.z, dx, dz, motion.x, motion.z, attribute, target, now)
+                + " | " + ticksText(now, client.getFps()));
         CORRECTION.mark(now);
+    }
+
+    // ------------------------------------------------------------------ Takt des Clients
+
+    private static final int TICKS = 128;
+    /** Ein Tick dauert 50 ms; so viel Abstand zwischen zwei Tickanfaengen gilt noch als gleichmaessig (Rundung, Bildtakt) */
+    static final long LONG_GAP_NANOS = 60_000_000L;
+    /** So weit zurueck zaehlt der Takt in der Zeile */
+    static final long TICK_WINDOW_NANOS = 2_000_000_000L;
+    private static final long[] tickAt = new long[TICKS];
+    private static final long[] tickGap = new long[TICKS];
+    private static final long[] tickWork = new long[TICKS];
+    private static int tickNext = 0;
+    private static long tickStartNow = 0;
+    private static long tickStartPrev = 0;
+
+    private static void tickStart(long now) {
+        if (!on()) {
+            tickStartNow = 0;
+            tickStartPrev = 0;
+            return;
+        }
+        tickStartPrev = tickStartNow;
+        tickStartNow = now;
+    }
+
+    private static void tickEnd(long now) {
+        if (tickStartNow == 0 || !on()) return;
+        recordTick(now, tickStartPrev == 0 ? 0 : tickStartNow - tickStartPrev, now - tickStartNow);
+    }
+
+    private static void recordTick(long at, long gap, long work) {
+        tickAt[tickNext] = at;
+        tickGap[tickNext] = gap;
+        tickWork[tickNext] = work;
+        tickNext = (tickNext + 1) % TICKS;
+    }
+
+    /**
+     * Der Takt der letzten zwei Sekunden: wie viele Ticks, wie viele mit zu grossem Abstand, der groesste Abstand, die laengste
+     * Arbeit eines Ticks, wann der letzte zu grosse Abstand war - und die Bilder je Sekunde.
+     */
+    static String ticksText(long now, int fps) {
+        int count = 0;
+        int over = 0;
+        long maxGap = 0;
+        long maxWork = 0;
+        long lastLongAt = NEVER;
+        for (int i = 0; i < TICKS; i++) {
+            long at = tickAt[i];
+            if (at == 0 || now - at < 0 || now - at > TICK_WINDOW_NANOS) continue;
+            count++;
+            maxGap = Math.max(maxGap, tickGap[i]);
+            maxWork = Math.max(maxWork, tickWork[i]);
+            if (tickGap[i] > LONG_GAP_NANOS) {
+                over++;
+                if (lastLongAt == NEVER || at > lastLongAt) lastLongAt = at;
+            }
+        }
+        if (count == 0) return "client ticks: none seen, " + fps + " fps";
+        StringBuilder sb = new StringBuilder(160);
+        sb.append("client ticks in the last 2 s: ").append(count).append(" (gaps over 60 ms: ").append(over)
+                .append(", longest gap ").append(ms(maxGap)).append(" ms, longest tick work ").append(ms(maxWork)).append(" ms");
+        if (lastLongAt != NEVER) sb.append(", last long gap ").append(String.format(Locale.ROOT, "%.2f", (now - lastLongAt) / 1.0e9)).append(" s ago");
+        sb.append("), ").append(fps).append(" fps");
+        return sb.toString();
+    }
+
+    private static String ms(long nanos) {
+        return String.format(Locale.ROOT, "%.0f", nanos / 1.0e6);
     }
 
     private static void blockUpdate(BlockPos pos, BlockState server, long now) {
@@ -370,6 +445,17 @@ public final class RubberbandLog {
         leftOut = 0;
         java.util.Arrays.fill(changes, null);
         changeNext = 0;
+        java.util.Arrays.fill(tickAt, 0L);
+        java.util.Arrays.fill(tickGap, 0L);
+        java.util.Arrays.fill(tickWork, 0L);
+        tickNext = 0;
+        tickStartNow = 0;
+        tickStartPrev = 0;
+    }
+
+    /** Nur fuer Tests */
+    static void markTickForTests(long at, long gap, long work) {
+        recordTick(at, gap, work);
     }
 
     /** Nur fuer Tests */
