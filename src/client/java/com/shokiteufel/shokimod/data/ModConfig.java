@@ -5310,7 +5310,7 @@ public class ModConfig extends Config {
         public transient String about = "";
 
         @Expose
-        @ConfigOption(name = "Position log", desc = "For when your character snaps back: every time the server moves you by more than a quarter of a block, writes one line into latest.log (tag [Rubberband]) with the distance, what you were holding and doing, and how long ago the last hotbar swap, right click and block digging were - plus whether the server put back a block you had already dug. At most 30 lines a minute, only reads, changes nothing. Off from the start: switch it on, play until it snaps back a few times, then send latest.log.")
+        @ConfigOption(name = "Position log", desc = "For when your character snaps back: every time the server moves you by more than a quarter of a block, writes one line into latest.log (tag [Rubberband]) with the distance, where you stood, which way it pushed you compared to your walking, what you were holding and looking at, and how long ago the last hotbar swap, right click and block digging were - plus the block changes the server sent nearby in the last two seconds. At most 30 lines a minute, only reads, changes nothing. Off from the start: switch it on, play until it snaps back a few times, then send latest.log.")
         @ConfigEditorBoolean
         public boolean positionLog = false;
 

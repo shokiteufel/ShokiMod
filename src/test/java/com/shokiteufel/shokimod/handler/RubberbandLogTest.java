@@ -73,4 +73,48 @@ class RubberbandLogTest {
         assertEquals(2, RubberbandLog.take(t + 61 * S));
         assertEquals(0, RubberbandLog.take(t + 62 * S));
     }
+
+    @Test
+    void headingTellsForwardBackwardSidewaysStandingAndVertical() {
+        assertEquals("forward (cos 1.00)", RubberbandLog.heading(0, -3, 0, -0.6));
+        assertEquals("backward (cos -1.00)", RubberbandLog.heading(0, 3, 0, -0.6));
+        assertEquals("sideways (cos 0.00)", RubberbandLog.heading(3, 0, 0, -0.6));
+        assertEquals("we were standing", RubberbandLog.heading(0, -3, 0, 0));
+        assertEquals("only up or down", RubberbandLog.heading(0, 0.01, 0, -0.6));
+    }
+
+    @Test
+    void blockChangesOfTheLastTwoSecondsAreCountedNewestFirst() {
+        long now = 1000 * S;
+        assertEquals("none", RubberbandLog.changesText(now));
+        RubberbandLog.markChangeForTests(now - 10 * S, "air", "stone", 1.0);
+        RubberbandLog.markChangeForTests(now - 1_500_000_000L, "bedrock", "end_stone", 2.4);
+        RubberbandLog.markChangeForTests(now - 400_000_000L, "end_stone", "bedrock", 3.1);
+        assertEquals("2 (end_stone->bedrock 3.10 blocks, 0.40 s ago; bedrock->end_stone 2.40 blocks, 1.50 s ago)",
+                RubberbandLog.changesText(now));
+    }
+
+    @Test
+    void manyBlockChangesShowOnlyTheThreeNewestAndSaturateTheCount() {
+        long now = 1000 * S;
+        for (int i = 0; i < 20; i++) {
+            RubberbandLog.markChangeForTests(now - 1_000_000_000L + i * 1_000_000L, "a" + i, "b" + i, 1.0);
+        }
+        String text = RubberbandLog.changesText(now);
+        assertTrue(text.startsWith("16+ (a19->b19"), text);
+        assertTrue(text.contains("a17->b17"), text);
+        assertTrue(!text.contains("a16->b16"), text);
+    }
+
+    @Test
+    void theExtraPartTellsPlaceDirectionSpeedAttributeTargetAndBlockChanges() {
+        long now = 1000 * S;
+        RubberbandLog.markChangeForTests(now - 400_000_000L, "end_stone", "bedrock", 3.1);
+        String extra = RubberbandLog.extra(12.34, 64.0, -5.1, 0.0, 3.0, 0.0, -0.6, 0.284, "end_stone 3.10 blocks", now);
+        assertTrue(extra.contains("at 12.3 64.0 -5.1"), extra);
+        assertTrue(extra.contains("backward (cos -1.00)"), extra);
+        assertTrue(extra.contains("speed attribute 0.284"), extra);
+        assertTrue(extra.contains("looking at end_stone 3.10 blocks"), extra);
+        assertTrue(extra.contains("last 2 s: 1 (end_stone->bedrock 3.10 blocks, 0.40 s ago)"), extra);
+    }
 }
