@@ -107,6 +107,33 @@ class RubberbandLogTest {
     }
 
     @Test
+    void theTickPartSaysNothingSeenWhenNoTickWasRecorded() {
+        assertEquals("client ticks: none seen, 60 fps", RubberbandLog.ticksText(1000 * S, 60));
+    }
+
+    @Test
+    void theTickPartCountsGapsOverSixtyMillisecondsAndNamesTheLastOne() {
+        long now = 1000 * S;
+        RubberbandLog.markTickForTests(now - 3 * S, 400_000_000L, 5_000_000L);   // zu alt, zaehlt nicht
+        RubberbandLog.markTickForTests(now - 1_500_000_000L, 50_000_000L, 5_000_000L);
+        RubberbandLog.markTickForTests(now - 500_000_000L, 138_000_000L, 22_000_000L);
+        RubberbandLog.markTickForTests(now - 450_000_000L, 50_000_000L, 4_000_000L);
+        assertEquals("client ticks in the last 2 s: 3 (gaps over 60 ms: 1, longest gap 138 ms, longest tick work 22 ms, last long gap 0.50 s ago), 61 fps",
+                RubberbandLog.ticksText(now, 61));
+    }
+
+    @Test
+    void steadyTicksShowNoLongGap() {
+        long now = 1000 * S;
+        for (int i = 0; i < 20; i++) {
+            RubberbandLog.markTickForTests(now - (20 - i) * 50_000_000L, 50_000_000L, 3_000_000L);
+        }
+        String text = RubberbandLog.ticksText(now, 144);
+        assertTrue(text.contains("gaps over 60 ms: 0"), text);
+        assertTrue(!text.contains("last long gap"), text);
+    }
+
+    @Test
     void theExtraPartTellsPlaceDirectionSpeedAttributeTargetAndBlockChanges() {
         long now = 1000 * S;
         RubberbandLog.markChangeForTests(now - 400_000_000L, "end_stone", "bedrock", 3.1);
