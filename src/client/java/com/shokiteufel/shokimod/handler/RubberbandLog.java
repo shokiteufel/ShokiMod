@@ -164,12 +164,20 @@ public final class RubberbandLog {
         double speed = Math.sqrt(motion.x * motion.x + motion.z * motion.z) * 20.0;
         int slot = me.getInventory().getSelectedSlot();
         String item = SkyBlockItems.idOf(me.getInventory().getSelectedItem());
-        write(now, line(dx, dy, dz, yaw, speed, me.onGround(), slot, item, now));
+        String target = "-";
+        Minecraft client = Minecraft.getInstance();
+        if (client.level != null && client.hitResult instanceof net.minecraft.world.phys.BlockHitResult hit
+                && hit.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK) {
+            target = blockName(client.level.getBlockState(hit.getBlockPos())) + " " + f(from.distanceTo(hit.getLocation())) + " blocks";
+        }
+        double attribute = me.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED);
+        write(now, line(dx, dy, dz, yaw, speed, me.onGround(), slot, item, now)
+                + extra(from.x, from.y, from.z, dx, dz, motion.x, motion.z, attribute, target, now));
         CORRECTION.mark(now);
     }
 
     private static void blockUpdate(BlockPos pos, BlockState server, long now) {
-        if (!on() || pos == null || server == null || server.isAir()) return;
+        if (!on() || pos == null || server == null) return;
         Minecraft client = Minecraft.getInstance();
         LocalPlayer me = client.player;
         if (me == null || client.level == null) return;
@@ -178,11 +186,16 @@ public final class RubberbandLog {
         double dz = pos.getZ() + 0.5 - me.getZ();
         double distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
         if (distance > RESTORE_REACH) return;
+        BlockState mine = client.level.getBlockState(pos);
+        // Gleicher Zustand: nichts hat sich geaendert (Bestaetigung)
+        if (mine == server) return;
+        addChange(now, blockName(mine), blockName(server), distance);
         // Der Server sagt "hier steht ein Block", der Client zeigt Luft: Der Block war schon als abgebaut vorhergesagt
-        if (!client.level.getBlockState(pos).isAir()) return;
-        restoreDistance = distance;
-        restoreBlock = blockName(server);
-        RESTORE.mark(now);
+        if (mine.isAir() && !server.isAir()) {
+            restoreDistance = distance;
+            restoreBlock = blockName(server);
+            RESTORE.mark(now);
+        }
     }
 
     private static void serverSlot(int slot, long now) {
@@ -233,6 +246,64 @@ public final class RubberbandLog {
         }
         sb.append(", server hotbar ").append(burst(SERVER_SLOT, now));
         return sb.toString();
+    }
+
+    // ------------------------------------------------------------------ Orte und Blockaenderungen
+
+    /** Eine Blockaenderung in der Naehe der Figur, die der Server geschickt hat (Zustand vorher beim Client, Zustand vom Server) */
+    private record Change(long nanos, String from, String to, double distance) {
+    }
+
+    private static final int CHANGES = 16;
+    /** Das Fenster, in dem Blockaenderungen in der Zeile erscheinen */
+    static final long CHANGE_WINDOW_NANOS = 2_000_000_000L;
+    private static final Change[] changes = new Change[CHANGES];
+    private static int changeNext = 0;
+
+    private static void addChange(long now, String from, String to, double distance) {
+        changes[changeNext] = new Change(now, from, to, distance);
+        changeNext = (changeNext + 1) % CHANGES;
+    }
+
+    /** Die Blockaenderungen der letzten zwei Sekunden: wie viele, und die jeweils drei juengsten */
+    static String changesText(long now) {
+        int count = 0;
+        StringBuilder last = new StringBuilder();
+        int shown = 0;
+        for (int i = 1; i <= CHANGES; i++) {
+            Change c = changes[(changeNext - i + CHANGES * 2) % CHANGES];
+            if (c == null || now - c.nanos < 0 || now - c.nanos > CHANGE_WINDOW_NANOS) continue;
+            count++;
+            if (shown < 3) {
+                if (shown > 0) last.append("; ");
+                last.append(c.from).append("->").append(c.to).append(' ').append(f(c.distance)).append(" blocks, ")
+                        .append(String.format(Locale.ROOT, "%.2f", (now - c.nanos) / 1.0e9)).append(" s ago");
+                shown++;
+            }
+        }
+        if (count == 0) return "none";
+        return (count >= CHANGES ? CHANGES + "+" : String.valueOf(count)) + " (" + last + ")";
+    }
+
+    /** Richtung der Korrektur zur eigenen Bewegung: zurueck, vor oder zur Seite */
+    static String heading(double dx, double dz, double motionX, double motionZ) {
+        double correction = Math.sqrt(dx * dx + dz * dz);
+        double motion = Math.sqrt(motionX * motionX + motionZ * motionZ);
+        if (correction < 0.05) return "only up or down";
+        if (motion < 0.01) return "we were standing";
+        double cos = (dx * motionX + dz * motionZ) / (correction * motion);
+        String where = cos > 0.5 ? "forward" : cos < -0.5 ? "backward" : "sideways";
+        return where + " (cos " + f(cos) + ")";
+    }
+
+    /** Wo die Figur stand, wohin der Server sie schob, was sie ansah und welche Blockaenderungen kurz davor kamen */
+    static String extra(double x, double y, double z, double dx, double dz, double motionX, double motionZ,
+                        double speedAttribute, String target, long now) {
+        return " | at " + String.format(Locale.ROOT, "%.1f %.1f %.1f", x, y, z)
+                + " | correction relative to our motion: " + heading(dx, dz, motionX, motionZ)
+                + " | speed attribute " + String.format(Locale.ROOT, "%.3f", speedAttribute)
+                + " | looking at " + (target == null ? "-" : target)
+                + " | block changes within " + (int) RESTORE_REACH + " blocks, last 2 s: " + changesText(now);
     }
 
     private static String burst(Recent r, long now) {
@@ -297,6 +368,13 @@ public final class RubberbandLog {
         windowStart = NEVER;
         windowLines = 0;
         leftOut = 0;
+        java.util.Arrays.fill(changes, null);
+        changeNext = 0;
+    }
+
+    /** Nur fuer Tests */
+    static void markChangeForTests(long now, String from, String to, double distance) {
+        addChange(now, from, to, distance);
     }
 
     /** Nur fuer Tests */
