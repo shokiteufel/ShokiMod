@@ -155,6 +155,14 @@ public final class FeatureGate {
         return ModConfig.INSTANCE.mining.mineshaft.announce != ModConfig.ShaftAnnounce.OFF;
     }
 
+    /**
+     * Die Zeile "[Get Keys from Sacks]" liest die Leichen aus der Tab-Liste - auch ohne Mining-Kasten - und braucht den Ort.
+     * Sie hat ihren eigenen Schalter und haengt nicht an mineshaftKnown(): Wer nur sie anhat, bekommt weder Marker noch Abruf der Leichen-Liste.
+     */
+    public static boolean mineshaftKeys() {
+        return ModConfig.INSTANCE.mining.mineshaft.keysFromSack;
+    }
+
     /** Die Erinnerung an volle Pest-Fallen liest die Tab-Liste mit */
     public static boolean pestTraps() {
         return ModConfig.INSTANCE.garden.traps.alert;
@@ -310,6 +318,6 @@ public final class FeatureGate {
                 || cakeReminder() || hotspots() || collectionTracker() || pestTraps() || gardenVisitors() || seaHp() || mute() || outOfAir() || coldAlert() || petHud() || deployableHud() || hotspotShare()
                 || slayerSpawn() || darkAuction() || darkAuctionTimer() || hidePlayersDungeon() || nearbyRare() || ModConfig.INSTANCE.effects.enabled || mineshaftAnnounce()
                 // Die Dungeon-Funktionen fragen die Tab-Liste und die Seitenleiste (DungeonLauf, Funny Map): ohne diese Zeile stuende sie nur, solange eine der Funktionen oben an ist
-                || roomScan() || iHateDoors() || dungeonLog() || leapMenu() || hideOtherHooks();
+                || roomScan() || iHateDoors() || dungeonLog() || leapMenu() || hideOtherHooks() || mineshaftKeys();
     }
 }
