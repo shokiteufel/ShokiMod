@@ -102,6 +102,8 @@ public class ShokiMod implements ClientModInitializer {
         com.shokiteufel.shokimod.handler.ProfitTracker.register();
         GuildEvents.register();
         CakeReminder.register();
+        // Befehle nacheinander mit Abstand (ein Klick im Chat fuehrt nur einen aus)
+        com.shokiteufel.shokimod.handler.CommandSequence.register();
         com.shokiteufel.shokimod.handler.DarkAuctionReminder.register();
         com.shokiteufel.shokimod.handler.HidePlayers.register();
         com.shokiteufel.shokimod.handler.FrontCamera.register();
@@ -290,6 +292,13 @@ public class ShokiMod implements ClientModInitializer {
                         // und ohne Frozen Corpse RNG Meter. Preise frisch, Ausgabe im Chat
                         .then(ClientCommands.literal("corpseprofitcheck").executes(context -> {
                             com.shokiteufel.shokimod.handler.CorpseProfitCheck.run();
+                            return 1;
+                        }))
+                        // /shoki sackkeys -> das Ziel der Chatzeile "[Get Keys from Sacks]": holt die Schluessel
+                        // der Leichen im Schacht aus dem Sack (/gfs UMBER_KEY n, /gfs TUNGSTEN_KEY n). Ohne Angabe:
+                        // was geholt wird, steht in der Mod, nicht in der Zeile
+                        .then(ClientCommands.literal("sackkeys").executes(context -> {
+                            com.shokiteufel.shokimod.handler.MineshaftKeys.run();
                             return 1;
                         }))
                         // /shoki seacreatures -> welcher Meeresbewohner sich meldet.

@@ -50,6 +50,8 @@ class NeueFunktionenAusTest {
         assertFalse(c.ikohS.dungeon.iHateDoors.enabled, "I hate doors");
         assertFalse(FeatureGate.iHateDoors(), "I hate doors (und die Dungeon-Abfrage dafuer)");
         assertFalse(FeatureGate.roomScan(), "der Welt-Scan der Funny Map fuer die Raum-Regel");
+        assertFalse(c.mining.mineshaft.keysFromSack, "Keys from sacks");
+        assertFalse(FeatureGate.mineshaftKeys(), "die Schluessel-Zeile (und das Lesen der Leichen dafuer)");
     }
 
     @Test

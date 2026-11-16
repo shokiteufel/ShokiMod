@@ -102,7 +102,8 @@ public class TabListScanner {
         // Welches Pet draussen ist, samt Ueberschuss - die verlaesslichste Quelle
         PetState.processTabList(unformattedLines, formattedLines);
         // Auftraege und Spitzhacken-Faehigkeit stehen dort ebenfalls - aber nur in den Minen
-        if (ModConfig.INSTANCE.mining.hud.showHud) MiningState.processTabList(unformattedLines);
+        // (auch fuer die Schluessel-Zeile im Schacht: die liest die Leichen von hier, ohne dass der Kasten an sein muss)
+        if (ModConfig.INSTANCE.mining.hud.showHud || FeatureGate.mineshaftKeys()) MiningState.processTabList(unformattedLines);
         // Der Stand der Pest-Fallen steht ebenfalls dort, sobald das Widget an ist
         if (FeatureGate.pestTraps()) PestTraps.processTabList(unformattedLines);
         // Und die Besucher des Gartens - dasselbe Spiel, andere Zeilen
