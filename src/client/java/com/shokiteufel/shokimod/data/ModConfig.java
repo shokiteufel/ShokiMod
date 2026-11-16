@@ -1895,7 +1895,7 @@ public class ModConfig extends Config {
         public boolean showHud = false;
 
         @Expose
-        @ConfigOption(name = "Show where", desc = "Mining islands: only in the Dwarven Mines, Crystal Hollows, Glacite Mineshafts and the Gold Mine. Everywhere: keeps showing the last numbers wherever you are.")
+        @ConfigOption(name = "Show where", desc = "Mining islands: only in the Dwarven Mines, Crystal Hollows, Glacite Mineshafts and the Gold Mine. Everywhere: keeps showing the last numbers wherever you are. Areas picked for the panel in /shoki hud (button Areas) override this; only with nothing picked does this setting decide.")
         @ConfigEditorDropdown
         public HudVisibility visibility = HudVisibility.MINING_ISLANDS;
 
