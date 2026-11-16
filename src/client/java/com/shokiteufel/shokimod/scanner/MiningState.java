@@ -286,7 +286,11 @@ public final class MiningState {
             freshCorpses.add(new Corpse(e.getKey(), e.getValue()[0], e.getValue()[1]));
         }
         corpses = List.copyOf(freshCorpses);
-        if (!freshCorpses.isEmpty()) callParty(freshCorpses);
+        if (!freshCorpses.isEmpty()) {
+            callParty(freshCorpses);
+            // Umber und Tungsten brauchen einen Schluessel: die Zeile zum Holen aus dem Sack
+            com.shokiteufel.shokimod.handler.MineshaftKeys.onCorpses(freshCorpses);
+        }
 
         if (commissions.isEmpty() && ability == null && freshCorpses.isEmpty()) return;
         lastReadAt = System.currentTimeMillis();

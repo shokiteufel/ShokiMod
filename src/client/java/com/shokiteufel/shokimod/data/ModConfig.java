@@ -1685,6 +1685,11 @@ public class ModConfig extends Config {
         public String announceBannerDesign = BannerDesign.ALERT_BAND;
 
         @Expose
+        @ConfigOption(name = "Keys from sacks", desc = "When you enter a shaft with Umber or Tungsten corpses, writes one clickable line into your chat: [Get Keys from Sacks]. A click runs /gfs UMBER_KEY and /gfs TUNGSTEN_KEY with the number of corpses, one second apart. Keys you already carry are taken off the number. Lapis needs no key; Vanguard is left out. Off from the start.")
+        @ConfigEditorBoolean
+        public boolean keysFromSack = false;
+
+        @Expose
         @ConfigOption(name = "Corpse spots", desc = "Marks every spot where a corpse can stand in this shaft. Not every spot has one - it is where to look, not where one is.")
         @ConfigEditorBoolean
         public boolean corpseWaypoints = false;
