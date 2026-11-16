@@ -301,6 +301,12 @@ public class ShokiMod implements ClientModInitializer {
                             com.shokiteufel.shokimod.handler.MineshaftKeys.run();
                             return 1;
                         }))
+                        // /shoki refuel -> das Ziel der Chatzeile "[Refuel: n Oil Barrels]": holt die Barrels aus dem Sack
+                        // (/gfs OIL_BARREL n), wartet eine Sekunde und ruft an (/call jotraeline). Menge steht in der Mod
+                        .then(ClientCommands.literal("refuel").executes(context -> {
+                            com.shokiteufel.shokimod.handler.DrillRefuel.run();
+                            return 1;
+                        }))
                         // /shoki seacreatures -> welcher Meeresbewohner sich meldet.
                         // Neunzig Zeilen passen in keine Einstellungsliste
                         .then(ClientCommands.literal("seacreatures").executes(context -> {

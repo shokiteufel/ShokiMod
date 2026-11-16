@@ -52,6 +52,8 @@ class NeueFunktionenAusTest {
         assertFalse(FeatureGate.roomScan(), "der Welt-Scan der Funny Map fuer die Raum-Regel");
         assertFalse(c.mining.mineshaft.keysFromSack, "Keys from sacks");
         assertFalse(FeatureGate.mineshaftKeys(), "die Schluessel-Zeile (und das Lesen der Leichen dafuer)");
+        assertFalse(c.mining.reminder.drillRefuel, "Drill fuel");
+        assertFalse(FeatureGate.drillRefuel(), "die Zeile zum Auftanken des Drills");
     }
 
     @Test
