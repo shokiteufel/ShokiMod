@@ -125,6 +125,8 @@ public class NetworkHandler {
             com.shokiteufel.shokimod.handler.SlayerSpawnCost.onChatMessage(unformattedMsg);
             // Ein Schluessel kostet, wenn die Leiche ihre Beute ausschuettet
             com.shokiteufel.shokimod.handler.CorpseKeyCost.onChatMessage(unformattedMsg);
+            // "Your Divan's Drill has 50% fuel remaining!" bekommt eine Zeile zum Auftanken
+            com.shokiteufel.shokimod.handler.DrillRefuel.onChatMessage(unformattedMsg);
             // Der Collection-Tracker braucht die Nachricht selbst: die Aufstellung haengt am Mauszeiger
             CollectionTracker.onChatMessage(message, unformattedMsg);
             // Der Profit-Tracker liest seine Chat-Quellen (Saecke, Leichen, Shards) aus dem Paketstrom (KernAnschluss), nicht hier

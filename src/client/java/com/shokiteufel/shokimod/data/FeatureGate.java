@@ -163,6 +163,11 @@ public final class FeatureGate {
         return ModConfig.INSTANCE.mining.mineshaft.keysFromSack;
     }
 
+    /** Die Zeile zum Auftanken des Drills liest nur die Chatzeile des Servers - kein Ort, keine Tab-Liste, also auch nicht in location() */
+    public static boolean drillRefuel() {
+        return ModConfig.INSTANCE.mining.reminder.drillRefuel;
+    }
+
     /** Die Erinnerung an volle Pest-Fallen liest die Tab-Liste mit */
     public static boolean pestTraps() {
         return ModConfig.INSTANCE.garden.traps.alert;

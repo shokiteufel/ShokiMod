@@ -1517,6 +1517,10 @@ public class ModConfig extends Config {
         public ColdAlertCategory cold = new ColdAlertCategory();
 
         @Expose
+        @Category(name = "Reminder", desc = "Chat lines for mining that you can click to get the next step done. Off from the start.")
+        public MiningReminderCategory reminder = new MiningReminderCategory();
+
+        @Expose
         @Category(name = "Forge", desc = "The Forge in the Dwarven Mines: the mod reads the Forges list of the tab list there, remembers the time of every slot, and shows it in a panel on the maps you choose. Off until you turn it on.")
         public ForgeCategory forge = new ForgeCategory();
 
@@ -2934,6 +2938,15 @@ public class ModConfig extends Config {
      * 100 stirbt man. Gewarnt wird einmal, wenn sie die Schwelle erreicht - von Haus aus 90. Wie die anderen
      * Warnungen von Haus aus aus.
      */
+    /** Mining > Reminder: Chatzeilen zum Anklicken. Bisher eine: der Drill, dem der Treibstoff ausgeht */
+    public static class MiningReminderCategory {
+
+        @Expose
+        @ConfigOption(name = "Drill fuel", desc = "When Hypixel writes \"Your Divan's Drill has 50% fuel remaining!\" (any drill, any percent), adds a clickable line: [Refuel: 5 Oil Barrels]. A click runs /gfs OIL_BARREL with the number that fits (100,000 fuel is a full tank, one Oil Barrel gives 10,000 - rounded down, so none is wasted), waits one second and then runs /call jotraeline. No line when less than one barrel would fit. Off from the start.")
+        @ConfigEditorBoolean
+        public boolean drillRefuel = false;
+    }
+
     public static class ColdAlertCategory {
 
         @ConfigOption(name = "Cold alert", desc = "Warns you when your cold gets close to freezing: a banner, a sound, and on request a chat line. It reads the line 'Cold' in the sidebar, which Hypixel shows in the icy areas (Glacite Tunnels, Mineshaft). At 100 you freeze to death; a campfire sets it back to 0. It warns once and can warn again after the cold has dropped below the value. Works in SkyBlock only.")
