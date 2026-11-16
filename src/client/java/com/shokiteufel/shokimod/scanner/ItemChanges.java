@@ -57,8 +57,17 @@ public final class ItemChanges {
     private static final Pattern STASH_ZU_SAECKEN = Pattern.compile("^You have successfully transferred your items from .+ stash to your sacks!?$");
     /** Alle Koeder enden auf _BAIT (BLESSED, WHALE, CARROT, GLOWY_CHUM ...); Bait Ring und die Koedersaecke gehoeren nicht dazu. */
     private static final String KOEDER_ENDUNG = "_BAIT";
-    /** Ein Schluessel aus der Forge ist kein Fund; er zaehlt nur, wenn die Leiche ihn selbst in ihrer Beute hat. */
-    private static final java.util.Set<String> GESCHMIEDETE_SCHLUESSEL = java.util.Set.of("UMBER_KEY", "TUNGSTEN_KEY");
+    /**
+     * Ein Leichen-Schluessel (aus der Forge, gekauft, aus dem Sack geholt) ist kein Fund; er zaehlt nur, wenn die Leiche ihn selbst in ihrer
+     * Beute hat. Der Skeleton Key gehoert seit 2.3.8 dazu: Er stand vorher nicht im Filter, und ein Zugang im Schacht hob dann den Abzug
+     * an der Vanguard-Leiche in der Bilanz des Schachts wieder auf (User 16.11.: Skeleton schien nicht abgezogen, Umber und Tungsten schon).
+     */
+    private static final java.util.Set<String> GESCHMIEDETE_SCHLUESSEL = java.util.Set.of("UMBER_KEY", "TUNGSTEN_KEY", "SKELETON_KEY");
+
+    /** Zaehlt dieser Zugang nicht, weil ein Leichen-Schluessel nur aus der Beute einer Leiche ein Fund ist? */
+    static boolean schluesselKeinFund(String id, String source) {
+        return id != null && !CORPSE_LOOT.equals(source) && GESCHMIEDETE_SCHLUESSEL.contains(id);
+    }
 
     private static final List<Consumer<Map<String, Integer>>> listeners = new ArrayList<>(2);
     /**
@@ -73,19 +82,15 @@ public final class ItemChanges {
     private static long corpseStart;
     private static int corpseZeilen;
 
-    private static final class Gebucht {
-        final String id;
-        int menge;
-        final long nanos;
-
-        Gebucht(String id, int menge, long nanos) {
-            this.id = id;
-            this.menge = menge;
-            this.nanos = nanos;
-        }
-    }
-
-    private static final List<Gebucht> vorgebucht = new ArrayList<>();
+    /** Was ein anderer Weg schon gebucht hat (Leichen-Zeile, Craft, Nachtrag): Sack-Meldung und Zugang ins Inventar zaehlen es nicht noch einmal */
+    private static final List<Vormerkung> vorgebucht = new ArrayList<>();
+    /** Funde des Kerns, die noch keine Leichen-Zeile gedeckt hat (Inventar vor Chat, siehe {@link Vormerkung#gedeckt}) */
+    private static final List<Vormerkung> inventarFunde = new ArrayList<>();
+    /**
+     * So weit duerfen Chatzeile der Leichen-Beute und Platz-Update ihrer Ware auseinanderliegen, damit sie fuer dieselbe Beute gelten. Kurz,
+     * damit eine fremde Ware gleicher Sorte (abgebaut, gekauft) nicht auf eine Vormerkung trifft.
+     */
+    private static final long LEICHE_INVENTAR_NANOS = 10_000_000_000L;
     private static Kern kern;
     /** Die letzte Craft-Zeile: Die Sack-Meldung kurz danach (Ergebnis plus Zutaten) gehoert zum Craften */
     private static final long CRAFT_NANOS = 20_000_000_000L;
@@ -203,6 +208,7 @@ public final class ItemChanges {
         corpseAktiv = false;
         corpseZeilen = 0;
         vorgebucht.clear();
+        inventarFunde.clear();
         craftGesehen = false;
         ansprueche.clear();
         jungeFunde.clear();
@@ -263,9 +269,20 @@ public final class ItemChanges {
         zugangGesehen.removeIf(g -> jetzt - g.nanos > ANSPRUCH_NANOS);
         zugangGesehen.add(new JungerFund(z.id(), z.menge(), jetzt));
         if (FundRegel.istFund(z)) {
-            Map<String, Integer> fund = new LinkedHashMap<>();
-            fund.put(z.id(), z.menge());
-            dispatch(fund, FundRegel.quelle(z.ursache()), z.nr());
+            // Beute einer Leiche, die der Chat schon gebucht hat und die direkt ins Inventar fiel (Chat vor Platz-Update): nur einmal zaehlen
+            int menge = Vormerkung.vomInventarAbziehen(vorgebucht, z.id(), z.menge(), jetzt, LEICHE_INVENTAR_NANOS);
+            if (menge < z.menge()) {
+                ShokiMod.LOGGER.info("[Profit] {} x{} came into the inventory, but the corpse loot line counted {} of it already - counted once",
+                        z.id(), z.menge(), z.menge() - menge);
+            }
+            if (menge > 0) {
+                // Fuer die andere Reihenfolge: eine Leichen-Zeile, die erst jetzt kommt, findet diesen Fund und bucht ihn nicht noch einmal
+                inventarFunde.removeIf(f -> jetzt - f.nanos > LEICHE_INVENTAR_NANOS);
+                inventarFunde.add(new Vormerkung(z.id(), menge, jetzt, null));
+                Map<String, Integer> fund = new LinkedHashMap<>();
+                fund.put(z.id(), menge);
+                dispatch(fund, FundRegel.quelle(z.ursache()), z.nr());
+            }
         } else if (PetItems.ist(z.id())) {
             // Ein Pet Item ohne Beute: das alte aus einem Tausch (Rechtsklick mit dem neuen auf das Pet); Hypixel schreibt dazu nichts in den Chat
             ShokiMod.LOGGER.info("[Profit] pet item {} x{} not counted ({}: {})", z.id(), z.menge(),
@@ -355,7 +372,7 @@ public final class ItemChanges {
         if (vormerken) {
             // Kommt die Ware doch noch in einen Sack, steht sie dort in der Sack-Meldung und zaehlt nicht noch einmal
             for (String id : r.ids()) {
-                vorgebucht.add(new Gebucht(id, r.menge(), nanos));
+                vorgebucht.add(new Vormerkung(id, r.menge(), nanos, null));
             }
             // Die erste Sack-Meldung, die dieses Fenster deckt, urteilt, ob die Ware ihr Ziel erreicht hat (Personal Deletor)
             offeneZeilen.add(new DropWiderruf.Offen(echt, new ArrayList<>(r.ids()), r.menge(), nanos));
@@ -417,11 +434,22 @@ public final class ItemChanges {
             ShokiMod.LOGGER.info("[Profit] corpse loot: \"{}\" x{} is no known item ({}) - not counted", name, menge, echt);
             return;
         }
+        // Kam die Ware schon als Zugang ins Inventar an (Platz-Update vor der Chatzeile), hat der Kern sie gezaehlt: nur den Rest buchen
+        int gedeckt = Vormerkung.gedeckt(inventarFunde, ids, menge, nanos, LEICHE_INVENTAR_NANOS);
+        int zuBuchen = menge - gedeckt;
+        if (gedeckt > 0) {
+            ShokiMod.LOGGER.info("[Profit] corpse loot {} x{}: {} of it already came in through the inventory - counted once", echt, menge, gedeckt);
+        }
+        if (zuBuchen <= 0) {
+            return;
+        }
+        // Eine Zeile, eine Menge: alle Kennungen teilen sich die Vormerkung, die Sack-Meldung und der Zugang ins Inventar abziehen
+        Object linie = new Object();
         for (String id : ids) {
-            vorgebucht.add(new Gebucht(id, menge, nanos));
+            vorgebucht.add(new Vormerkung(id, zuBuchen, nanos, linie));
         }
         Map<String, Integer> fund = new LinkedHashMap<>();
-        fund.put(echt, menge);
+        fund.put(echt, zuBuchen);
         dispatch(fund, CORPSE_LOOT, nr);
     }
 
@@ -433,7 +461,7 @@ public final class ItemChanges {
             return;
         }
         for (String id : ids) {
-            vorgebucht.add(new Gebucht(id, g.menge(), nanos));
+            vorgebucht.add(new Vormerkung(id, g.menge(), nanos, null));
         }
         craftGesehen = true;
         craftNanos = nanos;
@@ -459,17 +487,7 @@ public final class ItemChanges {
 
     /** Was die Leichen-Beute schon gebucht hat, von einer Sack-Menge abziehen. */
     private static int vorgebuchtAbziehen(List<String> ids, int menge, long nanos) {
-        int rest = menge;
-        vorgebucht.removeIf(g -> nanos - g.nanos > VORGEBUCHT_NANOS);
-        for (Gebucht g : vorgebucht) {
-            if (rest > 0 && ids.contains(g.id)) {
-                int genommen = Math.min(g.menge, rest);
-                g.menge -= genommen;
-                rest -= genommen;
-            }
-        }
-        vorgebucht.removeIf(g -> g.menge <= 0);
-        return rest;
+        return Vormerkung.fuerSack(vorgebucht, ids, menge, nanos, VORGEBUCHT_NANOS);
     }
 
     /**
@@ -880,11 +898,11 @@ public final class ItemChanges {
         }
         // Ein Schluessel aus der Forge ist kein Fund: gebaut, geholt und in die Saecke gepackt, das alles sah wie Beute aus. Er kostet erst, wenn
         // er an einer Leiche verbraucht wird (CorpseKeyCost, im Minus), und kommt nur als Gewinn dazu, wenn die Leiche ihn selbst in ihrer Beute hat
-        if (!CORPSE_LOOT.equals(source) && gains.keySet().stream().anyMatch(GESCHMIEDETE_SCHLUESSEL::contains)) {
+        if (gains.keySet().stream().anyMatch(id -> schluesselKeinFund(id, source))) {
             // Die Karte gehoert dem Aufrufer, und manche sind nicht aenderbar: erst kopieren
             gains = new LinkedHashMap<>(gains);
-            gains.keySet().removeIf(GESCHMIEDETE_SCHLUESSEL::contains);
-            ShokiMod.LOGGER.info("[Profit] Umber/Tungsten key via {} - not a find, not counted (only a corpse's own loot counts it)", source);
+            gains.keySet().removeIf(id -> schluesselKeinFund(id, source));
+            ShokiMod.LOGGER.info("[Profit] Umber/Tungsten/Skeleton key via {} - not a find, not counted (only a corpse's own loot counts it)", source);
             if (gains.isEmpty()) {
                 return;
             }
