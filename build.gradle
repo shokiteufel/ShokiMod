@@ -41,8 +41,10 @@ dependencies {
 	// Fabric API. This is technically optional, but you probably want it anyway.
 	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
 
-	implementation("org.notenoughupdates.moulconfig:modern-26.2:4.7.2")
-	include("org.notenoughupdates.moulconfig:modern-26.2:4.7.2")
+	// 26.3 hat kein GLFW mehr (SDL): modern-26.2 ruft InputConstants.isKeyDown(Window, int) auf, das es dort nicht gibt
+	// (NoSuchMethodError in jedem Frame, sobald das Einstellungsfenster offen ist). Fuer 26.3 gibt es eine eigene Fassung.
+	implementation("org.notenoughupdates.moulconfig:modern-26.3:4.8.0")
+	include("org.notenoughupdates.moulconfig:modern-26.3:4.8.0")
 
 	implementation("com.terraformersmc:modmenu:20.0.0-beta.4")
 
