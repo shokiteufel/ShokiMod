@@ -19,7 +19,7 @@ public final class SafariHud {
 
     /** Ein Kasten auf dem Bildschirm. Traegt seine eigene Lage und Groesse in der Config */
     public enum Panel {
-        PROGRESS, MISSING, CONTEST, NEARBY, HUNTING, GUILD, COLLECTION, PROFIT, MINING, PET, PERFORMANCE, SEATRACKER, EFFECTS, SEAHP, DARK_AUCTION, FIRE_VEIL, DEPLOYABLES, FORGE, SKILL_XP;
+        PROGRESS, MISSING, CONTEST, NEARBY, HUNTING, GUILD, COLLECTION, PROFIT, MINING, PET, PERFORMANCE, SEATRACKER, EFFECTS, SEAHP, DARK_AUCTION, FIRE_VEIL, DEPLOYABLES, FORGE, SKILL_XP, FROZEN_BLAZE;
 
         public boolean visible() {
             ModConfig.SafariCategory c = ModConfig.INSTANCE.safari;
@@ -54,6 +54,8 @@ public final class SafariHud {
                 case FORGE -> ModConfig.INSTANCE.mining.forge.enabled && ModConfig.INSTANCE.mining.forge.showHud && ForgeHud.hasRows();
                 // Erst, wenn die erste Erfahrung gezaehlt wurde
                 case SKILL_XP -> ModConfig.INSTANCE.skillXp.enabled && ModConfig.INSTANCE.skillXp.showHud && SkillXpHud.hasRows();
+                // Nur mit dem ganzen Set am Koerper; im HUD-Editor immer
+                case FROZEN_BLAZE -> FrozenBlazeHud.shownNow();
             };
         }
 
@@ -91,6 +93,7 @@ public final class SafariHud {
                 case DEPLOYABLES -> "Time panel";
                 case FORGE -> "Forge";
                 case SKILL_XP -> "Skill XP";
+                case FROZEN_BLAZE -> "Aura timer";
             };
         }
 
@@ -143,6 +146,7 @@ public final class SafariHud {
                 case DEPLOYABLES -> ModConfig.INSTANCE.deployables.hud.hudX;
                 case FORGE -> ModConfig.INSTANCE.mining.forge.hudX;
                 case SKILL_XP -> ModConfig.INSTANCE.skillXp.hudX;
+                case FROZEN_BLAZE -> ModConfig.INSTANCE.fishing.frozenBlaze.timerHudX;
             };
         }
 
@@ -168,6 +172,7 @@ public final class SafariHud {
                 case DEPLOYABLES -> ModConfig.INSTANCE.deployables.hud.hudY;
                 case FORGE -> ModConfig.INSTANCE.mining.forge.hudY;
                 case SKILL_XP -> ModConfig.INSTANCE.skillXp.hudY;
+                case FROZEN_BLAZE -> ModConfig.INSTANCE.fishing.frozenBlaze.timerHudY;
             };
         }
 
@@ -193,6 +198,7 @@ public final class SafariHud {
                 case DEPLOYABLES -> ModConfig.INSTANCE.deployables.hud.hudScale;
                 case FORGE -> ModConfig.INSTANCE.mining.forge.hudScale;
                 case SKILL_XP -> ModConfig.INSTANCE.skillXp.hudScale;
+                case FROZEN_BLAZE -> ModConfig.INSTANCE.fishing.frozenBlaze.timerHudScale;
             };
         }
 
@@ -275,6 +281,10 @@ public final class SafariHud {
                     ModConfig.INSTANCE.skillXp.hudX = x;
                     ModConfig.INSTANCE.skillXp.hudY = y;
                 }
+                case FROZEN_BLAZE -> {
+                    ModConfig.INSTANCE.fishing.frozenBlaze.timerHudX = x;
+                    ModConfig.INSTANCE.fishing.frozenBlaze.timerHudY = y;
+                }
             }
         }
 
@@ -301,6 +311,7 @@ public final class SafariHud {
                 case DEPLOYABLES -> ModConfig.INSTANCE.deployables.hud.hudAlpha;
                 case FORGE -> ModConfig.INSTANCE.mining.forge.hudAlpha;
                 case SKILL_XP -> ModConfig.INSTANCE.skillXp.hudAlpha;
+                case FROZEN_BLAZE -> ModConfig.INSTANCE.fishing.frozenBlaze.timerHudAlpha;
             };
         }
 
@@ -329,6 +340,7 @@ public final class SafariHud {
                 case DEPLOYABLES -> ModConfig.INSTANCE.deployables.hud.hudAlpha = clamped;
                 case FORGE -> ModConfig.INSTANCE.mining.forge.hudAlpha = clamped;
                 case SKILL_XP -> ModConfig.INSTANCE.skillXp.hudAlpha = clamped;
+                case FROZEN_BLAZE -> ModConfig.INSTANCE.fishing.frozenBlaze.timerHudAlpha = clamped;
             }
         }
 
@@ -355,6 +367,7 @@ public final class SafariHud {
                 case DEPLOYABLES -> ModConfig.INSTANCE.deployables.hud.hudScale = clamped;
                 case FORGE -> ModConfig.INSTANCE.mining.forge.hudScale = clamped;
                 case SKILL_XP -> ModConfig.INSTANCE.skillXp.hudScale = clamped;
+                case FROZEN_BLAZE -> ModConfig.INSTANCE.fishing.frozenBlaze.timerHudScale = clamped;
             }
         }
 
@@ -421,6 +434,7 @@ public final class SafariHud {
                 case DEPLOYABLES -> DeployableHud.build();
                 case FORGE -> ForgeHud.build();
                 case SKILL_XP -> SkillXpHud.build();
+                case FROZEN_BLAZE -> FrozenBlazeHud.build();
             };
         }
     }
