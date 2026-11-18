@@ -180,6 +180,18 @@ Riccios Sätze, keine Tatsachen über Hypixel. Sie sind durch eigene ersetzt —
 steht nichts Geschriebenes aus einer GPL-Mod in dieser LGPL-Mod, und die Frage
 erledigt sich, statt offen zu bleiben.
 
+**Aura-Zeitgeber** (Fishing > Frozen Blaze > Aura timer, `FrozenBlaze.observe`,
+`FrozenBlazeHud`) — Version 2.3.13. RFU zeigt seit 1.20.2 („Added frozen blaze aura
+timer") einen Kasten mit den Sekunden, die die Frozen Blazing Aura noch wirkt. Gelesen
+wurden `FrozenBlazeAura.kt` und `FrozenBlazeDisplay.kt` (Stand 1.20.3, 18.11.2026);
+**übernommen ist die Regel**: dreißig Sekunden, Bewegung des Blicks UND des Körpers
+nötig, die Restzeit ist die kürzere der beiden Uhren, beim Anlegen des Sets beginnen
+beide von vorn, aus bei null. **Eigene Arbeit** ist alles Geschriebene: Java statt
+Kotlin, eine Beobachtung je Tick mit nachrechenbaren Funktionen und Tests, ein Kasten
+des HUD-Editors (Lage, Größe, Deckkraft), eigener Wortlaut („Blazing Aura", „OFF -
+move!") und eigene Beschreibung. Ob Hypixel die Aura genau so prüft, ist hier nicht
+nachgesehen; die Regel gilt, weil RFU sie so hat.
+
 ---
 
 ### NoammAddons (CC0-1.0, Noamm9, `Noamm9/NoammAddons`)

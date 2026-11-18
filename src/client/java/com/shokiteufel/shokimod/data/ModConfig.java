@@ -2199,6 +2199,21 @@ public class ModConfig extends Config {
         @ConfigOption(name = "Hide damage numbers", desc = "Hides the floating damage numbers (like 1,234 with its little stars and swords) while you wear the full Frozen Blaze armor. The aura hits every mob around you every second, and the numbers would cover the screen. All damage numbers are hidden, yours and the others'. Nothing else changes: the mobs are still hit, and the numbers are only not drawn. The look of the numbers is taken from SkyHanni's Hide Damage Splash.")
         @ConfigEditorBoolean
         public boolean hideDamage = false;
+
+        @Expose
+        @ConfigOption(name = "Aura timer", desc = "A panel with the seconds the Frozen Blazing Aura keeps working while you stand still. The aura goes off after 30 seconds in which you moved neither your body nor your view - both have to keep moving - and it comes back with the next move. The panel says when it is off, and shows only while you wear the full Frozen Blaze armor (always in the HUD editor, /shoki hud, where you move and resize it). The idea is from Riccio Fishing Utils; the rule is taken from there and has not been checked on Hypixel here.")
+        @ConfigEditorBoolean
+        public boolean auraTimer = false;
+
+        // Lage des Kastens, gesetzt ueber /shoki hud
+        @Expose
+        public float timerHudX = 0.5f;
+        @Expose
+        public float timerHudY = 0.4f;
+        @Expose
+        public float timerHudScale = 1.2f;
+        @Expose
+        public float timerHudAlpha = 1.0f;
     }
 
     /**

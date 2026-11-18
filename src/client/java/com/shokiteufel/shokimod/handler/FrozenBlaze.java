@@ -45,11 +45,105 @@ public final class FrozenBlaze {
     private static void tick(Minecraft client) {
         if (!FeatureGate.frozenBlaze()) {
             wearing = false;
+            seen = false;
             return;
         }
-        if (++ticks < CHECK_TICKS) return;
-        ticks = 0;
-        wearing = client.player != null && fullSet(client.player);
+        boolean wasWearing = wearing;
+        if (++ticks >= CHECK_TICKS) {
+            ticks = 0;
+            wearing = client.player != null && fullSet(client.player);
+        }
+        if (ModConfig.INSTANCE.fishing.frozenBlaze.auraTimer) {
+            Player player = client.player;
+            if (player == null) {
+                seen = false;
+            } else {
+                observe(wearing, wasWearing, player.getYRot(), player.getXRot(), player.getX(), player.getY(), player.getZ(), nowMillis());
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------ Aura-Zeitgeber
+
+    /**
+     * So lange wirkt die Frozen Blazing Aura nach der letzten Bewegung: dreissig Sekunden. Danach ist sie aus, bis man sich wieder bewegt.
+     *
+     * Herkunft: Riccio Fishing Utils (GPL-3.0, Ricciow/RiccioFishingUtils-Modern, "Frozen Blaze aura timer", Version 1.20.2). Von dort stammt die
+     * Regel: Die Aura braucht beides - eine Bewegung der Blickrichtung (Maus) UND eine des Koerpers -, jeweils innerhalb der dreissig Sekunden;
+     * die Restzeit ist die kuerzere der beiden. Wird nur der Blick bewegt, laeuft die Koerper-Uhr ab, und umgekehrt. Beim Anlegen des Sets
+     * beginnen beide Uhren von vorn. Wie genau Hypixel das prueft, ist hier nicht nachgesehen. Die Umsetzung ist eigene Arbeit (Java, eine
+     * Beobachtung je Tick, nachrechenbar ohne Spiel), und der Wortlaut der Anzeige ist ein eigener.
+     */
+    static final long AURA_MILLIS = 30_000L;
+
+    /** Wann sich zuletzt der Blick, wann zuletzt der Koerper bewegt hat (Uhr: {@link #nowMillis()}) */
+    private static long lookedAt = 0L;
+    private static long movedAt = 0L;
+    /** Gibt es schon eine Stellung vom letzten Tick, mit der verglichen werden kann? */
+    private static boolean seen = false;
+    private static float lastYaw;
+    private static float lastPitch;
+    private static double lastX;
+    private static double lastY;
+    private static double lastZ;
+
+    /** Eine gleichmaessige Uhr, die auch bei einer Umstellung der Systemzeit nicht springt */
+    private static long nowMillis() {
+        return System.nanoTime() / 1_000_000L;
+    }
+
+    /**
+     * Der Stand dieses Ticks. Blick und Koerper werden getrennt verglichen: Aendert sich die Blickrichtung, ist die Blick-Uhr neu; aendert sich der Ort, die
+     * Koerper-Uhr. Das erste Mal nach einem Neustart der Beobachtung (kein Spieler, Funktion war aus) wird nur die Stellung gemerkt.
+     */
+    static void observe(boolean wearingNow, boolean wasWearing, float yaw, float pitch, double x, double y, double z, long now) {
+        // Frisch angelegt: beide Uhren beginnen mit voller Zeit
+        if (wearingNow && !wasWearing) {
+            lookedAt = now;
+            movedAt = now;
+        }
+        if (seen) {
+            if (yaw != lastYaw || pitch != lastPitch) lookedAt = now;
+            if (x != lastX || y != lastY || z != lastZ) movedAt = now;
+        }
+        lastYaw = yaw;
+        lastPitch = pitch;
+        lastX = x;
+        lastY = y;
+        lastZ = z;
+        seen = true;
+    }
+
+    /** Wie lange die Aura noch wirkt: dreissig Sekunden abzueglich der laengeren der beiden Ruhezeiten, nie unter null und nie ueber dreissig */
+    static long auraLeftMillis(long now, long lookedAt, long movedAt) {
+        long idle = Math.max(now - lookedAt, now - movedAt);
+        return Math.min(AURA_MILLIS, Math.max(0L, AURA_MILLIS - idle));
+    }
+
+    /** Ganze Sekunden fuer die Anzeige, aufgerundet: 0 heisst, die Aura ist aus */
+    static int auraSeconds(long leftMillis) {
+        return (int) ((Math.max(0L, leftMillis) + 999L) / 1000L);
+    }
+
+    /** Die Sekunden, die die Aura jetzt noch wirkt (0 = aus) */
+    public static int auraSecondsLeft() {
+        return auraSeconds(auraLeftMillis(nowMillis(), lookedAt, movedAt));
+    }
+
+    /** Nur fuer Tests: Beobachtung und Uhren zuruecksetzen */
+    static void auraReset() {
+        seen = false;
+        lookedAt = 0L;
+        movedAt = 0L;
+    }
+
+    /** Nur fuer Tests: die beiden Uhren, wie {@link #auraLeftMillis} sie braucht */
+    static long lookedAtForTests() {
+        return lookedAt;
+    }
+
+    static long movedAtForTests() {
+        return movedAt;
     }
 
     /** Traegt der Spieler gerade das ganze Set? Nur zuverlaessig, solange eine der Funktionen an ist - sonst bleibt es falsch */
