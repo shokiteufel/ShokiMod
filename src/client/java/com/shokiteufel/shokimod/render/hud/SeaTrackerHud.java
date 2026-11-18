@@ -89,7 +89,8 @@ public final class SeaTrackerHud {
 
     /** "Sea Creatures Session [Reset]" - der Name der Ansicht unterstrichen, dahinter der Reset-Knopf */
     private static String titleText(boolean session) {
-        return "Sea Creatures §n" + (session ? "Session" : "Total") + "§r  " + RESET_LABEL;
+        return "Sea Creatures §n" + (session ? "Session" : "Total") + "§r  " + RESET_LABEL
+                + (session && SeaCreatureTracker.isPaused() ? " (paused)" : "");
     }
 
     /**

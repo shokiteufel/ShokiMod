@@ -171,7 +171,10 @@ public class LocationScanner {
     private static void applyServerId(String newId) {
         if (newId.equals(GameState.Server.id)) return;
 
+        String before = GameState.Server.id;
         GameState.Server.id = newId;
+        // Anderer Server, auch im selben Gebiet (Lobbywechsel): die Fischzeit haelt an, bis wieder gefangen wird
+        if (before != null && !before.isEmpty()) com.shokiteufel.shokimod.handler.SeaCreatureTracker.pauseNow();
         // Auch der Fangfortschritt der Critter gehoert zur Safari-Instanz und wird nicht mitgenommen
     }
 }

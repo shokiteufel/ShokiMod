@@ -38,11 +38,13 @@ public final class SeaCreatureTracker {
     private static final java.util.Map<String, Count> session = new java.util.HashMap<>();
 
     /**
-     * Die Fischzeit der Sitzung. Sie laeuft nur, solange gefangen wird: Zwischen zwei Faengen
-     * zaehlen hoechstens fuenf Minuten, alles darueber ist eine Pause - sonst wuerde
-     * eine Kaffeepause die Rate druecken.
+     * Die Fischzeit der Sitzung. Sie laeuft nur, solange gefangen wird: Kommt laenger als
+     * "Pause after" kein Fang, haelt die Uhr an, und die Wartezeit seit dem letzten Fang
+     * zaehlt nicht mit - wie beim Profit Tracker. Sonst wuerde ein Warp oder eine
+     * Kaffeepause die Rate druecken.
      */
-    private static final long IDLE_MILLIS = 5L * 60_000L;
+    private static final int PAUSE_MIN_SECONDS = 10;
+    private static final int PAUSE_MAX_SECONDS = 60;
     private static long sessionActiveMillis = 0L;
     private static long lastCatchAt = 0L;
 
@@ -97,15 +99,57 @@ public final class SeaCreatureTracker {
         }
         long now = System.currentTimeMillis();
         lastHookAt = now;
-        if (lastCatchAt > 0L) sessionActiveMillis += Math.min(now - lastCatchAt, IDLE_MILLIS);
-        lastCatchAt = now;
+        markCatch(now, pauseAfterMillis(cfg().pauseAfterSeconds));
         ModConfig.INSTANCE.saveNow();
+    }
+
+    /** Die Einstellung "Pause after" in Millisekunden, auf den Regler (10 bis 60 s) begrenzt - auch wenn jemand die Config von Hand aendert */
+    static long pauseAfterMillis(int seconds) {
+        return Math.max(PAUSE_MIN_SECONDS, Math.min(PAUSE_MAX_SECONDS, seconds)) * 1000L;
+    }
+
+    /**
+     * Wie viel eines Stuecks Zeit seit dem letzten Fang zur Fischzeit gehoert: alles, solange die
+     * Pause nicht erreicht ist - danach nichts, denn dann stand die Uhr, und die Wartezeit wird
+     * wieder abgezogen.
+     */
+    static long countedMillis(long sinceLastCatchMillis, long pauseAfterMillis) {
+        if (sinceLastCatchMillis <= 0L) return 0L;
+        return sinceLastCatchMillis <= pauseAfterMillis ? sinceLastCatchMillis : 0L;
+    }
+
+    /** Ein Fang zur Zeit {@code now}: das Stueck seit dem letzten Fang kommt zur Fischzeit, wenn die Uhr in der Zwischenzeit lief */
+    static void markCatch(long now, long pauseAfterMillis) {
+        if (lastCatchAt > 0L) sessionActiveMillis += countedMillis(now - lastCatchAt, pauseAfterMillis);
+        lastCatchAt = now;
+    }
+
+    /** Die Fischzeit zur Zeit {@code now}; das laufende Stueck seit dem letzten Fang zaehlt mit, solange die Pause nicht erreicht ist */
+    static long sessionMillisAt(long now, long pauseAfterMillis) {
+        long running = lastCatchAt > 0L ? countedMillis(now - lastCatchAt, pauseAfterMillis) : 0L;
+        return sessionActiveMillis + running;
+    }
+
+    /** Steht die Uhr wegen einer Pause? Vor dem ersten Fang gibt es nichts zu pausieren */
+    static boolean pausedAt(long now, long pauseAfterMillis) {
+        boolean runs = lastCatchAt > 0L && now - lastCatchAt <= pauseAfterMillis;
+        return (lastCatchAt > 0L || sessionActiveMillis > 0L) && !runs;
     }
 
     /** Aktive Fischzeit dieser Sitzung; das laufende Stueck seit dem letzten Fang zaehlt mit */
     public static long sessionMillis() {
-        long running = lastCatchAt > 0L ? Math.min(System.currentTimeMillis() - lastCatchAt, IDLE_MILLIS) : 0L;
-        return sessionActiveMillis + running;
+        return sessionMillisAt(System.currentTimeMillis(), pauseAfterMillis(cfg().pauseAfterSeconds));
+    }
+
+    /** Steht die Fischzeit gerade (Pause nach Untaetigkeit, Gebiets- oder Serverwechsel)? Der Kasten schreibt dann "(paused)" */
+    public static boolean isPaused() {
+        return pausedAt(System.currentTimeMillis(), pauseAfterMillis(cfg().pauseAfterSeconds));
+    }
+
+    /** Die Uhr auf null: Reset der Sitzung, und die Ausgangslage der Tests */
+    static void clockReset() {
+        sessionActiveMillis = 0L;
+        lastCatchAt = 0L;
     }
 
     /** Wie oft die Angel in dieser Sitzung etwas gebracht hat: ein Double Hook zaehlt zwei Fange, aber ein Auswurf */
@@ -150,7 +194,7 @@ public final class SeaCreatureTracker {
         return lastHookAt > 0L && System.currentTimeMillis() - lastHookAt <= HIDE_AFTER_MILLIS;
     }
 
-    /** Gebietswechsel: Die Fischzeit haelt an und laeuft mit dem naechsten Fang weiter */
+    /** Gebiets- oder Serverwechsel: Die Fischzeit haelt an und laeuft mit dem naechsten Fang weiter; die Wartezeit seit dem letzten Fang zaehlt nicht */
     public static void pauseNow() {
         lastCatchAt = 0L;
         lastHookAt = 0L;
@@ -310,8 +354,7 @@ public final class SeaCreatureTracker {
     public static void reset() {
         if (sessionView()) {
             session.clear();
-            sessionActiveMillis = 0L;
-            lastCatchAt = 0L;
+            clockReset();
         } else {
             counts().clear();
         }
