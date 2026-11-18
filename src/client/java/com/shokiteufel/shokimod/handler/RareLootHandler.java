@@ -119,6 +119,8 @@ public final class RareLootHandler {
      */
     private static final Map<String, Long> sharedFromChat = new HashMap<>();
     private static final Map<String, Long> sharedFromInventory = new HashMap<>();
+    /** Farben, die der Inventarweg schon als gewoehnlichen Fund gemeldet hat - damit die Farbzeile danach nicht noch einmal meldet */
+    private static final Map<String, Long> dyeFromInventory = new HashMap<>();
 
     /**
      * Zwischen zwei Zeilen an den Chat liegt mindestens diese Pause.
@@ -169,6 +171,7 @@ public final class RareLootHandler {
         announced.clear();
         sharedFromChat.clear();
         sharedFromInventory.clear();
+        dyeFromInventory.clear();
         // Eine Zeile, die auf einen anderen Server wartet, gehoert dort nicht mehr hin
         outbox.clear();
         RareLootSounds.clear();
@@ -206,6 +209,16 @@ public final class RareLootHandler {
             if (recentlyAnnounced(itemId, now)) continue;
 
             List<String> candidates = SkyBlockItems.priceCandidates(itemId);
+            // Eine Farbe meldet ihre Chatzeile ("WOW! ... found a ... Dye!"). Hat die Farbe Alarm und Teilen schon
+            // ganz uebernommen, bleibt dem Inventarweg nichts zu tun: sonst kaeme dieselbe Farbe, wenn der Zugang
+            // vor der Zeile eintrifft, ein zweites Mal als gewoehnlicher Fund
+            if (isDyeItem(candidates)) {
+                DyeRoute route = dyeRoute(cfg, true);
+                if (!route.tierAlert() && !route.ordinaryShare()) {
+                    note("dye " + itemId + " from the inventory: left to the dye line");
+                    continue;
+                }
+            }
             Drop drop = new Drop(readableName(itemId), amount, "", candidates);
             evaluate(drop, "inventory " + itemId + " x" + amount, now, false, true);
         }
@@ -379,7 +392,12 @@ public final class RareLootHandler {
 
         Minecraft client = Minecraft.getInstance();
 
-        if (dye && cfg.dyeAlert) {
+        // Eine Farbe - aus ihrer Chatzeile oder als Zugang im Inventar - geht immer zuerst durch die Farben-Regeln.
+        // Was sie uebernehmen (Alarm, Teilen), laeuft fuer diese Farbe nie noch einmal als gewoehnlicher Fund
+        boolean dyeFind = dye || (fromInventory && cfg.dyeDrops && isDyeItem(candidates));
+        DyeRoute route = dyeFind ? dyeRoute(cfg, fromInventory) : null;
+
+        if (route != null && route.dyeAlert()) {
             // Farben laufen nicht ueber die Schwellen.
             //
             // Ihr Wert sagt wenig: Eine Tentacle Dye steht heute in keiner Auktion und
@@ -392,12 +410,11 @@ public final class RareLootHandler {
                     "Dye", DYE_COLOUR, headline(drop),
                     value == null ? -1 : value.coins(),
                     value == null ? firstId(candidates) : value.itemId());
-
-            // Eine Farbe wird geteilt, wenn ihr eigener Schalter das sagt - auch wenn das
-            // Teilen sonst aus ist. Die Kanaele bleiben die eingestellten
-            if (cfg.dyeShare && !fromInventory) share(client, drop, value, lootshare, true);
-        } else if (cfg.enabled) {
-            if (value == null) {
+        } else if (cfg.enabled && (route == null || route.tierAlert())) {
+            if (route != null && !fromInventory && anyRecent(dyeFromInventory, candidates, now)) {
+                // Der Zugang im Inventar war vor der Farbzeile da und hat schon gemeldet
+                note("  no alert: the inventory already announced this dye");
+            } else if (value == null) {
                 note("  no alert: no price known for any id");
             } else {
                 Tier tier = tierFor(value.coins());
@@ -406,15 +423,20 @@ public final class RareLootHandler {
                 } else {
                     note("  alert tier " + tier.number());
                     rememberAnnounced(candidates, now);
+                    if (route != null && fromInventory) remember(dyeFromInventory, candidates, now);
                     announce(client, tier, headline(drop), value.coins(), value.itemId());
                 }
             }
         }
 
+        // Eine Farbe wird geteilt, wenn ihr eigener Schalter das sagt - auch wenn das Teilen sonst aus ist und auch
+        // ohne den Farb-Alarm. Die Kanaele bleiben die eingestellten
+        if (route != null && route.dyeShare()) share(client, drop, value, lootshare, true);
+
         // Ein Fund aus dem Inventar wird nur geteilt, wenn "Share inventory finds" an ist - siehe
-        // onInventoryGains. Farben sind oben schon durch, wenn ihr Schalter an ist: zweimal dieselbe
-        // Zeile ist Spam
-        boolean farbeSchonGeteilt = dye && cfg.dyeAlert && cfg.dyeShare;
+        // onInventoryGains. Teilt die Farbe schon selbst, ist der gewoehnliche Weg fuer sie gesperrt:
+        // zweimal dieselbe Zeile ist Spam, und die Farbe hat Vorrang
+        boolean farbeSchonGeteilt = route != null && !route.ordinaryShare();
         if (cfg.shareEnabled && (!fromInventory || cfg.shareInventory) && !farbeSchonGeteilt) {
             // Derselbe Fund steht oft als Chatzeile und als Zugang im Inventar da. Was der andere Weg
             // schon geteilt hat, teilt dieser nicht noch einmal
@@ -426,6 +448,48 @@ public final class RareLootHandler {
                 remember(fromInventory ? sharedFromInventory : sharedFromChat, candidates, now);
             }
         }
+    }
+
+    /**
+     * Was ein Fund, der eine Farbe ist, auf einem Weg ausloesen darf.
+     *
+     * Die Farben-Regeln haben Vorrang: Uebernimmt der Farb-Alarm, gibt es fuer diese Farbe keinen Stufen-Alarm, und uebernimmt das
+     * Farb-Teilen, keine gewoehnliche Teil-Meldung ueber die Schwelle. So steht eine Farbe nie zweimal im Chat - weder doppelt aus
+     * Farbzeile und Inventar noch einmal als Farbe und einmal als Beute ueber der Schwelle.
+     *
+     * @param dyeAlert      der Farb-Alarm meldet
+     * @param tierAlert     der Stufen-Alarm darf melden
+     * @param dyeShare      die Farbe geht in die Farb-Kanaele
+     * @param ordinaryShare die gewoehnliche Teil-Meldung (Schwellen, Vorlage der Stufe) darf senden
+     */
+    record DyeRoute(boolean dyeAlert, boolean tierAlert, boolean dyeShare, boolean ordinaryShare) {
+    }
+
+    /**
+     * Der Weg einer Farbe.
+     *
+     * Aus der Chatzeile meldet und teilt die Farbe selbst, wenn ihre Schalter an sind; was aus ist, faellt auf die gewoehnlichen
+     * Regeln zurueck. Vom Inventar aus meldet sie nie als Farbe: Ihre Chatzeile ist ihre Meldung, und ein Zugang ohne sie (getauscht,
+     * gekauft, aus der Truhe geholt) ist keine Neuigkeit. Sind Alarm und Teilen der Farbe an (und die Farbzeilen werden gelesen), bleibt
+     * dem Inventarweg deshalb nichts; ist eines von beiden aus, gilt dort fuer dieses eine die gewoehnliche Regel, wie bisher.
+     */
+    static DyeRoute dyeRoute(RareLootCategory cfg, boolean fromInventory) {
+        if (fromInventory) {
+            boolean ownsAlert = cfg.dyeDrops && cfg.dyeAlert;
+            boolean ownsShare = cfg.dyeDrops && cfg.dyeShare;
+            return new DyeRoute(false, !ownsAlert, false, !ownsShare);
+        }
+        return new DyeRoute(cfg.dyeAlert, !cfg.dyeAlert, cfg.dyeShare, !cfg.dyeShare);
+    }
+
+    /** Ist eine dieser Kennungen eine Farbe? ("DYE_SANGRIA" ja; "COMPACTED_DYE_SANGRIA" und "DYE_SANGRIA_BLOCK" sind gecraftet und keine) */
+    static boolean isDyeItem(List<String> candidates) {
+        if (candidates == null) return false;
+        for (int i = 0; i < candidates.size(); i++) {
+            String id = candidates.get(i);
+            if (id != null && id.startsWith("DYE_") && !id.endsWith("_BLOCK")) return true;
+        }
+        return false;
     }
 
     /** Steht eine dieser Schreibweisen in dieser Liste, und ist der Eintrag noch frisch? */
