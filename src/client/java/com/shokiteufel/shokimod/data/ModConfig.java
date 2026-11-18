@@ -2859,6 +2859,11 @@ public class ModConfig extends Config {
         public SeaView view = SeaView.TOTAL;
 
         @Expose
+        @ConfigOption(name = "Pause after", desc = "Seconds without a catch before the session timer pauses. The idle time since the last catch is taken off again, so SC/h and Hooks/h do not drop while you are away; the panel then says (paused) until the next catch. The timer also pauses at once when you change area or server. Choose more than the usual gap between two of your catches, or the timer pauses between them.")
+        @ConfigEditorSlider(minValue = 10f, maxValue = 60f, minStep = 5f)
+        public int pauseAfterSeconds = 30;
+
+        @Expose
         @ConfigOption(name = "Answer HPH?", desc = "When someone writes \"HPH?\" in the party chat, answers with your hooks per hour from this session. Needs the tracker switched on and a few minutes of fishing - otherwise it says there are too few hooks to post.")
         @ConfigEditorBoolean
         public boolean answerHph = true;
