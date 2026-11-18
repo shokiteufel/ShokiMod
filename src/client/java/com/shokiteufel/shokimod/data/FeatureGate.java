@@ -304,7 +304,7 @@ public final class FeatureGate {
     /** Fishing > Frozen Blaze: Das Set wird nur erkannt, solange eine der Funktionen daraus an ist */
     public static boolean frozenBlaze() {
         ModConfig.FrozenBlazeCategory c = ModConfig.INSTANCE.fishing.frozenBlaze;
-        return c.hidePlayers || c.hideLootshare || c.hideTribeMember || c.hideDamage;
+        return c.hidePlayers || c.hideLootshare || c.hideTribeMember || c.hideDamage || c.auraTimer;
     }
 
     /** Fishing > Hooks: Die fremden Haken ausblenden - nur wenn an. Braucht den Ort (nur in SkyBlock, nicht dort, wo niemand angelt) */

@@ -52,6 +52,7 @@ class NeueFunktionenAusTest {
         assertFalse(FeatureGate.roomScan(), "der Welt-Scan der Funny Map fuer die Raum-Regel");
         assertFalse(c.mining.mineshaft.keysFromSack, "Keys from sacks");
         assertFalse(FeatureGate.mineshaftKeys(), "die Schluessel-Zeile (und das Lesen der Leichen dafuer)");
+        assertFalse(c.fishing.frozenBlaze.auraTimer, "Frozen Blaze: Aura timer");
         assertFalse(c.mining.reminder.drillRefuel, "Drill fuel");
         assertFalse(FeatureGate.drillRefuel(), "die Zeile zum Auftanken des Drills");
     }
@@ -63,6 +64,7 @@ class NeueFunktionenAusTest {
         assertFalse(FeatureGate.forge(), "die Forge-Zeiten");
         assertFalse(FeatureGate.forgeAlert(), "der Forge-Alarm");
         assertFalse(FeatureGate.skillXp(), "der Skill-XP-Zaehler");
+        assertFalse(FeatureGate.frozenBlaze(), "die Frozen-Blaze-Erkennung (Set, Aura-Zeitgeber)");
         assertFalse(StarMobTarget.enabled(), "die Stern-Mobs");
         assertFalse(RunicGhostTarget.enabled(), "die Runic Ghosts");
     }
