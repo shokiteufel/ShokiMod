@@ -64,6 +64,18 @@ public final class ItemChanges {
      */
     private static final java.util.Set<String> GESCHMIEDETE_SCHLUESSEL = java.util.Set.of("UMBER_KEY", "TUNGSTEN_KEY", "SKELETON_KEY");
 
+    /**
+     * Gebiete, in denen ein Zugang ins Inventar nie ein Fund ist. In der Dark Auction wird ersteigert: Das Stueck ("You claimed ...!") liegt danach im
+     * Inventar und stand mit seinem Preis von hundert Millionen und mehr als Fund im Tracker (User 18.11.). Dort faellt nichts - kein Mob, kein Abbau,
+     * kein Angeln -, was ein Fund sein koennte. Der Name ist der der Area-Zeile der Tab-Liste (im Log: "Gebiet 'Dark Auction'").
+     */
+    private static final java.util.Set<String> KEIN_FUND_GEBIET = java.util.Set.of("Dark Auction");
+
+    /** Ist das ein Gebiet, in dem nichts als Fund zaehlt? */
+    static boolean keinFundGebiet(String area) {
+        return area != null && KEIN_FUND_GEBIET.contains(area.trim());
+    }
+
     /** Zaehlt dieser Zugang nicht, weil ein Leichen-Schluessel nur aus der Beute einer Leiche ein Fund ist? */
     static boolean schluesselKeinFund(String id, String source) {
         return id != null && !CORPSE_LOOT.equals(source) && GESCHMIEDETE_SCHLUESSEL.contains(id);
@@ -887,6 +899,12 @@ public final class ItemChanges {
      * @param nr Paketnummer des Anlasses, oder -1 (Essence aus Tab-Liste und Aktionsleiste: kein Paketbezug)
      */
     private static void dispatch(Map<String, Integer> gains, String source, long nr) {
+        // In der Dark Auction faellt nichts, es wird gekauft: Was dort ins Inventar kommt (das ersteigerte Stueck, ein Stash-Zugang), ist kein Fund.
+        // Das gilt fuer alle Hoerer - Tracker, Alarm und Teilen -, darum steht es hier und nicht im Tracker
+        if (keinFundGebiet(GameState.Server.map)) {
+            ShokiMod.LOGGER.info("[Profit] {} via {} in the {} - bought or picked up there, not a find, not counted", gains, source, GameState.Server.map);
+            return;
+        }
         // Koeder steht nur im Tracker, wenn "Count bait as cost" an ist (Schiggy 09.11.: "sowas soll nicht im Tracker stehen"): Weder Rueckgabe noch
         // Craft noch Fund. Die Karte gehoert dem Aufrufer, und manche sind nicht aenderbar: erst kopieren
         if (!koederZaehlen() && gains.keySet().stream().anyMatch(id -> id.endsWith(KOEDER_ENDUNG))) {
