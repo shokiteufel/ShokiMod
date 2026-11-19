@@ -53,17 +53,32 @@ final class Verdichtung {
         return name.isEmpty() ? null : name;
     }
 
-    /** Wie viele Stuecke dieser Sorte hat die Verzauberung in diesem Zeitraum gemeldet (eine Zeile ist eines)? Die Grenzen zaehlen mit. */
-    static int funde(List<Eintrag> eintraege, List<String> ids, long vonNanos, long bisNanos) {
-        if (eintraege == null || ids == null || ids.isEmpty()) return 0;
+    /**
+     * Wie viele Stuecke dieser Sorte hat die Verzauberung in diesem Zeitraum gemeldet (eine Zeile ist eines)? Die Grenzen zaehlen mit.
+     *
+     * Die gezaehlten Zeilen werden verbraucht: Eine Zeile gehoert zu genau einer Sack-Meldung. Die Fenster zweier Meldungen liegen mit ihrem
+     * Spielraum (acht Sekunden davor, drei danach) ein Stueck uebereinander, und eine Zeile in dieser Naht wurde sonst zweimal als echter Fund
+     * gezaehlt - im Log vom 19.11. 93 statt 83 Zeilen bei Enchanted Hard Stone, und dadurch blieb Rohware stehen, die laengst verbraucht war.
+     *
+     * @param hoechstens mehr als so viele kann es nicht geben (das Plus der Meldung); der Rest der Zeilen bleibt fuer die naechste Meldung
+     */
+    static int nimmFunde(List<Eintrag> eintraege, List<String> ids, long vonNanos, long bisNanos, int hoechstens) {
+        if (eintraege == null || ids == null || ids.isEmpty() || hoechstens <= 0) return 0;
         int n = 0;
-        for (Eintrag e : eintraege) {
+        java.util.Iterator<Eintrag> it = eintraege.iterator();
+        while (it.hasNext() && n < hoechstens) {
+            Eintrag e = it.next();
             if (e.nanos() < vonNanos || e.nanos() > bisNanos) continue;
+            boolean passt = false;
             for (String id : ids) {
                 if (id != null && e.ids().contains(id)) {
-                    n++;
+                    passt = true;
                     break;
                 }
+            }
+            if (passt) {
+                it.remove();
+                n++;
             }
         }
         return n;

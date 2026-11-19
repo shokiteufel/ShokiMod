@@ -541,6 +541,12 @@ public final class ItemChanges {
         }
         SackZeilen.Meldung m = SackZeilen.lesen(clean, new ArrayList<>(bloecke));
         long fenster = m.fensterSekunden() * 1_000_000_000L;
+        // Fuers Protokoll (Profit diagnostics): was die Meldung selbst sagt, vor jeder Gegenrechnung - damit sich nachrechnen laesst, was der Tracker
+        // daraus gemacht hat (User 19.11.: "geht es erst als Chatzeile in den Tracker und dann noch einmal als Sack-Meldung?")
+        if (debug()) {
+            ShokiMod.LOGGER.info("[Profit] sack message lists +[{}] -[{}]{} (last {} s)", sackListe(m.hinzu()), sackListe(m.entfernt()),
+                    m.versteckt() > 0 ? ", " + m.versteckt() + " more items cut off" : "", m.fensterSekunden());
+        }
         // Was beim Craften aus dem Sack ging, sind Zutaten, kein verbrauchter Koeder (Whale Bait entsteht aus Koedern)
         boolean nachCraft = craftGesehen && nanos - craftNanos <= CRAFT_NANOS;
         if (!nachCraft) {
@@ -579,7 +585,8 @@ public final class ItemChanges {
             }
             // Vom Personal Compactor verdichtet: Steht die Rohware dazu im Minus der Meldung, ist das Enchanted-Stueck daraus entstanden - ohne die
             // Stuecke, die die Verzauberung Compact in diesem Fenster als echte Funde gemeldet hat. Die Rohware zaehlte schon, als sie anfiel
-            int compactFunde = Verdichtung.funde(compactLinien, ids, nanos - fenster - ZUGANG_SPIELRAUM_NANOS, nanos + FENSTER_SPIELRAUM_NANOS);
+            int compactFunde = Verdichtung.nimmFunde(compactLinien, ids, nanos - fenster - ZUGANG_SPIELRAUM_NANOS, nanos + FENSTER_SPIELRAUM_NANOS,
+                    zeile.menge());
             int verdichtet = Verdichtung.aus(zeile.name(), zeile.menge(), compactFunde, entnommenWaren);
             // Das Enchanted-Stueck zaehlt als Fund (es liegt jetzt im Sack, das zeigt der Kasten); die Rohware, aus der es wurde, geht ab
             int menge = zeile.menge();
@@ -597,6 +604,10 @@ public final class ItemChanges {
                         ids.get(0), verdichtet, zeile.menge(), compactFunde, roh);
             }
             int rest = vorgebuchtAbziehen(ids, menge, nanos);
+            if (debug() && rest < menge) {
+                ShokiMod.LOGGER.info("[Profit] {} x{} of the {} in the sack message were counted before (chat line, craft or corpse loot): {} left",
+                        ids.get(0), menge - rest, menge, rest);
+            }
             if (rest > 0 && kern != null) {
                 // Das Fenster der Meldung ist auf Sekunden genau, ihr Zeitpunkt streut: ein Abgang vom Anfang der Spanne ist bei ihr
                 // schon so alt wie das Fenster oder knapp aelter (Zuruecklegen nach der Entnahme-Meldung, Schiggy 09.11., 19:37)
@@ -697,6 +708,16 @@ public final class ItemChanges {
         if (!rohwareAbzug.isEmpty() && !keinFundGebiet(GameState.Server.map)) {
             com.shokiteufel.shokimod.handler.ProfitTracker.deduct(rohwareAbzug);
         }
+    }
+
+    /** "Fine Amethyst Gemstone x1, Coal x40" - die Posten einer Sack-Meldung fuers Protokoll */
+    private static String sackListe(List<SackZeilen.Zeile> zeilen) {
+        StringBuilder sb = new StringBuilder();
+        for (SackZeilen.Zeile z : zeilen) {
+            if (!sb.isEmpty()) sb.append(", ");
+            sb.append(z.name()).append(" x").append(z.menge());
+        }
+        return sb.toString();
     }
 
     /** So lange gilt eine Einlagerung von Hand fuer die Sack-Meldung, die ihr folgt */
