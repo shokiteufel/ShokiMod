@@ -558,6 +558,12 @@ public final class ItemChanges {
         for (SackZeilen.Zeile aus : m.entfernt()) {
             entnommenWaren.add(new Verdichtung.Entnommen(aus.name(), aus.menge()));
         }
+        int[] entnommenUebrig = new int[entnommenWaren.size()];
+        for (int i = 0; i < entnommenUebrig.length; i++) {
+            entnommenUebrig[i] = Math.max(0, entnommenWaren.get(i).menge());
+        }
+        // Die Rohware, die der Compactor in diesem Fenster aufgebraucht hat: Sie geht vom Tracker ab, das Enchanted-Stueck bleibt als Fund
+        Map<String, Integer> rohwareAbzug = new LinkedHashMap<>();
         for (SackZeilen.Zeile zeile : m.hinzu()) {
             List<String> ids = ItemNames.idsFor(zeile.name());
             if (ids.isEmpty()) {
@@ -575,15 +581,20 @@ public final class ItemChanges {
             // Stuecke, die die Verzauberung Compact in diesem Fenster als echte Funde gemeldet hat. Die Rohware zaehlte schon, als sie anfiel
             int compactFunde = Verdichtung.funde(compactLinien, ids, nanos - fenster - ZUGANG_SPIELRAUM_NANOS, nanos + FENSTER_SPIELRAUM_NANOS);
             int verdichtet = Verdichtung.aus(zeile.name(), zeile.menge(), compactFunde, entnommenWaren);
-            int menge = zeile.menge() - verdichtet;
+            // Das Enchanted-Stueck zaehlt als Fund (es liegt jetzt im Sack, das zeigt der Kasten); die Rohware, aus der es wurde, geht ab
+            int menge = zeile.menge();
             if (verdichtet > 0) {
-                KernProtokoll.beleg("compactor", nr, ids.get(0) + " x" + verdichtet + " von " + zeile.menge() + " (Rohware im Minus der Meldung, "
-                        + compactFunde + " echte Funde der Verzauberung)");
-                ShokiMod.LOGGER.info("[Profit] {} x{} of {} came out of the Compactor ({} real Compact finds) - the raw items are in the minus of the same message, not a find",
-                        ids.get(0), verdichtet, zeile.menge(), compactFunde);
-                if (menge <= 0) {
-                    continue;
+                java.util.List<Verdichtung.Entnommen> roh = Verdichtung.rohwareFuer(zeile.name(), verdichtet, entnommenUebrig, entnommenWaren);
+                for (Verdichtung.Entnommen r : roh) {
+                    List<String> rohIds = ItemNames.idsFor(r.name());
+                    if (!rohIds.isEmpty()) {
+                        rohwareAbzug.merge(rohIds.get(0), r.menge(), Integer::sum);
+                    }
                 }
+                KernProtokoll.beleg("compactor", nr, ids.get(0) + " x" + verdichtet + " von " + zeile.menge() + " verdichtet, Rohware " + roh
+                        + " (" + compactFunde + " echte Funde der Verzauberung)");
+                ShokiMod.LOGGER.info("[Profit] {} x{} of {} were compacted in the sack ({} real Compact finds): counted, and the raw items {} taken off",
+                        ids.get(0), verdichtet, zeile.menge(), compactFunde, roh);
             }
             int rest = vorgebuchtAbziehen(ids, menge, nanos);
             if (rest > 0 && kern != null) {
@@ -680,6 +691,11 @@ public final class ItemChanges {
             } finally {
                 fensterMillis = 0L;
             }
+        }
+        // Die Rohware, die der Compactor aufgebraucht hat, geht ab - nach den Funden dieser Meldung: Was in derselben halben Minute anfiel und
+        // gleich verdichtet wurde, wird erst gezaehlt und dann abgezogen
+        if (!rohwareAbzug.isEmpty() && !keinFundGebiet(GameState.Server.map)) {
+            com.shokiteufel.shokimod.handler.ProfitTracker.deduct(rohwareAbzug);
         }
     }
 
