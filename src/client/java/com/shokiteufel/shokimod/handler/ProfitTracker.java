@@ -442,9 +442,22 @@ public final class ProfitTracker {
     public static void adjust(String itemId, int delta) {
         if (itemId == null || delta == 0) return;
 
-        // In allen drei Zeitraeumen: Was hier falsch gezaehlt wurde, war auch im Tag und
-        // im Gesamtstand falsch. Nur der angezeigte zu korrigieren hiesse, den Fehler in
-        // den anderen beiden stehen zu lassen
+        int updated = adjustQuiet(itemId, delta);
+        invalidateRows();
+        ModConfig.INSTANCE.saveNow();
+        ShokiMod.LOGGER.info("[Profit] {} {} by hand -> {}", delta > 0 ? "+" + delta : delta,
+                itemId, Math.max(0, updated));
+    }
+
+    /**
+     * Die Zaehler aller drei Zeitraeume um {@code delta} aendern - ohne zu speichern, zu protokollieren oder die Zeilen zu verwerfen.
+     *
+     * In allen drei Zeitraeumen: Was hier falsch gezaehlt wurde, war auch im Tag und im Gesamtstand falsch. Nur der angezeigte zu korrigieren
+     * hiesse, den Fehler in den anderen beiden stehen zu lassen.
+     *
+     * @return der neue Stand des gerade angezeigten Zeitraums (kann unter null liegen, wo die Ware nicht negativ sein darf)
+     */
+    private static int adjustQuiet(String itemId, int delta) {
         int updated = 0;
         for (Map<String, Integer> zaehler : List.of(cfg().counts, cfg().dayCounts, cfg().totalCounts)) {
             Integer vorher = zaehler.get(itemId);
@@ -458,10 +471,29 @@ public final class ProfitTracker {
             else zaehler.remove(itemId);
             if (zaehler == cfg().dayCounts) bookDayCoins(itemId, vorher == null ? 0 : vorher, bleibt ? neu : 0);
         }
+        return updated;
+    }
+
+    /**
+     * Rohware abziehen, die der Compactor in den Saecken zu Enchanted verdichtet hat (siehe {@code Verdichtung}): Das Enchanted-Stueck
+     * steht als Fund im Kasten, die Rohware, aus der es wurde, hoert auf, dort zu stehen. Ohne diesen Abzug stuende dieselbe Kohle zweimal da
+     * (User 19.11.: Coal x835k neben Enchanted Coal x4.441) - und ohne das Enchanted-Stueck zeigte der Kasten Ware, die gar nicht mehr im Sack
+     * liegt (User 19.11. abends: "jetzt steht nicht mal mehr Enchanted Coal im Tracker, dabei wird das normale immer in Enchanted umgewandelt").
+     *
+     * Wie jede Korrektur ({@link #adjust}) in allen drei Zeitraeumen, aber ohne bei jeder Sack-Meldung die Config zu schreiben: Die Zaehlung
+     * speichert im Takt. Unter null geht keine Ware - die Rohware kann aus der Zeit vor dem letzten Reset stammen.
+     *
+     * @param abzug Kennung und Menge, die abgeht (positive Zahlen)
+     */
+    public static void deduct(Map<String, Integer> abzug) {
+        if (abzug == null || abzug.isEmpty() || !enabled()) return;
+        for (Map.Entry<String, Integer> e : abzug.entrySet()) {
+            if (e.getKey() == null || e.getValue() == null || e.getValue() <= 0) continue;
+            adjustQuiet(e.getKey(), -e.getValue());
+        }
         invalidateRows();
-        ModConfig.INSTANCE.saveNow();
-        ShokiMod.LOGGER.info("[Profit] {} {} by hand -> {}", delta > 0 ? "+" + delta : delta,
-                itemId, Math.max(0, updated));
+        dirty = true;
+        ShokiMod.LOGGER.info("[Profit] raw items the Compactor used up, taken off: {}", abzug);
     }
 
     /**
