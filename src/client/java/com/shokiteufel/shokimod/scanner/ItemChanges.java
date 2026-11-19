@@ -117,8 +117,11 @@ public final class ItemChanges {
     private record JungerFund(String id, int menge, long nanos) {
     }
 
-    /** Was der Compactor kuerzlich verdichtet gemeldet hat ("COMPACT! You found an Enchanted Coal!", siehe {@link CompactorZeilen}): das Ergebnis ist kein Fund */
-    private static final List<CompactorZeilen.Eintrag> compactorZeilen = new ArrayList<>();
+    /**
+     * Die Stuecke, die die Verzauberung Compact kuerzlich gemeldet hat ("COMPACT! You found an Enchanted Coal!", eine Zeile ein Stueck, siehe
+     * {@link Verdichtung}): ein echter Fund. Im Plus einer Sack-Meldung heben sie sich von dem ab, was der Personal Compactor verdichtet hat
+     */
+    private static final List<Verdichtung.Eintrag> compactLinien = new ArrayList<>();
 
     /** Was der Sack kuerzlich als herausgenommen gemeldet hat, und der Abgleich einer Rueckgabe dagegen (siehe {@link SackRueckgabe}) */
     private static final SackRueckgabe RUECKGABE = new SackRueckgabe();
@@ -225,7 +228,7 @@ public final class ItemChanges {
         vorgebucht.clear();
         inventarFunde.clear();
         craftGesehen = false;
-        compactorZeilen.clear();
+        compactLinien.clear();
         ansprueche.clear();
         jungeFunde.clear();
         offeneZeilen.clear();
@@ -323,13 +326,12 @@ public final class ItemChanges {
             KernProtokoll.beleg("stash", nr, clean);
             return;
         }
-        // Der Compactor verdichtet in den Saecken ("COMPACT! You found an Enchanted Coal!"): Das Ergebnis ist kein Fund, die Rohware zaehlte schon.
-        // Die Zeile wird hier nur gemerkt; die Sack-Meldung kurz danach nennt die Menge, und dort faellt das Ergebnis heraus. Sie darf auch nicht
-        // weiter: Als "You found ..." laese die Ergaenzung des abgeschnittenen Rests sie sonst als Fund
-        String verdichtet = CompactorZeilen.lesen(clean);
-        if (verdichtet != null) {
-            merkeCompactor(verdichtet, nanos);
-            return;
+        // "COMPACT! You found an Enchanted Coal!" ist die Verzauberung Compact der Spitzhacke: ein echter Fund, ein Stueck je Zeile (nicht der
+        // Personal Compactor, der in den Saecken verdichtet und im Chat nichts sagt). Die Zeile geht weiter wie jede "You found"-Zeile; hier wird
+        // sie nur mitgezaehlt, damit die Sack-Meldung kurz danach ihre Stuecke von dem trennen kann, was der Compactor verdichtet hat
+        String compactFund = Verdichtung.lesen(clean);
+        if (compactFund != null) {
+            merkeCompactFund(compactFund, nanos);
         }
         // Selbst Gecraftetes ist nie Beute: Das Ergebnis kommt meist in den Sack, und die Sack-Meldung kurz danach nennt es als Zugang.
         // Hier wird es vorgemerkt, die Sack-Meldung zieht es ab (wie bei der Beute einer Leiche)
@@ -493,14 +495,14 @@ public final class ItemChanges {
         ShokiMod.LOGGER.info("[Profit] crafted {} x{} - set aside so the sack message does not count it as a find", ids.get(0), g.menge());
     }
 
-    /** Merkt eine Compactor-Zeile: der Name als Kennungen, und wann sie kam. Alte Zeilen fallen heraus - die Sack-Meldung kommt bis zu dreissig Sekunden spaeter */
-    private static void merkeCompactor(String name, long nanos) {
+    /** Merkt ein Stueck der Verzauberung Compact: der Name als Kennungen, und wann es kam. Alte fallen heraus - die Sack-Meldung kommt bis zu dreissig Sekunden spaeter */
+    private static void merkeCompactFund(String name, long nanos) {
         List<String> ids = ItemNames.idsFor(name);
         if (ids.isEmpty()) {
             return;
         }
-        compactorZeilen.removeIf(e -> nanos - e.nanos() > ANSPRUCH_NANOS);
-        compactorZeilen.add(new CompactorZeilen.Eintrag(new ArrayList<>(ids), nanos));
+        compactLinien.removeIf(e -> nanos - e.nanos() > ANSPRUCH_NANOS);
+        compactLinien.add(new Verdichtung.Eintrag(new ArrayList<>(ids), nanos));
     }
 
     /** Welche der moeglichen Kennungen ist die echte? Die, fuer die es einen Preis gibt. */
@@ -551,10 +553,10 @@ public final class ItemChanges {
             return;
         }
         Map<String, Integer> netto = new LinkedHashMap<>();
-        // Das Minus der Meldung, fuer den Compactor: was dort an Rohware abging, ist in den Enchanted-Stuecken im Plus aufgegangen
-        List<CompactorZeilen.Entnommen> entnommenWaren = new ArrayList<>();
+        // Das Minus der Meldung, fuer den Personal Compactor: was dort an Rohware abging, ist in den Enchanted-Stuecken im Plus aufgegangen
+        List<Verdichtung.Entnommen> entnommenWaren = new ArrayList<>();
         for (SackZeilen.Zeile aus : m.entfernt()) {
-            entnommenWaren.add(new CompactorZeilen.Entnommen(aus.name(), aus.menge()));
+            entnommenWaren.add(new Verdichtung.Entnommen(aus.name(), aus.menge()));
         }
         for (SackZeilen.Zeile zeile : m.hinzu()) {
             List<String> ids = ItemNames.idsFor(zeile.name());
@@ -569,19 +571,16 @@ public final class ItemChanges {
                 ShokiMod.LOGGER.info("[Profit] sack message names {} x{}: a Hunting Box shard, not a find - not counted", zeile.name(), zeile.menge());
                 continue;
             }
-            // Verdichtet vom Compactor: das Enchanted-Stueck ist die Rohware, die schon als Fund zaehlte - kein zweiter Fund
-            if (CompactorZeilen.imFenster(compactorZeilen, ids, nanos - fenster - ZUGANG_SPIELRAUM_NANOS, nanos + FENSTER_SPIELRAUM_NANOS)) {
-                KernProtokoll.beleg("compactor", nr, ids.get(0) + " x" + zeile.menge() + " (COMPACT!-Zeile im Fenster der Meldung)");
-                ShokiMod.LOGGER.info("[Profit] {} x{} came out of the Compactor - not a find, the raw items counted when they fell", ids.get(0), zeile.menge());
-                continue;
-            }
-            // Auch ohne COMPACT!-Zeile: Steht die Rohware dazu im Minus der Meldung, ist das Enchanted-Stueck daraus verdichtet worden
-            int verdichtet = CompactorZeilen.aus(zeile.name(), zeile.menge(), entnommenWaren);
+            // Vom Personal Compactor verdichtet: Steht die Rohware dazu im Minus der Meldung, ist das Enchanted-Stueck daraus entstanden - ohne die
+            // Stuecke, die die Verzauberung Compact in diesem Fenster als echte Funde gemeldet hat. Die Rohware zaehlte schon, als sie anfiel
+            int compactFunde = Verdichtung.funde(compactLinien, ids, nanos - fenster - ZUGANG_SPIELRAUM_NANOS, nanos + FENSTER_SPIELRAUM_NANOS);
+            int verdichtet = Verdichtung.aus(zeile.name(), zeile.menge(), compactFunde, entnommenWaren);
             int menge = zeile.menge() - verdichtet;
             if (verdichtet > 0) {
-                KernProtokoll.beleg("compactor", nr, ids.get(0) + " x" + verdichtet + " von " + zeile.menge() + " (Rohware im Minus der Meldung)");
-                ShokiMod.LOGGER.info("[Profit] {} x{} of {} came out of the Compactor - the raw items are in the minus of the same message, not a find",
-                        ids.get(0), verdichtet, zeile.menge());
+                KernProtokoll.beleg("compactor", nr, ids.get(0) + " x" + verdichtet + " von " + zeile.menge() + " (Rohware im Minus der Meldung, "
+                        + compactFunde + " echte Funde der Verzauberung)");
+                ShokiMod.LOGGER.info("[Profit] {} x{} of {} came out of the Compactor ({} real Compact finds) - the raw items are in the minus of the same message, not a find",
+                        ids.get(0), verdichtet, zeile.menge(), compactFunde);
                 if (menge <= 0) {
                     continue;
                 }
