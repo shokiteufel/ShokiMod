@@ -55,37 +55,75 @@ class VerdichtungTest {
         return new Verdichtung.Eintrag(List.of(id), sekunden * S);
     }
 
+    /** Zaehlen, ohne zu verbrauchen: auf einer Kopie */
+    private static int funde(List<Verdichtung.Eintrag> e, List<String> ids, long von, long bis) {
+        return Verdichtung.nimmFunde(e == null ? null : new java.util.ArrayList<>(e), ids, von, bis, Integer.MAX_VALUE);
+    }
+
+    @Test
+    void aLineBelongsToExactlyOneSackMessage() {
+        // Zwei Meldungen, deren Fenster sich in der Naht ueberlappen: Die Zeile bei 100 s liegt in beiden, zaehlt aber nur einmal
+        java.util.ArrayList<Verdichtung.Eintrag> e = new java.util.ArrayList<>(List.of(
+                zeile("ENCHANTED_HARD_STONE", 90), zeile("ENCHANTED_HARD_STONE", 100), zeile("ENCHANTED_HARD_STONE", 120)));
+        List<String> ids = List.of("ENCHANTED_HARD_STONE");
+        int erste = Verdichtung.nimmFunde(e, ids, 65 * S, 103 * S, 50);     // Meldung bei 95 s, Fenster 30 s, 8 s davor, 3 s danach... bis 103 s
+        int zweite = Verdichtung.nimmFunde(e, ids, 90 * S, 133 * S, 50);    // naechste Meldung bei 125 s: reicht bis 90 s zurueck
+        assertEquals(2, erste, "die Zeilen bei 90 und 100 s");
+        assertEquals(1, zweite, "nur die bei 120 s: die beiden anderen sind schon gezaehlt");
+        assertEquals(3, erste + zweite, "zusammen genau so viele wie Zeilen");
+    }
+
+    @Test
+    void moreLinesThanTheMessageHoldsStayForTheNextOne() {
+        java.util.ArrayList<Verdichtung.Eintrag> e = new java.util.ArrayList<>(List.of(
+                zeile("ENCHANTED_COAL", 80), zeile("ENCHANTED_COAL", 85), zeile("ENCHANTED_COAL", 90)));
+        List<String> ids = List.of("ENCHANTED_COAL");
+        assertEquals(2, Verdichtung.nimmFunde(e, ids, 70 * S, 103 * S, 2), "mehr als das Plus der Meldung kann es nicht geben");
+        assertEquals(1, e.size(), "die dritte bleibt");
+        assertEquals(1, Verdichtung.nimmFunde(e, ids, 70 * S, 103 * S, 5));
+        assertEquals(0, Verdichtung.nimmFunde(e, ids, 70 * S, 103 * S, 5), "nichts mehr uebrig");
+        assertEquals(0, Verdichtung.nimmFunde(e, ids, 70 * S, 103 * S, 0));
+    }
+
+    @Test
+    void linesOfAnotherItemAreNotUsedUp() {
+        java.util.ArrayList<Verdichtung.Eintrag> e = new java.util.ArrayList<>(List.of(zeile("ENCHANTED_COAL", 85), zeile("ENCHANTED_HARD_STONE", 86)));
+        assertEquals(1, Verdichtung.nimmFunde(e, List.of("ENCHANTED_COAL"), 70 * S, 103 * S, 5));
+        assertEquals(1, e.size());
+        assertEquals("ENCHANTED_HARD_STONE", e.get(0).ids().get(0));
+    }
+
     @Test
     void countsOnePiecePerLineInTheWindow() {
         List<Verdichtung.Eintrag> e = List.of(zeile("ENCHANTED_HARD_STONE", 85), zeile("ENCHANTED_HARD_STONE", 90), zeile("ENCHANTED_HARD_STONE", 99),
                 zeile("ENCHANTED_COAL", 91));
-        assertEquals(3, Verdichtung.funde(e, List.of("ENCHANTED_HARD_STONE"), 70 * S, 103 * S));
-        assertEquals(1, Verdichtung.funde(e, List.of("ENCHANTED_COAL"), 70 * S, 103 * S));
-        assertEquals(4, Verdichtung.funde(e, List.of("ENCHANTED_COAL", "ENCHANTED_HARD_STONE"), 70 * S, 103 * S), "eine Zeile zaehlt nur einmal, auch mit zwei passenden Kennungen");
+        assertEquals(3, funde(e, List.of("ENCHANTED_HARD_STONE"), 70 * S, 103 * S));
+        assertEquals(1, funde(e, List.of("ENCHANTED_COAL"), 70 * S, 103 * S));
+        assertEquals(4, funde(e, List.of("ENCHANTED_COAL", "ENCHANTED_HARD_STONE"), 70 * S, 103 * S), "eine Zeile zaehlt nur einmal, auch mit zwei passenden Kennungen");
     }
 
     @Test
     void aLineOutsideTheWindowOrOfAnotherItemCountsNothing() {
         List<Verdichtung.Eintrag> e = List.of(zeile("ENCHANTED_COAL", 85));
-        assertEquals(0, Verdichtung.funde(e, List.of("ENCHANTED_COAL"), 90 * S, 103 * S), "die Zeile kam vor dem Fenster");
-        assertEquals(0, Verdichtung.funde(e, List.of("ENCHANTED_COAL"), 60 * S, 80 * S), "die Zeile kam nach dem Fenster");
-        assertEquals(0, Verdichtung.funde(e, List.of("ENCHANTED_HARD_STONE"), 70 * S, 103 * S), "eine andere Sorte");
-        assertEquals(0, Verdichtung.funde(e, List.of("COAL"), 70 * S, 103 * S), "die Rohware ist kein Stueck der Verzauberung");
+        assertEquals(0, funde(e, List.of("ENCHANTED_COAL"), 90 * S, 103 * S), "die Zeile kam vor dem Fenster");
+        assertEquals(0, funde(e, List.of("ENCHANTED_COAL"), 60 * S, 80 * S), "die Zeile kam nach dem Fenster");
+        assertEquals(0, funde(e, List.of("ENCHANTED_HARD_STONE"), 70 * S, 103 * S), "eine andere Sorte");
+        assertEquals(0, funde(e, List.of("COAL"), 70 * S, 103 * S), "die Rohware ist kein Stueck der Verzauberung");
     }
 
     @Test
     void theEdgesOfTheWindowCount() {
         List<Verdichtung.Eintrag> e = List.of(zeile("ENCHANTED_COAL", 70));
-        assertEquals(1, Verdichtung.funde(e, List.of("ENCHANTED_COAL"), 70 * S, 103 * S));
-        assertEquals(1, Verdichtung.funde(e, List.of("ENCHANTED_COAL"), 40 * S, 70 * S));
+        assertEquals(1, funde(e, List.of("ENCHANTED_COAL"), 70 * S, 103 * S));
+        assertEquals(1, funde(e, List.of("ENCHANTED_COAL"), 40 * S, 70 * S));
     }
 
     @Test
     void emptyInputsCountNothing() {
-        assertEquals(0, Verdichtung.funde(List.of(), List.of("ENCHANTED_COAL"), 0, 100 * S));
-        assertEquals(0, Verdichtung.funde(null, List.of("ENCHANTED_COAL"), 0, 100 * S));
-        assertEquals(0, Verdichtung.funde(List.of(zeile("ENCHANTED_COAL", 1)), List.of(), 0, 100 * S));
-        assertEquals(0, Verdichtung.funde(List.of(zeile("ENCHANTED_COAL", 1)), null, 0, 100 * S));
+        assertEquals(0, funde(List.of(), List.of("ENCHANTED_COAL"), 0, 100 * S));
+        assertEquals(0, funde(null, List.of("ENCHANTED_COAL"), 0, 100 * S));
+        assertEquals(0, funde(List.of(zeile("ENCHANTED_COAL", 1)), List.of(), 0, 100 * S));
+        assertEquals(0, funde(List.of(zeile("ENCHANTED_COAL", 1)), null, 0, 100 * S));
     }
 
     private static List<Verdichtung.Entnommen> minus(Object... paare) {
