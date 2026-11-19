@@ -138,6 +138,48 @@ class VerdichtungTest {
     }
 
     @Test
+    void theRawItemsOfTheCompactedPiecesComeOffTheTracker() {
+        // 191 Enchanted Coal verdichtet; im Minus 30.560 Coal und 37.696 Hard Stone: nur die Coal gehen fuer die Enchanted Coal ab
+        List<Verdichtung.Entnommen> entfernt = minus("Coal", 30_560, "Hard Stone", 37_696);
+        int[] uebrig = {30_560, 37_696};
+        List<Verdichtung.Entnommen> roh = Verdichtung.rohwareFuer("Enchanted Coal", 191, uebrig, entfernt);
+        assertEquals(List.of(new Verdichtung.Entnommen("Coal", 30_560)), roh);
+        assertEquals(0, uebrig[0], "die Entnahme ist zugeteilt");
+        assertEquals(37_696, uebrig[1], "die andere bleibt unberuehrt");
+    }
+
+    @Test
+    void theRawItemsAreCappedByTheBiggestRecipe() {
+        // Nimmt der Spieler nebenbei 100.000 Coal aus dem Sack, gehen fuer drei verdichtete Stuecke hoechstens 3 mal 576 ab
+        int[] uebrig = {100_000};
+        List<Verdichtung.Entnommen> roh = Verdichtung.rohwareFuer("Enchanted Coal", 3, uebrig, minus("Coal", 100_000));
+        assertEquals(List.of(new Verdichtung.Entnommen("Coal", 1_728)), roh);
+        assertEquals(100_000 - 1_728, uebrig[0]);
+    }
+
+    @Test
+    void twoPiecesShareOneWithdrawalOnlyOnce() {
+        // Enchanted Coal und ein zweiter Posten derselben Rohware: die Entnahme reicht nicht fuer beide ganz
+        int[] uebrig = {1_000};
+        List<Verdichtung.Entnommen> erster = Verdichtung.rohwareFuer("Enchanted Coal", 1, uebrig, minus("Coal", 1_000));
+        List<Verdichtung.Entnommen> zweiter = Verdichtung.rohwareFuer("Enchanted Coal", 1, uebrig, minus("Coal", 1_000));
+        assertEquals(576, erster.get(0).menge());
+        assertEquals(424, zweiter.get(0).menge(), "nur der Rest");
+        assertEquals(0, uebrig[0]);
+    }
+
+    @Test
+    void nothingComesOffWithoutACompaction() {
+        assertTrue(Verdichtung.rohwareFuer("Enchanted Coal", 0, new int[]{100}, minus("Coal", 100)).isEmpty());
+        assertTrue(Verdichtung.rohwareFuer("Coal", 5, new int[]{100}, minus("Coal", 100)).isEmpty(), "die Rohware selbst");
+        assertTrue(Verdichtung.rohwareFuer("Enchanted Coal", 5, new int[]{100}, minus("Hard Stone", 100)).isEmpty(), "eine andere Rohware");
+        assertTrue(Verdichtung.rohwareFuer("Enchanted Coal", 5, new int[]{0}, minus("Coal", 100)).isEmpty(), "schon zugeteilt");
+        assertTrue(Verdichtung.rohwareFuer("Enchanted Coal", 5, new int[]{100, 5}, minus("Coal", 100)).isEmpty(), "die Stellen passen nicht zusammen");
+        assertTrue(Verdichtung.rohwareFuer("Enchanted Coal", 5, null, minus("Coal", 100)).isEmpty());
+        assertTrue(Verdichtung.rohwareFuer(null, 5, new int[]{100}, minus("Coal", 100)).isEmpty());
+    }
+
+    @Test
     void namesMatchOnWholeWordsOnly() {
         assertTrue(Verdichtung.gehoert("Iron", "Iron Ingot"));
         assertTrue(Verdichtung.gehoert("Redstone Dust", "Redstone"));
