@@ -721,9 +721,13 @@ public final class ProfitTracker {
     /**
      * Die Farbe, in der der Name steht - die Seltenheit des Items.
      *
-     * Drei Quellen, in dieser Reihenfolge: was beim Fund am Gegenstand selbst zu
-     * sehen war, was diese Sitzung gesehen hat, und sonst die Seltenheit aus
-     * Hypixels Item-Liste. Wer in keiner steht, bleibt weiss.
+     * Was Hypixels Item-Liste kennt, bekommt die Farbe seiner Seltenheit - und ohne Seltenheit in der Liste ist es gewoehnlich, also weiss.
+     * Nur was die Liste gar nicht kennt (Shards, Buecher, Runen ...), nimmt die Farbe, die beim Fund am Gegenstand selbst zu sehen war, oder die
+     * dieser Sitzung; wer in keiner steht, bleibt weiss.
+     *
+     * Bis 2.4.1 stand die gemerkte Farbe vorn: Der Tracker merkte die erste Farbe, die er an einem Gegenstand sah, und das konnte ein Menue sein, das
+     * Namen nach eigenem Geschmack faerbt - Gold Ingot stand in Cyan (Divine), Enchanted Gold Ingot in Rot, Enchanted Coal und Enchanted Iron ebenso
+     * (User 20.11.), obwohl die Liste sie als gewoehnlich und ungewoehnlich fuehrt.
      */
     public static int colourOf(String itemId) {
         // Ein fertiges Pet traegt seine Seltenheit in der Kennung - die Item-Liste kennt
@@ -740,14 +744,27 @@ public final class ProfitTracker {
         // in Weiss zwischen den Knochen
         if (itemId != null && itemId.startsWith("DYE_")) return SkyBlockItems.rarityColour("DIVINE");
 
-        Integer stored = cfg().colours.get(itemId);
-        if (stored != null && stored != 0) return stored;
+        return farbeAus(ItemNames.displayName(itemId) != null, ItemNames.tier(itemId), cfg().colours.get(itemId), ItemChanges.colourOf(itemId));
+    }
 
-        int seen = ItemChanges.colourOf(itemId);
-        if (seen != 0) return seen;
-
-        int rarity = SkyBlockItems.rarityColour(ItemNames.tier(itemId));
-        return rarity != 0 ? rarity : 0xFFFFFFFF;
+    /**
+     * Die Entscheidung, nach den vier Auskuenften - ohne Spiel nachrechenbar.
+     *
+     * @param inListe     kennt Hypixels Item-Liste diese Kennung?
+     * @param tier        ihre Seltenheit aus der Liste, oder null
+     * @param gespeichert die beim Fund gemerkte Farbe, oder null
+     * @param beobachtet  die in dieser Sitzung am Gegenstand gesehene Farbe, oder 0
+     */
+    static int farbeAus(boolean inListe, String tier, Integer gespeichert, int beobachtet) {
+        // Die Liste zuerst: Hypixels eigene Seltenheit. Eine, die kein Farbwort ist (UNOBTAINABLE), sagt der Zeile nichts
+        int ausListe = SkyBlockItems.rarityColour(tier);
+        if (ausListe != 0) return ausListe;
+        // In der Liste ohne Seltenheit: gewoehnliches Zeug, weiss - egal, in welcher Farbe ein Menue den Namen gerade schreibt
+        if (inListe && tier == null) return 0xFFFFFFFF;
+        // Was die Liste nicht kennt: die gemerkte Farbe, dann die gesehene
+        if (gespeichert != null && gespeichert != 0) return gespeichert;
+        if (beobachtet != 0) return beobachtet;
+        return 0xFFFFFFFF;
     }
 
     /** Der Klang zu einer Ware, oder "" */

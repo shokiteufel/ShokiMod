@@ -569,6 +569,13 @@ public class ModConfig extends Config {
             INSTANCE.profit.colours.clear();
             INSTANCE.profit.colourVersion = 1;
         }
+        // Bis 2.4.1 merkte der Tracker die erste Farbe, die er an einem Gegenstand sah, auch in Menues, die Namen anders faerben (Gold Ingot cyan,
+        // Enchanted Gold Ingot rot). Die Liste geht jetzt vor; die gemerkten Farben der Waren, die sie nicht kennt, werden einmal geleert und
+        // beim naechsten Fund aus dem eigenen Inventar neu gemerkt
+        if (INSTANCE.profit.colourVersion < 2) {
+            INSTANCE.profit.colours.clear();
+            INSTANCE.profit.colourVersion = 2;
+        }
 
         // Das Leuchten stand bis 1.1.0 in der Safari. Wer es dort ausgeschaltet hatte,
         // soll es nach dem Umzug nicht wieder angehen sehen
