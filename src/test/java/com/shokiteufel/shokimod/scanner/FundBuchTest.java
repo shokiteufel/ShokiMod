@@ -93,6 +93,70 @@ class FundBuchTest {
         assertEquals(130, buch.fenster(), "das Fenster lernt weiter");
     }
 
+    private static final long SEKUNDE = 1_000_000_000L;
+    private static final long T = 100 * SEKUNDE;
+
+    /**
+     * Slayer, Mitschnitt 20.11. (Severed Hand): Der Zugang lag im Inventar, die Zeile "CRAZY RARE DROP!" kam 566 Pakete und gut eine Sekunde
+     * danach. Das Paketfenster (84) war lange zu, die Zeile fand ihren Fund nicht mehr, wartete vergeblich und wurde nachgetragen: zwei Severed Hands.
+     */
+    @Test
+    void aFindAFullSecondBeforeTheLineInADensePacketStreamStillCoversIt() {
+        assertEquals(1, buch.fund("SEVERED_HAND", 1, 1_000L, T));
+        assertEquals(1, buch.dropZeile(List.of("SEVERED_HAND"), 1, 1_566L, T + SEKUNDE), "566 Pakete, aber nur 1 s: der Fund belegt die Zeile");
+        assertEquals(0, buch.wartend());
+        assertTrue(buch.takt(1_700L, T + SEKUNDE + 200_000_000L).isEmpty(), "nichts nachzutragen");
+    }
+
+    /** Vial of Venom, zweiter Mitschnitt 20.11.: 1.791 Pakete zwischen Fund und Zeile (Tarantula-Gebiet), unter zwei Sekunden. */
+    @Test
+    void theMeasured1791PacketsUnderTwoSecondsArePairedToo() {
+        assertEquals(1, buch.fund("VIAL_OF_VENOM", 1, 5_000L, T));
+        assertEquals(1, buch.dropZeile(List.of("VIAL_OF_VENOM"), 1, 6_791L, T + 1_900_000_000L));
+        assertEquals(0, buch.wartend());
+    }
+
+    @Test
+    void aLineWaitsForItsFindForTheTimeWindowNotJustThePacketWindow() {
+        buch.dropZeile(List.of("SEVERED_HAND"), 1, 1_000L, T);
+        assertTrue(buch.takt(1_566L, T + SEKUNDE).isEmpty(), "die Pakete sind um (566 > 19), die Zeit noch nicht: sie wartet weiter");
+        assertEquals(1, buch.fund("SEVERED_HAND", 1, 1_700L, T + 2 * SEKUNDE), "der Fund kommt nach 2 s: belegt die Zeile, zaehlt einmal");
+        assertEquals(0, buch.wartend());
+        assertTrue(buch.takt(1_800L, T + 5 * SEKUNDE).isEmpty(), "nichts wurde nachgetragen");
+    }
+
+    @Test
+    void aLineIsOnlyRescuedWhenPacketsAndTimeAreBothUp() {
+        buch.dropZeile(List.of("SEVERED_HAND"), 1, 1_000L, T);
+        assertTrue(buch.takt(1_015L, T + 10 * SEKUNDE).isEmpty(), "viel Zeit, aber erst 15 Pakete (Fenster 19): wie bisher noch im Paketfenster");
+        assertTrue(buch.takt(1_600L, T + 2 * SEKUNDE).isEmpty(), "viele Pakete, aber erst 2 s");
+        List<FundBuch.Rettung> r = buch.takt(1_600L, T + 3 * SEKUNDE + 1);
+        assertEquals(1, r.size(), "beides um: aus dem Chat nachgetragen");
+        assertEquals(0, buch.wartend());
+    }
+
+    @Test
+    void aFindOlderThanBothWindowsIsForgottenAndCannotCoverALaterLine() {
+        buch.fund("SEVERED_HAND", 1, 1_000L, T);
+        assertEquals(0, buch.dropZeile(List.of("SEVERED_HAND"), 1, 1_600L, T + 4 * SEKUNDE), "4 s und 600 Pakete: ein anderer Drop");
+        assertEquals(1, buch.wartend());
+    }
+
+    /** Ein Sack-Fund kommt aus einer Sammelmeldung ("Last 21s"); er bekommt keine Uhr und belegt keine spaetere, unabhaengige Zeile. */
+    @Test
+    void aFindWithoutAClockKeepsOnlyThePacketWindow() {
+        buch.fund("ENCHANTED_STRING", 1, 1_000L, 0L);
+        assertEquals(0, buch.dropZeile(List.of("ENCHANTED_STRING"), 1, 1_200L, T + SEKUNDE), "200 Pakete, keine Uhr: vergessen");
+        assertEquals(1, buch.wartend());
+    }
+
+    @Test
+    void aRescueIsRememberedAsLongAsTwiceTheTimeWindowToo() {
+        buch.dropZeile(List.of("SEVERED_HAND"), 1, 1_000L, T);
+        assertEquals(1, buch.takt(1_600L, T + 4 * SEKUNDE).size(), "nachgetragen");
+        assertEquals(0, buch.fund("SEVERED_HAND", 1, 2_500L, T + 5 * SEKUNDE), "das Update kommt spaet: schon gebucht, nicht doppelt");
+    }
+
     @Test
     void anUnrelatedFindDoesNotCloseALine() {
         buch.dropZeile(FLASH, 1, 1_000L);
