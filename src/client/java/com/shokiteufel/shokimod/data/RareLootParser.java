@@ -94,9 +94,20 @@ public final class RareLootParser {
      * CATCH!" - so traegt die Erkennung auch die Stufe, die es heute noch nicht gibt.
      */
     private static final Pattern FISH_CATCH = Pattern.compile(
-            "^(?:\\w+\\s+)?(?:JUNK|TREASURE)?\\s*CATCH!\\s+You caught (?:an?|the)\\s+(?<drop>.+?)!"
+            // Vor dem Wort darf ein Zeichen aus Hypixels eigener Schrift stehen (das Angel-Symbol der Zeile); ein Name oder eine Vorsilbe aus
+            // Buchstaben davor macht die Zeile dagegen zur Zeile eines anderen Kanals ("Party > ...") - die faellt weiter durch
+            "^(?:[^A-Za-z0-9_\\s]\\s*)*(?:\\w+\\s+)?(?:JUNK|TREASURE)?\\s*CATCH!\\s+You caught (?:an?|the)\\s+(?<drop>.+?)!"
                     + "(?:\\s*\\(\\d+\\))?$",
             Pattern.CASE_INSENSITIVE);
+    /**
+     * Ein Shard im Angel-Fang: "GOOD CATCH! You caught a Stingray Shard x3!" (beim Treasure-Fischen; GOOD, GREAT und OUTSTANDING).
+     *
+     * Die Menge steht hinter dem Namen, nicht davor wie bei "You caught x3 Timil Shards!". Ohne diese Erkennung galt die Zeile als gewoehnlicher
+     * Fang mit der Kennung STINGRAY_SHARD - die Shards des Treasure-Fischens kamen weder in den Profit Tracker noch in den Jagd-Zaehler
+     * (User 19.11.). Gelesen wird der Teil, den FISH_CATCH als Fang herausgeloest hat.
+     */
+    private static final Pattern SHARD_CATCH = Pattern.compile(
+            "^(?<shard>.+?) Shards?(?:\\s+x?(?<amount>[0-9][0-9,]*)x?)?$", Pattern.CASE_INSENSITIVE);
 
     /** Derselbe Shard, anders gemeldet: "You caught x3 Timil Shards! (2)" */
     private static final Pattern CAUGHT = Pattern.compile(
@@ -184,7 +195,7 @@ public final class RareLootParser {
      * wird weiterhin gemeldet und bewertet, nur eben nicht als Jagdbeute gezaehlt.
      */
     private static final java.util.Set<String> NOT_HUNTING = java.util.Set.of(
-            "PRISMARINE", "ENCHANTED_PRISMARINE");
+            "PRISMARINE", "ENCHANTED_PRISMARINE", "EARTH");
 
     private static final Pattern COLOUR_CODE = Pattern.compile("§.");
     private static final Pattern NOT_ID_CHARS = Pattern.compile("[^A-Z0-9]+");
@@ -341,6 +352,9 @@ public final class RareLootParser {
         // Shards!" seine eigene Form hat und dort schon behandelt ist
         Matcher fang = FISH_CATCH.matcher(clean);
         if (fang.matches()) {
+            // Ein Shard (Treasure-Fischen) kommt in die Hunting Box und hat seine eigene Kennung: SHARD_STINGRAY, nicht STINGRAY_SHARD
+            Matcher shardFang = SHARD_CATCH.matcher(fang.group("drop").trim());
+            if (shardFang.matches()) return shardDrop(shardFang.group("amount"), shardFang.group("shard"));
             String name = cleanDropName(fang.group("drop"));
             return name == null ? null : build(name, null);
         }
