@@ -209,7 +209,7 @@ public final class KernAnschluss {
         abo(ServerboundChatCommandSignedPacket.class, PaketPhase.VOR, "Kern Befehl (signiert)",
                 (p, k) -> bei(k, new Ereignis.Befehl(k.laufendeNummer())));
         abo(ClientboundContainerSetSlotPacket.class, PaketPhase.VOR, "Kern Platz",
-                (p, k) -> bei(k, new Ereignis.Platz(k.laufendeNummer(), p.getContainerId(), p.getSlot(), stapel(p.getItem()))));
+                (p, k) -> bei(k, new Ereignis.Platz(k.laufendeNummer(), p.getContainerId(), p.getSlot(), stapel(p.getItem(), p.getContainerId() == 0))));
         abo(ClientboundContainerSetContentPacket.class, PaketPhase.VOR, "Kern Inhalt", KernAnschluss::inhalt);
         abo(ClientboundEntityEventPacket.class, PaketPhase.VOR, "Kern Mob-Tod", KernAnschluss::ereignis);
         abo(ClientboundAddEntityPacket.class, PaketPhase.VOR, "Kern Item-Entity", KernAnschluss::entitaet);
@@ -238,6 +238,15 @@ public final class KernAnschluss {
     // ------------------------------------------------------------------ Uebersetzen
 
     static Stapel stapel(ItemStack s) {
+        return stapel(s, true);
+    }
+
+    /**
+     * @param eigenesInventar ob der Stapel aus dem Inventar des Spielers kommt (Fenster 0). Nur dort ist seine Namensfarbe die Seltenheit:
+     *                        Ein Menue faerbt Namen nach eigenem Geschmack, und die erste Farbe, die der Tracker merkte, stand dann fuer immer
+     *                        falsch im Kasten (Gold Ingot in Cyan, User 20.11.)
+     */
+    static Stapel stapel(ItemStack s, boolean eigenesInventar) {
         if (s == null || s.isEmpty()) {
             return Stapel.LEER;
         }
@@ -245,7 +254,9 @@ public final class KernAnschluss {
         String id = ItemChanges.countedId(s);
         String uuid = null;
         if (id != null) {
-            ItemChanges.beobachte(id, s);
+            if (eigenesInventar) {
+                ItemChanges.beobachte(id, s);
+            }
             // Pet Items erkennt der Kern an der letzten Zeile der Beschreibung ("LEGENDARY PET ITEM"); einmal je Kennung gelesen
             if (PetItems.lesenNoetig(id)) {
                 ItemLore lore = s.get(DataComponents.LORE);
@@ -284,7 +295,7 @@ public final class KernAnschluss {
         List<ItemStack> items = p.items();
         List<Stapel> liste = new ArrayList<>(items.size());
         for (ItemStack s : items) {
-            liste.add(stapel(s));
+            liste.add(stapel(s, p.containerId() == 0));
         }
         bei(kopf, new Ereignis.Inhalt(kopf.laufendeNummer(), p.containerId(), liste));
     }
