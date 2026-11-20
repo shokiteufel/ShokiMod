@@ -68,11 +68,35 @@ public final class NearbyOverlay {
                 && !(offen instanceof net.minecraft.client.gui.screens.ChatScreen)) {
             return;
         }
-        // Dieselbe Auswahl wie beim Spielen - was eingeschaltet ist und hierher gehoert
-        SafariHud.render(graphics);
-        // Die Funny Map nach den Kaesten, wie im Spiel (HudRenderer): bei offenem Inventar oder Behaelter bleibt sie sichtbar
-        com.shokiteufel.shokimod.dungeonkarte.FunnyKarteHud.render(graphics);
+        // Dieselbe Auswahl wie beim Spielen - was eingeschaltet ist und hierher gehoert. Bei offenem Chat hat sie schon der Einsprung am Anfang
+        // des Chat-Fensters gezeichnet (drawUnderChat), unter dem Chat; nur wenn der nicht griff, kommen sie hier, ueber dem Chat
+        boolean schonUnterDemChat = panelsUnderChat;
+        panelsUnderChat = false;
+        if (!(offen instanceof net.minecraft.client.gui.screens.ChatScreen && schonUnterDemChat)) {
+            SafariHud.render(graphics);
+            // Die Funny Map nach den Kaesten, wie im Spiel (HudRenderer): bei offenem Inventar oder Behaelter bleibt sie sichtbar
+            com.shokiteufel.shokimod.dungeonkarte.FunnyKarteHud.render(graphics);
+        }
         drawNegativeTooltip(graphics);
+    }
+
+    /** Hat der Einsprung am Anfang des Chat-Fensters in diesem Bild die Kaesten schon gezeichnet? Wird in {@link #draw} zurueckgesetzt */
+    private static boolean panelsUnderChat = false;
+    private static boolean underChatNoted = false;
+
+    /**
+     * Bei offenem Chat die Kaesten vor dem Chat zeichnen, damit der Chat ueber ihnen liegt (siehe ChatScreenPanelsMixin). Dieselbe Auswahl und
+     * dieselben Bedingungen wie beim Spielen (SafariHud.render fragt selbst nach SkyBlock, ausgeblendeter Oberflaeche und dem, was eingeschaltet ist).
+     */
+    public static void drawUnderChat(GuiGraphicsExtractor graphics) {
+        if (!anyPanel()) return;
+        panelsUnderChat = true;
+        if (!underChatNoted) {
+            underChatNoted = true;
+            com.shokiteufel.shokimod.ShokiMod.LOGGER.info("[Hud] with the chat open the panels are drawn before the chat, so the chat covers them");
+        }
+        SafariHud.render(graphics);
+        com.shokiteufel.shokimod.dungeonkarte.FunnyKarteHud.render(graphics);
     }
 
     private static HudPanel tooltipKasten;

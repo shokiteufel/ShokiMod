@@ -46,21 +46,21 @@ public class HudRenderer {
         }
     }
 
-    /** Der Einsprung vor der Spielerliste (HudRenderMixin): zeichnet die Kaesten und merkt, dass das Bildende es nicht noch einmal tun muss */
-    public static void renderPanelsBeforeTabList(GuiGraphicsExtractor graphics) {
+    /** Der Einsprung vor dem Chat (HudRenderMixin): zeichnet die Kaesten und merkt, dass das Bildende es nicht noch einmal tun muss */
+    public static void renderPanelsBeforeChat(GuiGraphicsExtractor graphics) {
         panelsDone = true;
         if (!hookNoted) {
             hookNoted = true;
-            com.shokiteufel.shokimod.ShokiMod.LOGGER.info("[Hud] the panels are drawn before the player list (Tab), so the list covers them");
+            com.shokiteufel.shokimod.ShokiMod.LOGGER.info("[Hud] the panels are drawn before the chat and the player list (Tab), so both cover them");
         }
         renderPanels(graphics);
     }
 
     /**
-     * Die Kaesten dieser Mod, kurz vor der Spielerliste (Taste Tab) gezeichnet statt am Ende des Bildes: So liegt die Spielerliste ueber ihnen,
-     * statt dass sie sich durch sie hindurch lesen lassen muss (User 18.11.: "die Tabs von Shoki sollen hinter dem Tab-Fenster stehen"). Der Aufruf
-     * kommt aus dem HudRenderMixin, genau vor dem Zeichnen der Spielerliste - nach dem Chat, also liegen sie weiter ueber dem Chat. Banner und
-     * Namensschilder bleiben am Ende des Bildes ({@link #render}): Ein Alarm soll auch bei gedruckter Taste zu sehen sein.
+     * Die Kaesten dieser Mod, vor dem Chat und der Spielerliste (Taste Tab) gezeichnet statt am Ende des Bildes: So liegen beide ueber ihnen, statt
+     * dass sie sich durch die Kaesten hindurch lesen lassen muessen (User 18.11.: "die Tabs von Shoki sollen hinter dem Tab-Fenster stehen",
+     * 19.11.: "der Chat soll wie Tab auch ueber den Fenstern von Shoki liegen"). Der Aufruf kommt aus dem HudRenderMixin, genau vor dem Zeichnen des
+     * Chats. Banner und Namensschilder bleiben am Ende des Bildes ({@link #render}): Ein Alarm soll auch bei gedruckter Taste zu sehen sein.
      */
     public static void renderPanels(GuiGraphicsExtractor graphics) {
         Minecraft client = Minecraft.getInstance();
