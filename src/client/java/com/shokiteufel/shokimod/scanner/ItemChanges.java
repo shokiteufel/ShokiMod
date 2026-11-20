@@ -249,7 +249,7 @@ public final class ItemChanges {
         if (BUCH.wartend() == 0) {
             return;
         }
-        for (FundBuch.Rettung r : BUCH.takt(nr)) {
+        for (FundBuch.Rettung r : BUCH.takt(nr, nanos)) {
             rette(r, nanos, true);
         }
     }
@@ -341,7 +341,7 @@ public final class ItemChanges {
             return;
         }
         // Ein gemeldeter Drop ist sicher gefallen; das Inventar belegt ihn, oder die Zeile wird nachgetragen
-        dropZeile(clean, nr);
+        dropZeile(clean, nanos, nr);
         if (corpseLoot(clean, nanos, nr)) {
             return;
         }
@@ -357,7 +357,7 @@ public final class ItemChanges {
      * "RARE DROP! ..." und die anderen Drop-Zeilen: der Server meldet einen Fund, auch wenn kein Platz-Update dazu kommt (Loadout-Wechsel
      * in derselben Sekunde, volles Inventar im Umbau). Hier wird die Zeile nur vorgemerkt; ob sie ein Fund wird, entscheidet {@link FundBuch}.
      */
-    private static void dropZeile(String clean, long nr) {
+    private static void dropZeile(String clean, long nanos, long nr) {
         if (com.shokiteufel.shokimod.handler.RareLootHandler.isChatLine(clean)) {
             return;
         }
@@ -381,7 +381,7 @@ public final class ItemChanges {
         }
         // Die Preise werden gleich gebraucht, um die richtige Kennung zu waehlen
         ItemValue.prefetch();
-        int belegt = BUCH.dropZeile(ids, drop.amount(), nr);
+        int belegt = BUCH.dropZeile(ids, drop.amount(), nr, nanos);
         KernProtokoll.beleg(belegt >= drop.amount() ? "drop-zeile belegt (Fund war zuerst)" : "drop-zeile wartet", nr,
                 ids.get(0) + " x" + drop.amount());
         if (debug()) {
@@ -1018,8 +1018,12 @@ public final class ItemChanges {
         // Was eine Drop-Zeile schon gebucht hat, zaehlt nicht noch einmal; was eine wartende Zeile belegt, zaehlt mit seiner genauen Kennung
         if (nr >= 0 && !DROP_ZEILE.equals(source)) {
             Map<String, Integer> zaehlt = new LinkedHashMap<>();
+            // Die Uhr gibt dem Fund das Zeitfenster des FundBuchs (Slayer: bis 900 Pakete je Sekunde, das Paketfenster allein ist dort schon nach
+            // 0,1 s zu). Ein Sack-Fund bekommt sie nicht: Er stammt aus einer Sammelmeldung ("Last 21s") und soll keine unabhaengige, spaetere
+            // Drop-Zeile derselben Ware belegen (Enchanted String aus dem Compactor gegen einen echten RARE DROP davon)
+            long fundNanos = ("sacks".equals(source) || SACK_REST.equals(source)) ? 0L : System.nanoTime();
             for (Map.Entry<String, Integer> e : gains.entrySet()) {
-                int n = BUCH.fund(e.getKey(), e.getValue(), nr);
+                int n = BUCH.fund(e.getKey(), e.getValue(), nr, fundNanos);
                 if (n < e.getValue()) {
                     KernProtokoll.beleg("fund nach nachtrag", nr, e.getKey() + " x" + e.getValue() + ", davon schon gebucht "
                             + (e.getValue() - n) + ", Fenster jetzt " + BUCH.fenster());
