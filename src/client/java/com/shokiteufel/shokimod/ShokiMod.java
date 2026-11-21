@@ -206,6 +206,7 @@ public class ShokiMod implements ClientModInitializer {
             com.shokiteufel.shokimod.handler.SeaCreatureTracker.tick(client);
             com.shokiteufel.shokimod.handler.SlayerSpawnCost.tick(client);
             com.shokiteufel.shokimod.handler.SlayerBossSpawn.tick(client);
+            com.shokiteufel.shokimod.handler.SlayerKillTime.tick(client);
             // Was an Shards im Lager liegt, sobald die Box offen ist
             com.shokiteufel.shokimod.scanner.ShardStock.tick(client);
             // Nur wenn eingeschaltet - sonst laeuft der schnelle Bazaar-Weg allein
