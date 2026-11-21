@@ -8,23 +8,36 @@ package com.shokiteufel.shokimod.handler;
  * spawned!" ({@link #chatSpawn}) - was zuerst kommt. Beide Wege sind noetig: Die Chatzeile kam in den Mitschnitten vom 20./21.11. nicht bei jeder Quest
  * (28 von 35, 23 von 30), die Seitenleiste immer.
  *
- * <p><b>Ende</b>: "SLAYER QUEST COMPLETE!" im Chat ({@link #finished}). Hat die Seitenleiste die Zeile "Slay the boss!" kurz davor verloren
- * ({@link #bossGone}), zaehlt dieser fruehere Zeitpunkt: Die Meldung kommt ein bis zwei Sekunden nach dem Tod. Eine Luecke in der Seitenleiste
- * (sie wird Zeile fuer Zeile neu gebaut) beendet nichts - nur die Meldung beendet. "SLAYER QUEST FAILED!" ({@link #failed}) oder eine Zeile,
- * die zu lange fehlt ({@link #timeout}), verwirft den Kampf.
+ * <p><b>Ende</b> - der Tod des Bosses. Hypixel schreibt dazu mehrere Zeilen, und sie liegen nicht beieinander. Gemessen an den drei Mitschnitten
+ * (69 Kaempfe, Zeitstempel auf die Sekunde):
+ * <ul>
+ *   <li>"Your Slayer Kill gave you ... HP healing" ({@link #killMark}) kam bei allen 69, im Moment des Todes (im Zombie-Log: Boss-Schild "0/10M" und
+ *       diese Zeile in derselben Sekunde). Sie ist die genaueste Marke, aber ein Vorteil der Slayer-Stufe: Wer ihn nicht hat, sieht sie nicht.</li>
+ *   <li>"SLAYER QUEST COMPLETE!" kommt 1 bis 2 s nach dem Tod, und nach "COCOONED" erst 5 bis 7 s danach.</li>
+ *   <li>"YOU COCOONED YOUR SLAYER BOSS" kam bei 20 der 69 Kaempfe: bei 15 im Moment des Todes, bei 5 aber 8 bis 9 s davor (der Boss war nur
+ *       eingesponnen und starb spaeter). Als Ende allein taugt sie also nicht - Skyblocker nimmt sie trotzdem als erste Meldung.</li>
+ *   <li>"NICE! SLAYER BOSS SLAIN!" kam in keinem Kampf.</li>
+ * </ul>
+ * Darum gilt: Ist die Zeile "Slayer Kill" da, ist sie das Ende. Fehlt sie, gilt die erste der Todesmeldungen. Eine Meldung wie "COCOONED" wartet
+ * dazu kurz auf die Zeile ({@link #deathMessage}) und wird mit der Abschlussmeldung ({@link #finished}) oder nach {@link #GIVE_UP_NANOS} gezaehlt.
+ *
+ * <p>Die Seitenleiste entscheidet das Ende nicht: Eine Luecke in ihr (sie wird Zeile fuer Zeile neu gebaut) beendet nichts, und ihr Raster (alle fuenf
+ * Ticks gelesen = 0,25 s) hatte die Zeiten in 2.4.5 auf ,00 ,25 ,99 gerastert. Sie dient nur dem Beginn und dem Verwerfen: "SLAYER QUEST FAILED!"
+ * ({@link #failed}) oder eine Zeile, die zu lange fehlt ({@link #timeout}), verwirft den Kampf.
  *
  * <p><b>Quest</b>: "SLAYER QUEST STARTED!" ({@link #questStarted}) setzt den Beginn der Quest; sie laeuft bis zum Tod des Bosses. Fehlt der
  * Beginn (die Funktion wurde mitten in der Quest eingeschaltet), gibt es keine Questzeit, nur die Bosszeit.
  */
 public final class SlayerKillClock {
 
-    /** Ein beendeter Kampf: Name, Zeit seit dem Erscheinen des Bosses, Zeit seit der Quest-Annahme (-1, wenn unbekannt) */
-    public record Kill(String key, long bossNanos, long questNanos) {
+    /**
+     * Ein beendeter Kampf: Name, Zeit seit dem Erscheinen des Bosses, Zeit seit der Quest-Annahme (-1, wenn unbekannt) und ob das Ende die Zeile
+     * "Your Slayer Kill ..." war (sonst die erste Todesmeldung)
+     */
+    public record Kill(String key, long bossNanos, long questNanos, boolean byKillLine) {
     }
 
-    /** So lange nach dem Verschwinden der Zeile zaehlt eine Abschlussmeldung noch zum Tod: die Meldung kommt 1 bis 2 s danach */
-    static final long LOSS_NANOS = 6_000_000_000L;
-    /** Fehlt die Zeile so lange ohne Abschlussmeldung, ist der Kampf aus anderem Grund zu Ende (Boss weg, Quest abgebrochen) */
+    /** So lange wartet eine Todesmeldung auf die Zeile "Slayer Kill" oder die Abschlussmeldung; fehlt eine Zeile so lange, ist der Kampf aus anderem Grund zu Ende */
     static final long GIVE_UP_NANOS = 15_000_000_000L;
 
     private long bossStart = -1L;
@@ -33,6 +46,10 @@ public final class SlayerKillClock {
     private long questStart = -1L;
     /** Seit wann die Zeile "Slay the boss!" fehlt, oder -1 */
     private long lostAt = -1L;
+    /** Wann die Zeile "Your Slayer Kill gave you ..." kam, oder -1 */
+    private long killAt = -1L;
+    /** Wann die erste Todesmeldung kam, oder -1 */
+    private long deathAt = -1L;
     /**
      * Die Seitenleiste darf erst wieder einen Kampf beginnen lassen, wenn die Zeile einmal gefehlt hat. Sonst finge der Kampf an, wenn die Funktion
      * mitten im Kampf eingeschaltet wird (der Beginn waere falsch), und gleich nach dem Tod, solange die Seitenleiste die Zeile noch zeigt
@@ -111,11 +128,25 @@ public final class SlayerKillClock {
         }
     }
 
-    /** Aufruf im Takt: ein Kampf, dessen Zeile ohne Abschlussmeldung zu lange fehlt, wird verworfen */
-    public void timeout(long now) {
-        if (bossStart >= 0L && lostAt >= 0L && now - lostAt > GIVE_UP_NANOS) {
+    /**
+     * Aufruf im Takt: Ein Kampf, dessen Zeile ohne Todesmeldung zu lange fehlt, wird verworfen; ein Kampf, dessen erste Todesmeldung zu lange auf die
+     * Abschlussmeldung wartet (Lobbywechsel, Abbruch), wird mit dem, was da ist, gezaehlt.
+     *
+     * @return der Kampf, wenn er jetzt gezaehlt wird, sonst null
+     */
+    public Kill timeout(long now) {
+        if (bossStart < 0L) {
+            return null;
+        }
+        // Eine Todesmarke ohne Abschlussmeldung (Lobbywechsel, Abbruch): der Boss ist gestorben, der Kampf zaehlt
+        long marked = deathAt >= 0L && killAt >= 0L ? Math.min(deathAt, killAt) : Math.max(deathAt, killAt);
+        if (marked >= 0L && now - marked > GIVE_UP_NANOS) {
+            return finishAt(killAt >= 0L ? killAt : deathAt, killAt >= 0L);
+        }
+        if (lostAt >= 0L && now - lostAt > GIVE_UP_NANOS) {
             cancelBoss();
         }
+        return null;
     }
 
     /** "SLAYER QUEST FAILED!": weder Boss- noch Questzeit zaehlen */
@@ -130,22 +161,62 @@ public final class SlayerKillClock {
     }
 
     /**
-     * "SLAYER QUEST COMPLETE!": der Boss ist tot.
+     * "Your Slayer Kill gave you ... HP healing": der Boss ist gerade gestorben. War schon eine Todesmeldung da, die auf diese Zeile wartete
+     * ("COCOONED"), wird der Kampf jetzt gezaehlt, mit dem Zeitpunkt dieser Zeile.
      *
-     * @return der Kampf, oder null, wenn kein Beginn bekannt ist (die Funktion wurde mitten im Kampf eingeschaltet)
+     * @return der Kampf, wenn er jetzt gezaehlt wird, sonst null (ausserhalb eines Kampfes, oder die Todesmeldung kommt noch)
      */
+    public Kill killMark(long now) {
+        if (bossStart < 0L || killAt >= 0L) {
+            return null;
+        }
+        killAt = now;
+        return deathAt >= 0L ? finishAt(killAt, true) : null;
+    }
+
+    /**
+     * Eine Todesmeldung im Chat: "YOU COCOONED YOUR SLAYER BOSS" ({@code last} = false: der Boss kann danach noch leben) oder "NICE! SLAYER BOSS
+     * SLAIN!" und "SLAYER QUEST COMPLETE!" ({@code last} = true: der Kampf ist zu Ende).
+     *
+     * <p>Ohne die Zeile "Slayer Kill" zaehlt die erste Todesmeldung. Eine nicht endgueltige Meldung wartet auf die Zeile oder die endgueltige.
+     *
+     * @return der Kampf, oder null, wenn kein Beginn bekannt ist (die Funktion wurde mitten im Kampf eingeschaltet), der Kampf schon gezaehlt ist
+     *         (die Abschlussmeldung nach "Slayer Kill") oder noch auf die Zeile wartet
+     */
+    public Kill deathMessage(long now, boolean last) {
+        if (bossStart < 0L) {
+            // Nichts laeuft: die Abschlussmeldung beendet nur noch die Quest (die Seitenleiste zeigt die Zeile noch einen Augenblick)
+            if (last) {
+                cancelBoss();
+                questStart = -1L;
+            }
+            return null;
+        }
+        if (deathAt < 0L) {
+            deathAt = now;
+        }
+        if (!last && killAt < 0L) {
+            return null;
+        }
+        return finishAt(killAt >= 0L ? killAt : deathAt, killAt >= 0L);
+    }
+
+    /** "SLAYER QUEST COMPLETE!": die endgueltige Todesmeldung */
     public Kill finished(long now) {
+        return deathMessage(now, true);
+    }
+
+    private Kill finishAt(long end, boolean byKillLine) {
         long start = bossStart;
         String name = key;
         long quest = questStart;
-        long end = (lostAt >= 0L && now - lostAt <= LOSS_NANOS) ? lostAt : now;
         cancelBoss();
         questStart = -1L;
         if (start < 0L || end <= start) {
             return null;
         }
         long questNanos = quest >= 0L && end > quest ? end - quest : -1L;
-        return new Kill(name == null || name.isEmpty() ? "Slayer boss" : name, end - start, questNanos);
+        return new Kill(name == null || name.isEmpty() ? "Slayer boss" : name, end - start, questNanos, byKillLine);
     }
 
     /** Beendet den Kampf (Tod, Misserfolg, neue Quest, neue Lobby): die Zeile muss erst fehlen, bevor ein neuer beginnt */
@@ -154,6 +225,8 @@ public final class SlayerKillClock {
         key = null;
         keyFromSidebar = false;
         lostAt = -1L;
+        killAt = -1L;
+        deathAt = -1L;
         waitAbsent = true;
     }
 }

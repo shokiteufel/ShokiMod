@@ -5885,7 +5885,7 @@ public class ModConfig extends Config {
         public transient boolean killTimeFolder = false;
 
         @Expose
-        @ConfigOption(name = "Boss kill time", desc = "After every boss kill, writes in the chat how long the fight took, from the moment the boss appeared until it died: 'Boss Kill time: 15,05Sec'. Behind it stands your personal rank among all your kills of the same boss and tier, and '!!NEW PERSONAL BEST!!' for a new record. The times are kept between sessions. The start is read from 'Slay the boss!' in the sidebar, the end from 'SLAYER QUEST COMPLETE!'. Works in SkyBlock only.")
+        @ConfigOption(name = "Boss kill time", desc = "After every boss kill, writes in the chat how long the fight took, from the moment the boss appeared until it died: 'Boss Kill time: 15,05Sec'. Behind it stands your personal rank among all your kills of the same boss and tier, and '!!NEW PERSONAL BEST!!' for a new record. The times are kept between sessions. The start is read from 'Slay the boss!' in the sidebar (or the spawn line in the chat), the end is the moment the boss dies: the line 'Your Slayer Kill gave you ...' when you get it, otherwise the first of 'YOU COCOONED YOUR SLAYER BOSS', 'NICE! SLAYER BOSS SLAIN!' and 'SLAYER QUEST COMPLETE!'. Works in SkyBlock only.")
         @ConfigEditorBoolean
         @ConfigAccordionId(id = 114)
         public boolean bossKillTime = false;

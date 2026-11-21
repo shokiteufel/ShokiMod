@@ -43,21 +43,105 @@ class SlayerKillClockTest {
         assertFalse(clock.running());
     }
 
+    /**
+     * Das Ende ist die Meldung, nicht die Seitenleiste: Mit deren Raster (alle fuenf Ticks) lagen die Zeiten auf ,00 ,25 ,99, und eine Aenderung der
+     * Seitenleiste vor dem Tod haette den Kampf verkuerzt. Skyblocker nimmt ebenfalls den Eingang der Meldung.
+     */
     @Test
-    void theEarlierMomentTheLineWentMissingCountsAsTheDeath() {
+    void theEndIsTheTimeTheMessageArrivedNotTheMomentTheSidebarLostTheLine() {
         questUndBoss(0L, 100 * S);
         clock.bossGone(114 * S);
+        SlayerKillClock.Kill kill = clock.finished(115_730_000_000L);
+        assertEquals(15_730_000_000L, kill.bossNanos(), "auf die Millisekunde, nicht auf das Raster der Seitenleiste");
+        assertEquals(115_730_000_000L, kill.questNanos());
+    }
+
+    /** Mitschnitt 20./21.11., alle 69 Kaempfe: "Your Slayer Kill gave you ..." kommt im Moment des Todes, die Abschlussmeldung 1 bis 2 s danach */
+    @Test
+    void theSlayerKillLineIsTheEndWhenThereIsOne() {
+        questUndBoss(0L, 100 * S);
+        assertNull(clock.killMark(114 * S), "die Zeile allein beendet noch nichts: die Abschlussmeldung folgt");
         SlayerKillClock.Kill kill = clock.finished(115_500_000_000L);
-        assertEquals(14 * S, kill.bossNanos(), "die Meldung kommt 1,5 s nach dem Tod");
+        assertEquals(14 * S, kill.bossNanos(), "der Tod, nicht die Abschlussmeldung 1,5 s danach");
         assertEquals(114 * S, kill.questNanos());
+        assertTrue(kill.byKillLine());
+    }
+
+    /** 15 von 20 "COCOONED"-Kaempfen: die Meldung kommt gleichzeitig mit der Zeile, die Abschlussmeldung 6 s spaeter */
+    @Test
+    void cocoonedAtTheMomentOfDeathCountsOnceWithTheKillLineTime() {
+        questUndBoss(0L, 100 * S);
+        assertNull(clock.deathMessage(120 * S, false), "COCOONED wartet auf die Zeile");
+        SlayerKillClock.Kill kill = clock.killMark(120_100_000_000L);
+        assertEquals(20_100_000_000L, kill.bossNanos());
+        assertTrue(kill.byKillLine());
+        assertNull(clock.finished(126 * S), "die Abschlussmeldung 6 s spaeter: schon gezaehlt");
     }
 
     @Test
-    void aLineThatWentMissingLongBeforeTheMessageDoesNotCount() {
+    void theKillLineMayComeBeforeTheCocoonMessageToo() {
         questUndBoss(0L, 100 * S);
-        clock.bossGone(103 * S);
-        SlayerKillClock.Kill kill = clock.finished(110 * S);
-        assertEquals(10 * S, kill.bossNanos(), "7 s Abstand: nicht der Tod, sondern eine andere Aenderung der Seitenleiste");
+        assertNull(clock.killMark(120 * S));
+        SlayerKillClock.Kill kill = clock.deathMessage(120_200_000_000L, false);
+        assertEquals(20 * S, kill.bossNanos(), "die Zeile ist der Tod, nicht die Meldung 0,2 s danach");
+    }
+
+    /** 5 von 20 "COCOONED"-Kaempfen: der Boss war nur eingesponnen und starb 8 bis 9 s spaeter - "COCOONED" als Ende waere zu kurz */
+    @Test
+    void aCocoonedBossThatDiesLaterCountsFromTheKillLine() {
+        questUndBoss(0L, 100 * S);
+        assertNull(clock.deathMessage(110 * S, false));
+        SlayerKillClock.Kill kill = clock.killMark(118_500_000_000L);
+        assertEquals(18_500_000_000L, kill.bossNanos(), "nicht 10 s (COCOONED), sondern der Tod 8,5 s spaeter");
+    }
+
+    @Test
+    void withoutTheKillLineTheFirstDeathMessageCounts() {
+        questUndBoss(0L, 100 * S);
+        assertNull(clock.deathMessage(110 * S, false), "COCOONED allein wartet auf die Abschlussmeldung");
+        SlayerKillClock.Kill kill = clock.finished(116 * S);
+        assertEquals(10 * S, kill.bossNanos(), "wie bei Skyblocker: die erste Todesmeldung");
+        assertFalse(kill.byKillLine());
+    }
+
+    @Test
+    void aWaitingDeathIsCountedAfterTheTimeoutIfNothingElseComes() {
+        questUndBoss(0L, 100 * S);
+        clock.deathMessage(110 * S, false);
+        assertNull(clock.timeout(124 * S), "14 s: noch nicht");
+        SlayerKillClock.Kill kill = clock.timeout(126 * S);
+        assertEquals(10 * S, kill.bossNanos());
+        assertFalse(clock.running());
+    }
+
+    @Test
+    void aKillLineWithoutAnyMessageAfterwardsIsCountedAfterTheTimeoutToo() {
+        questUndBoss(0L, 100 * S);
+        clock.killMark(114 * S);
+        assertNull(clock.timeout(120 * S));
+        assertEquals(14 * S, clock.timeout(130 * S).bossNanos());
+    }
+
+    @Test
+    void aKillLineOutsideAFightIsIgnored() {
+        assertNull(clock.killMark(5 * S));
+        clock.bossSeen(KEY, 10 * S); // erste Lesung: kein bekannter Beginn
+        assertNull(clock.killMark(20 * S));
+        assertNull(clock.finished(30 * S));
+    }
+
+    @Test
+    void theNextQuestAfterACocoonedKillGetsItsOwnQuestTime() {
+        questUndBoss(0L, 100 * S);
+        clock.deathMessage(120 * S, false); // COCOONED
+        clock.killMark(120 * S); // der Tod
+        clock.finished(126 * S); // COMPLETE
+        clock.questStarted(127 * S); // die naechste Quest
+        clock.bossGone(128 * S);
+        clock.bossSeen(KEY, 200 * S);
+        SlayerKillClock.Kill kill = clock.finished(215 * S);
+        assertEquals(15 * S, kill.bossNanos());
+        assertEquals(88 * S, kill.questNanos(), "von der Annahme (127 s) bis zum Tod (215 s)");
     }
 
     @Test
