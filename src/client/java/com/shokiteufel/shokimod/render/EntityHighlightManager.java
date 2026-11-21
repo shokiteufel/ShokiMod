@@ -146,14 +146,7 @@ public class EntityHighlightManager {
     private static final int SLAYER_DUMP_MAX = 12;
     private static final int SLAYER_DUMP_LINES = 24;
     private static int slayerDumps = 0;
-    /**
-     * Die Namen der Slayer-Bosse. Nur sie machen ein Schild zum Schild eines Bosses: Der Totenkopf davor steht auf jedem
-     * Untoten, auch auf den gewoehnlichen Mobs der Quest, und die tragen ebenfalls "Spawned by: <ich>"
-     * (so gesehen: "Crypt Ghoul" mit der Zeile des Spielers).
-     */
-    private static final String[] SLAYER_NAMES = {
-            "Revenant Horror", "Atoned Horror", "Tarantula Broodfather", "Conjoined Brood", "Sven Packmaster",
-            "Voidgloom Seraph", "Inferno Demonlord", "Riftstalker Bloodfiend", "Bloodfiend"};
+    /* Die Namen der Slayer-Bosse stehen in SlayerBossTarget.isBossName (dort ohne Spiel pruefbar) */
     /**
      * Wofuer schon ins Log geschrieben wurde: je Zeile und Mob einmal, nicht jeden Tick.
      * Zwei eigene Zeilen gleichzeitig kommen vor; mit nur dem letzten Paar im Gedaechtnis
@@ -825,10 +818,7 @@ public class EntityHighlightManager {
 
     /** Nennt der Text einen Slayer-Boss? Der Totenkopf allein sagt nichts: Er steht auf jedem Untoten */
     private static boolean isBossName(String text) {
-        for (int n = 0; n < SLAYER_NAMES.length; n++) {
-            if (text.contains(SLAYER_NAMES[n])) return true;
-        }
-        return false;
+        return SlayerBossTarget.isBossName(text);
     }
 
     private static String describeMob(Entity mob) {

@@ -16,7 +16,30 @@ public final class SlayerBossTarget implements MobVisual {
 
     private static final String MARKER = "Spawned by:";
 
+    /**
+     * Die Namen der Slayer-Bosse. Nur sie machen ein Schild zum Schild eines Bosses: Der Totenkopf davor steht auf jedem
+     * Untoten, auch auf den gewoehnlichen Mobs der Quest, und die tragen ebenfalls "Spawned by: <ich>"
+     * (so gesehen: "Crypt Ghoul" mit der Zeile des Spielers).
+     *
+     * <p>"Packmaster Soul" ist der Boss der Stufe 5 von Sven (Alpha-Server, 21.11.): Schild "[Lv487] ☠ Packmaster Soul 13.1M/40M❤". Er
+     * steht in fuenf Gestalten da - dem echten Boss und vier Doppelgaengern, die denselben Besitzer ("Name's SLAYER BOSS") tragen, aber
+     * eigene Namen und Stufen ("[Lv356] ☠ Ranger Wolf ..."). Der Besitzer unterscheidet sie also nicht, der Name tut es: Nur das Schild
+     * des echten Bosses nennt "Packmaster Soul", die der Doppelgaenger tragen andere Namen und fallen aus der Suche.
+     */
+    private static final String[] BOSS_NAMES = {
+            "Revenant Horror", "Atoned Horror", "Tarantula Broodfather", "Conjoined Brood", "Sven Packmaster", "Packmaster Soul",
+            "Voidgloom Seraph", "Inferno Demonlord", "Riftstalker Bloodfiend", "Bloodfiend"};
+
     private SlayerBossTarget() {
+    }
+
+    /** Nennt der Text einen Slayer-Boss? Der Totenkopf allein sagt nichts: Er steht auf jedem Untoten */
+    public static boolean isBossName(String text) {
+        if (text == null) return false;
+        for (int n = 0; n < BOSS_NAMES.length; n++) {
+            if (text.contains(BOSS_NAMES[n])) return true;
+        }
+        return false;
     }
 
     /** Soll der Boss umrissen werden? */
