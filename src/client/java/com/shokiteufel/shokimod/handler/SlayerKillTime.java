@@ -33,23 +33,40 @@ import java.util.regex.Pattern;
  *
  * <p>Die Uhr selbst ({@link SlayerKillClock}) und die Zahlen ({@link SlayerKillStats}) kennen kein Minecraft; hier liegen nur die Quellen
  * (Seitenleiste, Chat), die Speicherung und die Ausgabe. Wie bei SkyHanni und Skyblocker gilt die Seitenleiste ("Slay the boss!") als Beginn des
- * Kampfes; der Chat ("SLAYER BOSS! The X spawned!") kam in den Mitschnitten nicht bei jeder Quest.
+ * Kampfes; der Chat ("SLAYER BOSS! The X spawned!") kam in den Mitschnitten nicht bei jeder Quest. Das Ende ist, wenn da, die Zeile "Your Slayer
+ * Kill gave you ..." (der Moment des Todes), sonst die erste Todesmeldung im Chat wie bei Skyblocker - siehe {@link SlayerKillClock}.
  */
 public final class SlayerKillTime {
 
-    /** Alle fuenf Ticks die Seitenleiste lesen: genauer muss ein Kampf von mehr als einer Sekunde nicht sein (hoechstens 0,25 s Fehler) */
-    private static final int READ_EVERY_TICKS = 5;
+    /**
+     * Jeden Tick die Seitenleiste lesen (50 ms Raster, wie Skyblocker): Mit "alle fuenf Ticks" (0,25 s) lagen die Zeiten auf ,00 ,25 ,99, denn der
+     * Beginn kam aus diesem Raster. Der Aufruf kostet wenig: SlayerSpawnCost liest dieselbe Seitenleiste ohnehin jeden Tick.
+     */
+    private static final int READ_EVERY_TICKS = 1;
     /**
      * Die Zeilen kommen kurz nach der Abschlussmeldung: Hypixel schreibt dazu den Kasten "SLAYER QUEST COMPLETE ..." mit mehreren Zeilen, und
      * ein Einschub mittendrin sahe falsch aus. Dreiviertel Sekunde danach steht der Kasten.
      */
     private static final int OUTPUT_DELAY_TICKS = 15;
+    /**
+     * Wurde der Kampf an der Zeile "Slayer Kill" gezaehlt, kommt der Kasten erst 1 bis 7 s spaeter: Die Zeilen warten darauf (und stehen dann dahinter),
+     * hoechstens aber so lange, falls er ausbleibt - zwoelf Sekunden.
+     */
+    private static final int WAIT_FOR_BOX_TICKS = 240;
 
     private static final Pattern QUEST_START = Pattern.compile("^SLAYER QUEST STARTED!");
-    private static final Pattern QUEST_COMPLETE = Pattern.compile("^SLAYER QUEST COMPLETE!");
-    private static final Pattern QUEST_FAILED = Pattern.compile("^SLAYER QUEST FAILED!");
+    /**
+     * "Your Slayer Kill gave you 200 HP healing for 10 seconds!": im Moment des Todes (bei allen 69 Kaempfen der Mitschnitte vom 20./21.11.; im
+     * Zombie-Log in derselben Sekunde, in der das Boss-Schild "0/10M" zeigt). Die genaueste Marke, aber ein Vorteil der Slayer-Stufe: nicht jeder sieht sie.
+     */
+    static final Pattern KILL_PERK = Pattern.compile("^Your Slayer Kill gave you");
+    /** "YOU COCOONED YOUR SLAYER BOSS": bei 15 von 20 Kaempfen im Moment des Todes, bei 5 aber 8 bis 9 s davor - allein kein sicheres Ende */
+    static final Pattern BOSS_COCOON = Pattern.compile("^YOU COCOONED YOUR SLAYER BOSS");
+    /** Die endgueltige Todesmeldung: 1 bis 2 s nach dem Tod, nach "COCOONED" 5 bis 7 s; "SLAIN" kam in keinem Kampf */
+    static final Pattern BOSS_FINAL = Pattern.compile("^(?:NICE! SLAYER BOSS SLAIN!|SLAYER QUEST COMPLETE!)");
+    static final Pattern QUEST_FAILED = Pattern.compile("^(?:SLAYER QUEST FAILED!|Your Slayer Quest has been cancelled!)");
     /** "SLAYER BOSS! The ☠ Packmaster Soul spawned!" - das Zeichen davor gibt es nicht bei jedem Boss */
-    private static final Pattern BOSS_SPAWN = Pattern.compile("^SLAYER BOSS!\\s+The\\s+(?:\\S{1,2}\\s+)?(.+?)\\s+spawned!");
+    static final Pattern BOSS_SPAWN = Pattern.compile("^SLAYER BOSS!\\s+The\\s+(?:\\S{1,2}\\s+)?(.+?)\\s+spawned!");
 
     private static final SlayerKillClock CLOCK = new SlayerKillClock();
     /** Der Durchschnitt dieser Sitzung, je Boss und Stufe */
@@ -99,16 +116,18 @@ public final class SlayerKillTime {
         } else {
             CLOCK.bossGone(now);
         }
-        CLOCK.timeout(now);
+        // Eine Todesmeldung, die vergeblich auf die Abschlussmeldung wartete (Lobbywechsel), zaehlt trotzdem
+        finish(CLOCK.timeout(now), false);
     }
 
-    /** Aus dem Chat: der Beginn der Quest, das Erscheinen des Bosses, sein Tod, ein Misserfolg */
+    /** Aus dem Chat: der Beginn der Quest, das Erscheinen des Bosses, sein Tod (die Zeile "Slayer Kill" oder die Todesmeldungen), ein Misserfolg */
     public static void onChatMessage(String plain) {
         if (plain == null || !enabled() || !GameState.Server.isSkyblock()) {
             return;
         }
         String line = plain.trim();
-        if (line.isEmpty() || line.charAt(0) != 'S') {
+        // Alle Zeilen, die hier zaehlen, beginnen mit S (SLAYER ...), N (NICE!) oder Y (YOU COCOONED, Your Slayer Quest ...)
+        if (line.isEmpty() || "SNY".indexOf(line.charAt(0)) < 0) {
             return;
         }
         long now = System.nanoTime();
@@ -125,8 +144,20 @@ public final class SlayerKillTime {
             CLOCK.failed();
             return;
         }
-        if (QUEST_COMPLETE.matcher(line).find()) {
-            finish(CLOCK.finished(now));
+        if (KILL_PERK.matcher(line).find()) {
+            finish(CLOCK.killMark(now), false);
+            return;
+        }
+        if (BOSS_COCOON.matcher(line).find()) {
+            finish(CLOCK.deathMessage(now, false), false);
+            return;
+        }
+        if (BOSS_FINAL.matcher(line).find()) {
+            finish(CLOCK.deathMessage(now, true), true);
+            // Der Kasten ist da: die wartenden Zeilen folgen dreiviertel Sekunde danach
+            if (!OUTBOX.isEmpty()) {
+                outboxDelay = OUTPUT_DELAY_TICKS;
+            }
         }
     }
 
@@ -158,9 +189,12 @@ public final class SlayerKillTime {
         return slayer.killTimes;
     }
 
-    private static void finish(SlayerKillClock.Kill kill) {
+    /**
+     * @param boxSeen ob die Abschlussmeldung ("SLAYER QUEST COMPLETE!") schon da ist: dann folgen die Zeilen gleich, sonst warten sie auf ihren Kasten
+     */
+    private static void finish(SlayerKillClock.Kill kill, boolean boxSeen) {
+        // Keine Zeit: kein Beginn bekannt, der Kampf wartet noch auf seine Zeile, oder er ist schon gezaehlt (die Abschlussmeldung nach "Slayer Kill")
         if (kill == null) {
-            ShokiMod.LOGGER.info("[Slayer] quest complete, but no boss start was seen - no kill time");
             return;
         }
         long bossMillis = kill.bossNanos() / 1_000_000L;
@@ -175,7 +209,8 @@ public final class SlayerKillTime {
         List<Long> times = records().computeIfAbsent(kill.key(), k -> new ArrayList<>());
         SlayerKillStats.Standing standing = SlayerKillStats.record(times, bossMillis);
         ModConfig.INSTANCE.saveNow();
-        ShokiMod.LOGGER.info("[Slayer] {}: {}", kill.key(), SlayerKillStats.bossLine(bossMillis, standing, locale));
+        ShokiMod.LOGGER.info("[Slayer] {}: {} (end: {})", kill.key(), SlayerKillStats.bossLine(bossMillis, standing, locale),
+                kill.byKillLine() ? "'Your Slayer Kill' line" : "first death message");
 
         if (cfg.bossKillTime) {
             OUTBOX.add(prefix().append(Component.literal("Boss Kill time: ").withStyle(ChatFormatting.AQUA))
@@ -196,7 +231,7 @@ public final class SlayerKillTime {
                 ShokiMod.LOGGER.info("[Slayer] {}", SlayerKillStats.questLine(questMillis, session.average(), locale));
             }
         }
-        outboxDelay = OUTPUT_DELAY_TICKS;
+        outboxDelay = boxSeen ? OUTPUT_DELAY_TICKS : WAIT_FOR_BOX_TICKS;
     }
 
     private static MutableComponent prefix() {
