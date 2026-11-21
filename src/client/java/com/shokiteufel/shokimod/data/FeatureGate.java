@@ -275,6 +275,11 @@ public final class FeatureGate {
         return ModConfig.INSTANCE.slayer.spawnBanner;
     }
 
+    /** Die Kampfzeiten der Slayer-Bosse lesen alle fuenf Ticks die Seitenleiste und den Chat - nur wenn eine der Zeilen an ist */
+    public static boolean slayerKillTime() {
+        return ModConfig.INSTANCE.slayer.bossKillTime || ModConfig.INSTANCE.slayer.questKillTime;
+    }
+
     /** Der Alarm vor der Dark Auction schaut jeden Tick auf die Uhr - nur wenn er an ist */
     public static boolean darkAuction() {
         return ModConfig.INSTANCE.chat.reminder.darkAuctionAlert;
@@ -321,7 +326,8 @@ public final class FeatureGate {
     public static boolean location() {
         return forge() || forgeAlert() || funnyMap() || contest() || safari() || nearbyPanel() || rareLoot() || huntingTracker() || mobMarkers() || chatRules()
                 || cakeReminder() || hotspots() || collectionTracker() || pestTraps() || gardenVisitors() || seaHp() || mute() || outOfAir() || coldAlert() || petHud() || deployableHud() || hotspotShare()
-                || slayerSpawn() || darkAuction() || darkAuctionTimer() || hidePlayersDungeon() || nearbyRare() || ModConfig.INSTANCE.effects.enabled || mineshaftAnnounce()
+                // Die Kampfzeiten brauchen die Server-Kennung: Die Sitzung beginnt neu, wenn die Lobby wechselt
+                || slayerSpawn() || slayerKillTime() || darkAuction() || darkAuctionTimer() || hidePlayersDungeon() || nearbyRare() || ModConfig.INSTANCE.effects.enabled || mineshaftAnnounce()
                 // Die Dungeon-Funktionen fragen die Tab-Liste und die Seitenleiste (DungeonLauf, Funny Map): ohne diese Zeile stuende sie nur, solange eine der Funktionen oben an ist
                 || roomScan() || iHateDoors() || dungeonLog() || leapMenu() || hideOtherHooks() || mineshaftKeys();
     }

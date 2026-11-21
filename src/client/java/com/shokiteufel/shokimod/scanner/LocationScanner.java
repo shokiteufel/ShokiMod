@@ -175,6 +175,10 @@ public class LocationScanner {
         GameState.Server.id = newId;
         // Anderer Server, auch im selben Gebiet (Lobbywechsel): die Fischzeit haelt an, bis wieder gefangen wird
         if (before != null && !before.isEmpty()) com.shokiteufel.shokimod.handler.SeaCreatureTracker.pauseNow();
+        // Die Sitzung der Slayer-Kampfzeiten beginnt mit jeder Lobby neu; nur wenn die Funktion an ist
+        if (before != null && !before.isEmpty() && com.shokiteufel.shokimod.data.FeatureGate.slayerKillTime()) {
+            com.shokiteufel.shokimod.handler.SlayerKillTime.newLobby();
+        }
         // Auch der Fangfortschritt der Critter gehoert zur Safari-Instanz und wird nicht mitgenommen
     }
 }

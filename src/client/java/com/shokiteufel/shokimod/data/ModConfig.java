@@ -733,6 +733,8 @@ public class ModConfig extends Config {
         INSTANCE.guild.events.testBanner = () -> Minecraft.getInstance().execute(GuildEvents::testBanner);
         INSTANCE.slayer.test = () -> Minecraft.getInstance().execute(
                 com.shokiteufel.shokimod.handler.SlayerBossSpawn::test);
+        INSTANCE.slayer.resetKillTimes = () -> Minecraft.getInstance().execute(
+                com.shokiteufel.shokimod.handler.SlayerKillTime::askReset);
         INSTANCE.collections.tracker.resetTracker = () -> Minecraft.getInstance().execute(CollectionTracker::askReset);
         INSTANCE.collections.tracker.openPicker = () -> Minecraft.getInstance().execute(() ->
                 Minecraft.getInstance().setScreen(new CollectionPickerScreen(Minecraft.getInstance().screen)));
@@ -5878,6 +5880,32 @@ public class ModConfig extends Config {
         @ConfigAccordionId(id = 77)
         public transient Runnable test = () -> {
         };
+
+        @ConfigOption(name = "Kill time", desc = "Chat lines with how long your Slayer boss took.")
+        @ConfigEditorAccordion(id = 114)
+        public transient boolean killTimeFolder = false;
+
+        @Expose
+        @ConfigOption(name = "Boss kill time", desc = "After every boss kill, writes in the chat how long the fight took, from the moment the boss appeared until it died: 'Boss Kill time: 15,05Sec'. Behind it stands your personal rank among all your kills of the same boss and tier, and '!!NEW PERSONAL BEST!!' for a new record. The times are kept between sessions. The start is read from 'Slay the boss!' in the sidebar, the end from 'SLAYER QUEST COMPLETE!'. Works in SkyBlock only.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 114)
+        public boolean bossKillTime = false;
+
+        @Expose
+        @ConfigOption(name = "Quest kill time", desc = "After every boss kill, writes in the chat how long it took from accepting the quest until the boss died, with '(Avg. Time this Session: ...)' behind it. The session starts over whenever you change the lobby, so the average never holds old kills. Needs the quest to be accepted while the mod is on. Works in SkyBlock only.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 114)
+        public boolean questKillTime = false;
+
+        @ConfigOption(name = "Reset kill times", desc = "Deletes every personal kill time, so the ranks and the personal bests start from nothing. Asks first.")
+        @ConfigEditorButton(buttonText = "Reset")
+        @ConfigAccordionId(id = 114)
+        public transient Runnable resetKillTimes = () -> {
+        };
+
+        /** Die persoenlichen Kampfzeiten je Boss und Stufe ("Tarantula Broodfather V"), in Millisekunden, die schnellste zuerst */
+        @Expose
+        public Map<String, List<Long>> killTimes = new HashMap<>();
 
         public int highlightColourRGB() {
             return ColourText.rgb(highlightColour, 0xFF5555);

@@ -123,6 +123,8 @@ public class NetworkHandler {
             PartyInvites.onChatMessage(message, unformattedMsg);
             // Was ein Slayer-Boss zu starten kostet, geht in die Bilanz
             com.shokiteufel.shokimod.handler.SlayerSpawnCost.onChatMessage(unformattedMsg);
+            // Wie lange der Boss gedauert hat: Beginn der Quest, Erscheinen und Tod des Bosses
+            com.shokiteufel.shokimod.handler.SlayerKillTime.onChatMessage(unformattedMsg);
             // Ein Schluessel kostet, wenn die Leiche ihre Beute ausschuettet
             com.shokiteufel.shokimod.handler.CorpseKeyCost.onChatMessage(unformattedMsg);
             // "Your Divan's Drill has 50% fuel remaining!" bekommt eine Zeile zum Auftanken
