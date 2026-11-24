@@ -174,7 +174,10 @@ public final class RareLootParser {
      * Tatsache, kein Code - die Umsetzung hier ist eigene Arbeit.
      */
     private static final Pattern DYE_DROP = Pattern.compile(
-            "^WOW!\\s+(?:\\[[A-Za-z0-9+]{1,10}]\\s*)?"
+            // Seit 22.11. gibt es eine zweite Form: "SUPER WOW! [MVP+] Name lootshared an Iceberg Dye!" - der Finder teilt die Farbe mit der
+            // Party, und die Ueberschrift ist "SUPER WOW!" statt "WOW!". Beides gilt fuer beide Verben, damit auch "SUPER WOW! ... found"
+            // und "WOW! ... lootshared" nicht durchfallen, falls Hypixel sie so mischt
+            "^(?:SUPER\\s+)?WOW!\\s+(?:\\[[A-Za-z0-9+]{1,10}]\\s*)?"
                     // Zwischen Rang und Namen steht bei vielen Spielern ein Wappen -
                     // ein Zeichen aus Hypixels eigener Schrift, das kein Buchstabe ist.
                     // Ohne diese Stelle sprang das Muster bei genau denen nicht an, die
@@ -184,8 +187,18 @@ public final class RareLootParser {
                     // alles davor kann also getrost weg
                     + "(?:[^A-Za-z0-9_\\s]\\s*)*"
                     + "(?<player>[A-Za-z0-9_]{1,16})"
-                    + " found (?:an?\\s+)?(?<dye>.+? Dye)(?:\\s*#[0-9,.]+)?!$",
+                    + " (?<verb>found|lootshared) (?:an?\\s+)?(?<dye>.+? Dye)(?:\\s*#[0-9,.]+)?!$",
             Pattern.CASE_INSENSITIVE);
+
+    /**
+     * Die Zeile, die nur der bekommt, dem die Farbe geteilt wurde: "LOOT SHARE! Iceberg Dye".
+     *
+     * Die Meldung "SUPER WOW! ... lootshared an Iceberg Dye!" geht an den ganzen Server; diese Zeile folgt ihr nur bei denen, die die
+     * Farbe wirklich bekommen haben. Sie ist also der Beleg, dass die Farbe im eigenen Inventar liegt - egal, wer sie gefunden hat. Die
+     * Zeilen "LOOT SHARE You received ... for assisting ..." (Shards) enden nie auf "Dye" und sind hier nicht gemeint.
+     */
+    private static final Pattern DYE_SHARE_RECEIPT = Pattern.compile(
+            "^LOOT SHARE!?\\s+(?!You )(?<dye>[A-Za-z][A-Za-z' -]*? Dye)\\s*$", Pattern.CASE_INSENSITIVE);
 
     /**
      * Prismarin ist kein Jagd-Shard, sondern gewoehnliches Material.
@@ -302,8 +315,13 @@ public final class RareLootParser {
                 : new Drop(base.displayName(), amount, base.context(), base.itemIdCandidates());
     }
 
-    /** Wer welche Farbe gefunden hat */
-    public record DyeFind(String player, Drop drop) {
+    /**
+     * Wer welche Farbe gefunden hat.
+     *
+     * @param shared ob der Finder sie mit der Party geteilt hat ("lootshared"): Dann haben sie auch andere im Inventar, und der
+     *               Beleg dafuer ist die Zeile {@link #parseDyeShare}
+     */
+    public record DyeFind(String player, Drop drop, boolean shared) {
     }
 
     /**
@@ -319,7 +337,17 @@ public final class RareLootParser {
         if (!m.matches()) return null;
         String name = m.group("dye").trim();
         Drop drop = build(name, null);
-        return drop == null ? null : new DyeFind(m.group("player"), drop);
+        return drop == null ? null : new DyeFind(m.group("player"), drop, "lootshared".equalsIgnoreCase(m.group("verb")));
+    }
+
+    /**
+     * Die Beleg-Zeile "LOOT SHARE! Iceberg Dye": die Farbe, die einem geteilt wurde - oder null, wenn die Zeile keine ist.
+     */
+    public static Drop parseDyeShare(String plain) {
+        if (plain == null) return null;
+        Matcher m = DYE_SHARE_RECEIPT.matcher(plain.trim());
+        if (!m.matches()) return null;
+        return build(m.group("dye").trim(), null);
     }
 
     public static Drop parse(String plain) {

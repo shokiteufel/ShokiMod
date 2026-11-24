@@ -121,6 +121,8 @@ public final class RareLootHandler {
     private static final Map<String, Long> sharedFromInventory = new HashMap<>();
     /** Farben, die der Inventarweg schon als gewoehnlichen Fund gemeldet hat - damit die Farbzeile danach nicht noch einmal meldet */
     private static final Map<String, Long> dyeFromInventory = new HashMap<>();
+    /** Farben, die die Ankuendigung ("WOW!"/"SUPER WOW!") schon behandelt hat - die Beleg-Zeile "LOOT SHARE! <Farbe>" meldet sie nicht noch einmal */
+    private static final Map<String, Long> dyeFromLine = new HashMap<>();
 
     /**
      * Zwischen zwei Zeilen an den Chat liegt mindestens diese Pause.
@@ -172,6 +174,7 @@ public final class RareLootHandler {
         sharedFromChat.clear();
         sharedFromInventory.clear();
         dyeFromInventory.clear();
+        dyeFromLine.clear();
         // Eine Zeile, die auf einen anderen Server wartet, gehoert dort nicht mehr hin
         outbox.clear();
         RareLootSounds.clear();
@@ -287,17 +290,42 @@ public final class RareLootHandler {
                 note("dye \"" + clean + "\": dye drops are off");
             } else if (!eigeneFarbe(farbe.player()) && !cfg().dyeDropsFromOthers) {
                 note("dye by " + farbe.player() + ": not me, and other players' dyes are off");
+            } else if (farbe.shared() && anyRecent(dyeFromLine, candidatesFor(farbe.drop()), now)) {
+                // Kam die Beleg-Zeile vor der Ankuendigung, hat sie die Farbe schon gemeldet
+                note("dye \"" + clean + "\": the lootshare line already dealt with it");
             } else {
+                // Gemerkt, damit die Beleg-Zeile "LOOT SHARE! <Farbe>" gleich danach nicht noch einmal meldet
+                remember(dyeFromLine, candidatesFor(farbe.drop()), now);
                 evaluate(farbe.drop(), clean, now, true);
             }
             return;
         }
+
+        // "LOOT SHARE! Iceberg Dye": Dem Finder war die Farbe nicht genug, er hat sie geteilt - und diese Zeile bekommt nur, wer sie
+        // wirklich erhalten hat. Die Ankuendigung davor ("SUPER WOW! ... lootshared an Iceberg Dye!") geht an den ganzen Server und
+        // wird bei fremden Findern gern uebergangen (Schalter "Dyes from other players" aus) - die eigene Farbe darf deshalb nicht
+        // verloren gehen
+        Drop erhalten = RareLootParser.parseDyeShare(clean);
+        if (erhalten != null) {
+            lastLootShareAt = now;
+            if (!cfg().dyeDrops) {
+                note("shared dye \"" + clean + "\": dye drops are off");
+            } else if (anyRecent(dyeFromLine, candidatesFor(erhalten), now)) {
+                note("shared dye \"" + clean + "\": the announcement line above already dealt with it");
+            } else {
+                note("shared dye \"" + clean + "\": received as a lootshare, counts as my own");
+                remember(dyeFromLine, candidatesFor(erhalten), now);
+                evaluate(erhalten, clean, now, true);
+            }
+            return;
+        }
+
         // Eine WOW-Zeile, die nicht passt, wird vermerkt.
         //
         // Ohne diesen Vermerk ginge ein Farbfund, den das Muster nicht kennt, voellig
         // spurlos vorbei - in der Diagnose stuende nichts, und man koennte nur raten.
         // So steht die Zeile da, und beim naechsten Mal ist klar, woran es lag
-        if (clean.regionMatches(true, 0, "WOW!", 0, 4)) {
+        if (clean.regionMatches(true, 0, "WOW!", 0, 4) || clean.regionMatches(true, 0, "SUPER WOW!", 0, 10)) {
             note("unmatched WOW line: \"" + clean + "\"");
         }
 
