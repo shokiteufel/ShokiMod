@@ -449,9 +449,10 @@ public class HudPanel {
     /**
      * Eine Zeile zeichnen - mit Leuchten oder ohne.
      *
-     * Mit Leuchten steht die Schrift achtmal versetzt im dunklen Ton darunter und einmal
-     * hell darueber. Denselben Kniff benutzt Minecraft fuer Schilder mit Leuchtender
-     * Tinte. Der uebliche Schlagschatten faellt dabei weg, weil der Umriss ihn ersetzt.
+     * Mit Leuchten steht die Schrift viermal versetzt (siehe {@link GlowOffsets}) im dunklen Ton
+     * darunter und einmal hell darueber. Denselben Kniff benutzt Minecraft fuer Schilder mit
+     * Leuchtender Tinte (dort achtmal). Der uebliche Schlagschatten faellt dabei weg, weil der
+     * Umriss ihn ersetzt.
      */
     private static void text(GuiGraphicsExtractor graphics, Font font, String text, String plain,
                              int x, int y, int colour) {
@@ -462,11 +463,8 @@ public class HudPanel {
         }
 
         int outline = outlineOf(colour);
-        for (int dx = -1; dx <= 1; dx++) {
-            for (int dy = -1; dy <= 1; dy++) {
-                if (dx == 0 && dy == 0) continue;
-                graphics.text(font, plain, x + dx, y + dy, outline, false);
-            }
+        for (int[] offset : GlowOffsets.OFFSETS) {
+            graphics.text(font, plain, x + offset[0], y + offset[1], outline, false);
         }
         graphics.text(font, text, x, y, fill, false);
     }
