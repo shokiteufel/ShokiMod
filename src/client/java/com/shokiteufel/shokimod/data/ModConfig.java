@@ -140,6 +140,21 @@ public class ModConfig extends Config {
     }
 
     /**
+     * Das Leuchten der HUD-Schrift war bis 2.4.8 von Haus aus an und ist es seit 2.4.9 nicht mehr (Kosten: neun Durchgaenge je Zeile, bei einem
+     * grossen Panel die Haelfte der Spielzeit). Weil die Vorgabe mit in der Datei steht, haben alle, die den Schalter nie angefasst haben, noch
+     * "an" - und sie sind es, denen das Panel die Bilder nimmt. Einmal wird deshalb auf aus gestellt; wer es mag, schaltet es wieder ein
+     * (jetzt mit vier statt acht Versaetzen) und behaelt es, denn das Merkzeichen verhindert ein zweites Mal.
+     *
+     * @return ob etwas geaendert wurde (dann ist zu speichern)
+     */
+    static boolean migrateHudGlow(HudCategory hud) {
+        if (hud == null || hud.glowDefaultMoved) return false;
+        hud.glowDefaultMoved = true;
+        hud.glowingHudText = false;
+        return true;
+    }
+
+    /**
      * Die Pause des Skill-XP-Zaehlers war in 0.2.0 von Haus aus 60 Sekunden und ist jetzt 30. Eine Datei, die noch die alten 60 traegt, hat die
      * Vorgabe nie angefasst (ein Wert von Hand waere ein anderer) und bekommt einmalig die neue.
      *
@@ -601,6 +616,8 @@ public class ModConfig extends Config {
             INSTANCE.hud.glowingHudText = INSTANCE.safari.glowingHudText;
             INSTANCE.safari.glowingHudText = null;
         }
+        // Das Leuchten ist seit 2.4.9 von Haus aus aus (es kostete bei grossen Panels die Haelfte der Spielzeit)
+        if (migrateHudGlow(INSTANCE.hud)) INSTANCE.saveNow();
 
         INSTANCE.mobVisuals.resetNameplateScale =
                 () -> INSTANCE.mobVisuals.nameplateScale = MobVisualsCategory.DEFAULT_NAMEPLATE_SCALE;
@@ -6226,9 +6243,16 @@ public class ModConfig extends Config {
         }
 
         @Expose
-        @ConfigOption(name = "Glowing text", desc = "Draws the panel text with a dark outline in its own colour, the way Minecraft draws signs written with glow ink.\nOff: plain text with a drop shadow.")
+        @ConfigOption(name = "Glowing text", desc = "Draws the panel text with a dark outline in its own colour, the way Minecraft draws signs written with glow ink. Costs frames: every line is drawn five times, so a big panel (the Profit Tracker) slows the game down.\nOff: plain text with a drop shadow, the default.")
         @ConfigEditorBoolean
-        public boolean glowingHudText = true;
+        public boolean glowingHudText = false;
+
+        /**
+         * Bis 2.4.8 war das Leuchten von Haus aus an und kostete bei grossen Panels die Haelfte der Spielzeit; seit 2.4.9 ist es von Haus aus aus.
+         * Eine alte Datei traegt noch das alte "an" (die Vorgabe wurde mitgeschrieben): {@link ModConfig#migrateHudGlow} stellt es einmal auf aus.
+         */
+        @Expose
+        public boolean glowDefaultMoved = false;
     }
 
     public static class MobVisualsCategory {
