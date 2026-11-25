@@ -106,7 +106,7 @@ class ForgeTrackerTest {
 
     @Test
     void warnsOnceBeforeAndOnceWhenReady() {
-        cfg().alertBeforeMinutes = 2;
+        cfg().alertBeforeSeconds = 120;
         lesen(T0, "1) Refined Diamond: 1h");
         long finish = T0 + 60 * MIN - HALBE;
 
@@ -126,7 +126,7 @@ class ForgeTrackerTest {
 
     @Test
     void zeroMinutesMeansNoEarlyWarning() {
-        cfg().alertBeforeMinutes = 0;
+        cfg().alertEarly = false;
         lesen(T0, "1) Refined Diamond: 1h");
         long finish = T0 + 60 * MIN - HALBE;
         assertTrue(ForgeTracker.faellige(finish - MIN).isEmpty());
@@ -135,7 +135,7 @@ class ForgeTrackerTest {
 
     @Test
     void readyAlertCanBeSwitchedOff() {
-        cfg().alertBeforeMinutes = 0;
+        cfg().alertEarly = false;
         cfg().alertWhenReady = false;
         lesen(T0, "1) Refined Diamond: 1h");
         assertTrue(ForgeTracker.faellige(T0 + 61 * MIN).isEmpty());
@@ -150,7 +150,7 @@ class ForgeTrackerTest {
 
     @Test
     void aSlotThatFinishedLongAgoIsNotAnnouncedAfterARestart() {
-        cfg().alertBeforeMinutes = 0;
+        cfg().alertEarly = false;
         lesen(T0, "1) Refined Diamond: 5m");
         long finish = T0 + 5 * MIN - HALBE;
         // Das Spiel war zwei Stunden zu: nichts von gestern melden, und auch spaeter nicht mehr
@@ -160,7 +160,7 @@ class ForgeTrackerTest {
 
     @Test
     void aPieceThatTheTabListShowsReadyEarlyStillGetsItsAnnouncement() {
-        cfg().alertBeforeMinutes = 0;
+        cfg().alertEarly = false;
         lesen(T0, "1) Refined Diamond: 10m");
         // Nach 9 Minuten steht im Tab schon "Ready!": die Mod hat es laufen sehen, also meldet sie das Ende
         lesen(T0 + 9 * MIN, "1) Refined Diamond: Ready!");
@@ -171,7 +171,7 @@ class ForgeTrackerTest {
 
     @Test
     void aNewPieceInTheSameSlotAnnouncesAgain() {
-        cfg().alertBeforeMinutes = 0;
+        cfg().alertEarly = false;
         lesen(T0, "1) Refined Diamond: 10m");
         assertEquals(1, ForgeTracker.faellige(T0 + 10 * MIN).size());
 
@@ -182,7 +182,7 @@ class ForgeTrackerTest {
 
     @Test
     void sameItemStartedAgainWithoutSeeingEmptyCountsAsNewPieceByItsLaterEnd() {
-        cfg().alertBeforeMinutes = 0;
+        cfg().alertEarly = false;
         lesen(T0, "1) Refined Diamond: 10m");
         assertEquals(1, ForgeTracker.faellige(T0 + 10 * MIN).size());
         // Dasselbe Stueck noch einmal eingelegt, ohne dass "EMPTY" zu sehen war: das neue Ende liegt weit hinter dem alten
@@ -206,9 +206,82 @@ class ForgeTrackerTest {
         assertEquals("", ForgeAlert.text(List.of()));
     }
 
+    // ------------------------------------------------------------ Vorwarnung von 10 Sekunden bis 10 Minuten (2.4.8)
+
+    @Test
+    void theEarlyWarningCanComeTenSecondsBefore() {
+        cfg().alertBeforeSeconds = 10;
+        lesen(T0, "1) Refined Diamond: 1h");
+        long finish = T0 + 60 * MIN - HALBE;
+        assertTrue(ForgeTracker.faellige(finish - 11_000L).isEmpty(), "elf Sekunden vorher ist es noch zu frueh");
+        List<Meldung> soon = ForgeTracker.faellige(finish - 10_000L);
+        assertEquals(1, soon.size());
+        assertEquals(Meldeart.GLEICH, soon.get(0).art());
+        assertEquals(10_000L, soon.get(0).restMs());
+    }
+
+    @Test
+    void theEarlyWarningCanComeTenMinutesBefore() {
+        cfg().alertBeforeSeconds = 600;
+        lesen(T0, "1) Refined Diamond: 1h");
+        long finish = T0 + 60 * MIN - HALBE;
+        assertTrue(ForgeTracker.faellige(finish - 601_000L).isEmpty());
+        List<Meldung> soon = ForgeTracker.faellige(finish - 600_000L);
+        assertEquals(1, soon.size());
+        assertEquals(Meldeart.GLEICH, soon.get(0).art());
+        assertTrue(ForgeTracker.faellige(finish - 300_000L).isEmpty(), "die Vorwarnung kommt nur einmal");
+    }
+
+    @Test
+    void aWarningOfNinetySecondsComesNinetySecondsBefore() {
+        cfg().alertBeforeSeconds = 90;
+        lesen(T0, "1) Refined Diamond: 1h");
+        long finish = T0 + 60 * MIN - HALBE;
+        assertTrue(ForgeTracker.faellige(finish - 91_000L).isEmpty());
+        assertEquals(1, ForgeTracker.faellige(finish - 90_000L).size());
+    }
+
+    @Test
+    void theWarningTimeIsHeldBetweenTenSecondsAndTenMinutes() {
+        cfg().alertBeforeSeconds = 3;
+        assertEquals(10_000L, ForgeTracker.beforeMillis(cfg()));
+        cfg().alertBeforeSeconds = 5000;
+        assertEquals(600_000L, ForgeTracker.beforeMillis(cfg()));
+        cfg().alertBeforeSeconds = 45;
+        assertEquals(45_000L, ForgeTracker.beforeMillis(cfg()));
+    }
+
+    @Test
+    void switchingTheEarlyWarningOffGivesNoWarningTime() {
+        cfg().alertBeforeSeconds = 120;
+        cfg().alertEarly = false;
+        assertEquals(0L, ForgeTracker.beforeMillis(cfg()));
+    }
+
+    @Test
+    void theDefaultIsOneMinuteBeforeAsItWasInMinutes() {
+        assertTrue(cfg().alertEarly);
+        assertEquals(60, cfg().alertBeforeSeconds);
+    }
+
+    @Test
+    void theBannerNamesTheTimeLeftInSecondsBelowAMinute() {
+        assertEquals("10s", ForgeAlert.inTime(10_000L));
+        assertEquals("30s", ForgeAlert.inTime(29_600L), "eine halbe Sekunde nach dem Schwellenwert gerundet");
+        assertEquals("1m", ForgeAlert.inTime(59_600L));
+        assertEquals("1m 30s", ForgeAlert.inTime(90_000L));
+        assertEquals("2m", ForgeAlert.inTime(119_700L));
+        assertEquals("10m", ForgeAlert.inTime(599_700L));
+        assertEquals("1s", ForgeAlert.inTime(0L), "nie 0s auf dem Banner");
+        assertEquals("Forge: Refined Diamond ready in 30s",
+                ForgeAlert.text(List.of(new Meldung(2, "Refined Diamond", Meldeart.GLEICH, 30_000L))));
+        assertEquals("Forge: 2 slots ready in 1m 30s", ForgeAlert.text(List.of(
+                new Meldung(1, "A", Meldeart.GLEICH, 90_000L), new Meldung(2, "B", Meldeart.GLEICH, 80_000L))));
+    }
+
     @Test
     void flagsAreSavedSoAMessageSurvivesARestart() {
-        cfg().alertBeforeMinutes = 0;
+        cfg().alertEarly = false;
         lesen(T0, "1) Refined Diamond: 10m");
         int vorher = gespeichert;
         ForgeTracker.faellige(T0 + 10 * MIN);
