@@ -97,7 +97,7 @@ class ModConfigForgeTest {
         ForgeCategory forge = new ForgeCategory();
         forge.slots = 99;
         forge.shortlyMinutes = 0;
-        forge.alertBeforeMinutes = 40;
+        forge.alertBeforeSeconds = 99_999;
         forge.bannerDesign = null;
         forge.soundFile = null;
         forge.slotData = null;
@@ -106,9 +106,70 @@ class ModConfigForgeTest {
 
         assertEquals(7, forge.slots);
         assertEquals(1, forge.shortlyMinutes);
-        assertEquals(5, forge.alertBeforeMinutes);
+        assertEquals(600, forge.alertBeforeSeconds, "hoechstens zehn Minuten");
         assertEquals(BannerDesign.ALERT_BAND, forge.bannerDesign);
         assertEquals("", forge.soundFile);
         assertEquals(7, forge.slotData.size());
+
+        forge.alertBeforeSeconds = 2;
+        ModConfig.clampForge(forge);
+        assertEquals(10, forge.alertBeforeSeconds, "mindestens zehn Sekunden");
+    }
+
+    // ------------------------------------------------------------ Vorwarnung in Sekunden (2.4.8)
+
+    @Test
+    void theWarningWasInMinutesBeforeAndMovesToSeconds() {
+        ForgeCategory forge = ModConfig.GSON.fromJson("{\"alertBeforeMinutes\":3}", ForgeCategory.class);
+        assertEquals(3, forge.alertBeforeMinutes, "das alte Feld wird noch gelesen");
+
+        assertTrue(ModConfig.migrateForgeAlert(forge));
+
+        assertNull(forge.alertBeforeMinutes);
+        assertTrue(forge.alertEarly);
+        assertEquals(180, forge.alertBeforeSeconds);
+        assertFalse(ModConfig.migrateForgeAlert(forge), "ein zweiter Lauf findet nichts mehr");
+    }
+
+    @Test
+    void zeroMinutesBecameNoEarlyWarning() {
+        ForgeCategory forge = ModConfig.GSON.fromJson("{\"alertBeforeMinutes\":0}", ForgeCategory.class);
+        assertTrue(ModConfig.migrateForgeAlert(forge));
+        assertFalse(forge.alertEarly);
+        assertEquals(60, forge.alertBeforeSeconds, "die Sekunden bleiben, falls die Vorwarnung wieder eingeschaltet wird");
+    }
+
+    @Test
+    void theOldDefaultOfOneMinuteStaysOneMinute() {
+        ForgeCategory forge = ModConfig.GSON.fromJson("{\"alertBeforeMinutes\":1}", ForgeCategory.class);
+        ModConfig.migrateForgeAlert(forge);
+        assertTrue(forge.alertEarly);
+        assertEquals(60, forge.alertBeforeSeconds);
+    }
+
+    @Test
+    void aFileWithoutTheOldFieldIsLeftAlone() {
+        ForgeCategory forge = ModConfig.GSON.fromJson("{\"alertBeforeSeconds\":45,\"alertEarly\":false}", ForgeCategory.class);
+        assertFalse(ModConfig.migrateForgeAlert(forge));
+        assertEquals(45, forge.alertBeforeSeconds);
+        assertFalse(forge.alertEarly);
+    }
+
+    @Test
+    void theOldFieldIsNotWrittenAfterTheMove() {
+        ForgeCategory forge = ModConfig.GSON.fromJson("{\"alertBeforeMinutes\":2}", ForgeCategory.class);
+        ModConfig.migrateForgeAlert(forge);
+        JsonObject json = ModConfig.GSON.toJsonTree(forge).getAsJsonObject();
+        assertFalse(json.has("alertBeforeMinutes"), "ein leeres Feld wird nicht gespeichert");
+        assertEquals(120, json.get("alertBeforeSeconds").getAsInt());
+    }
+
+    @Test
+    void anOldFileWithTheForgeInItsOwnCategoryAlsoGetsTheNewWarning() {
+        ModConfig loaded = ModConfig.GSON.fromJson(
+                "{\"forge\":{\"alertBeforeMinutes\":4,\"slotData\":[]}}", ModConfig.class);
+        ModConfig.migrateForge(loaded);
+        assertTrue(ModConfig.migrateForgeAlert(loaded.mining.forge));
+        assertEquals(240, loaded.mining.forge.alertBeforeSeconds);
     }
 }

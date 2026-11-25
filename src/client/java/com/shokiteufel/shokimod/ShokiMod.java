@@ -120,6 +120,7 @@ public class ShokiMod implements ClientModInitializer {
         com.shokiteufel.shokimod.handler.OutOfAirAlert.register();
         com.shokiteufel.shokimod.handler.ColdAlert.register();
         com.shokiteufel.shokimod.handler.ForgeAlert.register();
+        com.shokiteufel.shokimod.handler.ForgeWindow.register();
         com.shokiteufel.shokimod.dungeonkarte.FunnyKarte.register();
         com.shokiteufel.shokimod.handler.DungeonLauf.register();
         com.shokiteufel.shokimod.util.PerfSampler.register();
