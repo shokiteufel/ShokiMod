@@ -387,9 +387,15 @@ public final class ForgeTracker {
 
     // ------------------------------------------------------------------ Melden
 
+    /** Wie lange vor dem Ende die Vorwarnung kommt, in Millisekunden: 10 Sekunden bis 10 Minuten; 0, wenn die Vorwarnung aus ist */
+    static long beforeMillis(ForgeCategory c) {
+        if (!c.alertEarly) return 0L;
+        return Math.max(ForgeCategory.MIN_ALERT_SECONDS, Math.min(ForgeCategory.MAX_ALERT_SECONDS, c.alertBeforeSeconds)) * 1000L;
+    }
+
     /**
-     * Was jetzt zu melden ist, und wird als gemeldet vermerkt: Je Stueck kommt hoechstens "gleich fertig" (so viele Minuten vorher, wie
-     * eingestellt, 0 = keine Vorwarnung) und einmal "fertig". Ein Stueck, das schon vor dem Fenster {@link #READY_STAYS_MS} fertig war
+     * Was jetzt zu melden ist, und wird als gemeldet vermerkt: Je Stueck kommt hoechstens "gleich fertig" (so lange vorher, wie
+     * eingestellt, 10 Sekunden bis 10 Minuten; ohne Vorwarnung entfaellt es) und einmal "fertig". Ein Stueck, das schon vor dem Fenster {@link #READY_STAYS_MS} fertig war
      * (Neustart nach langer Pause, Warnung eben erst eingeschaltet), meldet nichts mehr - sonst kaeme beim Start eine Meldung zu Dingen von gestern.
      *
      * Die Meldungen stehen mit im Platz (warned/announced) und ueberleben so einen Neustart. Wird nur nach Aenderungen gespeichert.
@@ -398,7 +404,7 @@ public final class ForgeTracker {
         if (gesehen && !lebendig(now)) abschliessen();
         List<Meldung> out = new ArrayList<>();
         ForgeCategory c = cfg();
-        long before = Math.max(0, Math.min(ForgeCategory.MAX_SHORTLY_MINUTES, c.alertBeforeMinutes)) * 60_000L;
+        long before = beforeMillis(c);
         boolean changed = false;
         List<ForgeSlot> stored = data();
         for (int i = 0; i < stored.size(); i++) {

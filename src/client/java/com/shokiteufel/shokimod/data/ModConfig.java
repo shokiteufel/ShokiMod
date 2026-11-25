@@ -124,6 +124,22 @@ public class ModConfig extends Config {
     }
 
     /**
+     * Die Vorwarnung der Forge wurde bis 2.4.7 in Minuten eingestellt (0 = keine Vorwarnung, sonst 1 bis 5), jetzt in Sekunden (10 bis 600)
+     * mit einem eigenen Schalter. Eine alte Datei traegt noch die Minuten: 0 schaltet die Vorwarnung aus und laesst die Sekunden, wie sie
+     * sind; sonst werden aus den Minuten Sekunden. Danach ist das alte Feld leer und wird nicht mehr geschrieben.
+     *
+     * @return ob etwas uebernommen wurde (dann ist zu speichern)
+     */
+    static boolean migrateForgeAlert(ForgeCategory forge) {
+        if (forge == null || forge.alertBeforeMinutes == null) return false;
+        int minutes = forge.alertBeforeMinutes;
+        forge.alertBeforeMinutes = null;
+        forge.alertEarly = minutes > 0;
+        if (minutes > 0) forge.alertBeforeSeconds = minutes * 60;
+        return true;
+    }
+
+    /**
      * Die Pause des Skill-XP-Zaehlers war in 0.2.0 von Haus aus 60 Sekunden und ist jetzt 30. Eine Datei, die noch die alten 60 traegt, hat die
      * Vorgabe nie angefasst (ein Wert von Hand waere ein anderer) und bekommt einmalig die neue.
      *
@@ -192,7 +208,7 @@ public class ModConfig extends Config {
     static void clampForge(ForgeCategory forge) {
         forge.slots = Math.max(1, Math.min(ForgeCategory.MAX_SLOTS, forge.slots));
         forge.shortlyMinutes = Math.max(1, Math.min(ForgeCategory.MAX_SHORTLY_MINUTES, forge.shortlyMinutes));
-        forge.alertBeforeMinutes = Math.max(0, Math.min(ForgeCategory.MAX_SHORTLY_MINUTES, forge.alertBeforeMinutes));
+        forge.alertBeforeSeconds = Math.max(ForgeCategory.MIN_ALERT_SECONDS, Math.min(ForgeCategory.MAX_ALERT_SECONDS, forge.alertBeforeSeconds));
         if (forge.bannerDesign == null) forge.bannerDesign = BannerDesign.ALERT_BAND;
         if (forge.soundFile == null) forge.soundFile = "";
         if (forge.slotData == null) forge.slotData = new ArrayList<>();
@@ -364,6 +380,8 @@ public class ModConfig extends Config {
         // Die Forge wohnte bis 2.2.2 in einer eigenen Kategorie, jetzt unter Mining
         if (migrateForge(INSTANCE)) INSTANCE.saveNow();
         if (INSTANCE.mining.forge == null) INSTANCE.mining.forge = new ForgeCategory();
+        // Die Vorwarnung der Forge zaehlte bis 2.4.7 in Minuten, jetzt in Sekunden
+        if (migrateForgeAlert(INSTANCE.mining.forge)) INSTANCE.saveNow();
         clampForge(INSTANCE.mining.forge);
         if (INSTANCE.skillXp == null) INSTANCE.skillXp = new SkillXpCategory();
         if (migrateSkillXpIdle(INSTANCE.skillXp)) INSTANCE.saveNow();
@@ -4582,8 +4600,11 @@ public class ModConfig extends Config {
     public static class ForgeCategory {
 
         public static final int MAX_SLOTS = 7;
-        /** Das Zeitfenster "kurz vor Ende" und die Vorwarnung reichen bis hierher, in Minuten */
+        /** Das Zeitfenster "kurz vor Ende" reicht bis hierher, in Minuten */
         public static final int MAX_SHORTLY_MINUTES = 5;
+        /** Die Vorwarnung kommt fruehestens 10 Sekunden und hoechstens 10 Minuten vor dem Ende (in Sekunden) */
+        public static final int MIN_ALERT_SECONDS = 10;
+        public static final int MAX_ALERT_SECONDS = 600;
 
         @ConfigOption(name = "Forge", desc = "Open the Dwarven Mines once: the Forges list in the tab list there says what is in each slot and how long it takes. The mod remembers it, so the panel counts down on the maps you choose. Move it with /shoki hud. It needs the Forges widget in your tab list (the default in the Dwarven Mines; /widget turns it on). Everything here is off until you turn it on.")
         @ConfigEditorInfoText
@@ -4639,10 +4660,23 @@ public class ModConfig extends Config {
         public boolean alert = false;
 
         @Expose
-        @ConfigOption(name = "Warn minutes before", desc = "How many minutes before a slot is done the first warning comes: 1 to 5. 0 = no early warning, only when it is ready.")
-        @ConfigEditorSlider(minValue = 0f, maxValue = 5f, minStep = 1f)
+        @ConfigOption(name = "Early warning", desc = "Warns before a slot is done, as long before as 'Warn before' says. Off: no early warning, only the one when it is ready.")
+        @ConfigEditorBoolean
         @ConfigAccordionId(id = 101)
-        public int alertBeforeMinutes = 1;
+        public boolean alertEarly = true;
+
+        @Expose
+        @ConfigOption(name = "Warn before", desc = "How long before a slot is done the early warning comes, in seconds: 10 (10 seconds) to 600 (10 minutes). Needs 'Early warning'.")
+        @ConfigEditorSlider(minValue = 10f, maxValue = 600f, minStep = 5f)
+        @ConfigAccordionId(id = 101)
+        public int alertBeforeSeconds = 60;
+
+        /**
+         * Bis 2.4.7 wurde die Vorwarnung in Minuten eingestellt (0 = keine, 1 bis 5). Das Feld wird nur noch gelesen, damit alte Dateien
+         * mitkommen: {@link ModConfig#migrateForgeAlert} macht Sekunden daraus und leert es - ein leeres Feld wird nicht gespeichert.
+         */
+        @Expose
+        public Integer alertBeforeMinutes = null;
 
         @Expose
         @ConfigOption(name = "Alert when ready", desc = "Also warns the moment a slot is done.")

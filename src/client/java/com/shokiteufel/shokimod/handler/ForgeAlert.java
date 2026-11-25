@@ -22,7 +22,7 @@ import java.util.List;
  * Meldet, wenn ein Forge-Platz gleich fertig ist und wenn er fertig ist - auf jeder Map, denn die Zeiten liegen gemerkt in
  * {@link ForgeTracker} (gelesen werden sie nur in den Dwarven Mines, aus der Tab-Liste).
  *
- * Alle zehn Ticks nachzusehen reicht: Die kleinste Vorwarnung ist eine Minute. Was zu melden ist, entscheidet
+ * Alle zehn Ticks (eine halbe Sekunde) nachzusehen reicht: Die kleinste Vorwarnung ist zehn Sekunden. Was zu melden ist, entscheidet
  * {@link ForgeTracker#faellige}; hier steht nur, wie es auf den Bildschirm kommt. Mehrere Plaetze zugleich (sieben Stueck, die zusammen
  * eingelegt wurden, werden zusammen fertig) geben ein Banner und einen Ton, nicht sieben.
  */
@@ -71,11 +71,23 @@ public final class ForgeAlert {
             return ready == 1 ? "Forge: " + firstReady.item() + " is ready!" : "Forge: " + ready + " slots are ready!";
         }
         if (soon > 0 && ready == 0) {
-            long minutes = Math.max(1L, Math.round(firstSoon.restMs() / 60_000.0));
-            return soon == 1 ? "Forge: " + firstSoon.item() + " ready in " + minutes + "m"
-                    : "Forge: " + soon + " slots ready in " + minutes + "m";
+            String left = inTime(firstSoon.restMs());
+            return soon == 1 ? "Forge: " + firstSoon.item() + " ready in " + left
+                    : "Forge: " + soon + " slots ready in " + left;
         }
         return "Forge: " + ready + " ready, " + soon + " almost";
+    }
+
+    /**
+     * Die Restzeit fuer das Banner: unter einer Minute in Sekunden ("30s"), sonst in Minuten ("2m"), und mit den Sekunden dahinter, wenn
+     * mehr als ein paar uebrig sind ("1m 30s"). Die Vorwarnung kommt seit 2.4.8 auch 10 bis 59 Sekunden vor dem Ende.
+     */
+    static String inTime(long ms) {
+        long seconds = Math.max(1L, Math.round(ms / 1000.0));
+        if (seconds < 60L) return seconds + "s";
+        long minutes = seconds / 60L;
+        long rest = seconds % 60L;
+        return rest < 5L ? minutes + "m" : minutes + "m " + rest + "s";
     }
 
     private static void announce(Minecraft client, List<Meldung> list) {
