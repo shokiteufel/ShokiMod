@@ -469,6 +469,58 @@ public class ModConfig extends Config {
         return changed;
     }
 
+    /** Ein Wert des Kastens (Lage, Groesse, Deckkraft) im Zulaessigen; Unlesbares (NaN) wird zur Vorgabe */
+    static float clampHud(float value, float min, float max, float fallback) {
+        if (Float.isNaN(value) || Float.isInfinite(value)) return fallback;
+        return Math.max(min, Math.min(max, value));
+    }
+
+    /**
+     * Die drei Teile des Gartens, die seit 2.5.4 dazukamen (Visitor Shopping List, Visitor Reward Warning, Garden Plots Widget): Eine Datei von vorher kennt sie nicht,
+     * und von Hand beschaedigte Zahlen werden auf das Zulaessige zurueckgesetzt.
+     *
+     * @return ob ein Wert zurechtgerueckt wurde (dann ist zu speichern)
+     */
+    static boolean repairGardenTools(GardenCategory garden) {
+        if (garden == null) return false;
+        if (garden.shoppingList == null) garden.shoppingList = new GardenShoppingListCategory();
+        if (garden.rewardWarning == null) garden.rewardWarning = new GardenRewardWarningCategory();
+        if (garden.plots == null) garden.plots = new GardenPlotsCategory();
+        boolean changed = false;
+
+        GardenRewardWarningCategory w = garden.rewardWarning;
+        int perCopper = Math.max(1, Math.min(50_000, w.coinsPerCopperPrice));
+        int loss = Math.max(1, Math.min(500_000, w.coinsLossThreshold));
+        int transparency = Math.max(0, Math.min(255, w.transparency));
+        changed |= perCopper != w.coinsPerCopperPrice || loss != w.coinsLossThreshold || transparency != w.transparency;
+        w.coinsPerCopperPrice = perCopper;
+        w.coinsLossThreshold = loss;
+        w.transparency = transparency;
+
+        GardenShoppingListCategory s = garden.shoppingList;
+        float sx = clampHud(s.hudX, 0f, 1f, 0.12f);
+        float sy = clampHud(s.hudY, 0f, 1f, 0.20f);
+        float ss = clampHud(s.hudScale, 0.5f, 3f, 1.0f);
+        float sa = clampHud(s.hudAlpha, 0f, 1f, 1.0f);
+        changed |= sx != s.hudX || sy != s.hudY || ss != s.hudScale || sa != s.hudAlpha;
+        s.hudX = sx;
+        s.hudY = sy;
+        s.hudScale = ss;
+        s.hudAlpha = sa;
+
+        GardenPlotsCategory p = garden.plots;
+        float px = clampHud(p.hudX, 0f, 1f, 0.80f);
+        float py = clampHud(p.hudY, 0f, 1f, 0.35f);
+        float ps = clampHud(p.hudScale, 0.5f, 3f, 1.0f);
+        float pa = clampHud(p.hudAlpha, 0f, 1f, 1.0f);
+        changed |= px != p.hudX || py != p.hudY || ps != p.hudScale || pa != p.hudAlpha;
+        p.hudX = px;
+        p.hudY = py;
+        p.hudScale = ps;
+        p.hudAlpha = pa;
+        return changed;
+    }
+
     /** Der Knopf "Pick" einer Tondatei: oeffnet die Auswahl und schreibt die Wahl zurueck */
     private static Runnable soundPicker(java.util.function.Supplier<String> get,
                                         java.util.function.Consumer<String> set) {
@@ -624,6 +676,7 @@ public class ModConfig extends Config {
         // Die Fallen-Warnung wohnte bis 1.15.14 unter Alerts > Reminder
         boolean gardenChanged = migratePestTraps(INSTANCE.chat.reminder, INSTANCE.garden.traps);
         if (clampGarden(INSTANCE.garden)) gardenChanged = true;
+        if (repairGardenTools(INSTANCE.garden)) gardenChanged = true;
         if (gardenChanged) INSTANCE.saveNow();
         if (INSTANCE.chat.reminder.cakes == null) INSTANCE.chat.reminder.cakes = new HashMap<>();
         // Der Unterreiter fehlt in Dateien bis 1.1.17; die drei Werte lagen bis dahin eine Ebene hoeher
@@ -2489,6 +2542,18 @@ public class ModConfig extends Config {
         @Expose
         @Category(name = "Pests", desc = "Marks every pest that spawns in your garden: an outline and a line to each one.")
         public GardenPestsCategory pests = new GardenPestsCategory();
+
+        @Expose
+        @Category(name = "Visitor Shopping List", desc = "A list of everything the visitors in your garden ask for, added up, with amounts and prices. Idea from SkyHanni.")
+        public GardenShoppingListCategory shoppingList = new GardenShoppingListCategory();
+
+        @Expose
+        @Category(name = "Visitor Reward Warning", desc = "Warns when a visitor offers a reward you want, and can block the Refuse Offer button. Idea from SkyHanni.")
+        public GardenRewardWarningCategory rewardWarning = new GardenRewardWarningCategory();
+
+        @Expose
+        @Category(name = "Garden Plots Widget", desc = "A map of the garden plots with the infested ones in red; a click teleports you to a plot. Idea from Skyblocker.")
+        public GardenPlotsCategory plots = new GardenPlotsCategory();
     }
 
     /**
@@ -2659,6 +2724,362 @@ public class ModConfig extends Config {
         @ConfigEditorButton(buttonText = "Test")
         public transient Runnable test = () -> {
         };
+    }
+
+    /**
+     * Garden > Visitor Shopping List: alles, was die Besucher verlangen, in einem Kasten des HUD-Editors.
+     *
+     * Herkunft der Idee: SkyHanni (LGPL-2.1, {@code ShoppingListConfig}, {@code GardenVisitorShoppingList}). Die Schalter und ihre Namen sind die von dort; fehlen
+     * Show Sack Count, Show Super Craft und Item Preview (siehe die Beschreibung im Einstellungsfenster). Alles von Haus aus aus - bis auf die Unteroptionen, die erst
+     * mit dem Hauptschalter etwas tun.
+     */
+    public static class GardenShoppingListCategory {
+
+        @ConfigOption(name = "Visitor Shopping List", desc = "Shows everything the visitors in your garden ask for, added up: each item with its amount and, if you like, its price, plus the visitors you have not opened yet. The mod learns what a visitor wants when you open his window once; until then he is listed as a new visitor. A click on a visitor's name in the list (with your inventory open) takes him out of the sum, a click on an item opens the Bazaar search for it. The names come from the tab list - switch on Hypixel's Visitors widget. Move and resize the list in /shoki hud (the box 'Visitor list'). Not included: the amount you have in your sacks, the super craft button and the item preview of SkyHanni - the mod has no sack contents to read. Off until you turn it on. Idea from SkyHanni.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Enable", desc = "Show all items required for the visitors.")
+        @ConfigEditorBoolean
+        public boolean enabled = false;
+
+        @Expose
+        @ConfigOption(name = "Only when Close", desc = "Only show the shopping list when close to the visitors: on the plot of the barn, in the middle of the garden.")
+        @ConfigEditorBoolean
+        public boolean onlyWhenClose = false;
+
+        @Expose
+        @ConfigOption(name = "Bazaar Alley", desc = "Show the shopping list while inside the Bazaar Alley in the Hub. Helps in buying the correct amount when you have no Booster Cookie buff active.")
+        @ConfigEditorBoolean
+        public boolean inBazaarAlley = true;
+
+        @Expose
+        @ConfigOption(name = "Farming Areas", desc = "Show the shopping list while on the Farming Islands or inside the Farm in the Hub. Helps in farming the correct amount, especially in the early game.")
+        @ConfigEditorBoolean
+        public boolean inFarmingAreas = false;
+
+        @Expose
+        @ConfigOption(name = "Show Price", desc = "Show the coin price in the shopping list: the Bazaar price to buy the item (the lowest sell offer), or the lowest BIN.")
+        @ConfigEditorBoolean
+        public boolean showPrice = true;
+
+        // Lage des Kastens, gesetzt ueber /shoki hud
+        @Expose
+        public float hudX = 0.12f;
+        @Expose
+        public float hudY = 0.20f;
+        @Expose
+        public float hudScale = 1.0f;
+        @Expose
+        public float hudAlpha = 1.0f;
+    }
+
+    /**
+     * Garden > Visitor Reward Warning: Warnung bei Besuchern mit einer gewuenschten Belohnung, und Sperre der Knoepfe im Besucherfenster.
+     *
+     * Herkunft der Idee: SkyHanni (LGPL-2.1, {@code RewardWarningConfig}, {@code VisitorRewardWarning}). Die Schalter und ihre Namen sind die von dort; die ziehbare
+     * Liste "Items" ist hier ein Akkordeon mit einem Schalter je Belohnung ({@code VisitorReward}). Alles von Haus aus aus; die Zahlen sind SkyHannis Vorgaben.
+     */
+    public static class GardenRewardWarningCategory {
+
+        @ConfigOption(name = "Visitor Reward Warning", desc = "Helps you not to send a good visitor away. When you open a visitor's window the mod reads what he offers: a reward you picked below is announced in chat and can lock the Refuse Offer button (a click on a locked button is swallowed, and it is drawn dimmed, with an outline around the better one). Hold the bypass key to click it anyway. The price rules (coins per copper, coin loss) use the Bazaar price of the items and Green Thumb I for the value of a copper. Everything is off until you turn it on. Idea from SkyHanni.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Notify in Chat", desc = "Send a chat message once you talk to a visitor with a reward you picked.")
+        @ConfigEditorBoolean
+        public boolean notifyInChat = false;
+
+        @Expose
+        @ConfigOption(name = "Show over Name", desc = "Show the reward name above the visitor name, in the world. It shows for visitors whose window you have opened, while you stand on the plot of the barn. The position of the text is a guess and has not been checked on Hypixel.")
+        @ConfigEditorBoolean
+        public boolean showOverName = false;
+
+        @Expose
+        @ConfigOption(name = "Block Refusing Reward", desc = "Prevent refusing visitors with a reward you picked below.")
+        @ConfigEditorBoolean
+        public boolean preventRefusing = false;
+
+        @Expose
+        @ConfigOption(name = "Bypass Key", desc = "Hold this key to bypass the blocking: the locked button can be clicked. Left Control until you pick another.")
+        @ConfigEditorKeybind(defaultKey = 341)
+        public int bypassKey = 341;
+
+        @ConfigOption(name = "Items", desc = "Warn for these reward items. One switch for each reward a visitor can give.")
+        @ConfigEditorAccordion(id = 140)
+        public transient boolean itemsFolder = false;
+
+        @Expose
+        @ConfigOption(name = "Flowering Bouquet", desc = "Warns about this reward, and counts it for Block Refusing Reward.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 140)
+        public boolean rewardFloweringBouquet = false;
+
+        @Expose
+        @ConfigOption(name = "Overgrown Grass", desc = "Warns about this reward, and counts it for Block Refusing Reward.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 140)
+        public boolean rewardOvergrownGrass = true;
+
+        @Expose
+        @ConfigOption(name = "Green Bandana", desc = "Warns about this reward, and counts it for Block Refusing Reward.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 140)
+        public boolean rewardGreenBandana = true;
+
+        @Expose
+        @ConfigOption(name = "Dedication IV", desc = "Warns about this reward, and counts it for Block Refusing Reward.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 140)
+        public boolean rewardDedication = true;
+
+        @Expose
+        @ConfigOption(name = "Music Rune", desc = "Warns about this reward, and counts it for Block Refusing Reward.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 140)
+        public boolean rewardMusicRune = true;
+
+        @Expose
+        @ConfigOption(name = "Space Helmet", desc = "Warns about this reward, and counts it for Block Refusing Reward.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 140)
+        public boolean rewardSpaceHelmet = true;
+
+        @Expose
+        @ConfigOption(name = "Cultivating I", desc = "Warns about this reward, and counts it for Block Refusing Reward.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 140)
+        public boolean rewardCultivating = true;
+
+        @Expose
+        @ConfigOption(name = "Replenish I", desc = "Warns about this reward, and counts it for Block Refusing Reward.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 140)
+        public boolean rewardReplenish = true;
+
+        @Expose
+        @ConfigOption(name = "Delicate V", desc = "Warns about this reward, and counts it for Block Refusing Reward.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 140)
+        public boolean rewardDelicate = false;
+
+        @Expose
+        @ConfigOption(name = "Copper Dye", desc = "Warns about this reward, and counts it for Block Refusing Reward.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 140)
+        public boolean rewardCopperDye = true;
+
+        @Expose
+        @ConfigOption(name = "Jungle Key", desc = "Warns about this reward, and counts it for Block Refusing Reward.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 140)
+        public boolean rewardJungleKey = false;
+
+        @Expose
+        @ConfigOption(name = "Fruit Bowl", desc = "Warns about this reward, and counts it for Block Refusing Reward.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 140)
+        public boolean rewardFruitBowl = false;
+
+        @Expose
+        @ConfigOption(name = "Harvest Harbinger V", desc = "Warns about this reward, and counts it for Block Refusing Reward.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 140)
+        public boolean rewardHarvestHarbinger = false;
+
+        @Expose
+        @ConfigOption(name = "Hypercharge Chip", desc = "Warns about this reward, and counts it for Block Refusing Reward.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 140)
+        public boolean rewardHyperchargeChip = false;
+
+        @Expose
+        @ConfigOption(name = "Quickdraw Chip", desc = "Warns about this reward, and counts it for Block Refusing Reward.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 140)
+        public boolean rewardQuickdrawChip = false;
+
+        @Expose
+        @ConfigOption(name = "Farming Exp Boost", desc = "Warns about this reward, and counts it for Block Refusing Reward.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 140)
+        public boolean rewardFarmingExpBoostEpic = true;
+
+        @Expose
+        @ConfigOption(name = "Unfulfilled Jerryseed", desc = "Warns about this reward, and counts it for Block Refusing Reward.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 140)
+        public boolean rewardUnfulfilledJerryseed = false;
+
+        @Expose
+        @ConfigOption(name = "Voter's Badge", desc = "Warns about this reward, and counts it for Block Refusing Reward.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 140)
+        public boolean rewardVoterBadge = false;
+
+        @Expose
+        @ConfigOption(name = "VIP Voter's Badge", desc = "Warns about this reward, and counts it for Block Refusing Reward.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 140)
+        public boolean rewardVoterBadgeVip = false;
+
+        @Expose
+        @ConfigOption(name = "Elite Voter's Badge", desc = "Warns about this reward, and counts it for Block Refusing Reward.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 140)
+        public boolean rewardVoterBadgeElite = false;
+
+        @Expose
+        @ConfigOption(name = "Supreme Voter's Badge", desc = "Warns about this reward, and counts it for Block Refusing Reward.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 140)
+        public boolean rewardVoterBadgeSupreme = false;
+
+        @Expose
+        @ConfigOption(name = "Wild Strawberry Dye", desc = "Warns about this reward, and counts it for Block Refusing Reward.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 140)
+        public boolean rewardDyeWildStrawberry = true;
+
+        @Expose
+        @ConfigOption(name = "Velvet Top Hat", desc = "Warns about this reward, and counts it for Block Refusing Reward.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 140)
+        public boolean rewardVelvetTopHat = false;
+
+        @Expose
+        @ConfigOption(name = "Cashmere Jacket", desc = "Warns about this reward, and counts it for Block Refusing Reward.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 140)
+        public boolean rewardCashmereJacket = false;
+
+        @Expose
+        @ConfigOption(name = "Satin Trousers", desc = "Warns about this reward, and counts it for Block Refusing Reward.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 140)
+        public boolean rewardSatinTrousers = false;
+
+        @Expose
+        @ConfigOption(name = "Oxford Shoes", desc = "Warns about this reward, and counts it for Block Refusing Reward.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 140)
+        public boolean rewardOxfordShoes = false;
+
+        @Expose
+        @ConfigOption(name = "Carnival Ticket", desc = "Warns about this reward, and counts it for Block Refusing Reward.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 140)
+        public boolean rewardCarnivalTicket = false;
+
+        @Expose
+        @ConfigOption(name = "Visitors' Gratitude", desc = "Warns about this reward, and counts it for Block Refusing Reward.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 140)
+        public boolean rewardVisitorsGratitude = false;
+
+        @Expose
+        @ConfigOption(name = "Farming Contest Display", desc = "Warns about this reward, and counts it for Block Refusing Reward.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 140)
+        public boolean rewardFarmingContestDisplay = false;
+
+        @Expose
+        @ConfigOption(name = "Astronaut Minion Skin", desc = "Warns about this reward, and counts it for Block Refusing Reward.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 140)
+        public boolean rewardAstronautPersonality = false;
+
+        @Expose
+        @ConfigOption(name = "Fast Food Barn Skin", desc = "Warns about this reward, and counts it for Block Refusing Reward.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 140)
+        public boolean rewardFastFoodBarnSkin = false;
+
+        @Expose
+        @ConfigOption(name = "Jelly Garden Greenhouse Skin", desc = "Warns about this reward, and counts it for Block Refusing Reward.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 140)
+        public boolean rewardJellyGreenhouseSkin = false;
+
+        @Expose
+        @ConfigOption(name = "Coins per Copper", desc = "The price to use for the options below. Requires at least one of them to be on.")
+        @ConfigEditorSlider(minValue = 1f, maxValue = 50_000f, minStep = 250f)
+        public int coinsPerCopperPrice = 6_000;
+
+        @Expose
+        @ConfigOption(name = "Block Refusing Copper", desc = "Prevent refusing visitors with a coins per copper lower than the set value.")
+        @ConfigEditorBoolean
+        public boolean preventRefusingCopper = false;
+
+        @Expose
+        @ConfigOption(name = "Block Accepting Copper", desc = "Prevent accepting visitors with a coins per copper higher than the set value.")
+        @ConfigEditorBoolean
+        public boolean preventAcceptingCopper = false;
+
+        @Expose
+        @ConfigOption(name = "Acceptable Coin Loss", desc = "The price to use for the options below. Requires one of them to be on. The options above take precedence.")
+        @ConfigEditorSlider(minValue = 1f, maxValue = 500_000f, minStep = 1_000f)
+        public int coinsLossThreshold = 150_000;
+
+        @Expose
+        @ConfigOption(name = "Block Refusing Low Loss", desc = "Prevent refusing a visitor with a net loss lower than the set value.")
+        @ConfigEditorBoolean
+        public boolean preventRefusingLowLoss = false;
+
+        @Expose
+        @ConfigOption(name = "Block Accepting High Loss", desc = "Prevent accepting a visitor with a net loss higher than the set value.")
+        @ConfigEditorBoolean
+        public boolean preventAcceptingHighLoss = false;
+
+        @Expose
+        @ConfigOption(name = "Block Refusing New Visitors", desc = "Prevents refusing a visitor you have never completed an offer with. SkyHanni switches this off in a Bingo profile; the mod cannot tell, so it applies there as well.")
+        @ConfigEditorBoolean
+        public boolean preventRefusingNew = false;
+
+        @Expose
+        @ConfigOption(name = "Transparency", desc = "How opaque the dark cover on a blocked button is, from 0 (none) to 255 (solid).")
+        @ConfigEditorSlider(minValue = 0f, maxValue = 255f, minStep = 5f)
+        public int transparency = 180;
+
+        @Expose
+        @ConfigOption(name = "Outline", desc = "Add a red or green line around the better offer button while one is blocked.")
+        @ConfigEditorBoolean
+        public boolean optionOutline = true;
+    }
+
+    /**
+     * Garden > Garden Plots Widget: die Karte der Plots als Kasten des HUD-Editors.
+     *
+     * Herkunft der Idee: Skyblocker (LGPL-3.0, {@code GardenPlotsWidget}, Einstellungen {@code farming.plotsWidget}). Dort steht die Karte rechts neben dem Inventar; hier
+     * ist sie ein Kasten, den man im HUD-Editor setzt - mit "Inventory only" (die Wahl je Kasten im HUD-Editor) steht er nur bei offenem Inventar, wie bei Skyblocker.
+     */
+    public static class GardenPlotsCategory {
+
+        @ConfigOption(name = "Garden Plots Widget", desc = "A map of the 5 x 5 garden plots, 5 rows of two-digit numbers (Ba is the barn in the middle). Plots with pests are red, the plot you stand on is green. With the inventory open, a click on a number teleports you there (/plottp). Move and resize it in /shoki hud (the box 'Garden plots'); there you can also set it to 'Inventory only', so it shows only with the inventory open, like Skyblocker's widget. The pests come from the tab list - switch on Hypixel's Pests widget and keep it visible. Skyblocker shows this map as a widget beside the inventory; here it is a box of the HUD editor, and it has no custom plot icons. Off until you turn it on. Idea from Skyblocker.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Enable Garden Plots Widget", desc = "Shows the plot map in the garden and lets you teleport with a click.")
+        @ConfigEditorBoolean
+        public boolean enabled = false;
+
+        @Expose
+        @ConfigOption(name = "Close Inventory on Teleport", desc = "Whether your inventory should automatically close when teleporting to a plot using the map.")
+        @ConfigEditorBoolean
+        public boolean closeScreenOnPlotClick = false;
+
+        // Lage des Kastens, gesetzt ueber /shoki hud
+        @Expose
+        public float hudX = 0.80f;
+        @Expose
+        public float hudY = 0.35f;
+        @Expose
+        public float hudScale = 1.0f;
+        @Expose
+        public float hudAlpha = 1.0f;
     }
 
     /**

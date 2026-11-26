@@ -65,7 +65,7 @@ public final class PestTarget implements MobVisual {
     private static final int GRID_LAST = 4;
 
     /** Das Feld des Rasters, in dem diese Koordinate liegt (0 bis 4); -1, wenn sie ausserhalb des Gartens liegt */
-    static int plotCell(double v) {
+    public static int plotCell(double v) {
         if (v < GRID_MIN || v > GRID_MAX) return -1;
         return Math.min(GRID_LAST, (int) Math.floor((v - GRID_MIN) / PLOT_SIZE));
     }

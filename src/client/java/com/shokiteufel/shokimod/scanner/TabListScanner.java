@@ -108,6 +108,11 @@ public class TabListScanner {
         if (FeatureGate.pestTraps()) PestTraps.processTabList(unformattedLines);
         // Und die Besucher des Gartens - dasselbe Spiel, andere Zeilen
         if (FeatureGate.gardenVisitors()) GardenVisitors.processTabList(unformattedLines);
+        // Die Namen der Besucher fuer die Einkaufsliste und die Belohnungswarnung, die befallenen Plots fuer die Karte der Plots (beides nur im Garden)
+        if (FeatureGate.visitorBook()) com.shokiteufel.shokimod.handler.VisitorWindow.onTabList(unformattedLines);
+        if (FeatureGate.gardenPlots() && com.shokiteufel.shokimod.garden.ShoppingListText.isGarden(com.shokiteufel.shokimod.data.GameState.Server.map)) {
+            com.shokiteufel.shokimod.garden.PlotsState.onTabList(unformattedLines);
+        }
         // Die Plaetze der Forge samt Zeit: nur wo das Widget in der Liste steht (in den Dwarven Mines), gemerkt wird es fuer jede Map
         if (FeatureGate.forge()) com.shokiteufel.shokimod.handler.ForgeTracker.processTabList(unformattedLines);
         // Essence ist kein Gegenstand: Ihr Zuwachs steht nur hier, und von hier geht er

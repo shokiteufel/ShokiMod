@@ -127,6 +127,9 @@ public class ShokiMod implements ClientModInitializer {
         com.shokiteufel.shokimod.handler.SeaCreatureNear.register();
         com.shokiteufel.shokimod.handler.PestReminder.register();
         com.shokiteufel.shokimod.handler.VisitorReminder.register();
+        // Garden: das Fenster der Besucher (Einkaufsliste, Belohnungswarnung) und der Text ueber ihrem Namen
+        com.shokiteufel.shokimod.handler.VisitorWindow.register();
+        com.shokiteufel.shokimod.render.VisitorRewardNames.register();
         com.shokiteufel.shokimod.handler.DeployableReminder.register();
         com.shokiteufel.shokimod.handler.SeaCreatureHp.register();
         com.shokiteufel.shokimod.handler.TrashBooks.register();

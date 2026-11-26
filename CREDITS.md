@@ -111,6 +111,7 @@ Die gesamte Safari-Seite geht auf crittermod zurück.
 | Eigener Slayer-Boss | Woran man ihn erkennt: der Name auf dem Schild des Bosses; wem er gehört, sagt die Zeile „Spawned by: <Name>“ daneben, sonst die Seitenleiste (`SlayerBossTarget`, `EntityHighlightManager`) |
 | Slayer-Boss erschienen | Woran man es sieht: die Zeile „Slay the boss!“ im Kasten „Slayer Quest“ der Seitenleiste (`SlayerBossSpawn`) |
 | Slayer-Minibosse | Die Namen der Minibosse je Slayer (`SlayerMinibossTarget`) - in Skyblockers `SlayerType` und SkyHanni gleich |
+| Garden Plots Widget | Die Karte der Plots (`PlotGrid`, `PlotsState`, `GardenPlotsHud`; Einstellungen `GardenPlotsCategory`): Skyblockers `GardenPlotsWidget`. Regeln: ein Raster aus fünf mal fünf Plots, in der Mitte die Scheune, die Nummern 1 bis 24 an festen Plätzen (die Tabelle stimmt mit SkyHannis `GardenPlotApi` überein); die befallenen Plots stehen in der Zeile „Plots: 4, 12, 13“ des Widgets „Pests“ der Tab-Liste; ein Klick auf einen Plot schickt `/plottp <Nummer>`, auf die Scheune `/plottp barn`; „Close Inventory on Teleport“. Eigene Zutaten: kein Widget neben dem Inventar, sondern ein Kasten des HUD-Editors mit fünf Textzeilen (zweistellige Nummern, befallen rot, der eigene Plot grün), den Klick nimmt der vorhandene Weg für Klicks auf Kästen bei offenem Inventar an. **Nicht übernommen:** die eigenen Symbole je Plot (Rechtsklick), die Knöpfe „Open Desk“, „TP to Garden spawn“ und „Set Garden spawn“, das Einlesen der Plot-Namen aus „Configure Plots“, das Ausblenden der Statuseffekte |
 
 ### SkyOcean (SkyOcean License v1 — Quelltext MIT, meowdding)
 
@@ -446,6 +447,27 @@ Beschreibungen, eigene Tests. Es steht nichts Geschriebenes aus SkyHanni in dies
   auch ohne „Highlight Auctions“ (bei SkyHanni liegt es darin), der geschätzte Wert wird mit der Stapelgröße malgenommen, ein Name mit „The“ davor bekommt keinen
   Artikel, „Hide in action bar“ wirkt nur, wenn der Zugewinn auch im Kasten gelandet ist, und alle Schalter außer „Hide in action bar“ sind von Haus aus aus (SkyHanni:
   Highlight Auctions und Compact Double Hook an, Hide In Action Bar aus).
+- **Garden > Visitor Shopping List und Visitor Reward Warning** (`VisitorWindow`, `VisitorBook`, `VisitorOffer`, `VisitorDecision`, `VisitorReward`, `VisitorTab`,
+  `ShoppingListText`, `VisitorPrices`, `VisitorShoppingHud`, `VisitorRewardNames`; die Einstellungen in `GardenShoppingListCategory` und `GardenRewardWarningCategory`): zwei
+  Funktionen aus SkyHanni (`GardenVisitorShoppingList`, `VisitorRewardWarning`, `VisitorApi`, `GardenVisitorTooltip`, `VisitorPriceCalculator`, `VisitorReward`). Regeln: Die
+  Namen der Besucher stehen im Widget „Visitors: (n)“ der Tab-Liste; das Fenster eines Besuchers erkennt man am Schild auf Platz 13 (vier Zeilen, die letzte „Offers Accepted: N“)
+  und am Knopf „Accept Offer“ auf Platz 29, „Refuse Offer“ liegt auf Platz 33; die Beschreibung nennt unter „Items Required:“ die verlangten Gegenstände („Enchanted Carrot x3“, auch
+  „8x Name“), nach einer Leerzeile unter „Rewards:“ „+20 Copper“, „+15 Garden Experience“ und Gegenstände, und „Click to give!“, sobald alles da ist. Die Liste summiert die
+  verlangten Gegenstände aller Besucher, die weder angenommen noch abgelehnt sind, mit Menge und Preis; Besucher, deren Fenster noch nicht offen war, stehen als „New Visitors“
+  mit Namen darunter, ein Klick auf einen Namen nimmt ihn (durchgestrichen) aus der Summe; sie steht im Garden (mit „Only when Close“ nur auf dem Plot der Scheune), in der Bazaar
+  Alley und - mit „Farming Areas“ - auf den Farming Islands und auf dem Hof im Hub. Ein Copper ist so viel wert wie Green Thumb I durch 1500, der Preis eines Angebots ist der der
+  verlangten Gegenstände abzüglich der Belohnungen (nie unter null). Die Sperre kennt sechs Gründe in fester Reihenfolge (gewählte Belohnung, nie bedienter Besucher, billiges
+  Copper, teures Copper, kleiner Verlust, hoher Verlust), sperrt das Ablehnen oder das Annehmen und gilt nicht, solange die Umgehungstaste (Strg links) gehalten wird; die
+  Zahlen (6.000 Coins je Copper, 150.000 Coins Verlust, Transparenz 180), die Liste der 32 Belohnungen samt der Vorauswahl von zehn, und die Chatzeile „Found Visitor Reward X!“
+  beim ersten Öffnen. Eigene Zutaten: Java statt Kotlin; die Liste ist ein Kasten des HUD-Editors (Klick auf einen Gegenstand sucht ihn im Basar); jede Belohnung hat einen
+  eigenen Schalter in einem Akkordeon statt einer ziehbaren Liste; die Klicks im Fenster kommen aus `ScreenMouseEvents.allowMouseClick` und die Tasten (Hotbar, Werfen, Tauschen,
+  die ein Klick auf den Platz wären) aus `ScreenKeyboardEvents.allowKeyPress`, gezeichnet wird nach dem Fenster (`ScreenEvents.afterExtract`, mit zwei Zugriffen auf Lage und
+  Platz unter dem Zeiger); das Fenster wird alle fünf Ticks gelesen; ein Besucher ist über seinen Namen geführt, nicht über die angeklickte Entität; die Preisregeln gelten nur,
+  wenn alle verlangten Gegenstände und Green Thumb I einen Preis haben; der gesperrte Knopf nennt in seiner Beschreibung den Grund und die Umgehungstaste; „Show over Name“ ist ein
+  Text auf dem Bildschirm über dem Ruestungsstaender des Besuchers. **Abweichungen:** alle Schalter außer den Unteroptionen sind von Haus aus aus (SkyHanni: Enable, Notify in Chat,
+  Show over Name, Block Refusing Reward und Block Refusing New Visitors an); ein Bingo-Profil erkennt die Mod nicht, „Block Refusing New Visitors“ gilt dort auch; was aus der Summe
+  genommen wurde, gilt nur bis zum Neustart. **Nicht übernommen:** Show Sack Count, Show Super Craft und Item Preview (die Mod kennt weder die Mengen im Sack noch Rezepte noch
+  das Verzeichnis der Besucher mit ihren Wünschen), die Menge in ein Schild einsetzen, die Zeilen im Tooltip („Visitor Inventory“), Accept Hotkey, das Einfärben der Besucher.
 
 ---
 

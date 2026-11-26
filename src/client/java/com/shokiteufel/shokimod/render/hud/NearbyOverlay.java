@@ -176,7 +176,8 @@ public final class NearbyOverlay {
         if (!interactive()) return HuntingBoxOverlay.shown();
         return HuntingBoxOverlay.shown() || shown()
                 || SafariHud.Panel.PROFIT.visible() || SafariHud.Panel.SEATRACKER.visible()
-                || SafariHud.Panel.SKILL_XP.visible();
+                || SafariHud.Panel.SKILL_XP.visible()
+                || SafariHud.Panel.VISITOR_LIST.visible() || SafariHud.Panel.GARDEN_PLOTS.visible();
     }
 
     /** Sitzt der Zeiger auf einer Zeile? Dann handeln und den Klick schlucken */
@@ -276,6 +277,10 @@ public final class NearbyOverlay {
                 return true;
             }
         }
+
+        // Garden: ein Klick auf eine Nummer der Karte der Plots teleportiert; einer auf die Liste der Besucher nimmt einen Namen heraus oder sucht einen Gegenstand im Basar
+        if (SafariHud.Panel.GARDEN_PLOTS.visible() && GardenPlotsHud.handleClick(mouseX, mouseY)) return true;
+        if (SafariHud.Panel.VISITOR_LIST.visible() && VisitorShoppingHud.handleClick(mouseX, mouseY)) return true;
 
         // Zuletzt: Ist der Auswahlmodus an, nimmt ein Klick auf einen Stapel im eigenen Inventar ihn in den Profit Tracker. Erst hier,
         // damit ein Kasten, der ueber dem Inventar liegt, seine Klicks behaelt

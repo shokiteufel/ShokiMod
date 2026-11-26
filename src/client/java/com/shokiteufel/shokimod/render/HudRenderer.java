@@ -34,6 +34,8 @@ public class HudRenderer {
         // Namensschilder werden als HUD gezeichnet, nicht als Text in der Welt:
         // so liegen sie sicher vor dem Glow-Nacheffekt
         BossNameplateRenderer.render(graphics, client, deltaTracker.getGameTimeDeltaPartialTick(true));
+        // Garden > Visitor Reward Warning > Show over Name: die Belohnung ueber dem Namen des Besuchers
+        VisitorRewardNames.render(graphics, client, deltaTracker.getGameTimeDeltaPartialTick(true));
 
         // Rueckfall: Kam der Aufruf vor der Spielerliste in diesem Bild nicht an (der Einsprung fand sein Ziel in dieser Spielversion nicht),
         // kommen die Kaesten hier, wie bis 2.3.14 - dann liegen sie ueber der Spielerliste, aber sie fehlen nie

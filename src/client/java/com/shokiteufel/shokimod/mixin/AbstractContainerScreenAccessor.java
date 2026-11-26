@@ -17,4 +17,12 @@ public interface AbstractContainerScreenAccessor {
 
     @Accessor("hoveredSlot")
     Slot shokimod$hoveredSlot();
+
+    /** Der linke Rand des Fensters auf dem Bildschirm: Die Plaetze (Slot.x) sind von hier aus gezaehlt */
+    @Accessor("leftPos")
+    int shokimod$leftPos();
+
+    /** Der obere Rand des Fensters auf dem Bildschirm: Die Plaetze (Slot.y) sind von hier aus gezaehlt */
+    @Accessor("topPos")
+    int shokimod$topPos();
 }

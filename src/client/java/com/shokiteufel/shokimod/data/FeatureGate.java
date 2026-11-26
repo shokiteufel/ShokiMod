@@ -168,6 +168,34 @@ public final class FeatureGate {
         return ModConfig.INSTANCE.garden.visitors.alert;
     }
 
+    /** Garden > Visitor Shopping List: die Besucher mitfuehren und die Liste zeichnen - nur wenn sie an ist. Braucht den Ort (nur in SkyBlock) */
+    public static boolean visitorShoppingList() {
+        return ModConfig.INSTANCE.garden.shoppingList.enabled;
+    }
+
+    /** Garden > Visitor Reward Warning: eine der sechs Sperren fuer die Knoepfe im Besucherfenster ist an */
+    public static boolean visitorBlocking() {
+        ModConfig.GardenRewardWarningCategory c = ModConfig.INSTANCE.garden.rewardWarning;
+        return c.preventRefusing || c.preventRefusingNew || c.preventRefusingCopper || c.preventAcceptingCopper
+                || c.preventRefusingLowLoss || c.preventAcceptingHighLoss;
+    }
+
+    /** Garden > Visitor Reward Warning: das Fenster der Besucher lesen - nur wenn eine der Funktionen daraus an ist. Braucht den Ort (nur in SkyBlock) */
+    public static boolean visitorRewardWarning() {
+        ModConfig.GardenRewardWarningCategory c = ModConfig.INSTANCE.garden.rewardWarning;
+        return c.notifyInChat || c.showOverName || visitorBlocking();
+    }
+
+    /** Die Besucher im Garden mitfuehren (Namen aus der Tab-Liste, Angebote aus dem Fenster): fuer die Einkaufsliste oder die Belohnungswarnung. Braucht den Ort */
+    public static boolean visitorBook() {
+        return visitorShoppingList() || visitorRewardWarning();
+    }
+
+    /** Garden > Garden Plots Widget: die befallenen Plots aus der Tab-Liste lesen und die Karte zeichnen - nur wenn es an ist. Braucht den Ort (nur in SkyBlock) */
+    public static boolean gardenPlots() {
+        return ModConfig.INSTANCE.garden.plots.enabled;
+    }
+
     /** Die Forge-Zeiten kommen aus der Tab-Liste: Ohne den Schalter wird sie dafuer nicht gelesen */
     public static boolean forge() {
         return ModConfig.INSTANCE.mining.forge.enabled;
@@ -472,7 +500,7 @@ public final class FeatureGate {
 
     public static boolean location() {
         return forge() || forgeAlert() || funnyMap() || contest() || safari() || nearbyPanel() || rareLoot() || mobMarkers() || chatRules()
-                || cakeReminder() || hotspots() || pestTraps() || gardenVisitors() || seaHp() || mute() || outOfAir() || coldAlert() || petHud() || deployableHud() || hotspotShare()
+                || cakeReminder() || hotspots() || pestTraps() || gardenVisitors() || visitorBook() || gardenPlots() || seaHp() || mute() || outOfAir() || coldAlert() || petHud() || deployableHud() || hotspotShare()
                 // Die Kampfzeiten brauchen die Server-Kennung: Die Sitzung beginnt neu, wenn die Lobby wechselt
                 || slayerSpawn() || slayerKillTime() || darkAuction() || darkAuctionTimer() || hidePlayersDungeon() || nearbyRare() || ModConfig.INSTANCE.effects.enabled || mineshaftAnnounce()
                 // Die Dungeon-Funktionen fragen die Tab-Liste und die Seitenleiste (DungeonLauf, Funny Map): ohne diese Zeile stuende sie nur, solange eine der Funktionen oben an ist

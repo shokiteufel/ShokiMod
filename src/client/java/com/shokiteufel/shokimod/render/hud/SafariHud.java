@@ -19,7 +19,7 @@ public final class SafariHud {
 
     /** Ein Kasten auf dem Bildschirm. Traegt seine eigene Lage und Groesse in der Config */
     public enum Panel {
-        PROGRESS, MISSING, CONTEST, NEARBY, GUILD, PROFIT, MINING, PET, PERFORMANCE, SEATRACKER, EFFECTS, SEAHP, DARK_AUCTION, FIRE_VEIL, DEPLOYABLES, FORGE, SKILL_XP, FROZEN_BLAZE, FISHING_HOOK, FISHING_BAIT, SKILL_PROGRESS, SKILL_BAR, BAZAAR_SELL, NPC_LIMIT, ITEM_VALUE, CURRENT_CHAT;
+        PROGRESS, MISSING, CONTEST, NEARBY, GUILD, PROFIT, MINING, PET, PERFORMANCE, SEATRACKER, EFFECTS, SEAHP, DARK_AUCTION, FIRE_VEIL, DEPLOYABLES, FORGE, SKILL_XP, FROZEN_BLAZE, FISHING_HOOK, FISHING_BAIT, SKILL_PROGRESS, SKILL_BAR, BAZAAR_SELL, NPC_LIMIT, ITEM_VALUE, CURRENT_CHAT, VISITOR_LIST, GARDEN_PLOTS;
 
         public boolean visible() {
             ModConfig.SafariCategory c = ModConfig.INSTANCE.safari;
@@ -69,6 +69,10 @@ public final class SafariHud {
                 case ITEM_VALUE -> EstimatedItemValueHud.shownNow();
                 // Bei offenem Chat und zwei Sekunden danach; im HUD-Editor immer
                 case CURRENT_CHAT -> CurrentChatHud.shownNow();
+                // Im Garden, in der Bazaar Alley und auf dem Hof (je nach Einstellung); im HUD-Editor immer
+                case VISITOR_LIST -> VisitorShoppingHud.shownNow();
+                // Im Garden; im HUD-Editor immer
+                case GARDEN_PLOTS -> GardenPlotsHud.shownNow();
             };
         }
 
@@ -113,6 +117,8 @@ public final class SafariHud {
                 case NPC_LIMIT -> "NPC Daily Limit";
                 case ITEM_VALUE -> "Estimated Item Value";
                 case CURRENT_CHAT -> "Current Chat Display";
+                case VISITOR_LIST -> "Visitor Shopping List";
+                case GARDEN_PLOTS -> "Garden Plots Widget";
             };
         }
 
@@ -172,6 +178,8 @@ public final class SafariHud {
                 case NPC_LIMIT -> ModConfig.INSTANCE.misc.npcLimit.hudX;
                 case ITEM_VALUE -> ModConfig.INSTANCE.inventory.itemValue.hudX;
                 case CURRENT_CHAT -> ModConfig.INSTANCE.chatTab.currentChatHudX;
+                case VISITOR_LIST -> ModConfig.INSTANCE.garden.shoppingList.hudX;
+                case GARDEN_PLOTS -> ModConfig.INSTANCE.garden.plots.hudX;
             };
         }
 
@@ -204,6 +212,8 @@ public final class SafariHud {
                 case NPC_LIMIT -> ModConfig.INSTANCE.misc.npcLimit.hudY;
                 case ITEM_VALUE -> ModConfig.INSTANCE.inventory.itemValue.hudY;
                 case CURRENT_CHAT -> ModConfig.INSTANCE.chatTab.currentChatHudY;
+                case VISITOR_LIST -> ModConfig.INSTANCE.garden.shoppingList.hudY;
+                case GARDEN_PLOTS -> ModConfig.INSTANCE.garden.plots.hudY;
             };
         }
 
@@ -236,6 +246,8 @@ public final class SafariHud {
                 case NPC_LIMIT -> ModConfig.INSTANCE.misc.npcLimit.hudScale;
                 case ITEM_VALUE -> ModConfig.INSTANCE.inventory.itemValue.hudScale;
                 case CURRENT_CHAT -> ModConfig.INSTANCE.chatTab.currentChatHudScale;
+                case VISITOR_LIST -> ModConfig.INSTANCE.garden.shoppingList.hudScale;
+                case GARDEN_PLOTS -> ModConfig.INSTANCE.garden.plots.hudScale;
             };
         }
 
@@ -346,6 +358,14 @@ public final class SafariHud {
                     ModConfig.INSTANCE.chatTab.currentChatHudX = x;
                     ModConfig.INSTANCE.chatTab.currentChatHudY = y;
                 }
+                case VISITOR_LIST -> {
+                    ModConfig.INSTANCE.garden.shoppingList.hudX = x;
+                    ModConfig.INSTANCE.garden.shoppingList.hudY = y;
+                }
+                case GARDEN_PLOTS -> {
+                    ModConfig.INSTANCE.garden.plots.hudX = x;
+                    ModConfig.INSTANCE.garden.plots.hudY = y;
+                }
             }
         }
 
@@ -379,6 +399,8 @@ public final class SafariHud {
                 case NPC_LIMIT -> ModConfig.INSTANCE.misc.npcLimit.hudAlpha;
                 case ITEM_VALUE -> ModConfig.INSTANCE.inventory.itemValue.hudAlpha;
                 case CURRENT_CHAT -> ModConfig.INSTANCE.chatTab.currentChatHudAlpha;
+                case VISITOR_LIST -> ModConfig.INSTANCE.garden.shoppingList.hudAlpha;
+                case GARDEN_PLOTS -> ModConfig.INSTANCE.garden.plots.hudAlpha;
             };
         }
 
@@ -414,6 +436,8 @@ public final class SafariHud {
                 case NPC_LIMIT -> ModConfig.INSTANCE.misc.npcLimit.hudAlpha = clamped;
                 case ITEM_VALUE -> ModConfig.INSTANCE.inventory.itemValue.hudAlpha = clamped;
                 case CURRENT_CHAT -> ModConfig.INSTANCE.chatTab.currentChatHudAlpha = clamped;
+                case VISITOR_LIST -> ModConfig.INSTANCE.garden.shoppingList.hudAlpha = clamped;
+                case GARDEN_PLOTS -> ModConfig.INSTANCE.garden.plots.hudAlpha = clamped;
             }
         }
 
@@ -447,6 +471,8 @@ public final class SafariHud {
                 case NPC_LIMIT -> ModConfig.INSTANCE.misc.npcLimit.hudScale = clamped;
                 case ITEM_VALUE -> ModConfig.INSTANCE.inventory.itemValue.hudScale = clamped;
                 case CURRENT_CHAT -> ModConfig.INSTANCE.chatTab.currentChatHudScale = clamped;
+                case VISITOR_LIST -> ModConfig.INSTANCE.garden.shoppingList.hudScale = clamped;
+                case GARDEN_PLOTS -> ModConfig.INSTANCE.garden.plots.hudScale = clamped;
             }
         }
 
@@ -522,6 +548,8 @@ public final class SafariHud {
                 case NPC_LIMIT -> NpcDayLimitHud.build();
                 case ITEM_VALUE -> EstimatedItemValueHud.build();
                 case CURRENT_CHAT -> CurrentChatHud.build();
+                case VISITOR_LIST -> VisitorShoppingHud.build();
+                case GARDEN_PLOTS -> GardenPlotsHud.build();
             };
         }
     }
