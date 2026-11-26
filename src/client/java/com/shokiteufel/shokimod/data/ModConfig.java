@@ -168,6 +168,21 @@ public class ModConfig extends Config {
         if (slayer.spawnSlayer == null) slayer.spawnSlayer = SlayerCategory.SpawnParticleMode.AS_IS;
     }
 
+    /** Skill progress (seit 2.4.12): fehlende Teile ergaenzen, Masse auf das Zulaessige bringen, die Farbe fuer den Waehler schreiben */
+    static void repairSkillProgress(ModConfig c) {
+        if (c == null) return;
+        if (c.skillProgress == null) c.skillProgress = new SkillProgressCategory();
+        SkillProgressCategory p = c.skillProgress;
+        if (p.bar == null) p.bar = new SkillBarCategory();
+        if (p.overflow == null) p.overflow = new SkillOverflowCategory();
+        if (p.skills == null) p.skills = new HashMap<>();
+        p.skills.values().removeIf(v -> v == null);
+        if (p.lastSkill == null) p.lastSkill = "";
+        p.bar.colour = ColourText.forPicker(p.bar.colour, 0xFF0000);
+        p.bar.width = Math.max(100, Math.min(1000, p.bar.width));
+        p.bar.height = Math.max(3, Math.min(15, p.bar.height));
+    }
+
     static void repairFishingExtras(FishingCategory fishing) {
         if (fishing == null) return;
         if (fishing.hookDisplay == null) fishing.hookDisplay = new HookDisplayCategory();
@@ -468,6 +483,7 @@ public class ModConfig extends Config {
         if (INSTANCE.fishing.air.soundFile == null) INSTANCE.fishing.air.soundFile = "";
         repairFishingExtras(INSTANCE.fishing);
         repairSlayerCocoon(INSTANCE.slayer);
+        repairSkillProgress(INSTANCE);
         if (INSTANCE.logs == null) INSTANCE.logs = new LogsCategory();
         if (INSTANCE.mining.cold == null) INSTANCE.mining.cold = new ColdAlertCategory();
         if (INSTANCE.mining.cold.bannerDesign == null) INSTANCE.mining.cold.bannerDesign = BannerDesign.ALERT_BAND;
@@ -1228,6 +1244,10 @@ public class ModConfig extends Config {
     @Expose
     @Category(name = "Skill XP", desc = "How much experience each skill brings in this session, and what that comes to per hour. Read from the action bar; works for every skill (Fishing, Farming, Mining ...). Off until you turn it on.")
     public SkillXpCategory skillXp = new SkillXpCategory();
+
+    @Expose
+    @Category(name = "Skill progress", desc = "Your skill level and its progress while you gain experience, with a progress bar underneath and the levels past the cap (overflow). Read from the action bar. Off until you turn it on. Idea from SkyHanni.")
+    public SkillProgressCategory skillProgress = new SkillProgressCategory();
 
     @Expose
     @Category(name = "ikohS", desc = "ShokiMod's own functions, apart from the normal ones: the Dungeon functions (Funny Map, Star mobs, I hate doors) and The Mist. Everything in here is off until you turn it on.")
@@ -4950,6 +4970,177 @@ public class ModConfig extends Config {
      * Erfahrung je Faehigkeit und Stunde. Von Haus aus aus, wie jede neue Funktion. Der Stand liegt nicht in der Datei: Er gilt fuer die
      * Sitzung (siehe {@link com.shokiteufel.shokimod.handler.SkillXpTracker}), die Datei haelt nur die Einstellungen und die Lage des Kastens.
      */
+    /**
+     * Skill progress: Stufe und Fortschritt der Faehigkeit, die gerade Erfahrung bekommt, mit Fortschrittsbalken und Overflow.
+     *
+     * Die Idee ist SkyHanni (LGPL-2.1, "Skill Progress": Anzeige, Progress Bar, Overflow). Die Zahlen kommen aus der Aktionsleiste ("+3.5 Mining
+     * (12,345/40,000)" oder "+1.1 Mining (48.39%)"), bei der Prozentform dazu die Stufe aus dem Widget der Tab-Liste und das Menue der
+     * Faehigkeiten. Was zuletzt gelesen wurde, bleibt zwischen den Sitzungen gespeichert.
+     */
+    public static class SkillProgressCategory {
+
+        @ConfigOption(name = "Skill progress", desc = "Shows the level and progress of the skill that just gained experience: \"[35] +12.4 Mining (12,345/40,000)\". It reads the action bar. With the percent form of the action bar it also needs the Skills widget of the tab list; opening your skills menu (/skills) once fills in the rest. Move and resize the panels in /shoki hud (search \"Skill progress\"). Off until you turn it on.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Enabled", desc = "Shows the skill progress panel.")
+        @ConfigEditorBoolean
+        public boolean enabled = false;
+
+        @Expose
+        @ConfigOption(name = "Show level", desc = "Puts your level in front: [35].")
+        @ConfigEditorBoolean
+        public boolean showLevel = true;
+
+        @Expose
+        @ConfigOption(name = "Use icon", desc = "Shows the skill's icon in front of the text.")
+        @ConfigEditorBoolean
+        public boolean useIcon = true;
+
+        @Expose
+        @ConfigOption(name = "Use skill name", desc = "Writes the skill's name after the gain: +12.4 Mining.")
+        @ConfigEditorBoolean
+        public boolean useSkillName = false;
+
+        @Expose
+        @ConfigOption(name = "Use percentage", desc = "Shows the progress as a percentage instead of experience.")
+        @ConfigEditorBoolean
+        public boolean usePercentage = false;
+
+        @Expose
+        @ConfigOption(name = "Show action left", desc = "Adds how many more actions of the size of your last gain it takes to reach the next level.")
+        @ConfigEditorBoolean
+        public boolean showActionLeft = false;
+
+        @Expose
+        @ConfigOption(name = "Always show", desc = "Keeps the panel on screen for the last skill you gained in. Off: it shows for three seconds after every gain.")
+        @ConfigEditorBoolean
+        public boolean alwaysShow = false;
+
+        @Expose
+        @Category(name = "Progress bar", desc = "A bar under the text that fills with the progress to the next level.")
+        public SkillBarCategory bar = new SkillBarCategory();
+
+        @Expose
+        @Category(name = "Overflow", desc = "Keeps counting levels past the cap of the skill (60 for most), as SkyHanni does: level 61, 62 ... up to 400 and beyond.")
+        public SkillOverflowCategory overflow = new SkillOverflowCategory();
+
+        // Lage der beiden Kaesten, gesetzt ueber /shoki hud
+        @Expose
+        public float hudX = 0.5f;
+        @Expose
+        public float hudY = 0.8f;
+        @Expose
+        public float hudScale = 1.0f;
+        @Expose
+        public float hudAlpha = 0.0f;
+        @Expose
+        public float barHudX = 0.5f;
+        @Expose
+        public float barHudY = 0.84f;
+        @Expose
+        public float barHudScale = 1.0f;
+        @Expose
+        public float barHudAlpha = 0.0f;
+
+        /** Was zuletzt gelesen wurde, je Faehigkeit (Name klein): so steht der Stand schon da, bevor die erste Erfahrung kommt */
+        @Expose
+        public Map<String, SkillInfo> skills = new HashMap<>();
+        /** Die Faehigkeit, die zuletzt Erfahrung bekam */
+        @Expose
+        public String lastSkill = "";
+
+        /** Stufe und Erfahrung einer Faehigkeit, einmal bis zur Obergrenze, einmal mit Overflow */
+        public static class SkillInfo {
+            @Expose
+            public int level = 0;
+            @Expose
+            public long totalXp = 0L;
+            @Expose
+            public long currentXp = 0L;
+            @Expose
+            public long currentXpMax = 0L;
+            @Expose
+            public int overflowLevel = 0;
+            @Expose
+            public long overflowCurrentXp = 0L;
+            @Expose
+            public long overflowCurrentXpMax = 0L;
+            @Expose
+            public long overflowTotalXp = 0L;
+            /** Der letzte Zugewinn, wie die Leiste ihn schrieb ("12.4") */
+            @Expose
+            public String lastGain = "";
+        }
+    }
+
+    /** Skill progress > Progress bar: der Balken, seine Farbe und sein Mass */
+    public static class SkillBarCategory {
+
+        @ConfigOption(name = "Progress bar", desc = "A bar that fills with your progress to the next level of the skill in the panel above. It needs Skill progress to be on. Move and resize it in /shoki hud (search \"Skill progress bar\").")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Enabled", desc = "Shows the progress bar.")
+        @ConfigEditorBoolean
+        public boolean enabled = false;
+
+        @Expose
+        @ConfigOption(name = "Chroma", desc = "Lets the bar run through the rainbow, like the chroma of SkyblockAddons. If it is on, the bar colour is ignored.")
+        @ConfigEditorBoolean
+        public boolean chroma = false;
+
+        @Expose
+        @ConfigOption(name = "Bar colour", desc = "The colour of the bar. Ignored while Chroma is on.")
+        @ConfigEditorColour
+        public String colour = ColourText.ofRgb(0xFF0000);
+
+        @Expose
+        @ConfigOption(name = "Width", desc = "How wide the bar is, in pixels.")
+        @ConfigEditorSlider(minValue = 100f, maxValue = 1000f, minStep = 1f)
+        public int width = 182;
+
+        @Expose
+        @ConfigOption(name = "Height", desc = "How high the bar is, in pixels.")
+        @ConfigEditorSlider(minValue = 3f, maxValue = 15f, minStep = 1f)
+        public int height = 6;
+    }
+
+    /** Skill progress > Overflow: wo die Stufen ueber der Obergrenze mitgezaehlt werden */
+    public static class SkillOverflowCategory {
+
+        @ConfigOption(name = "Overflow", desc = "Past the cap of a skill the experience keeps counting: the next level costs 7,000,000 plus a surcharge that grows by 600,000 per level and doubles every tenth. These switches decide where those levels show up.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Display", desc = "Uses the overflow level and its progress in the skill progress panel.")
+        @ConfigEditorBoolean
+        public boolean inDisplay = false;
+
+        @Expose
+        @ConfigOption(name = "Progress bar", desc = "Fills the progress bar with the progress to the next overflow level.")
+        @ConfigEditorBoolean
+        public boolean inProgressBar = false;
+
+        @Expose
+        @ConfigOption(name = "Skill menu stack size", desc = "Shows the overflow level as the number on the skill items in the Your Skills menu.")
+        @ConfigEditorBoolean
+        public boolean inSkillMenuStackSize = false;
+
+        @Expose
+        @ConfigOption(name = "Skill menu tooltips", desc = "Shows the overflow level, its progress and the overflow experience in the tooltips of the skills in the Your Skills menu.")
+        @ConfigEditorBoolean
+        public boolean inSkillMenuTooltip = false;
+
+        @Expose
+        @ConfigOption(name = "Chat", desc = "Writes a level-up message into the chat and plays the level-up sound when you gain an overflow level.")
+        @ConfigEditorBoolean
+        public boolean inChat = false;
+    }
+
     public static class SkillXpCategory {
 
         /** Laengste einstellbare Pause in Sekunden */

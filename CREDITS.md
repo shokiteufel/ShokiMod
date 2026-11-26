@@ -321,6 +321,14 @@ Beschreibungen, eigene Tests. Es steht nichts Geschriebenes aus SkyHanni in dies
   witch = lila, entity_effect = „Slayer specific"), nur bei laufender Slayer-Quest und nur nahe einem Mob, der in den letzten drei Sekunden gestorben ist (Abstand im Quadrat unter fünf).
   Eigene Zutaten: je Art drei Stellungen (wie es ist / ausblenden / immer zeigen), wobei „immer zeigen" über den vorhandenen Weg von „Show always" (`ParticleForce`) auch gegen
   Sodium Extra durchsetzt; die toten Mobs findet ein Tick alle zwei Ticks (`Mob.isDeadOrDying`) statt eines Gesundheits-Ereignisses; die Quest erkennt die Seitenleistenzeile „Slayer Quest".
+- **Skill progress** (`SkillProgress`, `SkillLevels`, `SkillProgressHud`, `SkillBarHud`): SkyHanni „Skill Progress", „Progress Bar" und „Overflow" (`SkillApi`, `SkillUtil`, `SkillProgress`,
+  `SkillTooltip`). Regel: Die Aktionsleiste schreibt „+3.5 Mining (12,345/40,000)" oder „+1.1 Mining (48.39%)"; aus dem Preis der nächsten Stufe folgt die Stufe, bei der Prozentform
+  nennt sie das Widget der Tab-Liste; bei einer vollen Fähigkeit steht als Ziel 0 und als Stand die Erfahrung über der Obergrenze; das Menü „Your Skills" liefert den Stand vorab.
+  Die Preise der Stufen bis 60 (zusammen 111.672.425) sind die der Hypixel-Wiki, ihre Summe belegt der Test; danach kostet jede Stufe 7.000.000 plus einen Zuschlag, der mit jeder Stufe um 600.000
+  wächst und sich bei jeder zehnten verdoppelt (die Regel von SkyHannis `calculateSkillLevel`). Obergrenzen je Fähigkeit wie bei SkyHanni (Foraging 57, Fishing/Alchemy/Carpentry/Hunting 50, sonst 60).
+  Eigene Zutaten: zwei Kästen des HUD-Editors (Zeile und Balken) statt fester Lage, der Balken mit Farbe, Regenbogen, Breite und Höhe, die gelesenen Stände in der Mod-Einstellung gespeichert,
+  eine Rechnung der Prozentform, die über der Obergrenze nicht doppelt zählt, eigene Meldung bei einer neuen Stufe über der Obergrenze (ohne SkyHannis Belohnungszeilen), Tooltips und Stapelgröße im Menü
+  der Fähigkeiten. **Nicht übernommen:** die Zeile mit allen Fähigkeiten, die Zeit bis zur nächsten Stufe, die Wunschstufe, die Erfahrung aus Geschenken und der Balken mit Texturen.
 
 ---
 

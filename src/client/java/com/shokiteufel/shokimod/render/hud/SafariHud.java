@@ -19,7 +19,7 @@ public final class SafariHud {
 
     /** Ein Kasten auf dem Bildschirm. Traegt seine eigene Lage und Groesse in der Config */
     public enum Panel {
-        PROGRESS, MISSING, CONTEST, NEARBY, HUNTING, GUILD, COLLECTION, PROFIT, MINING, PET, PERFORMANCE, SEATRACKER, EFFECTS, SEAHP, DARK_AUCTION, FIRE_VEIL, DEPLOYABLES, FORGE, SKILL_XP, FROZEN_BLAZE, FISHING_HOOK, FISHING_BAIT;
+        PROGRESS, MISSING, CONTEST, NEARBY, HUNTING, GUILD, COLLECTION, PROFIT, MINING, PET, PERFORMANCE, SEATRACKER, EFFECTS, SEAHP, DARK_AUCTION, FIRE_VEIL, DEPLOYABLES, FORGE, SKILL_XP, FROZEN_BLAZE, FISHING_HOOK, FISHING_BAIT, SKILL_PROGRESS, SKILL_BAR;
 
         public boolean visible() {
             ModConfig.SafariCategory c = ModConfig.INSTANCE.safari;
@@ -60,6 +60,9 @@ public final class SafariHud {
                 case FISHING_HOOK -> FishingHookHud.shownNow();
                 // Nur mit der Angel in der Hand; im HUD-Editor immer
                 case FISHING_BAIT -> FishingBaitHud.shownNow();
+                // Nach einem Zugewinn drei Sekunden (mit "Always show" immer); im HUD-Editor immer
+                case SKILL_PROGRESS -> SkillProgressHud.shownNow();
+                case SKILL_BAR -> SkillBarHud.shownNow();
             };
         }
 
@@ -100,6 +103,8 @@ public final class SafariHud {
                 case FROZEN_BLAZE -> "Aura timer";
                 case FISHING_HOOK -> "Hook display";
                 case FISHING_BAIT -> "Bait display";
+                case SKILL_PROGRESS -> "Skill progress";
+                case SKILL_BAR -> "Skill progress";
             };
         }
 
@@ -155,6 +160,8 @@ public final class SafariHud {
                 case FROZEN_BLAZE -> ModConfig.INSTANCE.fishing.frozenBlaze.timerHudX;
                 case FISHING_HOOK -> ModConfig.INSTANCE.fishing.hookDisplay.hudX;
                 case FISHING_BAIT -> ModConfig.INSTANCE.fishing.baitDisplay.hudX;
+                case SKILL_PROGRESS -> ModConfig.INSTANCE.skillProgress.hudX;
+                case SKILL_BAR -> ModConfig.INSTANCE.skillProgress.barHudX;
             };
         }
 
@@ -183,6 +190,8 @@ public final class SafariHud {
                 case FROZEN_BLAZE -> ModConfig.INSTANCE.fishing.frozenBlaze.timerHudY;
                 case FISHING_HOOK -> ModConfig.INSTANCE.fishing.hookDisplay.hudY;
                 case FISHING_BAIT -> ModConfig.INSTANCE.fishing.baitDisplay.hudY;
+                case SKILL_PROGRESS -> ModConfig.INSTANCE.skillProgress.hudY;
+                case SKILL_BAR -> ModConfig.INSTANCE.skillProgress.barHudY;
             };
         }
 
@@ -211,6 +220,8 @@ public final class SafariHud {
                 case FROZEN_BLAZE -> ModConfig.INSTANCE.fishing.frozenBlaze.timerHudScale;
                 case FISHING_HOOK -> ModConfig.INSTANCE.fishing.hookDisplay.hudScale;
                 case FISHING_BAIT -> ModConfig.INSTANCE.fishing.baitDisplay.hudScale;
+                case SKILL_PROGRESS -> ModConfig.INSTANCE.skillProgress.hudScale;
+                case SKILL_BAR -> ModConfig.INSTANCE.skillProgress.barHudScale;
             };
         }
 
@@ -305,6 +316,14 @@ public final class SafariHud {
                     ModConfig.INSTANCE.fishing.baitDisplay.hudX = x;
                     ModConfig.INSTANCE.fishing.baitDisplay.hudY = y;
                 }
+                case SKILL_PROGRESS -> {
+                    ModConfig.INSTANCE.skillProgress.hudX = x;
+                    ModConfig.INSTANCE.skillProgress.hudY = y;
+                }
+                case SKILL_BAR -> {
+                    ModConfig.INSTANCE.skillProgress.barHudX = x;
+                    ModConfig.INSTANCE.skillProgress.barHudY = y;
+                }
             }
         }
 
@@ -334,6 +353,8 @@ public final class SafariHud {
                 case FROZEN_BLAZE -> ModConfig.INSTANCE.fishing.frozenBlaze.timerHudAlpha;
                 case FISHING_HOOK -> ModConfig.INSTANCE.fishing.hookDisplay.hudAlpha;
                 case FISHING_BAIT -> ModConfig.INSTANCE.fishing.baitDisplay.hudAlpha;
+                case SKILL_PROGRESS -> ModConfig.INSTANCE.skillProgress.hudAlpha;
+                case SKILL_BAR -> ModConfig.INSTANCE.skillProgress.barHudAlpha;
             };
         }
 
@@ -365,6 +386,8 @@ public final class SafariHud {
                 case FROZEN_BLAZE -> ModConfig.INSTANCE.fishing.frozenBlaze.timerHudAlpha = clamped;
                 case FISHING_HOOK -> ModConfig.INSTANCE.fishing.hookDisplay.hudAlpha = clamped;
                 case FISHING_BAIT -> ModConfig.INSTANCE.fishing.baitDisplay.hudAlpha = clamped;
+                case SKILL_PROGRESS -> ModConfig.INSTANCE.skillProgress.hudAlpha = clamped;
+                case SKILL_BAR -> ModConfig.INSTANCE.skillProgress.barHudAlpha = clamped;
             }
         }
 
@@ -394,6 +417,8 @@ public final class SafariHud {
                 case FROZEN_BLAZE -> ModConfig.INSTANCE.fishing.frozenBlaze.timerHudScale = clamped;
                 case FISHING_HOOK -> ModConfig.INSTANCE.fishing.hookDisplay.hudScale = clamped;
                 case FISHING_BAIT -> ModConfig.INSTANCE.fishing.baitDisplay.hudScale = clamped;
+                case SKILL_PROGRESS -> ModConfig.INSTANCE.skillProgress.hudScale = clamped;
+                case SKILL_BAR -> ModConfig.INSTANCE.skillProgress.barHudScale = clamped;
             }
         }
 
@@ -430,12 +455,13 @@ public final class SafariHud {
 
         /** Kaesten, deren Zahlen mit jedem Tick gleichmaessig herunterlaufen und deshalb mit jedem Tick neu gebaut werden */
         private boolean tickBound() {
-            return this == FIRE_VEIL || this == DEPLOYABLES || this == FISHING_HOOK;
+            return this == FIRE_VEIL || this == DEPLOYABLES || this == FISHING_HOOK || this == SKILL_BAR;
         }
 
         /** Die Uhr des letzten Ticks, nach der ein tickgebundener Kasten gebaut wird */
         private long tickClock() {
             if (this == FISHING_HOOK) return com.shokiteufel.shokimod.handler.FishingHookDisplay.tickTime();
+            if (this == SKILL_BAR) return com.shokiteufel.shokimod.handler.SkillProgress.tickTime();
             return this == FIRE_VEIL ? com.shokiteufel.shokimod.handler.FireVeil.tickTime()
                     : com.shokiteufel.shokimod.handler.DeployableTimers.tickTime();
         }
@@ -464,6 +490,8 @@ public final class SafariHud {
                 case FROZEN_BLAZE -> FrozenBlazeHud.build();
                 case FISHING_HOOK -> FishingHookHud.build();
                 case FISHING_BAIT -> FishingBaitHud.build();
+                case SKILL_PROGRESS -> SkillProgressHud.build();
+                case SKILL_BAR -> SkillBarHud.build();
             };
         }
     }

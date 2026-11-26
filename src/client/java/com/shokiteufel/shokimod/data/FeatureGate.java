@@ -285,6 +285,11 @@ public final class FeatureGate {
         return ModConfig.INSTANCE.slayer.anySpawnParticle();
     }
 
+    /** Skill progress liest die Aktionsleiste, die Tab-Liste und das Menue der Faehigkeiten - nur wenn es an ist. Braucht den Ort (nur in SkyBlock) */
+    public static boolean skillProgress() {
+        return ModConfig.INSTANCE.skillProgress.enabled;
+    }
+
     /** Die Kampfzeiten der Slayer-Bosse lesen alle fuenf Ticks die Seitenleiste und den Chat - nur wenn eine der Zeilen an ist */
     public static boolean slayerKillTime() {
         return ModConfig.INSTANCE.slayer.bossKillTime || ModConfig.INSTANCE.slayer.questKillTime;
@@ -356,6 +361,6 @@ public final class FeatureGate {
                 || slayerSpawn() || slayerKillTime() || darkAuction() || darkAuctionTimer() || hidePlayersDungeon() || nearbyRare() || ModConfig.INSTANCE.effects.enabled || mineshaftAnnounce()
                 // Die Dungeon-Funktionen fragen die Tab-Liste und die Seitenleiste (DungeonLauf, Funny Map): ohne diese Zeile stuende sie nur, solange eine der Funktionen oben an ist
                 || roomScan() || iHateDoors() || dungeonLog() || leapMenu() || hideOtherHooks() || mineshaftKeys()
-                || hookDisplay() || baitDisplay() || seaCocoon() || slayerCocoon() || slayerSpawnParticles();
+                || hookDisplay() || baitDisplay() || seaCocoon() || slayerCocoon() || slayerSpawnParticles() || skillProgress();
     }
 }

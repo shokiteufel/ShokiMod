@@ -66,6 +66,10 @@ public class NetworkHandler {
                 if (FeatureGate.skillXp() && msg.indexOf('+') >= 0 && GameState.Server.isSkyblock()) {
                     com.shokiteufel.shokimod.handler.SkillXpTracker.onActionBar(COLOUR_CODE.matcher(msg).replaceAll(""));
                 }
+                // Skill progress: Stufe und Fortschritt aus derselben Zeile; nur bei einem Plus, und nur wenn es an ist
+                if (FeatureGate.skillProgress() && msg.indexOf('+') >= 0 && GameState.Server.isSkyblock()) {
+                    com.shokiteufel.shokimod.handler.SkillProgress.onActionBar(COLOUR_CODE.matcher(msg).replaceAll(""));
+                }
                 // Im Dungeon steht dort "0/6 Secrets": wie viele des Raums schon gefunden sind (Funny Map: "3/9" statt nur "9")
                 if (msg.indexOf("Secrets") >= 0 && FeatureGate.funnyMap() && GameState.Server.isSkyblock()) {
                     com.shokiteufel.shokimod.dungeonkarte.FunnyKarte.onActionBar(COLOUR_CODE.matcher(msg).replaceAll(""));
