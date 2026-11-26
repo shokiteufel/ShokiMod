@@ -19,7 +19,7 @@ public final class SafariHud {
 
     /** Ein Kasten auf dem Bildschirm. Traegt seine eigene Lage und Groesse in der Config */
     public enum Panel {
-        PROGRESS, MISSING, CONTEST, NEARBY, GUILD, PROFIT, MINING, PET, PERFORMANCE, SEATRACKER, EFFECTS, SEAHP, DARK_AUCTION, FIRE_VEIL, DEPLOYABLES, FORGE, SKILL_XP, FROZEN_BLAZE, FISHING_HOOK, FISHING_BAIT, SKILL_PROGRESS, SKILL_BAR, BAZAAR_SELL, NPC_LIMIT, ITEM_VALUE;
+        PROGRESS, MISSING, CONTEST, NEARBY, GUILD, PROFIT, MINING, PET, PERFORMANCE, SEATRACKER, EFFECTS, SEAHP, DARK_AUCTION, FIRE_VEIL, DEPLOYABLES, FORGE, SKILL_XP, FROZEN_BLAZE, FISHING_HOOK, FISHING_BAIT, SKILL_PROGRESS, SKILL_BAR, BAZAAR_SELL, NPC_LIMIT, ITEM_VALUE, CURRENT_CHAT;
 
         public boolean visible() {
             ModConfig.SafariCategory c = ModConfig.INSTANCE.safari;
@@ -67,6 +67,8 @@ public final class SafariHud {
                 case NPC_LIMIT -> NpcDayLimitHud.shownNow();
                 // Solange die Maus auf einem Gegenstand liegt, der mehr wert ist als sein Grundpreis; im HUD-Editor immer
                 case ITEM_VALUE -> EstimatedItemValueHud.shownNow();
+                // Bei offenem Chat und zwei Sekunden danach; im HUD-Editor immer
+                case CURRENT_CHAT -> CurrentChatHud.shownNow();
             };
         }
 
@@ -110,6 +112,7 @@ public final class SafariHud {
                 case BAZAAR_SELL -> "Best sell method";
                 case NPC_LIMIT -> "NPC Daily Limit";
                 case ITEM_VALUE -> "Estimated Item Value";
+                case CURRENT_CHAT -> "Current Chat Display";
             };
         }
 
@@ -168,6 +171,7 @@ public final class SafariHud {
                 case BAZAAR_SELL -> ModConfig.INSTANCE.inventory.bazaar.hudX;
                 case NPC_LIMIT -> ModConfig.INSTANCE.misc.npcLimit.hudX;
                 case ITEM_VALUE -> ModConfig.INSTANCE.inventory.itemValue.hudX;
+                case CURRENT_CHAT -> ModConfig.INSTANCE.chatTab.currentChatHudX;
             };
         }
 
@@ -199,6 +203,7 @@ public final class SafariHud {
                 case BAZAAR_SELL -> ModConfig.INSTANCE.inventory.bazaar.hudY;
                 case NPC_LIMIT -> ModConfig.INSTANCE.misc.npcLimit.hudY;
                 case ITEM_VALUE -> ModConfig.INSTANCE.inventory.itemValue.hudY;
+                case CURRENT_CHAT -> ModConfig.INSTANCE.chatTab.currentChatHudY;
             };
         }
 
@@ -230,6 +235,7 @@ public final class SafariHud {
                 case BAZAAR_SELL -> ModConfig.INSTANCE.inventory.bazaar.hudScale;
                 case NPC_LIMIT -> ModConfig.INSTANCE.misc.npcLimit.hudScale;
                 case ITEM_VALUE -> ModConfig.INSTANCE.inventory.itemValue.hudScale;
+                case CURRENT_CHAT -> ModConfig.INSTANCE.chatTab.currentChatHudScale;
             };
         }
 
@@ -336,6 +342,10 @@ public final class SafariHud {
                     ModConfig.INSTANCE.inventory.itemValue.hudX = x;
                     ModConfig.INSTANCE.inventory.itemValue.hudY = y;
                 }
+                case CURRENT_CHAT -> {
+                    ModConfig.INSTANCE.chatTab.currentChatHudX = x;
+                    ModConfig.INSTANCE.chatTab.currentChatHudY = y;
+                }
             }
         }
 
@@ -368,6 +378,7 @@ public final class SafariHud {
                 case BAZAAR_SELL -> ModConfig.INSTANCE.inventory.bazaar.hudAlpha;
                 case NPC_LIMIT -> ModConfig.INSTANCE.misc.npcLimit.hudAlpha;
                 case ITEM_VALUE -> ModConfig.INSTANCE.inventory.itemValue.hudAlpha;
+                case CURRENT_CHAT -> ModConfig.INSTANCE.chatTab.currentChatHudAlpha;
             };
         }
 
@@ -402,6 +413,7 @@ public final class SafariHud {
                 case BAZAAR_SELL -> ModConfig.INSTANCE.inventory.bazaar.hudAlpha = clamped;
                 case NPC_LIMIT -> ModConfig.INSTANCE.misc.npcLimit.hudAlpha = clamped;
                 case ITEM_VALUE -> ModConfig.INSTANCE.inventory.itemValue.hudAlpha = clamped;
+                case CURRENT_CHAT -> ModConfig.INSTANCE.chatTab.currentChatHudAlpha = clamped;
             }
         }
 
@@ -434,6 +446,7 @@ public final class SafariHud {
                 case BAZAAR_SELL -> ModConfig.INSTANCE.inventory.bazaar.hudScale = clamped;
                 case NPC_LIMIT -> ModConfig.INSTANCE.misc.npcLimit.hudScale = clamped;
                 case ITEM_VALUE -> ModConfig.INSTANCE.inventory.itemValue.hudScale = clamped;
+                case CURRENT_CHAT -> ModConfig.INSTANCE.chatTab.currentChatHudScale = clamped;
             }
         }
 
@@ -508,6 +521,7 @@ public final class SafariHud {
                 case BAZAAR_SELL -> BazaarSellHud.build();
                 case NPC_LIMIT -> NpcDayLimitHud.build();
                 case ITEM_VALUE -> EstimatedItemValueHud.build();
+                case CURRENT_CHAT -> CurrentChatHud.build();
             };
         }
     }

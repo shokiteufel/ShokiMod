@@ -168,6 +168,19 @@ public final class CraftProfitData {
         return n;
     }
 
+    /**
+     * Die Kennungen der Gegenstaende, die sich am Handwerkstisch herstellen lassen (ohne die der Forge) - die Vorschlaege hinter {@code /viewrecipe} (Chat > Tab
+     * Complete). Leer, solange die Rezepte nicht geladen sind; das Laden beginnt mit diesem Aufruf.
+     */
+    public static List<String> craftableIds() {
+        prefetch();
+        java.util.LinkedHashSet<String> out = new java.util.LinkedHashSet<>();
+        for (Recipe r : recipes) {
+            if (!FORGE.equals(r.type())) out.add(r.result());
+        }
+        return new ArrayList<>(out);
+    }
+
     /** Der lesbare Name zu einer Kennung, oder die Kennung selbst */
     public static String nameOf(String id) {
         String n = names.get(id);

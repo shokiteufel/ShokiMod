@@ -8,6 +8,7 @@ import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
@@ -21,7 +22,7 @@ import java.util.Set;
  *
  * <p>Die Liste der Warps ist die, die SkyHanni fuehrt (96 Namen, von "arachne" bis "workshop"); sie steht fest hier, es wird nichts nachgeladen.
  * Was Hypixel neu dazubringt, fehlt, bis es hier eingetragen ist. SkyHannis Ausnahme fuer "/barn" im Garten entfaellt: Dort gibt es hier keine eigenen
- * Warp-Befehle. Das Vervollstaendigen mit der Tab-Taste, das SkyHanni dazu anbietet, gibt es hier nicht.
+ * Warp-Befehle. Das Vervollstaendigen mit der Tab-Taste, das SkyHanni dazu anbietet, ist Chat > Tab Complete > Warps (siehe {@link #warps()}).
  */
 public final class WarpCommands {
 
@@ -59,10 +60,25 @@ public final class WarpCommands {
         return null;
     }
 
-    private static boolean allow(String command) {
-        if (!FeatureGate.warpCommands() || !GameState.Server.isSkyblock()) return true;
+    /**
+     * Was fuer den getippten Befehl gesendet werden soll, nach den Schaltern und dem Ort - oder null, wenn der Befehl bleibt, wie er ist. Auch der Weg von
+     * Chat > Tab Complete fragt hier, damit {@code /warp is} dort nicht an "Replace /warp is" vorbeigeht.
+     *
+     * @param command der Befehl ohne Schraegstrich
+     */
+    public static String rewrite(String command) {
+        if (!FeatureGate.warpCommands() || !GameState.Server.isSkyblock()) return null;
         ModConfig.MiscCategory c = ModConfig.INSTANCE.misc;
-        String ersatz = replacement(command, c.shortenWarp, c.replaceWarpIs, "Private Island".equals(GameState.Server.map));
+        return replacement(command, c.shortenWarp, c.replaceWarpIs, "Private Island".equals(GameState.Server.map));
+    }
+
+    /** Die Namen der Warps, alphabetisch - die Vorschlaege hinter {@code /warp} (Chat > Tab Complete > Warps) */
+    public static List<String> warps() {
+        return WARPS.stream().sorted().toList();
+    }
+
+    private static boolean allow(String command) {
+        String ersatz = rewrite(command);
         if (ersatz == null) return true;
         ClientPacketListener connection = Minecraft.getInstance().getConnection();
         if (connection == null) return true;

@@ -148,6 +148,8 @@ public class NetworkHandler {
             com.shokiteufel.shokimod.handler.CorpseKeyCost.onChatMessage(unformattedMsg);
             // "Your Divan's Drill has 50% fuel remaining!" bekommt eine Zeile zum Auftanken
             com.shokiteufel.shokimod.handler.DrillRefuel.onChatMessage(unformattedMsg);
+            // Chat (Teil 3): Sound Responses, Current Chat Display und die Listen fuer Tab Complete lesen die Zeile - jeder mit seinem Schalter, vor dem Ausblenden
+            com.shokiteufel.shokimod.chat.ChatLineReaders.onChatMessage(message, unformattedMsg);
             // Der Profit-Tracker liest seine Chat-Quellen (Saecke, Leichen, Shards) aus dem Paketstrom (KernAnschluss), nicht hier
 
             // Ein "false" blendet die Originalzeile aus

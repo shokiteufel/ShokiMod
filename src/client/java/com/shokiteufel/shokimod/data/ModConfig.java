@@ -207,6 +207,18 @@ public class ModConfig extends Config {
         n.gmtEpochDay = Math.max(0L, n.gmtEpochDay);
     }
 
+    /** Gemerkte Spielernamen (Chat > Tab Complete): nie null, nur gueltige Namen (bis 16 Buchstaben, Ziffern und Unterstriche), keine Doppelten, hoechstens 5000 */
+    static java.util.List<String> cleanNames(java.util.List<String> names) {
+        java.util.LinkedHashSet<String> out = new java.util.LinkedHashSet<>();
+        if (names != null) {
+            for (String name : names) {
+                if (name != null && name.matches("[A-Za-z0-9_]{1,16}")) out.add(name);
+                if (out.size() >= 5000) break;
+            }
+        }
+        return new java.util.ArrayList<>(out);
+    }
+
     /** Chat (seit 2.4.18): fehlende Teile ergaenzen, unbekannte Auswahlen und Schieberegler auf das Zulaessige bringen */
     static void repairChatTab(ModConfig c) {
         if (c == null) return;
@@ -215,6 +227,13 @@ public class ModConfig extends Config {
         // Chat (Teil 2): die zwei Unterkategorien (keine Auswahlen darin, also nichts weiter zu reparieren)
         if (c.chatTab.compactPotion == null) c.chatTab.compactPotion = new CompactPotionCategory();
         if (c.chatTab.rareDrop == null) c.chatTab.rareDrop = new RareDropMessagesCategory();
+        // Chat (Teil 3): Sound Responses und Tab Complete; die gemerkten Namen muessen Spielernamen sein
+        if (c.chatTab.soundResponse == null) c.chatTab.soundResponse = new ChatSoundResponseCategory();
+        if (c.chatTab.tabComplete == null) c.chatTab.tabComplete = new TabCompleteCategory();
+        TabCompleteCategory tab = c.chatTab.tabComplete;
+        tab.knownFriends = cleanNames(tab.knownFriends);
+        tab.knownBestFriends = cleanNames(tab.knownBestFriends);
+        tab.knownGuildMembers = cleanNames(tab.knownGuildMembers);
         ChatFilterTypesCategory f = c.chatTab.filterTypes;
         if (f.powderGoblinEggs == null) f.powderGoblinEggs = PowderGoblinEggs.YELLOW_UP;
         if (f.powderRuby == null) f.powderRuby = PowderGemstones.FINE_UP;
@@ -5361,6 +5380,8 @@ public class ModConfig extends Config {
      * Show Actual Powder Gained, Dark Auction Item Display, SkyBlock XP in Chat, Hide Clickable Hints) - an der Stelle, an der sie bei SkyHanni stehen. Die zwei
      * Unterkategorien (Rare Drop Messages, Compact Potion Messages) stehen hinter Chat Filter Types, in der Reihenfolge von SkyHanni; Unterkategorien sind eigene Reiter
      * und stehen deshalb nicht zwischen den Schaltern.
+     * Chat (Teil 3): dazu Peek Chat, Copy Chat, Current Chat Display (mit seinem Kasten im HUD-Editor), die Unterkategorie Sound Responses (vor Rare Drop Messages, wie bei
+     * SkyHanni) und - als Unterkategorie von Chat statt eigener Kategorie "Commands" - Tab Complete (ganz hinten).
      *
      * Nicht verwechseln mit dem Reiter "Alerts" ({@link ChatRulesCategory}, Feld {@code chat}): Dort reagiert die Mod auf Zeilen, hier raeumt sie den
      * Chat auf. Alles von Haus aus aus; wo SkyHanni eine Unteroption voreinstellt, die nur wirkt, wenn ihr Hauptschalter an ist, bleibt sie so.
@@ -5369,6 +5390,16 @@ public class ModConfig extends Config {
      * eigene Arbeit: Java, die Liste zum Ziehen (Dungeon Filters) ist ein Akkordeon mit einem Schalter je Art, und die Regeln stehen in {@code chat.*}.
      */
     public static class ChatTabCategory {
+
+        @Expose
+        @ConfigOption(name = "Peek Chat", desc = "Hold this key to keep the chat open: while it is down the chat shows all its lines in its tall size, as if it were open, without taking the keyboard away from the game. It works with no window open or with an inventory open. No key until you pick one. Idea from SkyHanni.")
+        @ConfigEditorKeybind(defaultKey = -1)
+        public int peekChat = -1;
+
+        /** Ist eine Taste gewaehlt? (Werte unter 32 sind keine Tasten) */
+        public boolean hasPeekKey() {
+            return peekChat >= 32;
+        }
 
         @ConfigOption(name = "Chat", desc = "Tidies up the chat: hides lines you do not want to read, or swaps a long block for one short line. The switches here are for the dungeon, deaths, sacks and a few mining and foraging messages, and for the lines the mod rewrites (compact messages, shorter coins ...); the sub tabs hold the rest. Everything is off until you turn it on. Idea from SkyHanni.")
         @ConfigEditorInfoText
@@ -5445,6 +5476,11 @@ public class ModConfig extends Config {
         public boolean dungeonEnd = false;
 
         @Expose
+        @ConfigOption(name = "Copy Chat", desc = "Right click a chat message to copy it. Hold Ctrl to copy only the one line under the pointer instead of the whole message. (SkyHanni copies with its word replacements when you hold Shift; the mod has none, so Shift does the same as no key.) Idea from SkyHanni.")
+        @ConfigEditorBoolean
+        public boolean copyChat = false;
+
+        @Expose
         @ConfigOption(name = "Dungeon Boss Messages", desc = "Hide messages from the Watcher and bosses in Dungeons.")
         @ConfigEditorBoolean
         public boolean dungeonBossMessages = false;
@@ -5453,6 +5489,21 @@ public class ModConfig extends Config {
         @ConfigOption(name = "Hide Far Deaths", desc = "Hide other players' death messages when they're not nearby (except during Dungeons/Kuudra fights). Nearby means within 25 blocks in the last 30 seconds; the mod looks around once a second.")
         @ConfigEditorBoolean
         public boolean hideFarDeaths = false;
+
+        @Expose
+        @ConfigOption(name = "Current Chat Display", desc = "Displays a GUI element that indicates what chat you are in (e.g. Party, Guild, Coop, All). It shows while the chat is open and for two seconds after, once Hypixel has told the mod which chat it is (every /chat command does). Move it with /shoki hud. Idea from SkyHanni.")
+        @ConfigEditorBoolean
+        public boolean currentChatDisplay = false;
+
+        // Lage des Kastens, gesetzt ueber /shoki hud
+        @Expose
+        public float currentChatHudX = 0.01f;
+        @Expose
+        public float currentChatHudY = 0.93f;
+        @Expose
+        public float currentChatHudScale = 1.0f;
+        @Expose
+        public float currentChatHudAlpha = 1.0f;
 
         @Expose
         @ConfigOption(name = "Compact Bestiary Messages", desc = "Compact the Bestiary level up message, only showing additional information when hovering. The long line above the message stays (the mod cannot take back a line that is already shown), so the long line below is written again under the short message.")
@@ -5529,12 +5580,20 @@ public class ModConfig extends Config {
         public ChatFilterTypesCategory filterTypes = new ChatFilterTypesCategory();
 
         @Expose
+        @Category(name = "Sound Responses", desc = "Play animal sounds when someone says 'meow', 'moo' or 'woof' in chat: one switch for each sound. Off until you turn it on. Idea from SkyHanni.")
+        public ChatSoundResponseCategory soundResponse = new ChatSoundResponseCategory();
+
+        @Expose
         @Category(name = "Rare Drop Messages", desc = "Make the messages about rare pets and enchanted books say more: the rarity of a pet drop, the name of a book. Everything is off until you turn it on. Idea from SkyHanni.")
         public RareDropMessagesCategory rareDrop = new RareDropMessagesCategory();
 
         @Expose
         @Category(name = "Compact Potion Messages", desc = "Shorten the chat messages about potion effects: 'Potion Effect! Speed IV by Name'. Off until you turn it on. Idea from SkyHanni.")
         public CompactPotionCategory compactPotion = new CompactPotionCategory();
+
+        @Expose
+        @Category(name = "Tab Complete", desc = "Type the start of a name behind a command and the chat suggests it: /call el gives elizabeth, /warp, /p, /f, /g, /msg and more. Only in SkyBlock. Everything is off until you turn it on. Idea from SkyHanni.")
+        public TabCompleteCategory tabComplete = new TabCompleteCategory();
 
         /** Ist einer der elf Schalter der Dungeon Filters an? */
         public boolean anyDungeonFilter() {
@@ -5633,6 +5692,210 @@ public class ModConfig extends Config {
         @ConfigOption(name = "Clickable Chat Message", desc = "Make the Compact Potion message open the Potion effects menu on click.")
         @ConfigEditorBoolean
         public boolean clickableChatMessage = true;
+    }
+
+    /**
+     * Chat > Sound Responses: Tierlaute, die die Mod spielt, wenn jemand im Chat "meow" oder "moo" schreibt. Von Haus aus aus. Die Schalter der einzelnen Arten
+     * stehen von Haus aus an - bei SkyHanni enthaelt die Liste von Anfang an alle Arten - und wirken erst, wenn "Enabled" an ist.
+     *
+     * Herkunft der Idee: SkyHanni (LGPL-2.1, {@code ChatSoundResponseConfig}). Von dort stammen "Enabled" und die fuenfzehn Arten (bei SkyHanni eine Liste zum
+     * Ziehen, hier ein Akkordeon mit einem Schalter je Art); die Umsetzung ist eigene Arbeit: Java; die Regeln stehen in {@code chat.SoundResponseType}.
+     */
+    public static class ChatSoundResponseCategory {
+
+        @ConfigOption(name = "Sound Responses", desc = "Play animal sounds when certain words are said in chat, e.g. a cow's moo for 'moo'. The word must stand alone: 'moo' counts, 'smooth' does not. Only in SkyBlock, at the volume of Alerts > Alert volume. Off until you turn it on. Idea from SkyHanni.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Enabled", desc = "Enable sound responses which play animal sounds when they are said in chat.")
+        @ConfigEditorBoolean
+        public boolean enabled = false;
+
+        @ConfigOption(name = "Sound Responses", desc = "Add animal sounds to play when certain words are said in chat. One switch for each sound.")
+        @ConfigEditorAccordion(id = 136)
+        public transient boolean soundsFolder = false;
+
+        @Expose
+        @ConfigOption(name = "Cat Meow", desc = "Plays a cat's meow when 'meow' is said in chat.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 136)
+        public boolean cat = true;
+
+        @Expose
+        @ConfigOption(name = "Cat Purr", desc = "Plays a cat's purr when 'purr' is said in chat.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 136)
+        public boolean catPurr = true;
+
+        @Expose
+        @ConfigOption(name = "Cat Purreow", desc = "Plays a cat's purreow when 'mrow' is said in chat.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 136)
+        public boolean catPurreow = true;
+
+        @Expose
+        @ConfigOption(name = "Cat Hiss", desc = "Plays a cat's hiss when 'hiss' is said in chat.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 136)
+        public boolean catHiss = true;
+
+        @Expose
+        @ConfigOption(name = "Dog Bark", desc = "Plays a wolf's bark when 'bark', 'woof' or 'arf' is said in chat.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 136)
+        public boolean dog = true;
+
+        @Expose
+        @ConfigOption(name = "Dog Growl", desc = "Plays a wolf's growl when 'grr' is said in chat.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 136)
+        public boolean dogGrowl = true;
+
+        @Expose
+        @ConfigOption(name = "Dog Howl", desc = "Plays a wolf's howl when 'awoo' is said in chat.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 136)
+        public boolean dogHowl = true;
+
+        @Expose
+        @ConfigOption(name = "Sheep", desc = "Plays a sheep's bleat when 'baa' is said in chat.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 136)
+        public boolean sheep = true;
+
+        @Expose
+        @ConfigOption(name = "Cow", desc = "Plays a cow's moo when 'moo' is said in chat.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 136)
+        public boolean cow = true;
+
+        @Expose
+        @ConfigOption(name = "Pig", desc = "Plays a pig's oink when 'oink' is said in chat.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 136)
+        public boolean pig = true;
+
+        @Expose
+        @ConfigOption(name = "Chicken", desc = "Plays a chicken's cluck when 'cluck' is said in chat.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 136)
+        public boolean chicken = true;
+
+        @Expose
+        @ConfigOption(name = "Frog", desc = "Plays a frog's croak when 'ribbit' is said in chat.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 136)
+        public boolean frog = true;
+
+        @Expose
+        @ConfigOption(name = "Horse", desc = "Plays a horse's neigh when 'neigh' is said in chat.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 136)
+        public boolean horse = true;
+
+        @Expose
+        @ConfigOption(name = "Goat", desc = "Plays a goat's scream when 'bleat' is said in chat.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 136)
+        public boolean goat = true;
+
+        @Expose
+        @ConfigOption(name = "Fox", desc = "Plays a fox's yip when 'yip' is said in chat.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 136)
+        public boolean fox = true;
+
+        /** Ist mindestens eine Art eingeschaltet? */
+        public boolean anyType() {
+            return cat || catPurr || catPurreow || catHiss || dog || dogGrowl || dogHowl || sheep || cow || pig || chicken || frog || horse || goat || fox;
+        }
+    }
+
+    /**
+     * Chat > Tab Complete: Namen hinter einem Befehl vorschlagen ("/call el" gibt "elizabeth"). Alles von Haus aus aus - bei SkyHanni stehen die meisten an.
+     *
+     * Herkunft der Idee: SkyHanni (LGPL-2.1, {@code TabCompleteConfig}, {@code StashConfig.tabCompleteStashCommand}). Von dort stammen die Schalter, ihre Namen und
+     * ihre Reihenfolge. Die Umsetzung ist eigene Arbeit: Java; die Regeln stehen in {@code chat.TabCompleteRules}, der Weg ins Spiel in {@code
+     * chat.TabCompleteCommands}. Nicht gebaut: "Carry Customers" und "VIP Visits" (beide brauchen Daten, die diese Mod nicht hat).
+     *
+     * <p>Die drei Listen am Ende sind keine Einstellungen: Die Mod merkt sich dort, wen sie aus {@code /friend list} und {@code /guild list} gelesen hat.
+     */
+    public static class TabCompleteCategory {
+
+        @ConfigOption(name = "Tab Complete", desc = "Type the start of a name behind a command, then press Tab or look at the list above the chat. It works only in SkyBlock. Friends and guild members are learned when you run /friend list and /guild list (the mod remembers them); party members from the chat lines about your party. Off until you turn a switch on; with it off the command goes to the server exactly as you typed it. Idea from SkyHanni.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Warps", desc = "Tab-complete /warp warp points.")
+        @ConfigEditorBoolean
+        public boolean warps = false;
+
+        @Expose
+        @ConfigOption(name = "Island Players", desc = "Tab-complete other players on the same island (the ones near enough for the game to know them).")
+        @ConfigEditorBoolean
+        public boolean islandPlayers = false;
+
+        @Expose
+        @ConfigOption(name = "Friends", desc = "Tab-complete friends from your friends list. The mod learns the list when you run /friend list.")
+        @ConfigEditorBoolean
+        public boolean friends = false;
+
+        @Expose
+        @ConfigOption(name = "Only Best Friends", desc = "Only tab-complete best friends.")
+        @ConfigEditorBoolean
+        public boolean onlyBestFriends = false;
+
+        @Expose
+        @ConfigOption(name = "Party", desc = "Tab-complete Party Members.")
+        @ConfigEditorBoolean
+        public boolean party = false;
+
+        @Expose
+        @ConfigOption(name = "Guild", desc = "Tab-complete Guild Members. The mod learns the list when you run /guild list.")
+        @ConfigEditorBoolean
+        public boolean guild = false;
+
+        @Expose
+        @ConfigOption(name = "/gfs Sack", desc = "Tab-complete /gfs item names. Unlike SkyHanni the mod does not know which items fit in a sack: it suggests every item Hypixel knows.")
+        @ConfigEditorBoolean
+        public boolean gfsSack = false;
+
+        @Expose
+        @ConfigOption(name = "View Recipe", desc = "Tab-complete item IDs in the Hypixel command /viewrecipe. Only items with recipes are tab completed (as long as the mod has not loaded the recipes, every item).")
+        @ConfigEditorBoolean
+        public boolean viewRecipe = false;
+
+        @Expose
+        @ConfigOption(name = "Show Item", desc = "Tab-complete the /show command (item, helmet, chestplate ...).")
+        @ConfigEditorBoolean
+        public boolean showItem = false;
+
+        @Expose
+        @ConfigOption(name = "Call", desc = "Tab-complete /call with contact names. The mod knows only a few contacts by name (Anita, Elizabeth, Jotraeline, Kysha, Odger, Phillip, Trevor); type any other one out.")
+        @ConfigEditorBoolean
+        public boolean call = false;
+
+        @Expose
+        @ConfigOption(name = "Tab Complete Stash Command", desc = "Tab-complete /viewstash with item and material.")
+        @ConfigEditorBoolean
+        public boolean stashCommand = false;
+
+        /** Was die Mod aus {@code /friend list} gelesen hat: alle Freunde. Keine Einstellung */
+        @Expose
+        public java.util.List<String> knownFriends = new java.util.ArrayList<>();
+        /** Davon die besten Freunde */
+        @Expose
+        public java.util.List<String> knownBestFriends = new java.util.ArrayList<>();
+        /** Was die Mod aus {@code /guild list} gelesen hat */
+        @Expose
+        public java.util.List<String> knownGuildMembers = new java.util.ArrayList<>();
+
+        /** Ist irgendein Schalter an? ("Only Best Friends" allein tut nichts) */
+        public boolean any() {
+            return warps || islandPlayers || friends || party || guild || gfsSack || viewRecipe || showItem || call || stashCommand;
+        }
     }
 
     /** Chat Filter Types > Powder Mining > Goblin Egg: ab welcher Farbe ein Ei gezeigt wird (die Reihenfolge ist die der Auswahl) */

@@ -3,6 +3,8 @@
 	"package": "com.shokiteufel.shokimod.paket.mixin",
 	"compatibilityLevel": "JAVA_25",
 	"client": [
+		"ChatPeekHeightMixin",
+		"ChatPeekHudMixin",
 		"ConnectionMixin",
 		"DoppelklickMixin",
 		"ListenerAndPacketMixin",

@@ -395,6 +395,24 @@ Beschreibungen, eigene Tests. Es steht nichts Geschriebenes aus SkyHanni in dies
   Attribute (Atomized Crystals und seine Echos) und das Ereignis „2x Powder“ bei „Show Actual Powder Gained“ (ShokiMod liest sie nicht; der Text beim Zeigen sagt es), die „User Luck“ an
   der Meldung für ein fehlendes Buch, und von SkyHannis Hinweisen die Zeile „[CLICK to … or disable this feature]“ unter ihren eigenen Meldungen (bei ShokiMod gibt es nur Knöpfe am
   Ende einer Zeile).
+- **Chat (Teil 3)** (`ChatPeek`, `CopyChat`, `CurrentChatDisplay`, `ChatChannelTracker`, `ChatChannel`, `SoundResponseType`, `ChatSoundResponse`, `TabCompleteRules`,
+  `CommandSuggestionTree`, `TabCompleteCommands`, `TabCompleteRosters`, `PartyRoster`, `GuildRoster`, `FriendRoster`, `AbiphoneContacts`, `PlayerNames`, `ChatLineReaders`,
+  `CurrentChatHud`, zwei Mixins in `paket/mixin`; die Einstellungen `ChatSoundResponseCategory` und `TabCompleteCategory`): die Funktionen von SkyHanni „Chat“, die den Chat
+  weder ausblenden noch umschreiben (`ChatPeek`, `CopyChat`, `CurrentChatDisplay`, `ChatSoundResponse`, `SoundResponseTypes`), und die Tab-Vervollständigung von Befehlen aus
+  SkyHannis „Commands“ (`TabComplete`, `PlayerTabComplete`, `WarpTabComplete`, `GetFromSacksTabComplete`, `ShowItemTabComplete`, `ViewRecipeCommand`, `AbiphoneFeatures`,
+  `StashCompact`, `SuggestionProvider`, `PartyApi`, `GuildApi`, `FriendApi`). Regeln: Peek Chat zeichnet den Chat im Vordergrund-Modus und mit der Höhe des offenen Chats,
+  solange die Taste gehalten wird; Copy Chat kopiert mit Rechtsklick die Nachricht, mit Strg nur die Zeile unter dem Zeiger; Current Chat Display liest „You are now in the X
+  channel“, die Rückkehr zu ALL und das Gespräch unter vier Augen (fünf Minuten, mit jeder Nachricht neu) und zeigt „Chat: Party (3 members)“; die fünfzehn Tierlaute mit ihren
+  Wörtern (als Muster, ganze Wörter, Groß und Klein egal); die Befehle und Unterbefehle von /p, /f, /g, /msg, /visit, /invite, /ah, /pv, /trade, die Quellen der Namen (Insel,
+  Freunde, beste Freunde, Party, Gilde), /warp, /call, /gfs (enthält statt beginnt), /show (die Plätze), /viewrecipe (nur mit Rezept) und /viewstash (item, material); Party,
+  Gilde und Freunde aus den Meldungen von Hypixel (Beitritt, Austritt, Übergabe, /party list, /guild list, /friend list). Die Beispielzeilen der Tests sind SkyHannis
+  „REGEX-TEST“-Zeilen ohne Farbcodes. Eigene Zutaten: die Vorschläge kommen über Client-Befehle von Fabric statt über ein Mixin in Brigadier (ein Befehl, den die Mod nicht
+  ausführen darf, lehnt mit „unbekannter Befehl“ ab und geht seinen gewohnten Weg), der Baum der Unterbefehle ist durchlässig für Gruppen mit Bedingung (bei SkyHanni findet
+  „/p kick Na“ deshalb nie die Mitglieder), die Zeile unter dem Zeiger bei Copy Chat wird über die Matrix des Chats zurückgerechnet, die Mitglieder der Freundesliste werden
+  nur auf einer Seite von „/friend list“ gelesen (nicht in jeder Zeile, die „Friends“ sagt), eigener Wortlaut. **Nicht übernommen:** „Carry Customers“ und „VIP Visits“ (die
+  Daten fehlen), SkyHannis Wort-Ersetzungen („Shwords“) bei Umschalt in Copy Chat, die Menü-Taste in Copy Chat, die vollständige Liste der Abiphone-Kontakte (SkyHanni lädt sie
+  aus seinem Verzeichnis im Netz; hier stehen nur die sieben Namen, die in den Quelltexten vorkommen), die Beschränkung von /gfs auf Gegenstände, die in einen Sack passen,
+  die Ersetzung von Unterstrichen in /gfs, die Vorschläge für die Menge hinter /gfs, und das Merken des Chats in der Datei des Spielers.
 
 ---
 

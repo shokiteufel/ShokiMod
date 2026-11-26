@@ -344,6 +344,38 @@ public final class FeatureGate {
         return ModConfig.INSTANCE.chatTab.hideFarDeaths;
     }
 
+    /** Chat (Teil 3) > Peek Chat: eine Taste gewaehlt? Dann fragen die zwei Einspruenge des Chats, ob sie gehalten wird */
+    public static boolean chatPeek() {
+        return ModConfig.INSTANCE.chatTab.hasPeekKey();
+    }
+
+    /** Chat (Teil 3) > Copy Chat: ein Rechtsklick im Chatfenster kopiert die Zeile - nur wenn es an ist */
+    public static boolean copyChat() {
+        return ModConfig.INSTANCE.chatTab.copyChat;
+    }
+
+    /** Chat (Teil 3) > Current Chat Display: merkt, in welchem Chat man ist, und zeigt den Kasten - nur wenn es an ist. Braucht den Ort (der Kasten steht nur in SkyBlock) */
+    public static boolean currentChatDisplay() {
+        return ModConfig.INSTANCE.chatTab.currentChatDisplay;
+    }
+
+    /** Chat (Teil 3) > Sound Responses: jede Chatzeile auf die Woerter der Tiere lesen - nur wenn es an ist und eine Art. Braucht den Ort (nur in SkyBlock) */
+    public static boolean chatSoundResponses() {
+        ModConfig.ChatSoundResponseCategory c = ModConfig.INSTANCE.chatTab.soundResponse;
+        return c != null && c.enabled && c.anyType();
+    }
+
+    /** Chat (Teil 3) > Tab Complete: die Befehle fuehren nur aus, wenn einer der Schalter an ist. Braucht den Ort (nur in SkyBlock) */
+    public static boolean chatTabComplete() {
+        ModConfig.TabCompleteCategory c = ModConfig.INSTANCE.chatTab.tabComplete;
+        return c != null && c.any();
+    }
+
+    /** Chat (Teil 3): Die Listen der Party, der Gilde und der Freunde aus den Chatzeilen lesen - fuer Tab Complete und fuer die Party-Zahl im Kasten Current Chat Display */
+    public static boolean chatRosters() {
+        return chatTabComplete() || currentChatDisplay();
+    }
+
     /** Die Kampfzeiten der Slayer-Bosse lesen alle fuenf Ticks die Seitenleiste und den Chat - nur wenn eine der Zeilen an ist */
     public static boolean slayerKillTime() {
         return ModConfig.INSTANCE.slayer.bossKillTime || ModConfig.INSTANCE.slayer.questKillTime;
@@ -419,6 +451,8 @@ public final class FeatureGate {
                 || npcDayLimit() || warpCommands() || fixDoubleClicks() || estimatedItemValue()
                 // Chat (Teil 1): die Filter nach Ort (Dungeon, Garden, Bergbau, Foraging, Spider's Den, Crystal Hollows, Kuudra)
                 // Chat (Teil 2): alles, was umschreibt, und SkyBlock XP in Chat gelten nur in SkyBlock (chatFiltersLocation schliesst die umschreibenden ein)
-                || chatFiltersLocation() || skyblockXpInChat();
+                || chatFiltersLocation() || skyblockXpInChat()
+                // Chat (Teil 3): Sound Responses, der Kasten Current Chat Display und Tab Complete gelten nur in SkyBlock
+                || chatSoundResponses() || currentChatDisplay() || chatTabComplete();
     }
 }
