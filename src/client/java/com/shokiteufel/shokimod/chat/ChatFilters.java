@@ -6,6 +6,7 @@ import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.handler.DungeonLauf;
 import com.shokiteufel.shokimod.scanner.MiningState;
 import com.shokiteufel.shokimod.scanner.PetState;
+import com.shokiteufel.shokimod.scanner.TabListScanner;
 import com.shokiteufel.shokimod.util.ScoreboardUtils;
 import com.shokiteufel.shokimod.util.SkyBlockItems;
 
@@ -212,6 +213,19 @@ public final class ChatFilters {
             Minecraft client = Minecraft.getInstance();
             ServerData server = client == null ? null : client.getCurrentServer();
             return server != null && server.ip != null && server.ip.toLowerCase(Locale.ROOT).contains("alpha.hypixel.net");
+        }
+
+        /** Der eigene Name aus der Sitzung des Spiels */
+        @Override
+        public String ownName() {
+            Minecraft client = Minecraft.getInstance();
+            return client == null || client.getUser() == null ? "" : client.getUser().getName();
+        }
+
+        /** Ironman und Fraktion aus den Zeilen der Tab-Liste, die {@code TabListScanner} schon gelesen hat */
+        @Override
+        public Map<String, TabPlayers.Extra> tabPlayers() {
+            return TabPlayers.read(TabListScanner.lastLines(), ChatPlace.isCrimsonIsle(area()));
         }
 
         @Override

@@ -60,6 +60,23 @@ public interface ChatPlace {
         public static final PowderContext NONE = new PowderContext(false, -1, "", List.of());
     }
 
+    // ---- Chat (Teil 4): was Player Messages sonst noch vom Spiel wissen will (jedes erst, wenn gefragt wird) ----
+
+    /** Der eigene Spielername: Die eigene Zeile im Chat hat keinen Farbcode vor dem Doppelpunkt, daran wird sie erkannt. Leer, wenn er nicht bekannt ist */
+    default String ownName() {
+        return "";
+    }
+
+    /** Steht man auf einer Privatinsel? Nur dort tragen die Namen den Gast-Hinweis und die Raenge der Insel */
+    default boolean privateIsland() {
+        return isPrivateIsland(area());
+    }
+
+    /** Was die Tab-Liste ueber die Spieler weiss (Ironman, Fraktion); die echte Fassung liest sie erst, wenn danach gefragt wird */
+    default Map<String, TabPlayers.Extra> tabPlayers() {
+        return Map.of();
+    }
+
     /** Ein fester Ort, fuer Tests */
     static ChatPlace of(boolean skyblock, String area, boolean dungeon) {
         return new Fixed(skyblock, area, dungeon, false, false);
@@ -135,5 +152,15 @@ public interface ChatPlace {
 
     static boolean isDarkAuction(String area) {
         return key(area).equals("dark auction");
+    }
+
+    /** Die Privatinsel (auch als Gast), nicht der Garden */
+    static boolean isPrivateIsland(String area) {
+        String k = key(area);
+        return k.equals("private island") || k.equals("private island guest");
+    }
+
+    static boolean isCrimsonIsle(String area) {
+        return key(area).equals("crimson isle");
     }
 }

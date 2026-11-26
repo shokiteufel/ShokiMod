@@ -413,6 +413,25 @@ Beschreibungen, eigene Tests. Es steht nichts Geschriebenes aus SkyHanni in dies
   Daten fehlen), SkyHannis Wort-Ersetzungen („Shwords“) bei Umschalt in Copy Chat, die Menü-Taste in Copy Chat, die vollständige Liste der Abiphone-Kontakte (SkyHanni lädt sie
   aus seinem Verzeichnis im Netz; hier stehen nur die sieben Namen, die in den Quelltexten vorkommen), die Beschränkung von /gfs auf Gegenstände, die in einen Sack passen,
   die Ersetzung von Unterstrichen in /gfs, die Vorschläge für die Menge hinter /gfs, und das Merken des Chats in der Datei des Spielers.
+- **Chat (Teil 4)** (`PlayerChatParser`, `PlayerChatFormatter`, `PlayerChatBlacklist`, `TabPlayers`, `TranslatableLanguage`, `GoogleTranslate`, `Translator`,
+  `TranslateOnClick`, `TranslateLines`; die Einstellungen `PlayerMessagesCategory` und `TranslatorCategory`): „Player Messages“ und „Translator“ aus SkyHannis „Chat“
+  (`PlayerMessagesConfig`, `PlayerChatManager`, `PlayerNameFormatter`, `PlayerChatModifier`, `PlayerChatFilter`, `MultiFilter`, `TranslatorConfig`, `TranslatorCommand`,
+  `GoogleTranslator`, `TranslatableLanguage`, `AdvancedPlayerList`). Regeln: die sechs Arten von Spielerzeilen (Chat an alle, Co-op, Party, Gilde, private Nachricht, „/show“)
+  mit ihren Mustern und ihren „REGEX-TEST“-Beispielen (die Tests lesen sie ohne Farbcodes und mit Farbcodes), die Teile des Namens (Stufe, Emblem, Name samt Rang,
+  Gildenrang, Rang und Gast-Hinweis der Privatinsel, Ironman und Fraktion aus der Tab-Liste) in der Reihenfolge der Einstellung, die Stufe mit grauen Klammern, der Name
+  in der Farbe der Stufe oder ohne Rang (ADMIN bleibt, YOUTUBE auf Wunsch), die private Nachricht ohne Rang, der Rang-Verberger auch für Zeilen, die kein Spielerchat
+  sind, der Abgleich der Sperrliste (gleich, beginnt, endet, enthält, enthält als Wort), die Liste der Sprachen mit ihren Codes und der Schreibweise in der Auswahl, die
+  Adresse von Googles Übersetzer und die Form seiner Antwort. Eigene Zutaten: die Zeile wird Stück für Stück neu gebaut (Klick und Text beim Zeigen der Nachricht bleiben),
+  die Farbcodes von SkyHannis Mustern werden als Farbe des Zeichens gelesen (gleich, ob Hypixel sie als Code oder als Stil schreibt), der Klick nennt eine Nummer statt des
+  Textes (die Mod merkt die letzten hundert), das Textfeld „Language Code“ ist von Haus aus leer und gewinnt, wenn es gefüllt ist (so brauchen Feld und Auswahl keinen
+  Abgleich), eine Nachricht von der Sperrliste bleibt auch mit „Same Chat Color“ grau, eigener Wortlaut. **Netzwerkanfrage:** Der Translator schickt bei einem Klick auf
+  eine Spielerzeile (Schalter „Translate On Click“, von Haus aus aus) oder bei `/shoki translate <Sprachcode> <Text>` genau EINE Anfrage (HTTPS, GET) an
+  `translate.googleapis.com`, ohne Schlüssel, in einem eigenen Thread mit zehn Sekunden Zeitlimit. Raus gehen der Text der einen angeklickten Zeile (nur die Nachricht,
+  ohne den Namen davor) oder der Text des Befehls, die zwei Sprachcodes (Quelle „auto“, Ziel) und was jede Anfrage im Netz verrät (die Adresse des Rechners, der Kopf
+  `User-Agent: ShokiMod`). Ohne Klick oder Befehl geht nichts raus, und die Tests machen keinen Netzzugriff. **Nicht übernommen:** der Teil „Bingo Level“ der Reihenfolge
+  (SkyHanni liest die Zeichen und Ränge aus einer Datei seines Repos, die nicht im Quelltext liegt), SkyHannis Liste der Sperrwörter (sie liegt ebenfalls in seinem Repo;
+  die Mod hat eine kleine eigene), die drei Muster des Rang-Verbergers für Namen ohne Rang in Zeilen, die kein Spielerchat sind, der Abgleich der Sprachauswahl mit dem
+  Textfeld durch Rückrufe.
 
 ---
 

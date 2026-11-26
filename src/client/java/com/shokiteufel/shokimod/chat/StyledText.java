@@ -320,6 +320,27 @@ final class StyledText {
         return new StyledText(out);
     }
 
+    /** Der Abschnitt [from, to) als eigene Zeile (Stile, Klick und Text beim Zeigen bleiben, wie sie waren) */
+    StyledText slice(int from, int to) {
+        return new StyledText(cut(from, to));
+    }
+
+    /** Aus fertigen Stuecken (ein Stueck ohne Text faellt weg) */
+    static StyledText ofRuns(List<Run> runs) {
+        List<Run> out = new ArrayList<>();
+        for (Run r : runs) {
+            if (!r.text().isEmpty()) out.add(r);
+        }
+        return new StyledText(out);
+    }
+
+    /** Derselbe Text, jedes Stueck mit dem Stil, den die Funktion daraus macht (zum Beispiel eine andere Farbe) */
+    StyledText restyled(java.util.function.UnaryOperator<Style> change) {
+        List<Run> out = new ArrayList<>(runs.size());
+        for (Run r : runs) out.add(new Run(r.text(), change.apply(r.style())));
+        return new StyledText(out);
+    }
+
     // ---- Bauen ----
 
     /** Die Zeile als Komponente: ein leerer Kopf, darunter ein Teil je Stueck mit seinem ganzen Stil */

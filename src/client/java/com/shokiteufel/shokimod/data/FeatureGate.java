@@ -376,6 +376,18 @@ public final class FeatureGate {
         return chatTabComplete() || currentChatDisplay();
     }
 
+    /** Chat (Teil 4) > Player Messages: die Zeilen der Spieler neu zusammensetzen oder den Rang verbergen - nur wenn einer der beiden Schalter an ist. Braucht den Ort (nur in SkyBlock) */
+    public static boolean chatPlayerMessages() {
+        ModConfig.PlayerMessagesCategory c = ModConfig.INSTANCE.chatTab.playerMessages;
+        return c != null && c.any();
+    }
+
+    /** Chat (Teil 4) > Translator: jede Spielerzeile bekommt den Klick zum Uebersetzen - nur wenn "Translate On Click" an ist. Braucht den Ort (nur in SkyBlock) */
+    public static boolean chatTranslator() {
+        ModConfig.TranslatorCategory c = ModConfig.INSTANCE.chatTab.translator;
+        return c != null && c.translateOnClick;
+    }
+
     /** Die Kampfzeiten der Slayer-Bosse lesen alle fuenf Ticks die Seitenleiste und den Chat - nur wenn eine der Zeilen an ist */
     public static boolean slayerKillTime() {
         return ModConfig.INSTANCE.slayer.bossKillTime || ModConfig.INSTANCE.slayer.questKillTime;
@@ -453,6 +465,8 @@ public final class FeatureGate {
                 // Chat (Teil 2): alles, was umschreibt, und SkyBlock XP in Chat gelten nur in SkyBlock (chatFiltersLocation schliesst die umschreibenden ein)
                 || chatFiltersLocation() || skyblockXpInChat()
                 // Chat (Teil 3): Sound Responses, der Kasten Current Chat Display und Tab Complete gelten nur in SkyBlock
-                || chatSoundResponses() || currentChatDisplay() || chatTabComplete();
+                || chatSoundResponses() || currentChatDisplay() || chatTabComplete()
+                // Chat (Teil 4): Player Messages und der Klick zum Uebersetzen gelten nur in SkyBlock (chatFiltersLocation schliesst sie als umschreibende Funktionen schon ein)
+                || chatPlayerMessages() || chatTranslator();
     }
 }

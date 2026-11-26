@@ -251,6 +251,101 @@ class ModConfigSkyHanniReiterTest {
                 "Tab Complete Stash Command"), optionNames(tabCategory), "in der Reihenfolge von SkyHanni");
     }
 
+    // ---- Chat (Teil 4): Player Messages und Translator, und die ganze Reihenfolge von SkyHannis ChatConfig ----
+
+    /** Die Optionen einer Kategorie in der angegebenen Reihenfolge: jeder Name steht hinter dem vorigen (andere Optionen dazwischen sind erlaubt) */
+    private static void assertInOrder(List<String> names, String... expected) {
+        int last = -1;
+        for (String name : expected) {
+            int at = names.indexOf(name);
+            assertTrue(at > last, name + " steht hinter dem vorigen (Stelle " + at + ", vorige " + last + "): " + names);
+            last = at;
+        }
+    }
+
+    @Test
+    void chatHasAllItsSubTabsAndOptionsInTheOrderOfSkyHannisChatConfig() {
+        Ergebnis e = verarbeiten();
+        assertFalse(e.fehlerausgabe.contains("sub categories inside of an accordion"), e.fehlerausgabe);
+        assertFalse(e.fehlerausgabe.contains("double recursive"), e.fehlerausgabe);
+        assertFalse(e.fehlerausgabe.toLowerCase().contains("duplicate"), e.fehlerausgabe);
+        ProcessedCategory chat = nach(e, "ModConfig.chatTab");
+        assertNotNull(chat, "der Reiter Chat");
+
+        // Die Unterreiter (eigene Reiter, also nicht zwischen den Schaltern): Chat Filter Types, Player Messages, Sound Responses, Rare Drop Messages,
+        // Compact Potion Messages, Translator - und Tab Complete (bei SkyHanni "Commands") ganz hinten
+        List<String> subTabs = new ArrayList<>();
+        for (var k : e.kategorien.entrySet()) {
+            if (chat.getIdentifier().equals(k.getValue().getParentCategoryId())) subTabs.add(k.getKey());
+        }
+        String[] expectedTabs = {"filterTypes", "playerMessages", "soundResponse", "rareDrop", "compactPotion", "translator", "tabComplete"};
+        assertEquals(expectedTabs.length, subTabs.size(), "genau diese Unterreiter: " + subTabs);
+        int last = -1;
+        for (String tab : expectedTabs) {
+            int at = indexOfKeyContaining(subTabs, "ChatTabCategory." + tab);
+            assertTrue(at > last, tab + " steht hinter dem vorigen: " + subTabs);
+            last = at;
+        }
+
+        // Die Schalter im Reiter selbst: Peek Chat, Dungeon Filters, Copy Chat, Dungeon Boss Messages, Hide Far Deaths, Current Chat Display, Compact Bestiary,
+        // Compact Enchanting Rewards, Compact Jacob Claim, Arachne Hider, Sack Change Hider, Only Hide on Garden, SkyBlock XP in Chat, Anita's Accessories,
+        // Sky Mall, Show Actual Powder Gained, Foraging Buff, Shorten Coin Amounts, Hide Clickable Hints, Dark Auction Item Display
+        assertInOrder(optionNames(chat), "Peek Chat", "Dungeon Filters", "Copy Chat", "Dungeon Boss Messages", "Hide Far Deaths", "Current Chat Display",
+                "Compact Bestiary Messages", "Compact Enchanting Rewards", "Compact Jacob Claim", "Arachne Hider", "Sack Change Hider", "Only Hide on Garden",
+                "SkyBlock XP in Chat", "Anita's Accessories", "Sky Mall Messages", "Show Actual Powder Gained", "Hide Foraging Buff Messages",
+                "Shorten Coin Amounts", "Hide Clickable Hints", "Dark Auction Item Display");
+    }
+
+    @Test
+    void playerMessagesHasTheOptionsOfSkyHanniInTheirOrder() {
+        Ergebnis e = verarbeiten();
+        ProcessedCategory chat = nach(e, "ModConfig.chatTab");
+        ProcessedCategory pm = nach(e, "ChatTabCategory.playerMessages");
+        assertNotNull(pm, "ChatTabCategory.playerMessages");
+        assertEquals(chat.getIdentifier(), pm.getParentCategoryId(), "Player Messages haengt unter Chat");
+        assertEquals(List.of("Player Messages", "Enable Chat Formatting", "Part Order", "Hide Level Brackets", "Level Color As Name", "Player Rank Hider",
+                "Ignore YouTube Rank", "Chat Filter", "Same Chat Color"), optionNames(pm));
+    }
+
+    @Test
+    void translatorHasTheOptionsOfSkyHanniInTheirOrder() {
+        Ergebnis e = verarbeiten();
+        ProcessedCategory chat = nach(e, "ModConfig.chatTab");
+        ProcessedCategory tr = nach(e, "ChatTabCategory.translator");
+        assertNotNull(tr, "ChatTabCategory.translator");
+        assertEquals(chat.getIdentifier(), tr.getParentCategoryId(), "Translator haengt unter Chat");
+        assertEquals(List.of("Translator", "Translate On Click", "Your Language", "Language Code", "List of Language Codes"), optionNames(tr));
+    }
+
+    @Test
+    void thePartOrderIsADraggableListTheEditorCanReadWithoutAWarning() throws Exception {
+        Ergebnis e = verarbeiten();
+        assertFalse(e.fehlerausgabe.contains("Could not find draggable list object"), e.fehlerausgabe);
+        ProcessedCategory pm = nach(e, "ChatTabCategory.playerMessages");
+        int orderAt = optionNames(pm).indexOf("Part Order");
+        assertTrue(orderAt >= 0, "Part Order");
+        ProcessedOption order = pm.getOptions().get(orderAt);
+        // Der Editor ist die ziehbare Liste, und sie bekommt die Liste der Einstellung selbst (kein Abbild): Aenderungen im Fenster landen in der Einstellung
+        assertEquals("GuiOptionEditorDraggableList", order.getEditor().getClass().getSimpleName());
+        assertTrue(order.get() instanceof List<?>, "der Wert ist eine Liste");
+        List<?> live = (List<?>) order.get();
+        assertEquals(new ModConfig().chatTab.playerMessages.partsOrder, live, "die Vorgabe");
+
+        // Der Editor schlaegt jedes Element der Liste und jedes Teil zum Hinzufuegen ueber seine Beschriftung nach - findet er eines nicht, warnt er beim Zeichnen
+        java.lang.reflect.Method lookup = order.getEditor().getClass().getDeclaredMethod("getExampleText", Object.class);
+        lookup.setAccessible(true);
+        for (ModConfig.MessagePart part : ModConfig.MessagePart.values()) {
+            String shown = String.valueOf(lookup.invoke(order.getEditor(), part));
+            assertFalse(shown.contains("<unknown"), "Beschriftung fuer " + part + ": " + shown);
+        }
+        // Jedes Element der Vorgabe ist ein Teil, das der Editor kennt (ein null aus einer Datei kennt er nicht - deshalb raeumt repairChatTab es weg, und dass es das tut,
+        // prueft ModConfigChatTab4Test; die Warnung des Editors selbst laesst sich ohne Fenster nicht ausloesen)
+        for (Object element : live) {
+            assertTrue(element instanceof ModConfig.MessagePart, "Element " + element);
+            assertFalse(String.valueOf(lookup.invoke(order.getEditor(), element)).contains("<unknown"), "Beschriftung fuer " + element);
+        }
+    }
+
     @Test
     void theSlayerGroupsForCocoonAndSpawnParticlesHoldTheirOptions() {
         Ergebnis e = verarbeiten();

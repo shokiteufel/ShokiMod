@@ -312,6 +312,39 @@ public class ShokiMod implements ClientModInitializer {
                             com.shokiteufel.shokimod.handler.CorpseProfitCheck.run();
                             return 1;
                         }))
+                        // /shoki translate <Sprachcode> <Text> -> den Text in diese Sprache uebersetzen (Googles Uebersetzer) und in die Zwischenablage legen.
+                        // Geht nur auf ausdruecklichen Befehl; es geht genau dieser Text raus
+                        .then(ClientCommands.literal("translate")
+                                .executes(context -> {
+                                    com.shokiteufel.shokimod.chat.Translator.usage();
+                                    return 1;
+                                })
+                                .then(ClientCommands.argument("language", StringArgumentType.word())
+                                        .suggests((context, builder) -> {
+                                            String bisher = builder.getRemaining().toLowerCase(java.util.Locale.ROOT);
+                                            for (com.shokiteufel.shokimod.chat.TranslatableLanguage language : com.shokiteufel.shokimod.chat.TranslatableLanguage.values()) {
+                                                if (!language.languageCode().isEmpty() && language.languageCode().startsWith(bisher)) builder.suggest(language.languageCode());
+                                            }
+                                            return builder.buildFuture();
+                                        })
+                                        .executes(context -> {
+                                            com.shokiteufel.shokimod.chat.Translator.usage();
+                                            return 1;
+                                        })
+                                        .then(ClientCommands.argument("text", StringArgumentType.greedyString())
+                                                .executes(context -> {
+                                                    com.shokiteufel.shokimod.chat.Translator.command(
+                                                            StringArgumentType.getString(context, "language"), StringArgumentType.getString(context, "text"));
+                                                    return 1;
+                                                }))))
+                        // /shoki translateline <Nummer> -> das Ziel des Klicks auf eine Chatzeile (Chat > Translator): die Nummer nennt den gemerkten Text
+                        .then(ClientCommands.literal("translateline")
+                                .then(ClientCommands.argument("number", com.mojang.brigadier.arguments.IntegerArgumentType.integer(0))
+                                        .executes(context -> {
+                                            com.shokiteufel.shokimod.chat.Translator.clickLine(
+                                                    com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "number"));
+                                            return 1;
+                                        })))
                         // /shoki sackkeys -> das Ziel der Chatzeile "[Get Keys from Sacks]": holt die Schluessel
                         // der Leichen im Schacht aus dem Sack (/gfs UMBER_KEY n, /gfs TUNGSTEN_KEY n). Ohne Angabe:
                         // was geholt wird, steht in der Mod, nicht in der Zeile

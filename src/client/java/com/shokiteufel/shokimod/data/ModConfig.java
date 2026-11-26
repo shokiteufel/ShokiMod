@@ -1,5 +1,6 @@
 package com.shokiteufel.shokimod.data;
 
+import com.shokiteufel.shokimod.chat.TranslatableLanguage;
 import com.shokiteufel.shokimod.render.DropBanner;
 import com.shokiteufel.shokimod.render.ShinyAlert;
 import com.shokiteufel.shokimod.util.AlertVolume;
@@ -219,6 +220,20 @@ public class ModConfig extends Config {
         return new java.util.ArrayList<>(out);
     }
 
+    /**
+     * Die Reihenfolge der Teile von Player Messages aus einer Datei: Unbekannte Namen (Gson macht sie zu null) und Doppelte fallen weg, die Reihenfolge der anderen
+     * bleibt. Ein Teil, das fehlt, bleibt weg - wer es in der Liste geloescht hat, will es nicht sehen. Ist nichts uebrig (oder die Liste fehlt), gilt die Vorgabe.
+     */
+    static List<MessagePart> cleanParts(List<MessagePart> parts) {
+        List<MessagePart> out = new ArrayList<>();
+        if (parts != null) {
+            for (MessagePart part : parts) {
+                if (part != null && !out.contains(part)) out.add(part);
+            }
+        }
+        return out.isEmpty() ? PlayerMessagesCategory.defaultParts() : out;
+    }
+
     /** Chat (seit 2.4.18): fehlende Teile ergaenzen, unbekannte Auswahlen und Schieberegler auf das Zulaessige bringen */
     static void repairChatTab(ModConfig c) {
         if (c == null) return;
@@ -230,6 +245,12 @@ public class ModConfig extends Config {
         // Chat (Teil 3): Sound Responses und Tab Complete; die gemerkten Namen muessen Spielernamen sein
         if (c.chatTab.soundResponse == null) c.chatTab.soundResponse = new ChatSoundResponseCategory();
         if (c.chatTab.tabComplete == null) c.chatTab.tabComplete = new TabCompleteCategory();
+        // Chat (Teil 4): die Reihenfolge der Teile muss eine Liste gueltiger Teile sein; beim Uebersetzer eine Sprache und ein Code, der einer ist
+        if (c.chatTab.playerMessages == null) c.chatTab.playerMessages = new PlayerMessagesCategory();
+        c.chatTab.playerMessages.partsOrder = cleanParts(c.chatTab.playerMessages.partsOrder);
+        if (c.chatTab.translator == null) c.chatTab.translator = new TranslatorCategory();
+        if (c.chatTab.translator.languageName == null) c.chatTab.translator.languageName = TranslatableLanguage.ENGLISH;
+        c.chatTab.translator.languageCode = TranslatableLanguage.cleanCode(c.chatTab.translator.languageCode);
         TabCompleteCategory tab = c.chatTab.tabComplete;
         tab.knownFriends = cleanNames(tab.knownFriends);
         tab.knownBestFriends = cleanNames(tab.knownBestFriends);
@@ -956,6 +977,8 @@ public class ModConfig extends Config {
                     new com.shokiteufel.shokimod.gui.ShardProfitScreen(Minecraft.getInstance().gui.screen()));
         });
 
+        // Chat (Teil 4) > Translator: der Knopf "List of Language Codes" oeffnet die Seite von Google (nach der Rueckfrage des Spiels)
+        INSTANCE.chatTab.translator.langCodesUrl = () -> Minecraft.getInstance().execute(com.shokiteufel.shokimod.chat.Translator::openLanguageList);
         if (INSTANCE.mobVisuals.customTargets == null) INSTANCE.mobVisuals.customTargets = new ArrayList<>();
         if (INSTANCE.chat.chatRules == null) INSTANCE.chat.chatRules = new ArrayList<>();
         if (INSTANCE.chat.discoveredAreas == null) INSTANCE.chat.discoveredAreas = new ArrayList<>();
@@ -5382,6 +5405,7 @@ public class ModConfig extends Config {
      * und stehen deshalb nicht zwischen den Schaltern.
      * Chat (Teil 3): dazu Peek Chat, Copy Chat, Current Chat Display (mit seinem Kasten im HUD-Editor), die Unterkategorie Sound Responses (vor Rare Drop Messages, wie bei
      * SkyHanni) und - als Unterkategorie von Chat statt eigener Kategorie "Commands" - Tab Complete (ganz hinten).
+     * Chat (Teil 4): dazu die Unterkategorien Player Messages (hinter Chat Filter Types) und Translator (hinter Compact Potion Messages, vor Tab Complete).
      *
      * Nicht verwechseln mit dem Reiter "Alerts" ({@link ChatRulesCategory}, Feld {@code chat}): Dort reagiert die Mod auf Zeilen, hier raeumt sie den
      * Chat auf. Alles von Haus aus aus; wo SkyHanni eine Unteroption voreinstellt, die nur wirkt, wenn ihr Hauptschalter an ist, bleibt sie so.
@@ -5580,6 +5604,10 @@ public class ModConfig extends Config {
         public ChatFilterTypesCategory filterTypes = new ChatFilterTypesCategory();
 
         @Expose
+        @Category(name = "Player Messages", desc = "Change how the chat lines of players look: the order of the parts in front of the colon, the level without brackets, the name in the colour of the level, no ranks, gray words from a block list. Everything is off until you turn it on. Idea from SkyHanni.")
+        public PlayerMessagesCategory playerMessages = new PlayerMessagesCategory();
+
+        @Expose
         @Category(name = "Sound Responses", desc = "Play animal sounds when someone says 'meow', 'moo' or 'woof' in chat: one switch for each sound. Off until you turn it on. Idea from SkyHanni.")
         public ChatSoundResponseCategory soundResponse = new ChatSoundResponseCategory();
 
@@ -5590,6 +5618,10 @@ public class ModConfig extends Config {
         @Expose
         @Category(name = "Compact Potion Messages", desc = "Shorten the chat messages about potion effects: 'Potion Effect! Speed IV by Name'. Off until you turn it on. Idea from SkyHanni.")
         public CompactPotionCategory compactPotion = new CompactPotionCategory();
+
+        @Expose
+        @Category(name = "Translator", desc = "Translate chat lines of players by clicking them. Off until you turn it on - and it sends the text of the clicked line to Google's translation service. Idea from SkyHanni.")
+        public TranslatorCategory translator = new TranslatorCategory();
 
         @Expose
         @Category(name = "Tab Complete", desc = "Type the start of a name behind a command and the chat suggests it: /call el gives elizabeth, /warp, /p, /f, /g, /msg and more. Only in SkyBlock. Everything is off until you turn it on. Idea from SkyHanni.")
@@ -5617,7 +5649,9 @@ public class ModConfig extends Config {
          * die Aktionsleiste und stehen in den Meldungen der Mod, keine Chatzeile des Servers.
          */
         public boolean anyRewrite() {
-            return anyCompact() || showEffectivePowder || shortenCoinAmounts || darkAuctionItemDisplay || (rareDrop != null && rareDrop.any());
+            return anyCompact() || showEffectivePowder || shortenCoinAmounts || darkAuctionItemDisplay || (rareDrop != null && rareDrop.any())
+                    // Chat (Teil 4): die Zeilen der Spieler neu zusammensetzen, den Rang verbergen, den Klick zum Uebersetzen anhaengen
+                    || (playerMessages != null && playerMessages.any()) || (translator != null && translator.translateOnClick);
         }
 
         /** Braucht ein eingeschalteter Schalter den Ort (Gebietszeile der Tab-Liste)? Dann muss sie gelesen werden */
@@ -5635,6 +5669,134 @@ public class ModConfig extends Config {
         /** Fragt ein eingeschalteter Schalter, ob man in einem Dungeon steht? Dann muss {@code DungeonLauf} mitlesen */
         public boolean needsDungeon() {
             return anyDungeonFilter() || dungeonBossMessages || hideFarDeaths;
+        }
+    }
+
+    /** Ein Teil des Namens vor dem Doppelpunkt einer Spielerzeile (Chat > Player Messages > Part Order) */
+    public enum MessagePart {
+        SKYBLOCK_LEVEL("SkyBlock Level"),
+        EMBLEM("Emblem"),
+        PLAYER_NAME("§bPlayer Name"),
+        GUILD_RANK("Guild Rank"),
+        PRIVATE_ISLAND_RANK("Private Island Rank"),
+        PRIVATE_ISLAND_GUEST("Private Island Guest"),
+        CRIMSON_FACTION("Crimson Faction"),
+        MODE_IRONMAN("Ironman Mode");
+
+        private final String label;
+
+        MessagePart(String label) {
+            this.label = label;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
+    }
+
+    /**
+     * Chat > Player Messages: wie die Chatzeile eines Spielers aussieht. Alles von Haus aus aus; "Same Chat Color" steht bei SkyHanni auf an, hier aus.
+     *
+     * Herkunft der Idee: SkyHanni (LGPL-2.1, {@code PlayerMessagesConfig}). Von dort stammen die acht Schalter, ihre Namen, ihre Reihenfolge und die Vorgabe der
+     * Reihenfolge der Teile (Stufe, Rang der Insel, Gast, Name, Gildenrang, Emblem). Die Umsetzung ist eigene Arbeit: Java; die Regeln stehen in {@code
+     * chat.PlayerChatParser} und {@code chat.PlayerChatFormatter}. Nicht gebaut: der Teil "Bingo Level" (die Zeichen und Raenge liegen in einer Datei von
+     * SkyHannis Repo, nicht im Quelltext).
+     */
+    public static class PlayerMessagesCategory {
+
+        @ConfigOption(name = "Player Messages", desc = "Changes how the chat lines of players look: the order of the parts in front of the colon (level, name, rank ...), the level without brackets, the name in the colour of the level, no ranks. It works on the public chat, co-op, party, guild, private messages and /show lines, and only in SkyBlock. Off until you turn Enable Chat Formatting on. Idea from SkyHanni.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Enable Chat Formatting", desc = "Enable player chat modifications. Required for all settings below; only Player Rank Hider also works on its own, on lines that are not player chat.")
+        @ConfigEditorBoolean
+        public boolean enable = false;
+
+        @Expose
+        @ConfigOption(name = "Part Order", desc = "Drag text to change the chat message format order for chat messages. Delete a part to hide it, and add it back with +. Ironman Mode and Crimson Faction are read from the tab list (the faction only on the Crimson Isle). SkyHanni's Bingo Level is not here.")
+        @ConfigEditorDraggableList
+        public List<MessagePart> partsOrder = defaultParts();
+
+        @Expose
+        @ConfigOption(name = "Hide Level Brackets", desc = "Hide the gray brackets in front of and behind the level numbers.")
+        @ConfigEditorBoolean
+        public boolean hideLevelBrackets = false;
+
+        @Expose
+        @ConfigOption(name = "Level Color As Name", desc = "Use the color of the SkyBlock level for the player color.")
+        @ConfigEditorBoolean
+        public boolean useLevelColorForName = false;
+
+        @Expose
+        @ConfigOption(name = "Player Rank Hider", desc = "Hide player ranks in all chat messages: [MVP+] Name becomes Name in aqua. In player chat lines this needs Enable Chat Formatting; in every other line it works on its own, but only for names with a rank ([VIP], [MVP], [MVP+], [MVP++]).")
+        @ConfigEditorBoolean
+        public boolean playerRankHider = false;
+
+        @Expose
+        @ConfigOption(name = "Ignore YouTube Rank", desc = "Do not remove the YouTube rank from chat.")
+        @ConfigEditorBoolean
+        public boolean ignoreYouTube = false;
+
+        @Expose
+        @ConfigOption(name = "Chat Filter", desc = "Scan messages sent by players for blacklisted words and gray out the message if any are found. Public chat only, and it needs Enable Chat Formatting. The word list is small and the mod's own (ads for servers and accounts, free-coins bait) - SkyHanni's list is not available here.")
+        @ConfigEditorBoolean
+        public boolean chatFilter = false;
+
+        @Expose
+        @ConfigOption(name = "Same Chat Color", desc = "Make all chat messages white regardless of rank. Public chat and private messages; it needs Enable Chat Formatting. A message the Chat Filter grays out stays gray. SkyHanni has this on from the start; here it is off.")
+        @ConfigEditorBoolean
+        public boolean sameChatColor = false;
+
+        /** Ist einer der Schalter an, die in eine Zeile eingreifen? (Der Rang-Verberger wirkt auch ohne "Enable Chat Formatting" auf Zeilen, die kein Spielerchat sind) */
+        public boolean any() {
+            return enable || playerRankHider;
+        }
+
+        /** Die Vorgabe der Reihenfolge: wie bei SkyHanni (Stufe, Rang der Insel, Gast, Name, Gildenrang, Emblem) */
+        public static List<MessagePart> defaultParts() {
+            return new ArrayList<>(List.of(MessagePart.SKYBLOCK_LEVEL, MessagePart.PRIVATE_ISLAND_RANK, MessagePart.PRIVATE_ISLAND_GUEST, MessagePart.PLAYER_NAME,
+                    MessagePart.GUILD_RANK, MessagePart.EMBLEM));
+        }
+    }
+
+    /**
+     * Chat > Translator: Spielerzeilen per Klick uebersetzen. Von Haus aus aus.
+     *
+     * Herkunft der Idee: SkyHanni (LGPL-2.1, {@code TranslatorConfig}). Von dort stammen die vier Einstellungen und ihre Namen. Die Umsetzung ist eigene Arbeit: Java;
+     * der Weg steht in {@code chat.Translator}. Abweichung: Das Feld "Language Code" ist von Haus aus leer (bei SkyHanni "en") und gewinnt, wenn es gefuellt ist; ist
+     * es leer, zaehlt die Auswahl - so brauchen die beiden keinen Abgleich untereinander.
+     */
+    public static class TranslatorCategory {
+
+        @ConfigOption(name = "Translator", desc = "Translate what other players write: click a chat line and the mod translates it into your language. Off until you turn Translate On Click on. A click sends the text of that one line to Google's translation service over the internet. Idea from SkyHanni.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Translate On Click", desc = "Click on a message to translate it to your language. Clicking sends the text of that one line to Google's translation service (translate.googleapis.com) over the internet - nothing is sent without a click or a /shoki translate command, and nothing else goes with it. Works on the lines of the public chat, co-op, party, guild and private messages, in SkyBlock. Use /shoki translate <language code> <text> to translate your own text into another language and copy it. Translation is not guaranteed to be 100% accurate.")
+        @ConfigEditorBoolean
+        public boolean translateOnClick = false;
+
+        @Expose
+        @ConfigOption(name = "Your Language", desc = "The language that messages should be translated to.")
+        @ConfigEditorDropdown
+        public TranslatableLanguage languageName = TranslatableLanguage.ENGLISH;
+
+        @Expose
+        @ConfigOption(name = "Language Code", desc = "If your language doesn't show in the dropdown, enter your language code here. E.g. 'es' for Spanish or 'de' for German. When this is filled in, it wins over the dropdown; empty uses the dropdown (English if that says Other).")
+        @ConfigEditorText
+        public String languageCode = "";
+
+        @ConfigOption(name = "List of Language Codes", desc = "A list of Google Translate's supported language codes. The game asks before it opens the page in your browser.")
+        @ConfigEditorButton(buttonText = "Open")
+        public transient Runnable langCodesUrl = () -> {
+        };
+
+        /** In welche Sprache wird uebersetzt: das Feld, wenn es einen Code enthaelt, sonst die Auswahl, sonst Englisch */
+        public String targetCode() {
+            return TranslatableLanguage.targetCode(languageName, languageCode);
         }
     }
 

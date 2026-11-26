@@ -1,6 +1,7 @@
 package com.shokiteufel.shokimod.chat;
 
 import com.shokiteufel.shokimod.data.ModConfig.ChatTabCategory;
+import com.shokiteufel.shokimod.data.ModConfig.PlayerMessagesCategory;
 import com.shokiteufel.shokimod.data.ModConfig.RareDropMessagesCategory;
 
 import java.util.ArrayList;
@@ -81,6 +82,23 @@ final class ChatRewrites {
         }
 
         StyledText cur = null;
+
+        // Chat (Teil 4): die Zeile eines Spielers wird neu zusammengesetzt (Player Messages); jede andere Zeile hoechstens vom Rang-Verberger angefasst
+        PlayerMessagesCategory pm = t.playerMessages;
+        boolean formatting = pm != null && pm.enable;
+        boolean translating = t.translator != null && t.translator.translateOnClick;
+        boolean hidingRanks = pm != null && pm.playerRankHider;
+        PlayerChatParser.Parsed player = null;
+        // Auch der Rang-Verberger allein muss wissen, ob es eine Spielerzeile ist: Deren Rang aendert er nur mit "Enable Chat Formatting"
+        if ((formatting || translating || hidingRanks) && PlayerChatParser.mayBePlayerChat(plain)) {
+            player = PlayerChatParser.parse(in.styled(), p.ownName(), p.privateIsland());
+        }
+        if (player != null) {
+            if (formatting) cur = or(cur, PlayerChatFormatter.format(in.styled(), player, pm, p));
+        } else if (hidingRanks) {
+            cur = or(cur, PlayerChatFormatter.hideRanks(in.styled()));
+        }
+
         if (rd != null && rd.petRarity && RareDropMessages.mayBePet(plain)) {
             cur = or(cur, RareDropMessages.petRarity(cur != null ? cur : in.styled()));
         }
@@ -92,6 +110,14 @@ final class ChatRewrites {
         }
         if (t.shortenCoinAmounts && ShortenCoins.mayApply(cur != null ? cur.plain() : plain)) {
             cur = or(cur, ShortenCoins.rewrite(cur != null ? cur : in.styled()));
+        }
+        // Chat (Teil 4): zuletzt der Klick der Uebersetzung, auf der Zeile, wie sie jetzt aussieht (eine Zeile mit eigenem Klick bleibt, wie sie ist)
+        if (translating && player != null && player.translatable() && !player.message().plain().isBlank()) {
+            StyledText base = cur != null ? cur : in.styled();
+            if (base.firstClick() == null) {
+                StyledText wrapped = TranslateOnClick.wrap(base, TranslateLines.remember(player.message().plain()));
+                if (wrapped != null) cur = wrapped;
+            }
         }
         return cur == null ? ChatVerdict.SHOW : ChatVerdict.replace(ChatVerdict.Line.ofComponent(cur.toComponent()));
     }
