@@ -342,6 +342,13 @@ Beschreibungen, eigene Tests. Es steht nichts Geschriebenes aus SkyHanni in dies
   (`SlotBackgroundMixin`), die Preise sind die Basarpreise des Profit-Trackers (Spitzen des Auftragsbuchs), welcher Auftrag gemeint ist, merkt sich der Zeiger statt eines Klick-Ereignisses, die Suche
   merkt sich auch /bz und /bazaar, der Klick läuft über `/shoki bzreorder`, der Kasten ist ein Kasten des HUD-Editors, eigener Wortlaut. Nicht übernommen: Hide Order Owner, Hide Trade Partners, Daily Limit
   Tracker, Price Website, Max Items With Purse und Craft Materials - sie standen nicht im Auftrag.
+- **Misc** (`NpcDayLimit`, `NpcDayLimitHud`, `WarpCommands`, `FixDoubleClicks`, `DoppelklickMixin`): SkyHanni „NPC Daily Limit Tracker" (`NpcDayLimitTracker`), „Shorten /warp" (`ShortenWarpCommand`),
+  „Replace /warp is" (`WarpIsCommand`) und „Fix item double clicks" (`FixDoubleClicks`). Regeln: NPCs nehmen am Tag nur bis 500 Millionen Coins ab (Mitternacht GMT), gezählt aus der Chatzeile
+  „You sold … for N Coins!", angezeigt als 400k/500m oder 400,000/500,000,000; ein Befehl, der nur aus einem Warp-Namen besteht, wird zu „/warp Name" (auf der privaten Insel ausgenommen: /jerry), und
+  „/warp is" wird zu „/is"; bei einem Rechtsklick auf einen Block mit einem der sechs Blaze-Dolche oder einer Angel wird nur das Block-Paket nicht gesendet. Die Liste der 96 Warp-Namen ist die von SkyHanni
+  (Tatsachen über Hypixels Befehle). Eigene Zutaten: der Zähler liegt in der Einstellungsdatei und gehört zum Spieler statt zum Profil, gespeichert wird höchstens einmal je Minute, beim Kürzen wird abgeschnitten
+  statt gerundet, der Befehl wird über die Fabric-API (`ALLOW_COMMAND`) ersetzt, das Auslassen des Pakets sitzt in einem nicht erforderlichen Einsprung an `Connection.sendPacket`, eigener Wortlaut. Nicht
+  übernommen: das Vervollständigen mit Tab und SkyHannis Ausnahme für /barn im Garten.
 
 ---
 

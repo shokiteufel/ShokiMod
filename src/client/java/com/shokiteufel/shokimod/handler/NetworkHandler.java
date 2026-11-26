@@ -106,6 +106,8 @@ public class NetworkHandler {
             com.shokiteufel.shokimod.handler.SeaCreatureCocoon.onChatMessage(unformattedMsg);
             // Inventory > Bazaar: Kauf und Verkauf merken; die Abbruchzeile eines Kaufauftrags ersetzt die Mod durch ihre eigene
             boolean bazaarCancelled = com.shokiteufel.shokimod.handler.BazaarHelpers.onChatMessage(unformattedMsg);
+            // Misc: ein Verkauf an einen NPC geht in die Summe des Tages
+            com.shokiteufel.shokimod.handler.NpcDayLimit.onChatMessage(unformattedMsg);
             // Der eigene Slayer-Boss wurde eingesponnen: Titel und Ton
             com.shokiteufel.shokimod.handler.SlayerCocoon.onChatMessage(unformattedMsg);
             // Der Zaehler fuer Faenge, Double Hooks und Cocoons liest dieselbe Zeile

@@ -190,6 +190,17 @@ public class ModConfig extends Config {
         if (c.inventory.flips.tax == null) c.inventory.flips.tax = SellTax.PLAIN;
     }
 
+    /** Misc (seit 2.4.16): fehlende Teile ergaenzen, Zaehler und Format auf das Zulaessige bringen */
+    static void repairMisc(ModConfig c) {
+        if (c == null) return;
+        if (c.misc == null) c.misc = new MiscCategory();
+        if (c.misc.npcLimit == null) c.misc.npcLimit = new NpcDayLimitCategory();
+        NpcDayLimitCategory n = c.misc.npcLimit;
+        if (n.numberFormat == null) n.numberFormat = NpcNumberFormat.SHORT;
+        n.soldCoins = Math.max(0L, n.soldCoins);
+        n.gmtEpochDay = Math.max(0L, n.gmtEpochDay);
+    }
+
     /**
      * Der Bazaar-Handel (Steuer, Handel je Tag) hatte bis 2.4.14 einen eigenen Reiter oben und wohnt jetzt unter Inventory > Bazaar flips.
      * Was dort stand, wandert einmal mit, und das alte Feld wird geleert - ein leeres Feld wird nicht gespeichert, ein zweiter Lauf findet
@@ -498,6 +509,7 @@ public class ModConfig extends Config {
         // Der Bazaar-Handel wohnte bis 2.4.14 in einem eigenen Reiter oben, jetzt unter Inventory
         if (migrateBazaarFlips(INSTANCE)) INSTANCE.saveNow();
         repairInventory(INSTANCE);
+        repairMisc(INSTANCE);
         if (INSTANCE.logs == null) INSTANCE.logs = new LogsCategory();
         if (INSTANCE.mining.cold == null) INSTANCE.mining.cold = new ColdAlertCategory();
         if (INSTANCE.mining.cold.bannerDesign == null) INSTANCE.mining.cold.bannerDesign = BannerDesign.ALERT_BAND;
@@ -1255,6 +1267,10 @@ public class ModConfig extends Config {
     @Expose
     @Category(name = "Inventory", desc = "Helpers for SkyBlock's windows, sorted as in SkyHanni: the Auction house and the Bazaar, plus the Bazaar flips list. The helpers are off until you turn them on. Idea from SkyHanni.")
     public InventoryCategory inventory = new InventoryCategory();
+
+    @Expose
+    @Category(name = "Misc", desc = "Small helpers that fit nowhere else: the NPC daily limit tracker, shorter warp commands and a fix for double clicks. Everything is off until you turn it on. Idea from SkyHanni.")
+    public MiscCategory misc = new MiscCategory();
 
     @Expose
     @Category(name = "ikohS", desc = "ShokiMod's own functions, apart from the normal ones: the Dungeon functions (Funny Map, Star mobs, I hate doors) and The Mist. Everything in here is off until you turn it on.")
@@ -5087,6 +5103,94 @@ public class ModConfig extends Config {
         public float hudX = 0.55f;
         @Expose
         public float hudY = 0.2f;
+        @Expose
+        public float hudScale = 1.0f;
+        @Expose
+        public float hudAlpha = 1.0f;
+    }
+
+    /**
+     * Misc: kleine Helfer, die sonst nirgends hinpassen - nach SkyHanni (Misc und Commands): der NPC Daily Limit Tracker, kuerzere Warp-Befehle
+     * und eine Abhilfe gegen doppelte Klicks. Alles von Haus aus aus.
+     */
+    public static class MiscCategory {
+
+        @ConfigOption(name = "Misc", desc = "Small helpers that fit nowhere else. The tracker lives in the sub tab on the left; the rest is below. Everything is off until you turn it on. Idea from SkyHanni.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @Category(name = "NPC Daily Limit Tracker", desc = "Counts what you sell to NPCs against the daily limit of 500 million coins. Idea from SkyHanni.")
+        public NpcDayLimitCategory npcLimit = new NpcDayLimitCategory();
+
+        @Expose
+        @ConfigOption(name = "Shorten /warp", desc = "Warp without typing warp first: /wizard instead of /warp wizard (any warp Hypixel knows, from /hub to /nucleus). Only the plain command counts, with nothing behind it. On your private island /jerry stays what it is there.")
+        @ConfigEditorBoolean
+        public boolean shortenWarp = false;
+
+        @Expose
+        @ConfigOption(name = "Replace /warp is", desc = "Turns /warp is into /is, the command that takes you to your island.")
+        @ConfigEditorBoolean
+        public boolean replaceWarpIs = false;
+
+        @Expose
+        @ConfigOption(name = "Fix item double clicks", desc = "Fixes a Hypixel bug that clicks twice when you right-click a block with a blaze dagger or a fishing rod (with autopet): the mod then leaves out the block click and sends only the item click. Only for those items.")
+        @ConfigEditorBoolean
+        public boolean fixDoubleClicks = false;
+    }
+
+    /** Wie der NPC Daily Limit Tracker die Zahlen schreibt */
+    public enum NpcNumberFormat {
+        SHORT("Short (400k/500m)"),
+        LONG("Long (400,000/500,000,000)");
+
+        private final String label;
+
+        NpcNumberFormat(String label) {
+            this.label = label;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
+    }
+
+    /**
+     * Misc > NPC Daily Limit Tracker: wie viel man heute an NPCs verkauft hat.
+     *
+     * Die Idee ist SkyHanni (LGPL-2.1, NpcDayLimitTracker): NPCs kaufen am Tag nur bis 500 Millionen Coins ab, gezaehlt ab Mitternacht GMT. Hypixel
+     * schreibt "You sold Cicada Symphony Vinyl x1 for 50,000 Coins!"; die Summe steht im Kasten, etwa 400k/500m. Der Zaehler liegt hier, damit er
+     * einen Neustart ueberlebt - bis der Tag wechselt.
+     */
+    public static class NpcDayLimitCategory {
+
+        @ConfigOption(name = "NPC Daily Limit Tracker", desc = "NPCs buy only so much from you each day: 500 million coins, counted from midnight GMT. This reads the sale lines (\"You sold ... for 9,600,000 Coins!\") and shows how much of the limit is used up, e.g. 400k/500m. Move and resize it in /shoki hud (search \"NPC\"). Off until you turn it on.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Enabled", desc = "Counts your NPC sales and shows the panel.")
+        @ConfigEditorBoolean
+        public boolean enabled = false;
+
+        @Expose
+        @ConfigOption(name = "Number format", desc = "Short: 400k/500m. Long: 400,000/500,000,000.")
+        @ConfigEditorDropdown
+        public NpcNumberFormat numberFormat = NpcNumberFormat.SHORT;
+
+        /** Der Tag (Tage seit 1970, nach GMT), zu dem der Zaehler gehoert */
+        @Expose
+        public long gmtEpochDay = 0L;
+        /** Was an diesem Tag schon verkauft wurde */
+        @Expose
+        public long soldCoins = 0L;
+
+        // Lage des Kastens, gesetzt ueber /shoki hud
+        @Expose
+        public float hudX = 0.02f;
+        @Expose
+        public float hudY = 0.78f;
         @Expose
         public float hudScale = 1.0f;
         @Expose

@@ -292,6 +292,22 @@ public final class FeatureGate {
         return c.purchaseHelper || c.orderHelper || c.bestSellMethod || c.cancelledBuyOrderClipboard;
     }
 
+    /** Misc > NPC Daily Limit Tracker: die Verkaufszeilen im Chat zaehlen - nur wenn er an ist. Braucht den Ort (nur in SkyBlock) */
+    public static boolean npcDayLimit() {
+        return ModConfig.INSTANCE.misc.npcLimit.enabled;
+    }
+
+    /** Misc: Warp-Befehle kuerzen oder ersetzen - nur wenn einer der beiden Schalter an ist. Braucht den Ort (nur in SkyBlock) */
+    public static boolean warpCommands() {
+        ModConfig.MiscCategory c = ModConfig.INSTANCE.misc;
+        return c.shortenWarp || c.replaceWarpIs;
+    }
+
+    /** Misc > Fix item double clicks: jedes gesendete Block-Paket pruefen - nur wenn es an ist. Braucht den Ort (nur in SkyBlock) */
+    public static boolean fixDoubleClicks() {
+        return ModConfig.INSTANCE.misc.fixDoubleClicks;
+    }
+
     /** Die Kampfzeiten der Slayer-Bosse lesen alle fuenf Ticks die Seitenleiste und den Chat - nur wenn eine der Zeilen an ist */
     public static boolean slayerKillTime() {
         return ModConfig.INSTANCE.slayer.bossKillTime || ModConfig.INSTANCE.slayer.questKillTime;
@@ -363,6 +379,7 @@ public final class FeatureGate {
                 || slayerSpawn() || slayerKillTime() || darkAuction() || darkAuctionTimer() || hidePlayersDungeon() || nearbyRare() || ModConfig.INSTANCE.effects.enabled || mineshaftAnnounce()
                 // Die Dungeon-Funktionen fragen die Tab-Liste und die Seitenleiste (DungeonLauf, Funny Map): ohne diese Zeile stuende sie nur, solange eine der Funktionen oben an ist
                 || roomScan() || iHateDoors() || dungeonLog() || leapMenu() || hideOtherHooks() || mineshaftKeys()
-                || hookDisplay() || baitDisplay() || seaCocoon() || slayerCocoon() || slayerSpawnParticles() || skillProgress() || auctionUnderbid() || bazaarHelpers();
+                || hookDisplay() || baitDisplay() || seaCocoon() || slayerCocoon() || slayerSpawnParticles() || skillProgress() || auctionUnderbid() || bazaarHelpers()
+                || npcDayLimit() || warpCommands() || fixDoubleClicks();
     }
 }

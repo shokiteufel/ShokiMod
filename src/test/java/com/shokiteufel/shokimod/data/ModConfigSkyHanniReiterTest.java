@@ -98,6 +98,17 @@ class ModConfigSkyHanniReiterTest {
     }
 
     @Test
+    void miscHasTheNpcTrackerBelowIt() {
+        Ergebnis e = verarbeiten();
+        ProcessedCategory misc = nach(e, "ModConfig.misc");
+        assertNotNull(misc, "der Reiter Misc");
+        ProcessedCategory npc = nach(e, "MiscCategory.npcLimit");
+        assertNotNull(npc, "MiscCategory.npcLimit");
+        assertEquals(misc.getIdentifier(), npc.getParentCategoryId(), "der Tracker haengt unter Misc");
+        assertTrue(misc.getOptions().size() >= 4, "Info, Shorten /warp, Replace /warp is, Fix item double clicks");
+    }
+
+    @Test
     void theSlayerGroupsForCocoonAndSpawnParticlesHoldTheirOptions() {
         Ergebnis e = verarbeiten();
         ProcessedCategory slayer = nach(e, "ModConfig.slayer");
