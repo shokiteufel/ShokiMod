@@ -314,6 +314,26 @@ public final class FeatureGate {
         return c.enabled || c.showTooltip || c.armor || c.equipment;
     }
 
+    /** Chat (Teil 1): greift irgendein Schalter in den Chat ein? Der Chat-Weg fragt das fuer jede Zeile als Erstes - ist es nein, kostet eine Zeile nichts weiter */
+    public static boolean chatFilters() {
+        return ModConfig.INSTANCE.chatTab.anyFilter();
+    }
+
+    /** Chat (Teil 1): braucht ein eingeschalteter Schalter das Gebiet? Dann liest die Mod die Tab-Liste (in SkyBlock) */
+    public static boolean chatFiltersLocation() {
+        return ModConfig.INSTANCE.chatTab.needsLocation();
+    }
+
+    /** Chat (Teil 1): fragt ein eingeschalteter Schalter, ob man in einem Dungeon steht? Dann liest {@code DungeonLauf} mit */
+    public static boolean chatFiltersDungeon() {
+        return ModConfig.INSTANCE.chatTab.needsDungeon();
+    }
+
+    /** Chat > Hide Far Deaths: einmal in der Sekunde die Spieler in der Naehe lesen - nur wenn es an ist. Braucht den Ort (nur in SkyBlock) */
+    public static boolean farDeaths() {
+        return ModConfig.INSTANCE.chatTab.hideFarDeaths;
+    }
+
     /** Die Kampfzeiten der Slayer-Bosse lesen alle fuenf Ticks die Seitenleiste und den Chat - nur wenn eine der Zeilen an ist */
     public static boolean slayerKillTime() {
         return ModConfig.INSTANCE.slayer.bossKillTime || ModConfig.INSTANCE.slayer.questKillTime;
@@ -386,6 +406,8 @@ public final class FeatureGate {
                 // Die Dungeon-Funktionen fragen die Tab-Liste und die Seitenleiste (DungeonLauf, Funny Map): ohne diese Zeile stuende sie nur, solange eine der Funktionen oben an ist
                 || roomScan() || iHateDoors() || dungeonLog() || leapMenu() || hideOtherHooks() || mineshaftKeys()
                 || hookDisplay() || baitDisplay() || seaCocoon() || slayerCocoon() || slayerSpawnParticles() || skillProgress() || auctionUnderbid() || bazaarHelpers()
-                || npcDayLimit() || warpCommands() || fixDoubleClicks() || estimatedItemValue();
+                || npcDayLimit() || warpCommands() || fixDoubleClicks() || estimatedItemValue()
+                // Chat (Teil 1): die Filter nach Ort (Dungeon, Garden, Bergbau, Foraging, Spider's Den, Crystal Hollows, Kuudra)
+                || chatFiltersLocation();
     }
 }

@@ -30,6 +30,9 @@ public class NetworkHandler {
     private static final java.util.regex.Pattern COLOUR_CODE = java.util.regex.Pattern.compile("§[0-9a-fk-or]");
 
     public static void init() {
+        // Chat (Teil 1): der Blick auf die Spieler in der Naehe (Hide Far Deaths)
+        com.shokiteufel.shokimod.chat.ChatFilters.register();
+
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
             GameState.resetAll();
             // Gemeldete Funde gelten nur für die Welt, in der sie gesehen wurden
@@ -51,6 +54,8 @@ public class NetworkHandler {
             com.shokiteufel.shokimod.scanner.MiningState.worldJoined();
             // Jeder Mineshaft ist eine eigene Welt: Die Meldung, in welchem man steht, kommt in jedem neuen einmal
             com.shokiteufel.shokimod.scanner.MineshaftState.worldJoined();
+            // Chat (Teil 1): was ein Chat-Filter ueber mehrere Zeilen hinweg merkt (offene Bloecke, Stash-Stand), gilt nur fuer diese Welt
+            com.shokiteufel.shokimod.chat.ChatFilters.worldChanged();
         });
 
         ClientReceiveMessageEvents.ALLOW_GAME.register((message, overlay) -> {
@@ -151,6 +156,8 @@ public class NetworkHandler {
             if (zeigen && com.shokiteufel.shokimod.handler.FrozenBlaze.hidesTribeMember(unformattedMsg)) zeigen = false;
             // Inventory > Bazaar: Hypixels Abbruchzeile weicht der Zeile mit dem Klick
             if (zeigen && bazaarCancelled) zeigen = false;
+            // Chat (Teil 1): ausblenden oder durch eine kompakte Zeile ersetzen - zuletzt, damit jeder Handler oben die Zeile schon gesehen hat
+            if (zeigen && com.shokiteufel.shokimod.chat.ChatFilters.hides(unformattedMsg)) zeigen = false;
 
             // Die Sammelzeile der Saecke zuletzt - erst muss jeder sie gelesen haben.
             //

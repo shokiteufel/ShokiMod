@@ -359,6 +359,23 @@ Beschreibungen, eigene Tests. Es steht nichts Geschriebenes aus SkyHanni in dies
   Items.json und Enchants.json von SkyHanni-Repo) sind Tatsachen über das Spiel und werden wie die Item-Namen aus dem Netz geholt. Eigene Zutaten: der Rechner läuft gegen eine Schnittstelle und ist ohne Spiel
   geprüft, der Gegenstand unter der Maus wird im Tick gelesen und alle drei Sekunden neu gerechnet, der Kasten ist ein Kasten des HUD-Editors, eigener Wortlaut. Nicht übernommen: der Herstellungspreis als Rückfall
   (der Grundpreis eines Stücks ohne Basar-, Auktions- und NPC-Preis bleibt null) und die Fehlerberichte von SkyHanni.
+- **Chat (Teil 1)** (`ChatFilters`, `ChatFilterEngine`, `ChatRule`, `ChatPlace`, `GeneralChatRules`, `DungeonChatRules`, `PowderMiningFilter`, `CrystalNucleusFilter`,
+  `StashFilter`, `WatchdogFilter`, `FarDeathMessages`, `WrapperBlocks`): SkyHanni „Chat“ und „Chat Filter Types“ (`ChatFilter`, `PowderMiningChatFilter`, `CrystalNucleusChatFilter`,
+  `StashCompact`, `WatchdogHider`, `ArachneChatMessageHider`, `PlayerDeathMessages`, `PlayerDeathManager`, `DungeonChatFilter`, `DungeonBossMessages`, `GiftProfitTracker`, `SackApi`).
+  Regeln: welche Zeilen Hypixel schreibt und welcher Schalter sie trifft - Lobby, Empty, Warping, Welcome, Guild/Event EXP, Winter Gifts, Kill Combo, Profile Join, Fire Sale, Reward
+  Bundles, Event Level Up, Factory Upgrade, Hoppity, Sacrifice, Garden Pest, Legacy Items, Parkour, Teleport Pads, Feast Chef Ted, Others; die elf Arten der Dungeon Filters und die Reden
+  der Dungeon-Bosse; Arachne Hider, Anita's Accessories, Sky Mall, Lottery; Hide Far Deaths (die Zeile „☠ Name …“, wer in den letzten 30 Sekunden nicht im Umkreis von 25 Blöcken stand);
+  Sack Change Hider; Powder Mining (die Zeilen vor der Truhe, im Block nur die Belohnungen über der Schwelle, die Liste der unwichtigen, Goblin-Eier nach Farbe, Edelsteine nach Güte, der
+  Rest als „+ 537 Gemstone Powder“); Crystal Nucleus (ein gefundener Kristall als Zeile mit „(n/5)“, ein Lauf als „Crystal Nucleus Run complete!“, die Reden der Hüter, von Professor
+  Robot, King Yolkar und der Goblin-Wächter); Stash (vier Zeilen zu einer mit Klick, derselbe Stand nur einmal je Welt, Schwelle, „Hide Added“, /viewstash); Watchdog. Die Beispielzeilen
+  der Tests sind SkyHannis „REGEX-TEST“-Zeilen ohne Farbcodes. Eigene Zutaten: alle Muster neu für den Klartext der Zeile mit einem Vorfilter, die Entscheidung als reiner Wert
+  (`ChatVerdict`) mit austauschbarem Ort (`ChatPlace`), ein gemeinsamer Zustand für die Blöcke zwischen zwei langen Linien (`WrapperBlocks`), in dem die erste Zeile die Art bestimmt (die
+  Farbe der Linie fehlt im Klartext), eine Notbremse für Blöcke ohne Ende, die Farbe der kurzen Powder-Zeilen aus dem Namen der Belohnung, Friend Join/Left und Diana aus den Meldungen von
+  Hypixel (bei SkyHanni gibt es dafür nur den Schalter, keine Regel), die Liste der Bauteile bei Professor Robot (bei SkyHanni wird sie nie erreicht), „Show all“ bei den Edelsteinen zeigt
+  auch die rohen (SkyHanni blendet sie trotzdem aus), eigener Wortlaut. **Nicht übernommen:** das nachträgliche Löschen schon gezeigter Zeilen (die leeren Zeilen um Stash und Watchdog
+  bleiben, dafür gibt es „Empty“), die Warnung „Disable Empty Warnings“, das Vervollständigen mit Tab, die Dungeon-Schalter Rare Drops, Solo Class, Solo Stats und Fairy (bei SkyHanni unter
+  Dungeon) und alles aus Chat, was nicht ausblendet (Peek Chat, Player Messages, Sound Responses, Rare Drop Messages, Copy Chat, Current Chat Display, Compact Potion/Bestiary/Enchanting/
+  Jacob, Translator, SkyBlock XP in Chat, Show Actual Powder Gained, Shorten Coin Amounts, Hide Clickable Hints, Dark Auction Item Display).
 
 ---
 

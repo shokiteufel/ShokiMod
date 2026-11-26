@@ -207,6 +207,25 @@ public class ModConfig extends Config {
         n.gmtEpochDay = Math.max(0L, n.gmtEpochDay);
     }
 
+    /** Chat (seit 2.4.18): fehlende Teile ergaenzen, unbekannte Auswahlen und Schieberegler auf das Zulaessige bringen */
+    static void repairChatTab(ModConfig c) {
+        if (c == null) return;
+        if (c.chatTab == null) c.chatTab = new ChatTabCategory();
+        if (c.chatTab.filterTypes == null) c.chatTab.filterTypes = new ChatFilterTypesCategory();
+        ChatFilterTypesCategory f = c.chatTab.filterTypes;
+        if (f.powderGoblinEggs == null) f.powderGoblinEggs = PowderGoblinEggs.YELLOW_UP;
+        if (f.powderRuby == null) f.powderRuby = PowderGemstones.FINE_UP;
+        if (f.powderSapphire == null) f.powderSapphire = PowderGemstones.FINE_UP;
+        if (f.powderAmber == null) f.powderAmber = PowderGemstones.FINE_UP;
+        if (f.powderAmethyst == null) f.powderAmethyst = PowderGemstones.FINE_UP;
+        if (f.powderJade == null) f.powderJade = PowderGemstones.FINE_UP;
+        if (f.powderTopaz == null) f.powderTopaz = PowderGemstones.FINE_UP;
+        if (f.powderJasper == null) f.powderJasper = PowderGemstones.FINE_UP;
+        f.powderThreshold = Math.max(0, Math.min(60000, f.powderThreshold));
+        f.essenceThreshold = Math.max(0, Math.min(20, f.essenceThreshold));
+        f.stashHideLow = Math.max(0, Math.min(1_000_000, f.stashHideLow));
+    }
+
     /**
      * Der Bazaar-Handel (Steuer, Handel je Tag) hatte bis 2.4.14 einen eigenen Reiter oben und wohnt jetzt unter Inventory > Bazaar flips.
      * Was dort stand, wandert einmal mit, und das alte Feld wird geleert - ein leeres Feld wird nicht gespeichert, ein zweiter Lauf findet
@@ -516,6 +535,7 @@ public class ModConfig extends Config {
         if (migrateBazaarFlips(INSTANCE)) INSTANCE.saveNow();
         repairInventory(INSTANCE);
         repairMisc(INSTANCE);
+        repairChatTab(INSTANCE);
         if (INSTANCE.logs == null) INSTANCE.logs = new LogsCategory();
         if (INSTANCE.mining.cold == null) INSTANCE.mining.cold = new ColdAlertCategory();
         if (INSTANCE.mining.cold.bannerDesign == null) INSTANCE.mining.cold.bannerDesign = BannerDesign.ALERT_BAND;
@@ -1269,6 +1289,10 @@ public class ModConfig extends Config {
     @Expose
     @Category(name = "Skill progress", desc = "Your skill level and its progress while you gain experience, with a progress bar underneath and the levels past the cap (overflow). Read from the action bar. Off until you turn it on. Idea from SkyHanni.")
     public SkillProgressCategory skillProgress = new SkillProgressCategory();
+
+    @Expose
+    @Category(name = "Chat", desc = "Tidies up the chat: hides lines you do not want to read, or swaps a long block for one short line. Dungeon filters, deaths, sacks and a few mining and foraging messages here; the many kinds of messages in the sub tab Chat Filter Types. Everything is off until you turn it on. Not the same as Alerts, which reacts to words in chat. Idea from SkyHanni.")
+    public ChatTabCategory chatTab = new ChatTabCategory();
 
     @Expose
     @Category(name = "Inventory", desc = "Helpers for SkyBlock's windows, sorted as in SkyHanni: the Auction house and the Bazaar, plus the Bazaar flips list. The helpers are off until you turn them on. Idea from SkyHanni.")
@@ -5326,6 +5350,633 @@ public class ModConfig extends Config {
         public float hudScale = 1.0f;
         @Expose
         public float hudAlpha = 1.0f;
+    }
+
+    /**
+     * Chat (Teil 1, seit 2.4.18): Zeilen ausblenden oder durch eine kompakte ersetzen - sortiert wie bei SkyHanni (Chat und Chat > Chat Filter Types).
+     *
+     * Nicht verwechseln mit dem Reiter "Alerts" ({@link ChatRulesCategory}, Feld {@code chat}): Dort reagiert die Mod auf Zeilen, hier raeumt sie den
+     * Chat auf. Alles von Haus aus aus; wo SkyHanni eine Unteroption voreinstellt, die nur wirkt, wenn ihr Hauptschalter an ist, bleibt sie so.
+     *
+     * Herkunft der Idee: SkyHanni (LGPL-2.1, {@code ChatConfig}). Von dort stammen die Schalter, ihre Namen und ihre Reihenfolge; die Umsetzung ist
+     * eigene Arbeit: Java, die Liste zum Ziehen (Dungeon Filters) ist ein Akkordeon mit einem Schalter je Art, und die Regeln stehen in {@code chat.*}.
+     */
+    public static class ChatTabCategory {
+
+        @ConfigOption(name = "Chat", desc = "Tidies up the chat: hides lines you do not want to read, or swaps a long block for one short line. The switches here are for the dungeon, deaths, sacks and a few mining and foraging messages; everything else lives in the sub tab Chat Filter Types. Everything is off until you turn it on. Idea from SkyHanni.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @ConfigOption(name = "Dungeon Filters", desc = "Hide specific message types in Dungeons. One switch for each kind.")
+        @ConfigEditorAccordion(id = 130)
+        public transient boolean dungeonFiltersFolder = false;
+
+        @Expose
+        @ConfigOption(name = "Preparation", desc = "Hides the lines before a run: the countdown, who is ready, the potion warnings and Mort asking you to ready up.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 130)
+        public boolean dungeonPrepare = false;
+
+        @Expose
+        @ConfigOption(name = "Class Buffs / Mort Dialogue", desc = "Hides what Mort says when the run starts, and the lines with your class buffs, e.g. [Berserk] Melee Damage 48% -> 88%.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 130)
+        public boolean dungeonStart = false;
+
+        @Expose
+        @ConfigOption(name = "Ambience", desc = "Hides 'A shiver runs down your spine...'.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 130)
+        public boolean dungeonAmbience = false;
+
+        @Expose
+        @ConfigOption(name = "Pickup", desc = "Hides the lines about things picked up: Superboom TNT, Revive Stone, Premium Flesh, Beating Heart, Wither Essence, orbs and what the fairies say.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 130)
+        public boolean dungeonPickup = false;
+
+        @Expose
+        @ConfigOption(name = "Reminder", desc = "Hides the reminder that a key opens only one door.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 130)
+        public boolean dungeonReminder = false;
+
+        @Expose
+        @ConfigOption(name = "Blessings", desc = "Hides the Blessing lines and the lines telling what a Blessing gave you.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 130)
+        public boolean dungeonBuff = false;
+
+        @Expose
+        @ConfigOption(name = "Not possible", desc = "Hides the red 'you cannot do that' lines: blocks in the way, chest already searched, no key for the door, abilities not allowed in the room ...")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 130)
+        public boolean dungeonNotPossible = false;
+
+        @Expose
+        @ConfigOption(name = "Damage", desc = "Hides the lines telling that something hit or struck you, and 'Mute silenced you!'.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 130)
+        public boolean dungeonDamage = false;
+
+        @Expose
+        @ConfigOption(name = "Abilities", desc = "Hides the lines of class abilities: Guided Sheep, healing, tether, Spirit Pet, fairy, 'ability is on cooldown', 'ready to use' ...")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 130)
+        public boolean dungeonAbility = false;
+
+        @Expose
+        @ConfigOption(name = "Puzzle / Quiz", desc = "Hides 'PUZZLE SOLVED!' and everything Oruo the Omniscient says in the quiz.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 130)
+        public boolean dungeonPuzzle = false;
+
+        @Expose
+        @ConfigOption(name = "End (End of run spam)", desc = "Hides the essence lines and the Experience (Team Bonus) lines at the end of a run.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 130)
+        public boolean dungeonEnd = false;
+
+        @Expose
+        @ConfigOption(name = "Dungeon Boss Messages", desc = "Hide messages from the Watcher and bosses in Dungeons.")
+        @ConfigEditorBoolean
+        public boolean dungeonBossMessages = false;
+
+        @Expose
+        @ConfigOption(name = "Hide Far Deaths", desc = "Hide other players' death messages when they're not nearby (except during Dungeons/Kuudra fights). Nearby means within 25 blocks in the last 30 seconds; the mod looks around once a second.")
+        @ConfigEditorBoolean
+        public boolean hideFarDeaths = false;
+
+        @Expose
+        @ConfigOption(name = "Arachne Hider", desc = "Hide chat messages about the Arachne Fight while outside of Arachne's Sanctuary. The Venom Shot lines go everywhere in the Spider's Den.")
+        @ConfigEditorBoolean
+        public boolean hideArachne = false;
+
+        @Expose
+        @ConfigOption(name = "Sack Change Hider", desc = "Hide the sack change message (\"[Sacks] +269 items. (Last 5s.)\"). The mod reads it before it is hidden, so the profit tracker keeps counting. Use this instead of the toggle in Hypixel Settings.")
+        @ConfigEditorBoolean
+        public boolean hideSacksChange = false;
+
+        @Expose
+        @ConfigOption(name = "Only Hide on Garden", desc = "Only hide the sack change message in the Garden.")
+        @ConfigEditorBoolean
+        public boolean onlyHideSacksChangeOnGarden = false;
+
+        @Expose
+        @ConfigOption(name = "Anita's Accessories", desc = "Hide Anita's Accessories' fortune bonus messages outside the Garden.")
+        @ConfigEditorBoolean
+        public boolean hideAnita = false;
+
+        @Expose
+        @ConfigOption(name = "Sky Mall Messages", desc = "Hide the Sky Mall messages outside of Mining Islands.")
+        @ConfigEditorBoolean
+        public boolean hideSkyMall = false;
+
+        @Expose
+        @ConfigOption(name = "Hide Foraging Buff Messages", desc = "Hide the Lottery and Beekeeper messages outside of Foraging Islands.")
+        @ConfigEditorBoolean
+        public boolean hideForagingBuff = false;
+
+        @Expose
+        @Category(name = "Chat Filter Types", desc = "Hide whole kinds of messages: Powder Mining chests, Crystal Nucleus runs, the stash, lobby and warp lines, Hoppity, parkour and many more. Everything is off until you turn it on. Idea from SkyHanni.")
+        public ChatFilterTypesCategory filterTypes = new ChatFilterTypesCategory();
+
+        /** Ist einer der elf Schalter der Dungeon Filters an? */
+        public boolean anyDungeonFilter() {
+            return dungeonPrepare || dungeonStart || dungeonAmbience || dungeonPickup || dungeonReminder || dungeonBuff
+                    || dungeonNotPossible || dungeonDamage || dungeonAbility || dungeonPuzzle || dungeonEnd;
+        }
+
+        /** Greift irgendein Schalter des Reiters in den Chat ein? Der Chat-Weg fragt das zuerst: ist es nein, kostet eine Zeile nichts weiter */
+        public boolean anyFilter() {
+            return anyDungeonFilter() || dungeonBossMessages || hideFarDeaths || hideArachne || hideSacksChange || hideAnita || hideSkyMall
+                    || hideForagingBuff || (filterTypes != null && filterTypes.anyOn());
+        }
+
+        /** Braucht ein eingeschalteter Schalter den Ort (Gebietszeile der Tab-Liste)? Dann muss sie gelesen werden */
+        public boolean needsLocation() {
+            return anyDungeonFilter() || dungeonBossMessages || hideFarDeaths || hideArachne || (hideSacksChange && onlyHideSacksChangeOnGarden)
+                    || hideAnita || hideSkyMall || hideForagingBuff || (filterTypes != null && filterTypes.needsLocation());
+        }
+
+        /** Fragt ein eingeschalteter Schalter, ob man in einem Dungeon steht? Dann muss {@code DungeonLauf} mitlesen */
+        public boolean needsDungeon() {
+            return anyDungeonFilter() || dungeonBossMessages || hideFarDeaths;
+        }
+    }
+
+    /** Chat Filter Types > Powder Mining > Goblin Egg: ab welcher Farbe ein Ei gezeigt wird (die Reihenfolge ist die der Auswahl) */
+    public enum PowderGoblinEggs {
+        SHOW_ALL("Show all"),
+        HIDE_ALL("Hide all"),
+        GREEN_UP("Show Green and up"),
+        YELLOW_UP("Show Yellow and up"),
+        RED_UP("Show Red and up"),
+        BLUE_ONLY("Show Blue only");
+
+        private final String label;
+
+        PowderGoblinEggs(String label) {
+            this.label = label;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
+    }
+
+    /** Chat Filter Types > Powder Mining > Edelsteine: ab welcher Guete ein Stein gezeigt wird (die Reihenfolge ist die der Auswahl) */
+    public enum PowderGemstones {
+        SHOW_ALL("Show all"),
+        HIDE_ALL("Hide all"),
+        FLAWED_UP("Show Flawed or higher"),
+        FINE_UP("Show Fine or higher"),
+        FLAWLESS_ONLY("Show Flawless only");
+
+        private final String label;
+
+        PowderGemstones(String label) {
+            this.label = label;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
+    }
+
+    /**
+     * Chat > Chat Filter Types: ganze Arten von Meldungen ausblenden - in der Reihenfolge von SkyHannis {@code FilterTypesConfig}.
+     *
+     * Powder Mining, Crystal Nucleus, Foraging, Hunting und Stash Messages stehen je in einem Akkordeon; SkyHannis Listen zum Auswaehlen sind hier ein
+     * Schalter je Eintrag. Von Haus aus ist jeder Hauptschalter aus; die Unteroptionen eines Akkordeons behalten SkyHannis Vorgabe, denn sie wirken erst,
+     * wenn ihr Hauptschalter an ist.
+     *
+     * Herkunft der Idee: SkyHanni (LGPL-2.1, {@code FilterTypesConfig}, {@code PowderMiningConfig}, {@code CrystalNucleusConfig}, {@code StashConfig}).
+     * Von dort stammen die Schalter, ihre Namen, Beschreibungen und die Vorgaben der Unteroptionen; die Umsetzung ist eigene Arbeit: Java, ein verschachteltes
+     * Akkordeon ("Hide Dupe Warnings", "Gemstones") ist hier flach, und "Disable Empty Warnings" und "Tab Complete Stash Command" fehlen.
+     */
+    public static class ChatFilterTypesCategory {
+
+        @ConfigOption(name = "Chat Filter Types", desc = "Hide whole kinds of messages. The five fold-out sections (Powder Mining, Crystal Nucleus, Foraging, Hunting, Stash Messages) have a main switch each; the plain switches below them hide one kind. Everything is off until you turn it on. Idea from SkyHanni.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        // ---- Powder Mining ----
+
+        @ConfigOption(name = "Powder Mining", desc = "Chests of the mining islands (Crystal Hollows ...): hide what you do not care about, and show the rewards you keep as one short line each.")
+        @ConfigEditorAccordion(id = 131)
+        public transient boolean powderFolder = false;
+
+        @Expose
+        @ConfigOption(name = "Enabled", desc = "Hide messages while opening chests in the Crystal Hollows. The rewards that stay are written as '+ 537 Gemstone Powder'.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 131)
+        public boolean powderEnabled = false;
+
+        @Expose
+        @ConfigOption(name = "Powder", desc = "Hide Gemstone and Mithril Powder rewards under a certain amount. 0: show all. 60000: hide all.")
+        @ConfigEditorSlider(minValue = 0f, maxValue = 60000f, minStep = 500f)
+        @ConfigAccordionId(id = 131)
+        public int powderThreshold = 1000;
+
+        @Expose
+        @ConfigOption(name = "Essence", desc = "Hide Gold and Diamond Essence rewards under a certain amount. 0: show all. 20: hide all.")
+        @ConfigEditorSlider(minValue = 0f, maxValue = 20f, minStep = 1f)
+        @ConfigAccordionId(id = 131)
+        public int essenceThreshold = 5;
+
+        @Expose
+        @ConfigOption(name = "Ascension Rope", desc = "Hide the reward line of Ascension Rope.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 131)
+        public boolean powderAscensionRope = true;
+
+        @Expose
+        @ConfigOption(name = "Wishing Compass", desc = "Hide the reward line of Wishing Compass.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 131)
+        public boolean powderWishingCompass = true;
+
+        @Expose
+        @ConfigOption(name = "Oil Barrel", desc = "Hide the reward line of Oil Barrel.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 131)
+        public boolean powderOilBarrel = true;
+
+        @Expose
+        @ConfigOption(name = "Prehistoric Egg", desc = "Hide the reward line of Prehistoric Egg.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 131)
+        public boolean powderPrehistoricEgg = false;
+
+        @Expose
+        @ConfigOption(name = "Pickonimbus 2000", desc = "Hide the reward line of Pickonimbus 2000.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 131)
+        public boolean powderPickonimbus = false;
+
+        @Expose
+        @ConfigOption(name = "Jungle Heart", desc = "Hide the reward line of Jungle Heart.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 131)
+        public boolean powderJungleHeart = true;
+
+        @Expose
+        @ConfigOption(name = "Sludge Juice", desc = "Hide the reward line of Sludge Juice.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 131)
+        public boolean powderSludgeJuice = true;
+
+        @Expose
+        @ConfigOption(name = "Yoggie", desc = "Hide the reward line of Yoggie.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 131)
+        public boolean powderYoggie = true;
+
+        @Expose
+        @ConfigOption(name = "Robot Parts", desc = "Hide the reward lines of the robot parts (FTX 3070, Synthetic Heart, Control Switch, Robotron Reflector, Electron Transmitter, Superlite Motor).")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 131)
+        public boolean powderRobotParts = false;
+
+        @Expose
+        @ConfigOption(name = "Treasurite", desc = "Hide the reward line of Treasurite.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 131)
+        public boolean powderTreasurite = true;
+
+        @Expose
+        @ConfigOption(name = "Goblin Egg", desc = "Hide Goblin Egg rewards that are below a certain rarity.")
+        @ConfigEditorDropdown
+        @ConfigAccordionId(id = 131)
+        public PowderGoblinEggs powderGoblinEggs = PowderGoblinEggs.YELLOW_UP;
+
+        @Expose
+        @ConfigOption(name = "Stronger Tool Messages", desc = "Hide 'You need a stronger tool..' (the Breaking Power warning).")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 131)
+        public boolean powderStrongerTool = true;
+
+        @Expose
+        @ConfigOption(name = "Ruby", desc = "Hide Ruby gemstones under a certain quality.")
+        @ConfigEditorDropdown
+        @ConfigAccordionId(id = 131)
+        public PowderGemstones powderRuby = PowderGemstones.FINE_UP;
+
+        @Expose
+        @ConfigOption(name = "Sapphire", desc = "Hide Sapphire gemstones under a certain quality.")
+        @ConfigEditorDropdown
+        @ConfigAccordionId(id = 131)
+        public PowderGemstones powderSapphire = PowderGemstones.FINE_UP;
+
+        @Expose
+        @ConfigOption(name = "Amber", desc = "Hide Amber gemstones under a certain quality.")
+        @ConfigEditorDropdown
+        @ConfigAccordionId(id = 131)
+        public PowderGemstones powderAmber = PowderGemstones.FINE_UP;
+
+        @Expose
+        @ConfigOption(name = "Amethyst", desc = "Hide Amethyst gemstones under a certain quality.")
+        @ConfigEditorDropdown
+        @ConfigAccordionId(id = 131)
+        public PowderGemstones powderAmethyst = PowderGemstones.FINE_UP;
+
+        @Expose
+        @ConfigOption(name = "Jade", desc = "Hide Jade gemstones under a certain quality.")
+        @ConfigEditorDropdown
+        @ConfigAccordionId(id = 131)
+        public PowderGemstones powderJade = PowderGemstones.FINE_UP;
+
+        @Expose
+        @ConfigOption(name = "Topaz", desc = "Hide Topaz gemstones under a certain quality.")
+        @ConfigEditorDropdown
+        @ConfigAccordionId(id = 131)
+        public PowderGemstones powderTopaz = PowderGemstones.FINE_UP;
+
+        @Expose
+        @ConfigOption(name = "Jasper", desc = "Hide Jasper gemstones under a certain quality.")
+        @ConfigEditorDropdown
+        @ConfigAccordionId(id = 131)
+        public PowderGemstones powderJasper = PowderGemstones.FINE_UP;
+
+        // ---- Crystal Nucleus ----
+
+        @ConfigOption(name = "Crystal Nucleus", desc = "The Crystal Nucleus runs of the Crystal Hollows: hide or shorten the messages that go with them.")
+        @ConfigEditorAccordion(id = 132)
+        public transient boolean nucleusFolder = false;
+
+        @Expose
+        @ConfigOption(name = "Enabled", desc = "Hide or compact messages relating to Crystal Nucleus runs in the Crystal Hollows.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 132)
+        public boolean nucleusEnabled = false;
+
+        @Expose
+        @ConfigOption(name = "Run Completed Summary", desc = "Replace the big summary of a finished run by 'Crystal Nucleus Run complete!'. Important information still appears.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 132)
+        public boolean nucleusRunCompleted = true;
+
+        @Expose
+        @ConfigOption(name = "Crystal Collected", desc = "Replace the block about a crystal you found by one line: the crystal and how many of five you have.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 132)
+        public boolean nucleusCrystalCollected = true;
+
+        @Expose
+        @ConfigOption(name = "Crystal Placed", desc = "Replace 'You placed the X Crystal!' by a shorter line and hide 'Keep exploring the Crystal Hollows to find the rest!'.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 132)
+        public boolean nucleusCrystalPlaced = true;
+
+        @Expose
+        @ConfigOption(name = "[NPC] Keepers (Mines of Divan)", desc = "Hide what the Keepers say; only 'All tools submitted.' stays.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 132)
+        public boolean nucleusKeepers = true;
+
+        @Expose
+        @ConfigOption(name = "[NPC] Professor Robot", desc = "Hide what Professor Robot says; 'X submitted. N components left.' stays.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 132)
+        public boolean nucleusProfRobot = true;
+
+        @Expose
+        @ConfigOption(name = "[NPC] King Yolkar", desc = "Shorten what King Yolkar says and hide the rest.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 132)
+        public boolean nucleusKingYolkar = true;
+
+        @Expose
+        @ConfigOption(name = "[GUARD]s (Goblin Den)", desc = "Hide what the goblin guards shout and the line when the Goblin King's stench is gone.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 132)
+        public boolean nucleusGoblinGuards = true;
+
+        @Expose
+        @ConfigOption(name = "Non-Tool Metal Detector loot", desc = "Hide the Metal Detector finds that are not a tool, and 'PICK IT UP!'.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 132)
+        public boolean nucleusNonToolScavenge = true;
+
+        // ---- Foraging ----
+
+        @ConfigOption(name = "Foraging", desc = "Messages of the foraging islands.")
+        @ConfigEditorAccordion(id = 133)
+        public transient boolean foragingFolder = false;
+
+        @Expose
+        @ConfigOption(name = "Unmineable Trees", desc = "Hide messages from trying to cut down an unmineable tree (Moonglade Marsh and Torrhus Canyon).")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 133)
+        public boolean unmineableTrees = false;
+
+        // ---- Hunting ----
+
+        @ConfigOption(name = "Hunting", desc = "Messages of the shard hunt.")
+        @ConfigEditorAccordion(id = 134)
+        public transient boolean huntingFolder = false;
+
+        @Expose
+        @ConfigOption(name = "Redundant Comments", desc = "Hide redundant comments from successfully hunting shards (Moonglade Marsh).")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 134)
+        public boolean huntingRedundantComments = false;
+
+        @Expose
+        @ConfigOption(name = "Swoop Huntaxe", desc = "Hide Swoop's message about monsters only taking damage from axes.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 134)
+        public boolean huntingSwoopAxe = false;
+
+        // ---- Stash Messages ----
+
+        @ConfigOption(name = "Stash Messages", desc = "The warnings about items and materials in your stash: one short line instead of five.")
+        @ConfigEditorAccordion(id = 135)
+        public transient boolean stashFolder = false;
+
+        @Expose
+        @ConfigOption(name = "Stash Warnings", desc = "Compact warnings relating to items/materials in your stash into one clickable line.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 135)
+        public boolean stashEnabled = false;
+
+        @ConfigOption(name = "Notice", desc = "Hypixel sends empty lines around the stash message, and a mod cannot take back lines that are already shown. Switch on Empty below to hide them.")
+        @ConfigEditorInfoText
+        @ConfigAccordionId(id = 135)
+        public transient String stashNotice = "";
+
+        @Expose
+        @ConfigOption(name = "Hide Dupe Warnings", desc = "Hide duplicate warnings for previously reported stash counts.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 135)
+        public boolean stashHideDupes = true;
+
+        @Expose
+        @ConfigOption(name = "Hide Dupe Warnings: Once Per World", desc = "Show warnings even if the counts are previously reported, once per world change.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 135)
+        public boolean stashOncePerWorld = true;
+
+        @Expose
+        @ConfigOption(name = "Hide Added Messages", desc = "Hide the messages when something is added to your stash.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 135)
+        public boolean stashHideAdded = true;
+
+        @Expose
+        @ConfigOption(name = "Hide Low Warnings", desc = "Hide warnings with a total count below this number.")
+        @ConfigEditorSlider(minValue = 0f, maxValue = 1000000f, minStep = 100f)
+        @ConfigAccordionId(id = 135)
+        public int stashHideLow = 0;
+
+        @Expose
+        @ConfigOption(name = "Use /ViewStash", desc = "Use /viewstash [type] instead of /pickupstash.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 135)
+        public boolean stashUseViewStash = false;
+
+        // ---- einzelne Schalter ----
+
+        @Expose
+        @ConfigOption(name = "Hypixel Lobbies", desc = "Hide announcements in Hypixel lobbies (player joins, loot boxes, prototype lobby messages, radiating generosity, Hypixel tournaments).")
+        @ConfigEditorBoolean
+        public boolean hypixelLobbies = false;
+
+        @Expose
+        @ConfigOption(name = "Empty", desc = "Hide all empty messages.")
+        @ConfigEditorBoolean
+        public boolean empty = false;
+
+        @Expose
+        @ConfigOption(name = "Warping", desc = "Hide 'Sending request to join...' and 'Warping...' messages.")
+        @ConfigEditorBoolean
+        public boolean warping = false;
+
+        @Expose
+        @ConfigOption(name = "Welcome", desc = "Hide the 'Welcome to SkyBlock' message.")
+        @ConfigEditorBoolean
+        public boolean welcome = false;
+
+        @Expose
+        @ConfigOption(name = "Guild/Event EXP", desc = "Hide Guild and Event EXP messages.")
+        @ConfigEditorBoolean
+        public boolean guildEventExp = false;
+
+        @Expose
+        @ConfigOption(name = "Friend Join/Left", desc = "Hide friend join/left messages.")
+        @ConfigEditorBoolean
+        public boolean friendJoinLeft = false;
+
+        @Expose
+        @ConfigOption(name = "Winter Gifts", desc = "Hide pointless Winter Gift messages.")
+        @ConfigEditorBoolean
+        public boolean winterGift = false;
+
+        @Expose
+        @ConfigOption(name = "Kill Combo", desc = "Hide messages about your Kill Combo from the Grandma Wolf pet.")
+        @ConfigEditorBoolean
+        public boolean killCombo = false;
+
+        @Expose
+        @ConfigOption(name = "Watchdog", desc = "Hide the message where Hypixel flexes about how many players they have banned over the last week.")
+        @ConfigEditorBoolean
+        public boolean watchdog = false;
+
+        @Expose
+        @ConfigOption(name = "Profile Join", desc = "Hide 'You are playing on profile' and 'Profile ID' chat messages.")
+        @ConfigEditorBoolean
+        public boolean profileJoin = false;
+
+        @Expose
+        @ConfigOption(name = "Fire Sale", desc = "Hide the repeating fire sale reminder chat messages.")
+        @ConfigEditorBoolean
+        public boolean fireSale = false;
+
+        @Expose
+        @ConfigOption(name = "Reward Bundles", desc = "Hide the reminders to claim seasonal reward bundles.")
+        @ConfigEditorBoolean
+        public boolean rewardBundles = false;
+
+        @Expose
+        @ConfigOption(name = "Event Level Up", desc = "Hide event level up messages. The line above the block cannot be told from other lines in plain text, so only the closing line goes with it.")
+        @ConfigEditorBoolean
+        public boolean eventLevelUp = false;
+
+        @Expose
+        @ConfigOption(name = "Diana", desc = "Hide chat messages around griffin burrow chains, griffin feather drops, and coin drops.")
+        @ConfigEditorBoolean
+        public boolean diana = false;
+
+        @Expose
+        @ConfigOption(name = "Factory Upgrade", desc = "Hide Hypixel's Chocolate Factory upgrade and employee promotion messages.")
+        @ConfigEditorBoolean
+        public boolean factoryUpgrade = false;
+
+        @Expose
+        @ConfigOption(name = "Hoppity's Hunt Begin", desc = "Hide \"Hoppity's Hunt has begun\" messages.")
+        @ConfigEditorBoolean
+        public boolean hoppityBegun = false;
+
+        @Expose
+        @ConfigOption(name = "Hoppity's Hunt Eggs", desc = "Hide \"An egg has appeared!\" messages during Hoppity's hunt.")
+        @ConfigEditorBoolean
+        public boolean hoppityEggs = false;
+
+        @Expose
+        @ConfigOption(name = "Sacrifice", desc = "Hide other players' sacrifice messages.")
+        @ConfigEditorBoolean
+        public boolean sacrifice = false;
+
+        @Expose
+        @ConfigOption(name = "Garden Pest", desc = "Hide the message of no pests on garden.")
+        @ConfigEditorBoolean
+        public boolean gardenNoPest = false;
+
+        @Expose
+        @ConfigOption(name = "Legacy Items Warning", desc = "Hide the legacy items in sacks/storage warning.")
+        @ConfigEditorBoolean
+        public boolean legacyItemsWarning = false;
+
+        @Expose
+        @ConfigOption(name = "Block Alpha Achievements", desc = "Hide achievement messages while on the Alpha network.")
+        @ConfigEditorBoolean
+        public boolean alphaAchievements = false;
+
+        @Expose
+        @ConfigOption(name = "Parkour Messages", desc = "Hide parkour messages (starting, stopping, reaching a checkpoint).")
+        @ConfigEditorBoolean
+        public boolean parkour = false;
+
+        @Expose
+        @ConfigOption(name = "Teleport Pad Messages", desc = "Hide annoying messages when using teleport pads.")
+        @ConfigEditorBoolean
+        public boolean teleportPads = false;
+
+        @Expose
+        @ConfigOption(name = "Feast Chef Ted", desc = "Hide annoying messages about Kernels getting added to your purse while farming.")
+        @ConfigEditorBoolean
+        public boolean masterChef = false;
+
+        @Expose
+        @ConfigOption(name = "Others", desc = "Hide other annoying messages: the Bazaar and auction house 'Processing ...' lines, slayer quest lines and common slayer drops, useless warnings and notifications, party and auction separators and more. A separator of 53 dashes goes in any colour.")
+        @ConfigEditorBoolean
+        public boolean others = false;
+
+        /** Ist irgendein Schalter dieser Gruppe an? */
+        public boolean anyOn() {
+            return powderEnabled || nucleusEnabled || unmineableTrees || huntingRedundantComments || huntingSwoopAxe || stashEnabled
+                    || hypixelLobbies || empty || warping || welcome || guildEventExp || friendJoinLeft || winterGift || killCombo || watchdog
+                    || profileJoin || fireSale || rewardBundles || eventLevelUp || diana || factoryUpgrade || hoppityBegun || hoppityEggs
+                    || sacrifice || gardenNoPest || legacyItemsWarning || alphaAchievements || parkour || teleportPads || masterChef || others;
+        }
+
+        /** Braucht ein eingeschalteter Schalter den Ort? */
+        public boolean needsLocation() {
+            return powderEnabled || nucleusEnabled || unmineableTrees || huntingRedundantComments || stashEnabled || gardenNoPest;
+        }
     }
 
     public static class SkillXpCategory {

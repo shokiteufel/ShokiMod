@@ -108,6 +108,38 @@ class ModConfigSkyHanniReiterTest {
         assertTrue(misc.getOptions().size() >= 4, "Info, Shorten /warp, Replace /warp is, Fix item double clicks");
     }
 
+    private static int optionsInFoldOut(ProcessedCategory category, int accordionId) {
+        int n = 0;
+        for (ProcessedOption o : category.getOptions()) {
+            if (o.getAccordionId() == accordionId) n++;
+        }
+        return n;
+    }
+
+    @Test
+    void chatHasChatFilterTypesBelowItAndFoldOutsThatHoldTheirOptions() {
+        Ergebnis e = verarbeiten();
+        ProcessedCategory chat = nach(e, "ModConfig.chatTab");
+        assertNotNull(chat, "der Reiter Chat (nicht Alerts: das ist ModConfig.chat)");
+        ProcessedCategory types = nach(e, "ChatTabCategory.filterTypes");
+        assertNotNull(types, "ChatTabCategory.filterTypes");
+        assertEquals(chat.getIdentifier(), types.getParentCategoryId(), "Chat Filter Types haengt unter Chat");
+        // Dungeon Filters: ein Akkordeon mit den elf Arten
+        assertEquals(11, optionsInFoldOut(chat, 130), "Dungeon Filters: elf Arten");
+        // Chat Filter Types: Powder Mining (Hauptschalter, zwei Schieber, zehn Listeneintraege, Goblin Egg, Stronger Tool, sieben Edelsteine)
+        assertEquals(22, optionsInFoldOut(types, 131), "Powder Mining");
+        assertEquals(9, optionsInFoldOut(types, 132), "Crystal Nucleus: Hauptschalter und acht Arten");
+        assertEquals(1, optionsInFoldOut(types, 133), "Foraging");
+        assertEquals(2, optionsInFoldOut(types, 134), "Hunting");
+        assertEquals(7, optionsInFoldOut(types, 135), "Stash Messages");
+        // Die Alerts-Kategorie (Feld chat) ist unberuehrt und eine andere
+        ProcessedCategory alerts = null;
+        for (var k : e.kategorien.entrySet()) {
+            if (k.getKey().contains("ModConfig.chat") && !k.getKey().contains("ModConfig.chatTab")) alerts = k.getValue();
+        }
+        assertNotNull(alerts, "der Reiter Alerts (ModConfig.chat) bleibt");
+    }
+
     @Test
     void theSlayerGroupsForCocoonAndSpawnParticlesHoldTheirOptions() {
         Ergebnis e = verarbeiten();
