@@ -57,6 +57,8 @@ class NeueFunktionenAusTest {
         assertFalse(c.fishing.baitDisplay.enabled, "Fishing: Bait display");
         assertFalse(c.fishing.cocoon.warn, "Fishing: Cocoon title");
         assertFalse(c.fishing.cocoon.share, "Fishing: Cocoon share");
+        assertFalse(c.misc.legionBobbin.enabled, "Misc: Legion/Bobbin Overlay");
+        assertFalse(FeatureGate.legionBobbin(), "das Zaehlen von Spielern und Haken fuer das Overlay");
         assertFalse(c.mining.reminder.drillRefuel, "Drill fuel");
         assertFalse(FeatureGate.drillRefuel(), "die Zeile zum Auftanken des Drills");
     }

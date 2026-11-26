@@ -19,7 +19,7 @@ public final class SafariHud {
 
     /** Ein Kasten auf dem Bildschirm. Traegt seine eigene Lage und Groesse in der Config */
     public enum Panel {
-        PROGRESS, MISSING, CONTEST, NEARBY, GUILD, PROFIT, MINING, PET, PERFORMANCE, SEATRACKER, EFFECTS, SEAHP, DARK_AUCTION, FIRE_VEIL, DEPLOYABLES, FORGE, SKILL_XP, FROZEN_BLAZE, FISHING_HOOK, FISHING_BAIT, SKILL_PROGRESS, SKILL_BAR, BAZAAR_SELL, NPC_LIMIT, ITEM_VALUE, CURRENT_CHAT, VISITOR_LIST, GARDEN_PLOTS;
+        PROGRESS, MISSING, CONTEST, NEARBY, GUILD, PROFIT, MINING, PET, PERFORMANCE, SEATRACKER, EFFECTS, SEAHP, DARK_AUCTION, FIRE_VEIL, DEPLOYABLES, FORGE, SKILL_XP, FROZEN_BLAZE, FISHING_HOOK, FISHING_BAIT, SKILL_PROGRESS, SKILL_BAR, BAZAAR_SELL, NPC_LIMIT, ITEM_VALUE, CURRENT_CHAT, VISITOR_LIST, GARDEN_PLOTS, LEGION_BOBBIN;
 
         public boolean visible() {
             ModConfig.SafariCategory c = ModConfig.INSTANCE.safari;
@@ -73,6 +73,8 @@ public final class SafariHud {
                 case VISITOR_LIST -> VisitorShoppingHud.shownNow();
                 // Im Garden; im HUD-Editor immer
                 case GARDEN_PLOTS -> GardenPlotsHud.shownNow();
+                // In SkyBlock, solange eine Zeile etwas zu sagen hat (Legion oder Bobbin' an der Ruestung); im HUD-Editor immer
+                case LEGION_BOBBIN -> LegionBobbinHud.shownNow();
             };
         }
 
@@ -119,6 +121,7 @@ public final class SafariHud {
                 case CURRENT_CHAT -> "Current Chat Display";
                 case VISITOR_LIST -> "Visitor Shopping List";
                 case GARDEN_PLOTS -> "Garden Plots Widget";
+                case LEGION_BOBBIN -> "Legion/Bobbin Overlay";
             };
         }
 
@@ -176,6 +179,7 @@ public final class SafariHud {
                 case SKILL_BAR -> ModConfig.INSTANCE.skillProgress.barHudX;
                 case BAZAAR_SELL -> ModConfig.INSTANCE.inventory.bazaar.hudX;
                 case NPC_LIMIT -> ModConfig.INSTANCE.misc.npcLimit.hudX;
+                case LEGION_BOBBIN -> ModConfig.INSTANCE.misc.legionBobbin.hudX;
                 case ITEM_VALUE -> ModConfig.INSTANCE.inventory.itemValue.hudX;
                 case CURRENT_CHAT -> CurrentChatHud.x();
                 case VISITOR_LIST -> ModConfig.INSTANCE.garden.shoppingList.hudX;
@@ -210,6 +214,7 @@ public final class SafariHud {
                 case SKILL_BAR -> ModConfig.INSTANCE.skillProgress.barHudY;
                 case BAZAAR_SELL -> ModConfig.INSTANCE.inventory.bazaar.hudY;
                 case NPC_LIMIT -> ModConfig.INSTANCE.misc.npcLimit.hudY;
+                case LEGION_BOBBIN -> ModConfig.INSTANCE.misc.legionBobbin.hudY;
                 case ITEM_VALUE -> ModConfig.INSTANCE.inventory.itemValue.hudY;
                 case CURRENT_CHAT -> CurrentChatHud.y();
                 case VISITOR_LIST -> ModConfig.INSTANCE.garden.shoppingList.hudY;
@@ -244,6 +249,7 @@ public final class SafariHud {
                 case SKILL_BAR -> ModConfig.INSTANCE.skillProgress.barHudScale;
                 case BAZAAR_SELL -> ModConfig.INSTANCE.inventory.bazaar.hudScale;
                 case NPC_LIMIT -> ModConfig.INSTANCE.misc.npcLimit.hudScale;
+                case LEGION_BOBBIN -> ModConfig.INSTANCE.misc.legionBobbin.hudScale;
                 case ITEM_VALUE -> ModConfig.INSTANCE.inventory.itemValue.hudScale;
                 case CURRENT_CHAT -> ModConfig.INSTANCE.chatTab.currentChatHudScale;
                 case VISITOR_LIST -> ModConfig.INSTANCE.garden.shoppingList.hudScale;
@@ -366,6 +372,10 @@ public final class SafariHud {
                     ModConfig.INSTANCE.garden.plots.hudX = x;
                     ModConfig.INSTANCE.garden.plots.hudY = y;
                 }
+                case LEGION_BOBBIN -> {
+                    ModConfig.INSTANCE.misc.legionBobbin.hudX = x;
+                    ModConfig.INSTANCE.misc.legionBobbin.hudY = y;
+                }
             }
         }
 
@@ -397,6 +407,7 @@ public final class SafariHud {
                 case SKILL_BAR -> ModConfig.INSTANCE.skillProgress.barHudAlpha;
                 case BAZAAR_SELL -> ModConfig.INSTANCE.inventory.bazaar.hudAlpha;
                 case NPC_LIMIT -> ModConfig.INSTANCE.misc.npcLimit.hudAlpha;
+                case LEGION_BOBBIN -> ModConfig.INSTANCE.misc.legionBobbin.hudAlpha;
                 case ITEM_VALUE -> ModConfig.INSTANCE.inventory.itemValue.hudAlpha;
                 case CURRENT_CHAT -> ModConfig.INSTANCE.chatTab.currentChatHudAlpha;
                 case VISITOR_LIST -> ModConfig.INSTANCE.garden.shoppingList.hudAlpha;
@@ -434,6 +445,7 @@ public final class SafariHud {
                 case SKILL_BAR -> ModConfig.INSTANCE.skillProgress.barHudAlpha = clamped;
                 case BAZAAR_SELL -> ModConfig.INSTANCE.inventory.bazaar.hudAlpha = clamped;
                 case NPC_LIMIT -> ModConfig.INSTANCE.misc.npcLimit.hudAlpha = clamped;
+                case LEGION_BOBBIN -> ModConfig.INSTANCE.misc.legionBobbin.hudAlpha = clamped;
                 case ITEM_VALUE -> ModConfig.INSTANCE.inventory.itemValue.hudAlpha = clamped;
                 case CURRENT_CHAT -> ModConfig.INSTANCE.chatTab.currentChatHudAlpha = clamped;
                 case VISITOR_LIST -> ModConfig.INSTANCE.garden.shoppingList.hudAlpha = clamped;
@@ -469,6 +481,7 @@ public final class SafariHud {
                 case SKILL_BAR -> ModConfig.INSTANCE.skillProgress.barHudScale = clamped;
                 case BAZAAR_SELL -> ModConfig.INSTANCE.inventory.bazaar.hudScale = clamped;
                 case NPC_LIMIT -> ModConfig.INSTANCE.misc.npcLimit.hudScale = clamped;
+                case LEGION_BOBBIN -> ModConfig.INSTANCE.misc.legionBobbin.hudScale = clamped;
                 case ITEM_VALUE -> ModConfig.INSTANCE.inventory.itemValue.hudScale = clamped;
                 case CURRENT_CHAT -> ModConfig.INSTANCE.chatTab.currentChatHudScale = clamped;
                 case VISITOR_LIST -> ModConfig.INSTANCE.garden.shoppingList.hudScale = clamped;
@@ -550,6 +563,7 @@ public final class SafariHud {
                 case CURRENT_CHAT -> CurrentChatHud.build();
                 case VISITOR_LIST -> VisitorShoppingHud.build();
                 case GARDEN_PLOTS -> GardenPlotsHud.build();
+                case LEGION_BOBBIN -> LegionBobbinHud.build();
             };
         }
     }

@@ -342,6 +342,11 @@ public final class FeatureGate {
         return ModConfig.INSTANCE.misc.npcLimit.enabled;
     }
 
+    /** Misc > Legion/Bobbin Overlay: Spieler und Haken ringsum zaehlen, die Ruestung lesen - nur wenn es an ist. Braucht den Ort (nur in SkyBlock) */
+    public static boolean legionBobbin() {
+        return ModConfig.INSTANCE.misc.legionBobbin.enabled;
+    }
+
     /** Misc: Warp-Befehle kuerzen oder ersetzen - nur wenn einer der beiden Schalter an ist. Braucht den Ort (nur in SkyBlock) */
     public static boolean warpCommands() {
         ModConfig.MiscCategory c = ModConfig.INSTANCE.misc;
@@ -523,7 +528,7 @@ public final class FeatureGate {
                 || roomScan() || iHateDoors() || dungeonLog() || leapMenu() || hideOtherHooks() || mineshaftKeys()
                 || hookDisplay() || baitDisplay() || seaCocoon() || slayerCocoon() || slayerSpawnParticles() || skillProgress() || auctionUnderbid() || bazaarHelpers()
                 || auctionHighlights() || fishingLines()
-                || npcDayLimit() || warpCommands() || fixDoubleClicks() || estimatedItemValue() || equipmentInInventory() || inputCalculator()
+                || npcDayLimit() || legionBobbin() || warpCommands() || fixDoubleClicks() || estimatedItemValue() || equipmentInInventory() || inputCalculator()
                 // Chat (Teil 1): die Filter nach Ort (Dungeon, Garden, Bergbau, Foraging, Spider's Den, Crystal Hollows, Kuudra)
                 // Chat (Teil 2): alles, was umschreibt, und SkyBlock XP in Chat gelten nur in SkyBlock (chatFiltersLocation schliesst die umschreibenden ein)
                 || chatFiltersLocation() || skyblockXpInChat()

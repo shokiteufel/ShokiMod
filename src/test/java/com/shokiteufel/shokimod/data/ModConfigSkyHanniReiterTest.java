@@ -107,6 +107,10 @@ class ModConfigSkyHanniReiterTest {
         ProcessedCategory npc = nach(e, "MiscCategory.npcLimit");
         assertNotNull(npc, "MiscCategory.npcLimit");
         assertEquals(misc.getIdentifier(), npc.getParentCategoryId(), "der Tracker haengt unter Misc");
+        ProcessedCategory legion = nach(e, "MiscCategory.legionBobbin");
+        assertNotNull(legion, "MiscCategory.legionBobbin");
+        assertEquals(misc.getIdentifier(), legion.getParentCategoryId(), "das Legion/Bobbin Overlay haengt unter Misc");
+        assertEquals(3, legion.getOptions().size(), "Info, Enabled, Hide without enchant");
         assertTrue(misc.getOptions().size() >= 4, "Info, Shorten /warp, Replace /warp is, Fix item double clicks");
     }
 

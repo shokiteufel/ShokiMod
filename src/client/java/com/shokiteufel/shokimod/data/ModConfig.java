@@ -207,6 +207,7 @@ public class ModConfig extends Config {
         if (c == null) return;
         if (c.misc == null) c.misc = new MiscCategory();
         if (c.misc.npcLimit == null) c.misc.npcLimit = new NpcDayLimitCategory();
+        if (c.misc.legionBobbin == null) c.misc.legionBobbin = new LegionBobbinCategory();
         NpcDayLimitCategory n = c.misc.npcLimit;
         if (n.numberFormat == null) n.numberFormat = NpcNumberFormat.SHORT;
         n.soldCoins = Math.max(0L, n.soldCoins);
@@ -1413,7 +1414,7 @@ public class ModConfig extends Config {
     public InventoryCategory inventory = new InventoryCategory();
 
     @Expose
-    @Category(name = "Misc", desc = "Small helpers that fit nowhere else: the NPC daily limit tracker, shorter warp commands and a fix for double clicks. Everything is off until you turn it on. Idea from SkyHanni.")
+    @Category(name = "Misc", desc = "Small helpers that fit nowhere else: the NPC daily limit tracker, the Legion/Bobbin Overlay, shorter warp commands and a fix for double clicks. Everything is off until you turn it on. Idea from SkyHanni.")
     public MiscCategory misc = new MiscCategory();
 
     @Expose
@@ -5823,13 +5824,17 @@ public class ModConfig extends Config {
      */
     public static class MiscCategory {
 
-        @ConfigOption(name = "Misc", desc = "Small helpers that fit nowhere else. The tracker lives in the sub tab on the left; the rest is below. Everything is off until you turn it on. Idea from SkyHanni.")
+        @ConfigOption(name = "Misc", desc = "Small helpers that fit nowhere else. The tracker and the Legion/Bobbin Overlay live in the sub tabs on the left; the rest is below. Everything is off until you turn it on. Idea from SkyHanni.")
         @ConfigEditorInfoText
         public transient String about = "";
 
         @Expose
         @Category(name = "NPC Daily Limit Tracker", desc = "Counts what you sell to NPCs against the daily limit of 500 million coins. Idea from SkyHanni.")
         public NpcDayLimitCategory npcLimit = new NpcDayLimitCategory();
+
+        @Expose
+        @Category(name = "Legion/Bobbin Overlay", desc = "How many players and fishing hooks are near you, and the buff that gives you with the Legion and Bobbin' Time enchantments. Idea from SkyHanni.")
+        public LegionBobbinCategory legionBobbin = new LegionBobbinCategory();
 
         @Expose
         @ConfigOption(name = "Shorten /warp", desc = "Warp without typing warp first: /wizard instead of /warp wizard (any warp Hypixel knows, from /hub to /nucleus). Only the plain command counts, with nothing behind it. On your private island /jerry stays what it is there.")
@@ -5899,6 +5904,41 @@ public class ModConfig extends Config {
         public float hudX = 0.02f;
         @Expose
         public float hudY = 0.78f;
+        @Expose
+        public float hudScale = 1.0f;
+        @Expose
+        public float hudAlpha = 1.0f;
+    }
+
+    /**
+     * Misc > Legion/Bobbin Overlay: wie viele Spieler und Angelhaken in der Naehe sind und was die Verzauberungen Legion und Bobbin' Time
+     * daraus machen.
+     *
+     * Die Idee ist SkyHanni (LGPL-2.1, "Legion/Bobbin Overlay"): Legion gibt je Spieler im Umkreis von 30 Bloecken (hoechstens 20) einen
+     * Zuschlag auf alle Werte, Bobbin' Time je Angelhaken im Umkreis (hoechstens 5) einen auf die Angelgeschwindigkeit. Der Kasten zeigt die
+     * Anzahl und den Zuschlag in Prozent.
+     */
+    public static class LegionBobbinCategory {
+
+        @ConfigOption(name = "Legion/Bobbin Overlay", desc = "Shows how many players (Legion) and fishing hooks (Bobbin' Time) are within 30 blocks of you and how much the two ultimate enchantments of your armor give you for them, e.g. Legion: 12 (4.2%). Legion counts up to 20 players, Bobbin' Time up to 5 hooks. Move and resize it in /shoki hud (search \"Legion\"). Off until you turn it on.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Enabled", desc = "Show the current Legion and Bobbin' Time buff.")
+        @ConfigEditorBoolean
+        public boolean enabled = false;
+
+        @Expose
+        @ConfigOption(name = "Hide without enchant", desc = "Hide a line while your armor does not carry that enchantment: no Legion line without Legion, no Bobbin' line without Bobbin' Time.")
+        @ConfigEditorBoolean
+        public boolean hideWithoutEnchant = true;
+
+        // Lage des Kastens, gesetzt ueber /shoki hud
+        @Expose
+        public float hudX = 0.02f;
+        @Expose
+        public float hudY = 0.30f;
         @Expose
         public float hudScale = 1.0f;
         @Expose

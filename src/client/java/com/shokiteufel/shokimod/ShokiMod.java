@@ -117,6 +117,7 @@ public class ShokiMod implements ClientModInitializer {
         com.shokiteufel.shokimod.handler.AuctionHighlights.register();
         com.shokiteufel.shokimod.handler.BazaarHelpers.register();
         com.shokiteufel.shokimod.handler.NpcDayLimit.register();
+        com.shokiteufel.shokimod.handler.LegionBobbin.register();
         com.shokiteufel.shokimod.handler.WarpCommands.register();
         // Chat (Teil 3): Copy Chat (Rechtsklick im Chatfenster), Current Chat Display (merkt den Chat) und die Befehle fuer Tab Complete
         com.shokiteufel.shokimod.chat.CopyChat.register();

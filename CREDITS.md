@@ -352,6 +352,12 @@ Beschreibungen, eigene Tests. Es steht nichts Geschriebenes aus SkyHanni in dies
   (Tatsachen über Hypixels Befehle). Eigene Zutaten: der Zähler liegt in der Einstellungsdatei und gehört zum Spieler statt zum Profil, gespeichert wird höchstens einmal je Minute, beim Kürzen wird abgeschnitten
   statt gerundet, der Befehl wird über die Fabric-API (`ALLOW_COMMAND`) ersetzt, das Auslassen des Pakets sitzt in einem nicht erforderlichen Einsprung an `Connection.sendPacket`, eigener Wortlaut. Nicht
   übernommen: das Vervollständigen mit Tab und SkyHannis Ausnahme für /barn im Garten.
+- **Misc > Legion/Bobbin Overlay** (`LegionBobbin`, `LegionBobbinHud`): SkyHanni „Legion/Bobbin Overlay" (`LegionBobbinOverlay`, aus dem GUI-Bereich). Regeln: Legion zählt echte Spieler (UUID-Version 4) im Umkreis von
+  30 Blöcken ohne einen selbst, höchstens 20, und gibt je Stufe 0,07 Prozent je Spieler; Bobbin' Time zählt Angelhaken im Umkreis von 30 Blöcken, höchstens 5, und gibt je Stufe 0,2 Prozent je Haken; die Stufen
+  (`ultimate_legion`, `ultimate_bobbin_time` in den `enchantments` der vier Rüstungsteile) werden addiert, die Zeile steht mit „Hide without enchant" nur mit der Verzauberung an der Rüstung. Die Zahlen
+  (30 / 20 / 0,07 und 30 / 5 / 0,2) stehen in SkyHanni-Repo (`Items.json`, `distance_enchant_data`) und sind Tatsachen über das Spiel; sie stehen hier fest im Code. Eigene Zutaten: Spieler und Haken werden alle
+  fünf Ticks gezählt, die Rüstung einmal je Sekunde gelesen (SkyHanni: jeden Tick), der Kasten ist ein Kasten des HUD-Editors mit Beispielwerten, eigener Wortlaut. Nicht übernommen: das Nachladen der Zahlen aus
+  dem Netz.
 - **Inventory > Estimated Item Value** (`EstimatedItemValue`, `EivCalculator`, `EivData`, `EivLive`, `EivFormat`, `EstimatedItemValueHud`): SkyHanni „Estimated Item Value", „Estimated Item Value Tooltip" und „Estimated
   Wardrobe Price" (`EstimatedItemValue`, `EstimatedItemValueCalculator`, `EstimatedItemValueTooltip`, `EstimatedWardrobePrice`). Regeln: Der Wert ist der Grundpreis plus alles Verbaute in einer festen Reihenfolge
   (Umschmiedestein samt Kosten des Anbringens nach Seltenheit, Recombobulator, Art of War/Peace, Etherwarp, Kraftrolle, Singularität, Jalapeno- und Statistik-Buch, Anreicherung, Divan-Beschichtung, Mithril-Infusion,
