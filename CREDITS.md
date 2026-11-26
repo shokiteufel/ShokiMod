@@ -329,6 +329,10 @@ Beschreibungen, eigene Tests. Es steht nichts Geschriebenes aus SkyHanni in dies
   Eigene Zutaten: zwei Kästen des HUD-Editors (Zeile und Balken) statt fester Lage, der Balken mit Farbe, Regenbogen, Breite und Höhe, die gelesenen Stände in der Mod-Einstellung gespeichert,
   eine Rechnung der Prozentform, die über der Obergrenze nicht doppelt zählt, eigene Meldung bei einer neuen Stufe über der Obergrenze (ohne SkyHannis Belohnungszeilen), Tooltips und Stapelgröße im Menü
   der Fähigkeiten. **Nicht übernommen:** die Zeile mit allen Fähigkeiten, die Zeit bis zur nächsten Stufe, die Wunschstufe, die Erfahrung aus Geschenken und der Balken mit Texturen.
+- **Inventory > Auction house** (`AuctionUnderbid`): SkyHanni „Auto Copy Underbid Price" und „Copy Underbid Keybind" (`AuctionHouseCopyUnderbidPrice`). Regel: Im Fenster „Create BIN Auction" liegt das Stück
+  im Platz 13; sein Preis (niedrigster BIN mal Stapelgröße) minus ein Coin kommt in die Zwischenablage, einmal je Stück; ohne bekannten Preis wird sie geleert. In „Auctions Browser", „Manage Auctions" und
+  „Auctions: ..." kopiert eine Taste den Preis der Auktion unter dem Zeiger (Zeile „Buy it now", „Starting bid" oder „Top bid") minus ein Coin. Eigene Zutaten: Die Preise sind die niedrigsten BIN des
+  Profit-Trackers (`ItemValue.LOWEST_BIN`, auch für Pets), die Taste ist eine Taste dieser Mod (steigende Flanke), das Fenster kopiert beim erneuten Öffnen mit demselben Stück wieder, eigener Wortlaut.
 
 ---
 

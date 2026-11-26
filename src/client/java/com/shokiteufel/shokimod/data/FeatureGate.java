@@ -290,6 +290,12 @@ public final class FeatureGate {
         return ModConfig.INSTANCE.skillProgress.enabled;
     }
 
+    /** Inventory > Auction house: das Fenster zum Einstellen lesen und auf die Taste achten - nur wenn eines von beiden an ist. Braucht den Ort (nur in SkyBlock) */
+    public static boolean auctionUnderbid() {
+        ModConfig.AuctionHouseHelpersCategory c = ModConfig.INSTANCE.inventory.auctions;
+        return c.autoCopyUnderbid || c.hasCopyKey();
+    }
+
     /** Die Kampfzeiten der Slayer-Bosse lesen alle fuenf Ticks die Seitenleiste und den Chat - nur wenn eine der Zeilen an ist */
     public static boolean slayerKillTime() {
         return ModConfig.INSTANCE.slayer.bossKillTime || ModConfig.INSTANCE.slayer.questKillTime;
@@ -361,6 +367,6 @@ public final class FeatureGate {
                 || slayerSpawn() || slayerKillTime() || darkAuction() || darkAuctionTimer() || hidePlayersDungeon() || nearbyRare() || ModConfig.INSTANCE.effects.enabled || mineshaftAnnounce()
                 // Die Dungeon-Funktionen fragen die Tab-Liste und die Seitenleiste (DungeonLauf, Funny Map): ohne diese Zeile stuende sie nur, solange eine der Funktionen oben an ist
                 || roomScan() || iHateDoors() || dungeonLog() || leapMenu() || hideOtherHooks() || mineshaftKeys()
-                || hookDisplay() || baitDisplay() || seaCocoon() || slayerCocoon() || slayerSpawnParticles() || skillProgress();
+                || hookDisplay() || baitDisplay() || seaCocoon() || slayerCocoon() || slayerSpawnParticles() || skillProgress() || auctionUnderbid();
     }
 }

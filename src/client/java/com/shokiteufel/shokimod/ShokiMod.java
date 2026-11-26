@@ -116,6 +116,7 @@ public class ShokiMod implements ClientModInitializer {
         com.shokiteufel.shokimod.handler.SeaCreatureCocoon.register();
         com.shokiteufel.shokimod.handler.SlayerCocoon.register();
         com.shokiteufel.shokimod.handler.SkillProgress.register();
+        com.shokiteufel.shokimod.handler.AuctionUnderbid.register();
         com.shokiteufel.shokimod.handler.SlayerSpawnParticles.register();
         com.shokiteufel.shokimod.handler.SeaCreatureNear.register();
         com.shokiteufel.shokimod.handler.PestReminder.register();

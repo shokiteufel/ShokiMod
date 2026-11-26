@@ -183,6 +183,13 @@ public class ModConfig extends Config {
         p.bar.height = Math.max(3, Math.min(15, p.bar.height));
     }
 
+    /** Inventory (seit 2.4.13): fehlende Teile ergaenzen */
+    static void repairInventory(ModConfig c) {
+        if (c == null) return;
+        if (c.inventory == null) c.inventory = new InventoryCategory();
+        if (c.inventory.auctions == null) c.inventory.auctions = new AuctionHouseHelpersCategory();
+    }
+
     static void repairFishingExtras(FishingCategory fishing) {
         if (fishing == null) return;
         if (fishing.hookDisplay == null) fishing.hookDisplay = new HookDisplayCategory();
@@ -484,6 +491,7 @@ public class ModConfig extends Config {
         repairFishingExtras(INSTANCE.fishing);
         repairSlayerCocoon(INSTANCE.slayer);
         repairSkillProgress(INSTANCE);
+        repairInventory(INSTANCE);
         if (INSTANCE.logs == null) INSTANCE.logs = new LogsCategory();
         if (INSTANCE.mining.cold == null) INSTANCE.mining.cold = new ColdAlertCategory();
         if (INSTANCE.mining.cold.bannerDesign == null) INSTANCE.mining.cold.bannerDesign = BannerDesign.ALERT_BAND;
@@ -1248,6 +1256,10 @@ public class ModConfig extends Config {
     @Expose
     @Category(name = "Skill progress", desc = "Your skill level and its progress while you gain experience, with a progress bar underneath and the levels past the cap (overflow). Read from the action bar. Off until you turn it on. Idea from SkyHanni.")
     public SkillProgressCategory skillProgress = new SkillProgressCategory();
+
+    @Expose
+    @Category(name = "Inventory", desc = "Helpers for SkyBlock's windows, sorted as in SkyHanni: the Auction house and the Bazaar. Everything is off until you turn it on. Idea from SkyHanni.")
+    public InventoryCategory inventory = new InventoryCategory();
 
     @Expose
     @Category(name = "ikohS", desc = "ShokiMod's own functions, apart from the normal ones: the Dungeon functions (Funny Map, Star mobs, I hate doors) and The Mist. Everything in here is off until you turn it on.")
@@ -5139,6 +5151,51 @@ public class ModConfig extends Config {
         @ConfigOption(name = "Chat", desc = "Writes a level-up message into the chat and plays the level-up sound when you gain an overflow level.")
         @ConfigEditorBoolean
         public boolean inChat = false;
+    }
+
+    /**
+     * Inventory: Hilfen fuer die Fenster von SkyBlock - sortiert wie bei SkyHanni (Inventory > Auction house, Inventory > Bazaar).
+     *
+     * Der Reiter "Bazaar" weiter oben ist ein anderer: Er rechnet, was Kauf- und Verkaufsauftraege einbringen (/shoki flipprofit). Hier stehen
+     * die Hilfen beim Handeln selbst.
+     */
+    public static class InventoryCategory {
+
+        @ConfigOption(name = "Inventory", desc = "Helpers for the windows of SkyBlock. Everything lives in the sub tabs on the left.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @Category(name = "Auction house", desc = "Helpers for the auction house. Idea from SkyHanni.")
+        public AuctionHouseHelpersCategory auctions = new AuctionHouseHelpersCategory();
+    }
+
+    /**
+     * Inventory > Auction house: der Preis fuer ein Gebot knapp unter dem niedrigsten.
+     *
+     * Die Idee ist SkyHanni (LGPL-2.1, {@code AuctionHouseCopyUnderbidPrice}): Wer ein Stueck zum Sofortkauf einstellt ("Create BIN Auction"),
+     * will meist einen Coin unter dem billigsten Angebot liegen. Der Preis wandert in die Zwischenablage, man fuegt ihn nur noch in das Preisfeld ein.
+     */
+    public static class AuctionHouseHelpersCategory {
+
+        @ConfigOption(name = "Auction house", desc = "Copies a price one coin below the cheapest offer, so you can paste it into the price field of an auction. The prices are the lowest BIN prices the mod already uses for the profit tracker. Off until you turn it on.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Auto copy underbid price", desc = "When you open the Create BIN Auction window with an item in it, copies the lowest BIN price of that item (times the stack size) minus one coin to your clipboard and tells you in the chat. For an item whose price is not known the clipboard is emptied, so an old price does not slip in. Opening the window again with the same item copies again.")
+        @ConfigEditorBoolean
+        public boolean autoCopyUnderbid = false;
+
+        @Expose
+        @ConfigOption(name = "Copy underbid key", desc = "Hold the mouse over an auction in the Auctions Browser, in Manage Auctions or in an auction search and press this key: the price of that auction (Buy it now, Starting bid or Top bid) minus one coin goes to your clipboard. No key until you pick one.")
+        @ConfigEditorKeybind(defaultKey = -1)
+        public int copyUnderbidKey = -1;
+
+        /** Ist eine Taste gewaehlt? (Werte unter 32 sind keine Tasten) */
+        public boolean hasCopyKey() {
+            return copyUnderbidKey >= 32;
+        }
     }
 
     public static class SkillXpCategory {
