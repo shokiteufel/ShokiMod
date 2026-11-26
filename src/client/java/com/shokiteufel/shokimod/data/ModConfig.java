@@ -188,6 +188,12 @@ public class ModConfig extends Config {
         if (c.inventory.bazaar == null) c.inventory.bazaar = new BazaarHelpersCategory();
         if (c.inventory.flips == null) c.inventory.flips = new BazaarCategory();
         if (c.inventory.flips.tax == null) c.inventory.flips.tax = SellTax.PLAIN;
+        if (c.inventory.itemValue == null) c.inventory.itemValue = new EstimatedItemValueCategory();
+        EstimatedItemValueCategory v = c.inventory.itemValue;
+        if (v.priceSource == null) v.priceSource = EivPriceSource.INSTANT_SELL;
+        v.hoverDelay = Math.max(0, Math.min(2000, v.hoverDelay));
+        v.enchantmentsCap = Math.max(1, Math.min(30, v.enchantmentsCap));
+        v.starMaterialCap = Math.max(1, Math.min(15, v.starMaterialCap));
     }
 
     /** Misc (seit 2.4.16): fehlende Teile ergaenzen, Zaehler und Format auf das Zulaessige bringen */
@@ -5036,6 +5042,10 @@ public class ModConfig extends Config {
         @Expose
         @Category(name = "Bazaar flips", desc = "Buying and selling through your own orders: what the spread leaves after tax, and how briskly a good trades. Open the list with /shoki flipprofit.")
         public BazaarCategory flips = new BazaarCategory();
+
+        @Expose
+        @Category(name = "Estimated Item Value", desc = "What the item under your mouse is worth, with everything built into it: reforge, stars, enchantments, gemstones and more. Idea from SkyHanni.")
+        public EstimatedItemValueCategory itemValue = new EstimatedItemValueCategory();
     }
 
     /**
@@ -5108,6 +5118,122 @@ public class ModConfig extends Config {
         public float hudX = 0.55f;
         @Expose
         public float hudY = 0.2f;
+        @Expose
+        public float hudScale = 1.0f;
+        @Expose
+        public float hudAlpha = 1.0f;
+    }
+
+    /** Welcher Preis bei Estimated Item Value zaehlt */
+    public enum EivPriceSource {
+        INSTANT_BUY("BZ Instant Buy"),
+        INSTANT_SELL("BZ Instant Sell"),
+        NPC_SELL("NPC Sell");
+
+        private final String label;
+
+        EivPriceSource(String label) {
+            this.label = label;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
+    }
+
+    /**
+     * Inventory > Estimated Item Value: der Wert des Gegenstands unter der Maus.
+     *
+     * Die Idee ist SkyHanni (LGPL-2.1, Estimated Item Value). Alle Schalter sind von Haus aus aus; bei SkyHanni sind "Show Always" und die
+     * Kleiderschrank-Summen von Haus aus an.
+     */
+    public static class EstimatedItemValueCategory {
+
+        @ConfigOption(name = "Estimated Item Value", desc = "Shows what the item under your mouse is worth, built up from its base price and everything in it: reforge stone, recombobulator, stars (essence, coins, items), master stars, hot potato books, scrolls, gemstones, runes, dyes, skins and enchantments. It stays away when the item is worth no more than its base price. Prices come from the bazaar, the auction house and the NPCs the profit tracker already uses; tables for reforges, stars and gemstone slots are fetched once a day. Move and resize the panel in /shoki hud (search \"Estimated\"). Off until you turn it on.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Enabled", desc = "Display an Estimated Item Value for the item you hover over.")
+        @ConfigEditorBoolean
+        public boolean enabled = false;
+
+        @Expose
+        @ConfigOption(name = "Show on Tooltip", desc = "Puts the estimated item value in the tooltip as one line (only for items worth more than their base price).")
+        @ConfigEditorBoolean
+        public boolean showTooltip = false;
+
+        @Expose
+        @ConfigOption(name = "Hotkey", desc = "Press this key to show the Estimated Item Value. No key until you pick one.")
+        @ConfigEditorKeybind(defaultKey = -1)
+        public int hotkey = -1;
+
+        /** Ist eine Taste gewaehlt? (Werte unter 32 sind keine Tasten) */
+        public boolean hasHotkey() {
+            return hotkey >= 32;
+        }
+
+        @Expose
+        @ConfigOption(name = "Show Always", desc = "Ignore the hotkey and always display the item value.")
+        @ConfigEditorBoolean
+        public boolean alwaysEnabled = true;
+
+        @Expose
+        @ConfigOption(name = "Hover Delay", desc = "How long to hover over the same slot before the value shows up, in milliseconds. Only applies to the first item after opening an inventory. Set to 0 to disable.")
+        @ConfigEditorSlider(minValue = 0f, maxValue = 2000f, minStep = 50f)
+        public int hoverDelay = 500;
+
+        @Expose
+        @ConfigOption(name = "Enchantments Cap", desc = "Only show the top # most expensive enchantments.")
+        @ConfigEditorSlider(minValue = 1f, maxValue = 30f, minStep = 1f)
+        public int enchantmentsCap = 7;
+
+        @Expose
+        @ConfigOption(name = "Star Material Cap", desc = "Only show the top # most expensive parts of star prices.")
+        @ConfigEditorSlider(minValue = 1f, maxValue = 15f, minStep = 1f)
+        public int starMaterialCap = 3;
+
+        @Expose
+        @ConfigOption(name = "Show Exact Price", desc = "Show the exact total price instead of the compact number.")
+        @ConfigEditorBoolean
+        public boolean exactPrice = false;
+
+        @Expose
+        @ConfigOption(name = "Show Armor Value", desc = "Show the value of the full armor set in the Wardrobe inventory: hover the button under a set.")
+        @ConfigEditorBoolean
+        public boolean armor = false;
+
+        @Expose
+        @ConfigOption(name = "Show Equipment Value", desc = "Show the value of the full equipment set in the Equipment Wardrobe inventory: hover the button under a set.")
+        @ConfigEditorBoolean
+        public boolean equipment = false;
+
+        @Expose
+        @ConfigOption(name = "Ignore Helmet Skins", desc = "Ignore helmet Skins from the total value.")
+        @ConfigEditorBoolean
+        public boolean ignoreHelmetSkins = false;
+
+        @Expose
+        @ConfigOption(name = "Ignore Armor Dyes", desc = "Ignore Armor Dyes from the total value.")
+        @ConfigEditorBoolean
+        public boolean ignoreArmorDyes = false;
+
+        @Expose
+        @ConfigOption(name = "Ignore Runes", desc = "Ignore Runes from the total value.")
+        @ConfigEditorBoolean
+        public boolean ignoreRunes = false;
+
+        @Expose
+        @ConfigOption(name = "Change Price Source", desc = "Change what price to use: Bazaar (instant buy or instant sell) or NPC.")
+        @ConfigEditorDropdown
+        public EivPriceSource priceSource = EivPriceSource.INSTANT_SELL;
+
+        // Lage des Kastens, gesetzt ueber /shoki hud
+        @Expose
+        public float hudX = 0.07f;
+        @Expose
+        public float hudY = 0.10f;
         @Expose
         public float hudScale = 1.0f;
         @Expose

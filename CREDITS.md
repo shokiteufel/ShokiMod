@@ -349,6 +349,16 @@ Beschreibungen, eigene Tests. Es steht nichts Geschriebenes aus SkyHanni in dies
   (Tatsachen über Hypixels Befehle). Eigene Zutaten: der Zähler liegt in der Einstellungsdatei und gehört zum Spieler statt zum Profil, gespeichert wird höchstens einmal je Minute, beim Kürzen wird abgeschnitten
   statt gerundet, der Befehl wird über die Fabric-API (`ALLOW_COMMAND`) ersetzt, das Auslassen des Pakets sitzt in einem nicht erforderlichen Einsprung an `Connection.sendPacket`, eigener Wortlaut. Nicht
   übernommen: das Vervollständigen mit Tab und SkyHannis Ausnahme für /barn im Garten.
+- **Inventory > Estimated Item Value** (`EstimatedItemValue`, `EivCalculator`, `EivData`, `EivLive`, `EivFormat`, `EstimatedItemValueHud`): SkyHanni „Estimated Item Value", „Estimated Item Value Tooltip" und „Estimated
+  Wardrobe Price" (`EstimatedItemValue`, `EstimatedItemValueCalculator`, `EstimatedItemValueTooltip`, `EstimatedWardrobePrice`). Regeln: Der Wert ist der Grundpreis plus alles Verbaute in einer festen Reihenfolge
+  (Umschmiedestein samt Kosten des Anbringens nach Seltenheit, Recombobulator, Art of War/Peace, Etherwarp, Kraftrolle, Singularität, Jalapeno- und Statistik-Buch, Anreicherung, Divan-Beschichtung, Mithril-Infusion,
+  Free Will, Crimson-Prestige, Sterne mit Essenz, Coins und Gegenständen samt Kuudra-Stufen, Meistersterne, Hot-Potato- und Fuming-Bücher, Wet Book, Farming for Dummies, Overclocker, Silex, Transmission Tuner,
+  Mana Disintegrator, Polarvoid, Bookworm, Pocket Sack-in-a-Sack, Helmskin, Rüstungsfarbe, Rune, Fähigkeits-Schriftrollen, Booster, Bohrer- und Angelteile, Edelstein-Plätze und Edelsteine, Verzauberungen mit den
+  Sonderregeln für von sich aus aktive, Abschluss-Stücke, nur Stufe 1 oder 5, Buchpakete und stapelnde); es steht nichts da, wenn nur der Grundpreis bleibt; Preisquellen Sofortkauf, Sofortverkauf und NPC; die Zahlen
+  werden abgeschnitten (56.1M, 12k); im Kleiderschrank steht unter dem Knopf eines Satzes jedes der vier Stücke mit Wert und die Summe. Die Tabellen (Umschmiedesteine, Essenz-Kosten, Edelsteinplätze von NEU-REPO;
+  Items.json und Enchants.json von SkyHanni-Repo) sind Tatsachen über das Spiel und werden wie die Item-Namen aus dem Netz geholt. Eigene Zutaten: der Rechner läuft gegen eine Schnittstelle und ist ohne Spiel
+  geprüft, der Gegenstand unter der Maus wird im Tick gelesen und alle drei Sekunden neu gerechnet, der Kasten ist ein Kasten des HUD-Editors, eigener Wortlaut. Nicht übernommen: der Herstellungspreis als Rückfall
+  (der Grundpreis eines Stücks ohne Basar-, Auktions- und NPC-Preis bleibt null) und die Fehlerberichte von SkyHanni.
 
 ---
 

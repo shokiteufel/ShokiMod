@@ -308,6 +308,12 @@ public final class FeatureGate {
         return ModConfig.INSTANCE.misc.fixDoubleClicks;
     }
 
+    /** Inventory > Estimated Item Value: den Gegenstand unter der Maus lesen und rechnen - nur wenn der Kasten, die Tooltip-Zeile oder eine Kleiderschrank-Summe an ist. Braucht den Ort (nur in SkyBlock) */
+    public static boolean estimatedItemValue() {
+        ModConfig.EstimatedItemValueCategory c = ModConfig.INSTANCE.inventory.itemValue;
+        return c.enabled || c.showTooltip || c.armor || c.equipment;
+    }
+
     /** Die Kampfzeiten der Slayer-Bosse lesen alle fuenf Ticks die Seitenleiste und den Chat - nur wenn eine der Zeilen an ist */
     public static boolean slayerKillTime() {
         return ModConfig.INSTANCE.slayer.bossKillTime || ModConfig.INSTANCE.slayer.questKillTime;
@@ -380,6 +386,6 @@ public final class FeatureGate {
                 // Die Dungeon-Funktionen fragen die Tab-Liste und die Seitenleiste (DungeonLauf, Funny Map): ohne diese Zeile stuende sie nur, solange eine der Funktionen oben an ist
                 || roomScan() || iHateDoors() || dungeonLog() || leapMenu() || hideOtherHooks() || mineshaftKeys()
                 || hookDisplay() || baitDisplay() || seaCocoon() || slayerCocoon() || slayerSpawnParticles() || skillProgress() || auctionUnderbid() || bazaarHelpers()
-                || npcDayLimit() || warpCommands() || fixDoubleClicks();
+                || npcDayLimit() || warpCommands() || fixDoubleClicks() || estimatedItemValue();
     }
 }

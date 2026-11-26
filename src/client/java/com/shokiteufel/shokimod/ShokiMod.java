@@ -117,6 +117,7 @@ public class ShokiMod implements ClientModInitializer {
         com.shokiteufel.shokimod.handler.BazaarHelpers.register();
         com.shokiteufel.shokimod.handler.NpcDayLimit.register();
         com.shokiteufel.shokimod.handler.WarpCommands.register();
+        com.shokiteufel.shokimod.handler.EstimatedItemValue.register();
         com.shokiteufel.shokimod.handler.SlayerSpawnParticles.register();
         com.shokiteufel.shokimod.handler.SeaCreatureNear.register();
         com.shokiteufel.shokimod.handler.PestReminder.register();
