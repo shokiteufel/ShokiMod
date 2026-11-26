@@ -369,9 +369,20 @@ public final class ItemValue {
             // live[0] ist der Sofortkauf, live[1] der Sofortverkauf. Was eine Sell
             // Order einbringt, ist derselbe Betrag wie ein Sofortkauf - dasselbe
             // offene Angebot, von der anderen Seite gesehen
-            return new BazaarPrice(live[1], live[0]);
+            return combine(live, BazaarLive.cheapestOfferExact(itemId), BazaarLive.highestBidExact(itemId));
         }
         return BAZAAR.get(itemId);
+    }
+
+    /**
+     * Der Preis aus einem frisch geholten Stand: die beiden Mittel ({@code live[0]} Sofortkauf, {@code live[1]} Sofortverkauf) und die Spitzen des
+     * Auftragsbuchs, ungerundet, wo es sie gibt. Bis 2.4.16 standen an Stelle der Spitzen die Mittel - ein Auftrag knapp ueber dem billigsten
+     * Angebot galt dann nicht als ueberboten, solange das Mittel darueber lag.
+     */
+    static BazaarPrice combine(long[] live, double offerExact, double bidExact) {
+        double offer = offerExact > 0 ? offerExact : live[0];
+        double bid = bidExact > 0 ? bidExact : live[1];
+        return new BazaarPrice(live[1], live[0], offer, bid);
     }
 
     /**

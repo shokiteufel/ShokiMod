@@ -289,7 +289,7 @@ public final class FeatureGate {
     /** Inventory > Bazaar: Fenster des Basars lesen, Plaetze markieren, Suchen mitschreiben - nur wenn eine der vier Hilfen an ist. Braucht den Ort (nur in SkyBlock) */
     public static boolean bazaarHelpers() {
         ModConfig.BazaarHelpersCategory c = ModConfig.INSTANCE.inventory.bazaar;
-        return c.purchaseHelper || c.orderHelper || c.bestSellMethod || c.cancelledBuyOrderClipboard;
+        return c.purchaseHelper || c.orderHelper || c.bestSellMethod || c.cancelledBuyOrderClipboard || c.orderPrices;
     }
 
     /** Misc > NPC Daily Limit Tracker: die Verkaufszeilen im Chat zaehlen - nur wenn er an ist. Braucht den Ort (nur in SkyBlock) */

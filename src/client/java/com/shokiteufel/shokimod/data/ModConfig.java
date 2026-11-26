@@ -5098,6 +5098,11 @@ public class ModConfig extends Config {
         @ConfigEditorBoolean
         public boolean cancelledBuyOrderClipboard = false;
 
+        @Expose
+        @ConfigOption(name = "Order prices", desc = "Writes the bazaar prices under every order in Your Bazaar Orders and the co-op list: Bazaar Buy (the highest buy order), Bazaar Sell (the cheapest sell offer) and what an NPC pays. Also for shards, essences and enchanted books. An order that already has Bazaar lines from another mod is left alone. Off until you turn it on.")
+        @ConfigEditorBoolean
+        public boolean orderPrices = false;
+
         // Lage des Kastens "Best sell method", gesetzt ueber /shoki hud
         @Expose
         public float hudX = 0.55f;

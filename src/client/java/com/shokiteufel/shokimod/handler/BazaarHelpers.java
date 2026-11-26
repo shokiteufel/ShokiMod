@@ -5,12 +5,15 @@ import com.shokiteufel.shokimod.data.FeatureGate;
 import com.shokiteufel.shokimod.data.GameState;
 import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.mixin.AbstractContainerScreenAccessor;
+import com.shokiteufel.shokimod.util.BazaarIds;
+import com.shokiteufel.shokimod.util.BazaarLive;
 import com.shokiteufel.shokimod.util.ItemNames;
 import com.shokiteufel.shokimod.util.ItemValue;
 import com.shokiteufel.shokimod.util.ItemValue.BazaarPrice;
 import com.shokiteufel.shokimod.util.SkyBlockItems;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback;
 import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -23,6 +26,7 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.regex.Matcher;
@@ -103,6 +107,8 @@ public final class BazaarHelpers {
         ClientTickEvents.END_CLIENT_TICK.register(BazaarHelpers::tick);
         // Eine Suche mit /bz oder /bazaar merken: nach ihr richtet sich der Purchase helper
         ClientSendMessageEvents.COMMAND.register(BazaarHelpers::onCommand);
+        // Order prices: die Preiszeilen unter einem Auftrag
+        ItemTooltipCallback.EVENT.register((stack, context, flag, lines) -> addOrderPrices(stack, lines));
     }
 
     private static ModConfig.BazaarHelpersCategory cfg() {
@@ -222,6 +228,35 @@ public final class BazaarHelpers {
         return title != null && ORDERS_TITLE.matcher(title).matches();
     }
 
+    /** Ein Preis in Coins: ab tausend ganz, darunter mit einer Stelle - ohne ".0" ('550', '4.5', '12,346') */
+    static String coins(double value) {
+        if (value >= 1000) return String.format(Locale.US, "%,.0f", value);
+        String text = String.format(Locale.US, "%.1f", value);
+        return text.endsWith(".0") ? text.substring(0, text.length() - 2) : text;
+    }
+
+    /**
+     * Die Zeilen unter einem Auftrag: der hoechste Kaufauftrag ("Bazaar Buy"), das billigste Angebot ("Bazaar Sell") und was ein NPC zahlt. Eine Zeile
+     * entfaellt, wenn es die Zahl nicht gibt.
+     */
+    static List<String> priceLines(BazaarPrice price, double npc) {
+        List<String> out = new ArrayList<>(3);
+        if (price != null && price.highestBid() > 0) out.add("§6Bazaar Buy: §6" + coins(price.highestBid()));
+        if (price != null && price.cheapestOffer() > 0) out.add("§6Bazaar Sell: §6" + coins(price.cheapestOffer()));
+        if (npc > 0) out.add("§6NPC Sell: §6" + coins(npc));
+        return out;
+    }
+
+    /** Stehen unter dem Gegenstand schon Basarpreise (von einer anderen Mod)? Zeilen ohne Farbcodes */
+    static boolean hasPriceLines(List<String> plain) {
+        for (String line : plain) {
+            if (line == null) continue;
+            String t = line.trim();
+            if (t.startsWith("Bazaar Buy") || t.startsWith("Bazaar Sell")) return true;
+        }
+        return false;
+    }
+
     // ------------------------------------------------------------------ Zustand
 
     public static String searched() {
@@ -315,6 +350,8 @@ public final class BazaarHelpers {
                 }
             }
         }
+        // Solange eine Auftragsliste offen ist, wird der Basar frisch geholt - sonst standen hier Preise von vor bis zu zehn Minuten
+        if ((c.orderHelper || c.orderPrices) && isOrdersTitle(title)) BazaarLive.wanted();
         if (c.orderHelper && isOrdersTitle(title)) {
             for (Slot slot : slots) {
                 if (slot.container instanceof Inventory) continue;
@@ -337,7 +374,7 @@ public final class BazaarHelpers {
             BazaarPrice p = ItemValue.bazaarPrice(id);
             if (p != null) return p;
         }
-        for (String candidate : ItemNames.idsFor(product)) {
+        for (String candidate : BazaarIds.candidates(product)) {
             BazaarPrice p = ItemValue.bazaarPrice(candidate);
             if (p != null) return p;
         }
@@ -347,10 +384,25 @@ public final class BazaarHelpers {
     private static String idOfProduct(ItemStack stack, String name) {
         String id = SkyBlockItems.idOf(stack);
         if (id != null && ItemValue.bazaarPrice(id) != null) return id;
-        for (String candidate : ItemNames.idsFor(name)) {
+        for (String candidate : BazaarIds.candidates(name)) {
             if (ItemValue.bazaarPrice(candidate) != null) return candidate;
         }
         return null;
+    }
+
+    /** Order prices: unter einen Auftrag der Liste schreiben, was sein Stueck im Basar kostet - auch bei Shards, Essenzen und Buechern */
+    private static void addOrderPrices(ItemStack stack, List<Component> lines) {
+        if (lines == null || !FeatureGate.bazaarHelpers() || !cfg().orderPrices || !isOrdersTitle(lastTitle)) return;
+        Matcher m = ORDER_NAME.matcher(clean(stack.getHoverName().getString()));
+        if (!m.matches()) return;
+        List<String> plain = new ArrayList<>(lines.size());
+        for (Component line : lines) plain.add(clean(line.getString()));
+        if (hasPriceLines(plain)) return;
+        String id = idOfProduct(stack, m.group(2));
+        if (id == null) return;
+        BazaarPrice price = ItemValue.bazaarPrice(id);
+        if (price == null) return;
+        for (String line : priceLines(price, ItemNames.npcSellPrice(id))) lines.add(Component.literal(line));
     }
 
     /** Das Fenster eines Produkts: Platz 10 "Buy Instantly", Platz 13 das Stueck - dann der Unterschied zwischen Sofortverkauf und Angebot */
@@ -360,6 +412,7 @@ public final class BazaarHelpers {
         if (!clean(slots.get(BUY_INSTANTLY_SLOT).getItem().getHoverName().getString()).equals("Buy Instantly")) return;
         ItemStack product = slots.get(PRODUCT_SLOT).getItem();
         if (product.isEmpty()) return;
+        BazaarLive.wanted();
         String name = clean(product.getHoverName().getString());
         String id = idOfProduct(product, name);
         int having = amountOf(client, id, name);

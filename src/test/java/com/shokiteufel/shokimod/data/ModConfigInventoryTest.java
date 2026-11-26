@@ -24,6 +24,16 @@ class ModConfigInventoryTest {
         assertFalse(b.orderHelper);
         assertFalse(b.bestSellMethod);
         assertFalse(b.cancelledBuyOrderClipboard);
+        assertFalse(b.orderPrices);
+        ModConfig saved = ModConfig.INSTANCE;
+        try {
+            ModConfig c = new ModConfig();
+            c.inventory.bazaar.orderPrices = true;
+            ModConfig.INSTANCE = c;
+            assertTrue(FeatureGate.bazaarHelpers(), "auch die Preiszeilen allein brauchen den Ort");
+        } finally {
+            ModConfig.INSTANCE = saved;
+        }
     }
 
     @Test
