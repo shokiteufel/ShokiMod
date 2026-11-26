@@ -213,6 +213,13 @@ public class ModConfig extends Config {
         n.gmtEpochDay = Math.max(0L, n.gmtEpochDay);
     }
 
+    /** UI & Visuals: fehlende Teile ergaenzen (eine Datei von vorher oder ein "null" aus der Hand kennt sie nicht) */
+    static void repairUiVisuals(ModConfig c) {
+        if (c == null) return;
+        if (c.uiVisuals == null) c.uiVisuals = new UiVisualsCategory();
+        if (c.uiVisuals.inventoryScreen == null) c.uiVisuals.inventoryScreen = new SkyblockInventoryScreenCategory();
+    }
+
     /** Gemerkte Spielernamen (Chat > Tab Complete): nie null, nur gueltige Namen (bis 16 Buchstaben, Ziffern und Unterstriche), keine Doppelten, hoechstens 5000 */
     static java.util.List<String> cleanNames(java.util.List<String> names) {
         java.util.LinkedHashSet<String> out = new java.util.LinkedHashSet<>();
@@ -637,6 +644,7 @@ public class ModConfig extends Config {
         if (migrateBazaarFlips(INSTANCE)) INSTANCE.saveNow();
         repairInventory(INSTANCE);
         repairMisc(INSTANCE);
+        repairUiVisuals(INSTANCE);
         repairChatTab(INSTANCE);
         if (INSTANCE.logs == null) INSTANCE.logs = new LogsCategory();
         if (INSTANCE.mining.cold == null) INSTANCE.mining.cold = new ColdAlertCategory();
@@ -1406,6 +1414,10 @@ public class ModConfig extends Config {
     @Expose
     @Category(name = "Misc", desc = "Small helpers that fit nowhere else: the NPC daily limit tracker, shorter warp commands and a fix for double clicks. Everything is off until you turn it on. Idea from SkyHanni.")
     public MiscCategory misc = new MiscCategory();
+
+    @Expose
+    @Category(name = "UI & Visuals", desc = "How SkyBlock's own windows look. For now the Skyblock Inventory Screen: your equipment next to the inventory. Off until you turn it on. Idea from Skyblocker.")
+    public UiVisualsCategory uiVisuals = new UiVisualsCategory();
 
     @Expose
     @Category(name = "ikohS", desc = "ShokiMod's own functions, apart from the normal ones: the Dungeon functions (Funny Map, Star mobs, I hate doors) and The Mist. Everything in here is off until you turn it on.")
@@ -5890,6 +5902,37 @@ public class ModConfig extends Config {
         public float hudScale = 1.0f;
         @Expose
         public float hudAlpha = 1.0f;
+    }
+
+    /**
+     * UI & Visuals: wie SkyBlocks eigene Fenster aussehen - nach Skyblocker (UI & Visuals). Bisher eine Unterkategorie: Skyblock Inventory Screen mit
+     * "Show Equipment in Inventory". Alles von Haus aus aus.
+     *
+     * Herkunft der Idee: Skyblocker (LGPL-3.0, {@code UIAndVisualsConfig}, {@code UIAndVisualsCategory}). Von dort stammen der Name der Kategorie, der Unterkategorie
+     * und des Schalters; die Umsetzung ist eigene Arbeit: Java, die Einstellungen stehen in {@code uiVisuals.*}.
+     */
+    public static class UiVisualsCategory {
+
+        @ConfigOption(name = "UI & Visuals", desc = "How SkyBlock's own windows look. The Skyblock Inventory Screen lives in the sub tab on the left. Off until you turn it on. Idea from Skyblocker.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @Category(name = "Skyblock Inventory Screen", desc = "Your SkyBlock equipment next to the inventory window. Off until you turn it on. Idea from Skyblocker.")
+        public SkyblockInventoryScreenCategory inventoryScreen = new SkyblockInventoryScreenCategory();
+    }
+
+    /** UI & Visuals > Skyblock Inventory Screen: die Equipment-Plaetze neben dem Inventarfenster (Taste E) - siehe {@code equipment.EquipmentInventory} */
+    public static class SkyblockInventoryScreenCategory {
+
+        @ConfigOption(name = "Skyblock Inventory Screen", desc = "Changes to the inventory window (key E) while you are on SkyBlock. Off until you turn it on. Idea from Skyblocker.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Show Equipment in Inventory", desc = "Shows your four SkyBlock equipment pieces (necklace, cloak, belt, gloves or bracelet) in a strip beside the inventory window, and opens /equipment when you click one. The display is a cache: it is filled when you open /equipment (or the Equipment Sets window) and is not updated in real time, so open /equipment once after you change a piece. Kept per profile, with its own set for the Rift and the Safari, and remembered after a restart. Idea from Skyblocker.")
+        @ConfigEditorBoolean
+        public boolean showEquipment = false;
     }
 
     /**

@@ -130,6 +130,8 @@ public class ShokiMod implements ClientModInitializer {
         // Garden: das Fenster der Besucher (Einkaufsliste, Belohnungswarnung) und der Text ueber ihrem Namen
         com.shokiteufel.shokimod.handler.VisitorWindow.register();
         com.shokiteufel.shokimod.render.VisitorRewardNames.register();
+        // UI & Visuals > Skyblock Inventory Screen: die Equipment-Plaetze neben dem Inventarfenster (und das Lesen der Fenster /equipment)
+        com.shokiteufel.shokimod.equipment.EquipmentInventory.register();
         com.shokiteufel.shokimod.handler.DeployableReminder.register();
         com.shokiteufel.shokimod.handler.SeaCreatureHp.register();
         com.shokiteufel.shokimod.handler.TrashBooks.register();

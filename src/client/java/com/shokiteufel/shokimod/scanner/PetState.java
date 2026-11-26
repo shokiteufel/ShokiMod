@@ -292,6 +292,14 @@ public final class PetState {
     private static volatile String profileId = "";
 
     /**
+     * Die Kennung des Profils, in dem man gerade spielt (klein geschrieben), oder leer, solange Hypixel sie noch nicht genannt hat. Auch die Equipment-Plaetze
+     * neben dem Inventar (UI & Visuals) halten ihre Gegenstaende je Profil auseinander und fragen hier.
+     */
+    public static String profileId() {
+        return profileId;
+    }
+
+    /**
      * Ein neuer Server innerhalb der SkyBlock-Sitzung (Insel, Hub, Dungeon): Welches Pet draussen ist, bleibt, bis Autopet, ein Ruf von Hand oder
      * die Tab-Liste etwas anderes sagen. Vorher wurde alles vergessen; im Dungeon steht in der Tab-Liste kein Pet-Widget, und die Mod kannte das
      * Pet dort nicht mehr (Schiggy, 09.11.). Nur der Takt der Quellen (Frist der Tab-Liste, Menue) beginnt neu. Ein anderes Profil meldet sich mit
