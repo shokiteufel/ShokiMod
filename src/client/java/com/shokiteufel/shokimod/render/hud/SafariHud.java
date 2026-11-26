@@ -19,7 +19,7 @@ public final class SafariHud {
 
     /** Ein Kasten auf dem Bildschirm. Traegt seine eigene Lage und Groesse in der Config */
     public enum Panel {
-        PROGRESS, MISSING, CONTEST, NEARBY, HUNTING, GUILD, COLLECTION, PROFIT, MINING, PET, PERFORMANCE, SEATRACKER, EFFECTS, SEAHP, DARK_AUCTION, FIRE_VEIL, DEPLOYABLES, FORGE, SKILL_XP, FROZEN_BLAZE, FISHING_HOOK, FISHING_BAIT, SKILL_PROGRESS, SKILL_BAR, BAZAAR_SELL;
+        PROGRESS, MISSING, CONTEST, NEARBY, GUILD, PROFIT, MINING, PET, PERFORMANCE, SEATRACKER, EFFECTS, SEAHP, DARK_AUCTION, FIRE_VEIL, DEPLOYABLES, FORGE, SKILL_XP, FROZEN_BLAZE, FISHING_HOOK, FISHING_BAIT, SKILL_PROGRESS, SKILL_BAR, BAZAAR_SELL;
 
         public boolean visible() {
             ModConfig.SafariCategory c = ModConfig.INSTANCE.safari;
@@ -28,9 +28,7 @@ public final class SafariHud {
                 case MISSING -> c.showMissingHud;
                 case CONTEST -> c.showContestHud;
                 case NEARBY -> ModConfig.INSTANCE.mobVisuals.masterEnabled && ModConfig.INSTANCE.mobVisuals.showNearbyHud;
-                case HUNTING -> ModConfig.INSTANCE.hunting.tracker.enabled && ModConfig.INSTANCE.hunting.tracker.showHud;
                 case GUILD -> ModConfig.INSTANCE.guild.events.enabled && ModConfig.INSTANCE.guild.events.showHud;
-                case COLLECTION -> ModConfig.INSTANCE.collections.tracker.enabled && ModConfig.INSTANCE.collections.tracker.showHud;
                 case PROFIT -> ModConfig.INSTANCE.profit.enabled && ModConfig.INSTANCE.profit.showHud
                         && !(ModConfig.INSTANCE.profit.hideInDungeons && com.shokiteufel.shokimod.handler.DungeonLauf.imDungeon());
                 case MINING -> ModConfig.INSTANCE.mining.hud.showHud;
@@ -87,10 +85,8 @@ public final class SafariHud {
                 case PROGRESS, MISSING -> "Safari";
                 case CONTEST -> "Contest";
                 case NEARBY -> "Mob";
-                case HUNTING -> "Hunting";
                 case GUILD -> "Guild";
-                case COLLECTION -> "Collection";
-                case PROFIT -> "Profit";
+                case PROFIT -> "Profit Tracker";
                 case MINING -> "Mining HUD";
                 case PET -> "Pet";
                 case PERFORMANCE -> "Performance";
@@ -145,9 +141,7 @@ public final class SafariHud {
                 case MISSING -> c.missingHudX;
                 case CONTEST -> c.contestHudX;
                 case NEARBY -> ModConfig.INSTANCE.mobVisuals.nearbyHudX;
-                case HUNTING -> ModConfig.INSTANCE.hunting.tracker.hudX;
                 case GUILD -> ModConfig.INSTANCE.guild.events.hudX;
-                case COLLECTION -> ModConfig.INSTANCE.collections.tracker.hudX;
                 case PROFIT -> ModConfig.INSTANCE.profit.hudX;
                 case MINING -> ModConfig.INSTANCE.mining.hud.hudX;
                 case PET -> ModConfig.INSTANCE.hud.pet.hudX;
@@ -176,9 +170,7 @@ public final class SafariHud {
                 case MISSING -> c.missingHudY;
                 case CONTEST -> c.contestHudY;
                 case NEARBY -> ModConfig.INSTANCE.mobVisuals.nearbyHudY;
-                case HUNTING -> ModConfig.INSTANCE.hunting.tracker.hudY;
                 case GUILD -> ModConfig.INSTANCE.guild.events.hudY;
-                case COLLECTION -> ModConfig.INSTANCE.collections.tracker.hudY;
                 case PROFIT -> ModConfig.INSTANCE.profit.hudY;
                 case MINING -> ModConfig.INSTANCE.mining.hud.hudY;
                 case PET -> ModConfig.INSTANCE.hud.pet.hudY;
@@ -207,9 +199,7 @@ public final class SafariHud {
                 case MISSING -> c.missingHudScale;
                 case CONTEST -> c.contestHudScale;
                 case NEARBY -> ModConfig.INSTANCE.mobVisuals.nearbyHudScale;
-                case HUNTING -> ModConfig.INSTANCE.hunting.tracker.hudScale;
                 case GUILD -> ModConfig.INSTANCE.guild.events.hudScale;
-                case COLLECTION -> ModConfig.INSTANCE.collections.tracker.hudScale;
                 case PROFIT -> ModConfig.INSTANCE.profit.hudScale;
                 case MINING -> ModConfig.INSTANCE.mining.hud.hudScale;
                 case PET -> ModConfig.INSTANCE.hud.pet.hudScale;
@@ -250,17 +240,9 @@ public final class SafariHud {
                     ModConfig.INSTANCE.mobVisuals.nearbyHudX = x;
                     ModConfig.INSTANCE.mobVisuals.nearbyHudY = y;
                 }
-                case HUNTING -> {
-                    ModConfig.INSTANCE.hunting.tracker.hudX = x;
-                    ModConfig.INSTANCE.hunting.tracker.hudY = y;
-                }
                 case GUILD -> {
                     ModConfig.INSTANCE.guild.events.hudX = x;
                     ModConfig.INSTANCE.guild.events.hudY = y;
-                }
-                case COLLECTION -> {
-                    ModConfig.INSTANCE.collections.tracker.hudX = x;
-                    ModConfig.INSTANCE.collections.tracker.hudY = y;
                 }
                 case PROFIT -> {
                     ModConfig.INSTANCE.profit.hudX = x;
@@ -345,9 +327,7 @@ public final class SafariHud {
                 case MISSING -> c.missingHudAlpha;
                 case CONTEST -> c.contestHudAlpha;
                 case NEARBY -> ModConfig.INSTANCE.mobVisuals.nearbyHudAlpha;
-                case HUNTING -> ModConfig.INSTANCE.hunting.tracker.hudAlpha;
                 case GUILD -> ModConfig.INSTANCE.guild.events.hudAlpha;
-                case COLLECTION -> ModConfig.INSTANCE.collections.tracker.hudAlpha;
                 case PROFIT -> ModConfig.INSTANCE.profit.hudAlpha;
                 case MINING -> ModConfig.INSTANCE.mining.hud.hudOpacity;
                 case PET -> ModConfig.INSTANCE.hud.pet.hudOpacity;
@@ -379,9 +359,7 @@ public final class SafariHud {
                 case MISSING -> c.missingHudAlpha = clamped;
                 case CONTEST -> c.contestHudAlpha = clamped;
                 case NEARBY -> ModConfig.INSTANCE.mobVisuals.nearbyHudAlpha = clamped;
-                case HUNTING -> ModConfig.INSTANCE.hunting.tracker.hudAlpha = clamped;
                 case GUILD -> ModConfig.INSTANCE.guild.events.hudAlpha = clamped;
-                case COLLECTION -> ModConfig.INSTANCE.collections.tracker.hudAlpha = clamped;
                 case PROFIT -> ModConfig.INSTANCE.profit.hudAlpha = clamped;
                 case MINING -> ModConfig.INSTANCE.mining.hud.hudOpacity = clamped;
                 case PET -> ModConfig.INSTANCE.hud.pet.hudOpacity = clamped;
@@ -411,9 +389,7 @@ public final class SafariHud {
                 case MISSING -> c.missingHudScale = clamped;
                 case CONTEST -> c.contestHudScale = clamped;
                 case NEARBY -> ModConfig.INSTANCE.mobVisuals.nearbyHudScale = clamped;
-                case HUNTING -> ModConfig.INSTANCE.hunting.tracker.hudScale = clamped;
                 case GUILD -> ModConfig.INSTANCE.guild.events.hudScale = clamped;
-                case COLLECTION -> ModConfig.INSTANCE.collections.tracker.hudScale = clamped;
                 case PROFIT -> ModConfig.INSTANCE.profit.hudScale = clamped;
                 case MINING -> ModConfig.INSTANCE.mining.hud.hudScale = clamped;
                 case PET -> ModConfig.INSTANCE.hud.pet.hudScale = clamped;
@@ -485,9 +461,7 @@ public final class SafariHud {
                 case MISSING -> MissingHud.build();
                 case CONTEST -> ContestHud.build();
                 case NEARBY -> NearbyHud.build();
-                case HUNTING -> HuntingHud.build();
                 case GUILD -> GuildEventHud.build();
-                case COLLECTION -> CollectionHud.build();
                 case PROFIT -> ProfitHud.build();
                 case MINING -> MiningHud.build();
                 case PET -> PetHud.build();

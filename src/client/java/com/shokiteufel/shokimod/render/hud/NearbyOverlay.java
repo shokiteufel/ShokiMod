@@ -3,8 +3,6 @@ package com.shokiteufel.shokimod.render.hud;
 import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.gui.BannerDesignScreen;
 import com.shokiteufel.shokimod.gui.HudEditorScreen;
-import com.shokiteufel.shokimod.handler.CollectionTracker;
-import com.shokiteufel.shokimod.handler.HuntingTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 
@@ -177,7 +175,6 @@ public final class NearbyOverlay {
     public static boolean anyClickable() {
         if (!interactive()) return HuntingBoxOverlay.shown();
         return HuntingBoxOverlay.shown() || shown()
-                || SafariHud.Panel.HUNTING.visible() || SafariHud.Panel.COLLECTION.visible()
                 || SafariHud.Panel.PROFIT.visible() || SafariHud.Panel.SEATRACKER.visible()
                 || SafariHud.Panel.SKILL_XP.visible();
     }
@@ -198,19 +195,6 @@ public final class NearbyOverlay {
             int row = content.rowAt(Minecraft.getInstance().font,
                     SafariHud.originX(panel), SafariHud.originY(panel), panel.scale(), mouseX, mouseY);
             if (row >= 0 && NearbyHud.click(row)) return true;
-        }
-
-        if (SafariHud.Panel.COLLECTION.visible()) {
-            SafariHud.Panel panel = SafariHud.Panel.COLLECTION;
-            HudPanel content = panel.build();
-            int row = content.rowAt(Minecraft.getInstance().font,
-                    SafariHud.originX(panel), SafariHud.originY(panel), panel.scale(), mouseX, mouseY);
-            // Der Reset-Knopf sitzt in der Ueberschrift, neben dem Namen
-            double titleX = (mouseX - SafariHud.originX(panel)) / panel.scale() - HudPanel.padding();
-            if (row == 0 && CollectionHud.resetAt(Minecraft.getInstance().font, titleX)) {
-                CollectionTracker.askReset();
-                return true;
-            }
         }
 
         if (SafariHud.Panel.PROFIT.visible()) {
@@ -289,20 +273,6 @@ public final class NearbyOverlay {
             if (row == 0 && SkillXpHud.resetAt(Minecraft.getInstance().font, titleX)) {
                 com.shokiteufel.shokimod.handler.SkillXpTracker.askReset();
                 SafariHud.invalidate(panel);
-                return true;
-            }
-        }
-
-        if (SafariHud.Panel.HUNTING.visible()) {
-            SafariHud.Panel panel = SafariHud.Panel.HUNTING;
-            // Derselbe gepufferte Kasten, der gerade gezeichnet wird - sonst passen die Zeilen nicht
-            HudPanel content = panel.build();
-            int row = content.rowAt(Minecraft.getInstance().font,
-                    SafariHud.originX(panel), SafariHud.originY(panel), panel.scale(), mouseX, mouseY);
-            // Der Reset-Knopf sitzt in der Ueberschrift, neben dem Namen
-            double titleX = (mouseX - SafariHud.originX(panel)) / panel.scale() - HudPanel.padding();
-            if (row == 0 && HuntingHud.resetAt(Minecraft.getInstance().font, titleX)) {
-                HuntingTracker.askReset();
                 return true;
             }
         }

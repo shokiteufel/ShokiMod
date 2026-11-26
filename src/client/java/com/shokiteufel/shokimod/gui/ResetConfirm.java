@@ -25,7 +25,7 @@ public final class ResetConfirm {
     }
 
     /**
-     * @param tracker der Name fuer die Frage, etwa "Hunting tracker"
+     * @param tracker der Name fuer die Frage, etwa "Profit tracker"
      * @param effect  was verschwindet - ein Satz, hinter den "This cannot be undone." kommt
      * @param reset   was bei "Yes" geschieht (oder sofort, wenn die Frage aus ist)
      */

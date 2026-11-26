@@ -91,11 +91,6 @@ public final class FeatureGate {
         return false;
     }
 
-    /** Der Hunting Tracker: nur wenn er zaehlt, braucht er Ort und Preise */
-    public static boolean huntingTracker() {
-        return ModConfig.INSTANCE.hunting.tracker.enabled;
-    }
-
     /** Die Gilden-Events: aus heisst kein Request und kein Kasten */
     public static boolean guildEvents() {
         return ModConfig.INSTANCE.guild.events.enabled;
@@ -109,11 +104,6 @@ public final class FeatureGate {
     /** Angel-Hotspots: Staender suchen, Partikel lesen, Kreise zeichnen - nur wenn an */
     public static boolean hotspots() {
         return ModConfig.INSTANCE.fishing.hotspot.enabled;
-    }
-
-    /** Der Collection-Tracker liest Sack-Hinweise und das Collections-Menue */
-    public static boolean collectionTracker() {
-        return ModConfig.INSTANCE.collections.tracker.enabled;
     }
 
     /** Seltene Funde: Alarm oder Teilen. Aus heisst: kein Preis, kein Request */
@@ -367,8 +357,8 @@ public final class FeatureGate {
     }
 
     public static boolean location() {
-        return forge() || forgeAlert() || funnyMap() || contest() || safari() || nearbyPanel() || rareLoot() || huntingTracker() || mobMarkers() || chatRules()
-                || cakeReminder() || hotspots() || collectionTracker() || pestTraps() || gardenVisitors() || seaHp() || mute() || outOfAir() || coldAlert() || petHud() || deployableHud() || hotspotShare()
+        return forge() || forgeAlert() || funnyMap() || contest() || safari() || nearbyPanel() || rareLoot() || mobMarkers() || chatRules()
+                || cakeReminder() || hotspots() || pestTraps() || gardenVisitors() || seaHp() || mute() || outOfAir() || coldAlert() || petHud() || deployableHud() || hotspotShare()
                 // Die Kampfzeiten brauchen die Server-Kennung: Die Sitzung beginnt neu, wenn die Lobby wechselt
                 || slayerSpawn() || slayerKillTime() || darkAuction() || darkAuctionTimer() || hidePlayersDungeon() || nearbyRare() || ModConfig.INSTANCE.effects.enabled || mineshaftAnnounce()
                 // Die Dungeon-Funktionen fragen die Tab-Liste und die Seitenleiste (DungeonLauf, Funny Map): ohne diese Zeile stuende sie nur, solange eine der Funktionen oben an ist

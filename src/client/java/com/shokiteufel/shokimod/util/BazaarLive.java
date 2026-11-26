@@ -248,7 +248,7 @@ public final class BazaarLive {
             //
             // Anfangs ging es hier allein um die Fusionen, und dreihundert Shards
             // waren alles, was gebraucht wurde. Inzwischen rechnen auch die
-            // Handwerksrezepte damit, der Rare Loot und der Hunting Tracker - fuer
+            // Handwerksrezepte damit, der Rare Loot und der Profit Tracker - fuer
             // die waere ein Bazaar ohne ihre Waren nutzlos. Zweitausend Eintraege
             // kosten ein paar hundert Kilobyte und sind damit billiger als ein
             // einziges erneutes Holen

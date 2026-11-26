@@ -86,11 +86,11 @@ class ModConfigSkyHanniReiterTest {
     }
 
     @Test
-    void inventoryHasAuctionHouseAndBazaarBelowIt() {
+    void inventoryHasAuctionHouseBazaarAndTheFlipsBelowIt() {
         Ergebnis e = verarbeiten();
         ProcessedCategory inventory = nach(e, "ModConfig.inventory");
         assertNotNull(inventory, "der Reiter Inventory");
-        for (String name : new String[] {"InventoryCategory.auctions", "InventoryCategory.bazaar"}) {
+        for (String name : new String[] {"InventoryCategory.auctions", "InventoryCategory.bazaar", "InventoryCategory.flips"}) {
             ProcessedCategory c = nach(e, name);
             assertNotNull(c, name);
             assertEquals(inventory.getIdentifier(), c.getParentCategoryId(), name + " haengt unter Inventory");

@@ -322,7 +322,7 @@ public final class CraftProfitData {
      */
     private static List<Row> bookRows(String suche, boolean instantBuy, boolean instantSell,
                                       boolean onlyGain) {
-        double steuer = ModConfig.INSTANCE.bazaar.tax.percent;
+        double steuer = ModConfig.INSTANCE.inventory.flips.tax.percent;
         List<Row> out = new ArrayList<>();
         for (String eins : BazaarLive.ids()) {
             if (!eins.startsWith("ENCHANTMENT_") || !eins.endsWith("_1")) continue;

@@ -45,7 +45,7 @@ import java.util.regex.Pattern;
  *       Voreinstellung des Kastens.</li>
  * </ul>
  *
- * Die Zeit laeuft wie beim Hunting Tracker: Pause nach Untaetigkeit, und die
+ * Die Zeit laeuft wie beim Sea creature tracker: Pause nach Untaetigkeit, und die
  * Wartezeit seit dem letzten Fund wird dann wieder abgezogen.
  */
 public final class ProfitTracker {

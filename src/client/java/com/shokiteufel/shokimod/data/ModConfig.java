@@ -12,12 +12,9 @@ import com.shokiteufel.shokimod.gui.CustomMobScreen;
 import com.shokiteufel.shokimod.gui.MarkerSettingsScreen;
 import com.shokiteufel.shokimod.gui.BannerDesignScreen;
 import com.shokiteufel.shokimod.gui.SoundPickerScreen;
-import com.shokiteufel.shokimod.gui.CollectionPickerScreen;
 import com.shokiteufel.shokimod.handler.CakeReminder;
-import com.shokiteufel.shokimod.handler.CollectionTracker;
 import com.shokiteufel.shokimod.handler.DeployableReminder;
 import com.shokiteufel.shokimod.handler.GuildEvents;
-import com.shokiteufel.shokimod.handler.HuntingTracker;
 import com.shokiteufel.shokimod.handler.PestReminder;
 import com.shokiteufel.shokimod.handler.ProfitTracker;
 import com.shokiteufel.shokimod.handler.RareLootHandler;
@@ -189,6 +186,23 @@ public class ModConfig extends Config {
         if (c.inventory == null) c.inventory = new InventoryCategory();
         if (c.inventory.auctions == null) c.inventory.auctions = new AuctionHouseHelpersCategory();
         if (c.inventory.bazaar == null) c.inventory.bazaar = new BazaarHelpersCategory();
+        if (c.inventory.flips == null) c.inventory.flips = new BazaarCategory();
+        if (c.inventory.flips.tax == null) c.inventory.flips.tax = SellTax.PLAIN;
+    }
+
+    /**
+     * Der Bazaar-Handel (Steuer, Handel je Tag) hatte bis 2.4.14 einen eigenen Reiter oben und wohnt jetzt unter Inventory > Bazaar flips.
+     * Was dort stand, wandert einmal mit, und das alte Feld wird geleert - ein leeres Feld wird nicht gespeichert, ein zweiter Lauf findet
+     * also nichts mehr.
+     *
+     * @return ob etwas uebernommen wurde (dann ist zu speichern)
+     */
+    static boolean migrateBazaarFlips(ModConfig config) {
+        if (config == null || config.bazaar == null) return false;
+        if (config.inventory == null) config.inventory = new InventoryCategory();
+        config.inventory.flips = config.bazaar;
+        config.bazaar = null;
+        return true;
     }
 
     static void repairFishingExtras(FishingCategory fishing) {
@@ -431,17 +445,6 @@ public class ModConfig extends Config {
             INSTANCE.guild.events.fallbackUrl = GuildEventsCategory.DEFAULT_FALLBACK_URL;
         }
         if (INSTANCE.fishing == null) INSTANCE.fishing = new FishingCategory();
-        if (INSTANCE.collections == null) INSTANCE.collections = new CollectionsCategory();
-        if (INSTANCE.collections.tracker == null) INSTANCE.collections.tracker = new CollectionTrackerCategory();
-        CollectionTrackerCategory collectionTracker = INSTANCE.collections.tracker;
-        if (collectionTracker.selected == null) collectionTracker.selected = new ArrayList<>();
-        if (collectionTracker.gains == null) collectionTracker.gains = new HashMap<>();
-        if (collectionTracker.values == null) collectionTracker.values = new HashMap<>();
-        if (collectionTracker.totals == null) collectionTracker.totals = new HashMap<>();
-        if (collectionTracker.sinceRead == null) collectionTracker.sinceRead = new HashMap<>();
-        if (collectionTracker.totalExact == null) collectionTracker.totalExact = new HashMap<>();
-        if (collectionTracker.priceMode == null) collectionTracker.priceMode = ItemValue.PriceMode.INSTANT_SELL;
-        if (collectionTracker.lineOrder == null) collectionTracker.lineOrder = CollectionTrackerCategory.LineOrder.TOTAL_GAINED_HOUR;
         if (INSTANCE.effects == null) INSTANCE.effects = new EffectsCategory();
         if (INSTANCE.effects.list == null) INSTANCE.effects.list = new java.util.LinkedHashMap<>();
         // Die Forge wohnte bis 2.2.2 in einer eigenen Kategorie, jetzt unter Mining
@@ -492,6 +495,8 @@ public class ModConfig extends Config {
         repairFishingExtras(INSTANCE.fishing);
         repairSlayerCocoon(INSTANCE.slayer);
         repairSkillProgress(INSTANCE);
+        // Der Bazaar-Handel wohnte bis 2.4.14 in einem eigenen Reiter oben, jetzt unter Inventory
+        if (migrateBazaarFlips(INSTANCE)) INSTANCE.saveNow();
         repairInventory(INSTANCE);
         if (INSTANCE.logs == null) INSTANCE.logs = new LogsCategory();
         if (INSTANCE.mining.cold == null) INSTANCE.mining.cold = new ColdAlertCategory();
@@ -533,9 +538,6 @@ public class ModConfig extends Config {
         if (clampGarden(INSTANCE.garden)) gardenChanged = true;
         if (gardenChanged) INSTANCE.saveNow();
         if (INSTANCE.chat.reminder.cakes == null) INSTANCE.chat.reminder.cakes = new HashMap<>();
-        if (INSTANCE.hunting.tracker == null) INSTANCE.hunting.tracker = new HuntingTrackerCategory();
-        if (INSTANCE.hunting.tracker.counts == null) INSTANCE.hunting.tracker.counts = new HashMap<>();
-        if (INSTANCE.hunting.tracker.priceMode == null) INSTANCE.hunting.tracker.priceMode = ItemValue.PriceMode.INSTANT_SELL;
         // Der Unterreiter fehlt in Dateien bis 1.1.17; die drei Werte lagen bis dahin eine Ebene hoeher
         MobVisualsCategory visuals = INSTANCE.mobVisuals;
         if (visuals.safari == null) visuals.safari = new MobVisualsCategory.SafariSecretCategory();
@@ -826,7 +828,6 @@ public class ModConfig extends Config {
         INSTANCE.chat.openSoundSettings = () -> Minecraft.getInstance().execute(() ->
                 Minecraft.getInstance().setScreenAndShow(new com.shokiteufel.shokimod.gui.SoundSettingsScreen(
                         Minecraft.getInstance().gui.screen())));
-        INSTANCE.hunting.tracker.resetTracker = () -> Minecraft.getInstance().execute(HuntingTracker::askReset);
         INSTANCE.guild.events.testBanner = () -> Minecraft.getInstance().execute(GuildEvents::testBanner);
         INSTANCE.slayer.test = () -> Minecraft.getInstance().execute(
                 com.shokiteufel.shokimod.handler.SlayerBossSpawn::test);
@@ -836,9 +837,6 @@ public class ModConfig extends Config {
                 com.shokiteufel.shokimod.handler.SlayerCocoon::test);
         INSTANCE.slayer.openCocoonSound = soundPicker(() -> INSTANCE.slayer.cocoonSoundFile,
                 picked -> INSTANCE.slayer.cocoonSoundFile = picked);
-        INSTANCE.collections.tracker.resetTracker = () -> Minecraft.getInstance().execute(CollectionTracker::askReset);
-        INSTANCE.collections.tracker.openPicker = () -> Minecraft.getInstance().execute(() ->
-                Minecraft.getInstance().setScreenAndShow(new CollectionPickerScreen(Minecraft.getInstance().gui.screen())));
         INSTANCE.ikohS.dungeon.funnyMap.openNoammMap = () -> Minecraft.getInstance().execute(
                 com.shokiteufel.shokimod.dungeonkarte.NoammBruecke::oeffnen);
         INSTANCE.profit.resetTracker = () -> Minecraft.getInstance().execute(ProfitTracker::askReset);
@@ -1243,10 +1241,6 @@ public class ModConfig extends Config {
     public SafariCategory safari = new SafariCategory();
 
     @Expose
-    @Category(name = "Collections", desc = "What your collections gain while you play.")
-    public CollectionsCategory collections = new CollectionsCategory();
-
-    @Expose
     @Category(name = "Effects", desc = "Remembers your potion effects that are not God Potions, shows what is left and warns you before one runs out. Open /shoki effects to pick which ones.")
     public EffectsCategory effects = new EffectsCategory();
 
@@ -1259,7 +1253,7 @@ public class ModConfig extends Config {
     public SkillProgressCategory skillProgress = new SkillProgressCategory();
 
     @Expose
-    @Category(name = "Inventory", desc = "Helpers for SkyBlock's windows, sorted as in SkyHanni: the Auction house and the Bazaar. Everything is off until you turn it on. Idea from SkyHanni.")
+    @Category(name = "Inventory", desc = "Helpers for SkyBlock's windows, sorted as in SkyHanni: the Auction house and the Bazaar, plus the Bazaar flips list. The helpers are off until you turn them on. Idea from SkyHanni.")
     public InventoryCategory inventory = new InventoryCategory();
 
     @Expose
@@ -1282,12 +1276,16 @@ public class ModConfig extends Config {
     public ForgeCategory forge = null;
 
     @Expose
-    @Category(name = "Profit", desc = "What a run brought in: every item that landed in your inventory or a sack, priced item by item.")
+    @Category(name = "Profit Tracker", desc = "What a run brought in: every item that landed in your inventory or a sack, priced item by item.")
     public ProfitCategory profit = new ProfitCategory();
 
+    /**
+     * Bis 2.4.14 hatte der Bazaar-Handel mit eigenen Auftraegen (Steuer, Handel je Tag) einen eigenen Reiter oben. Er wohnt jetzt unter
+     * Inventory > Bazaar flips ({@link InventoryCategory#flips}); dieses Feld gibt es nur noch, damit alte Dateien gelesen werden koennen
+     * (siehe {@link #migrateBazaarFlips}). Ist es uebernommen, steht es auf null und wird nicht mehr geschrieben.
+     */
     @Expose
-    @Category(name = "Bazaar", desc = "Buying and selling through your own orders: what the spread leaves after tax, and how briskly a good trades. Open the list with /shoki flipprofit.")
-    public BazaarCategory bazaar = new BazaarCategory();
+    public BazaarCategory bazaar = null;
 
     @Expose
     @Category(name = "Alerts", desc = "React to what happens: words in chat, and what lands in your inventory.")
@@ -2083,161 +2081,6 @@ public class ModConfig extends Config {
         public String lastSkyMall = "";
     }
 
-    public static class CollectionsCategory {
-
-        @ConfigOption(name = "Collections", desc = "The tracker lives in the sub tab on the left.")
-        @ConfigEditorInfoText
-        public transient String about = "";
-
-        @Expose
-        @Category(name = "Collection Tracker", desc = "Counts what your sacks collect, in collection units: total, gained, per hour and worth.")
-        public CollectionTrackerCategory tracker = new CollectionTrackerCategory();
-    }
-
-    /**
-     * Der Collection-Tracker. Gezaehlt wird aus dem Sack-Hinweis im Chat; verzauberte
-     * Items zaehlen mit ihrem Bauplan (ein Enchanted Helix Log ist 160 Helix Log).
-     */
-    public static class CollectionTrackerCategory {
-
-        @Expose
-        @ConfigOption(name = "Enabled", desc = "Read the sack messages and count collections. Off means nothing is read or counted.")
-        @ConfigEditorBoolean
-        public boolean enabled = false;
-
-        @ConfigOption(name = "Collections", desc = "Which collections the panel lists. Nothing chosen: everything that comes in.")
-        @ConfigEditorButton(buttonText = "Choose")
-        public transient Runnable openPicker = () -> {
-        };
-
-        @Expose
-        @ConfigOption(name = "Show panel", desc = "The tracker panel on screen. Move it with /shoki hud.")
-        @ConfigEditorBoolean
-        public boolean showHud = true;
-
-        @Expose
-        @ConfigOption(name = "Timer", desc = "Track time for the per hour numbers. Off counts only the amounts.")
-        @ConfigEditorBoolean
-        public boolean timerEnabled = true;
-
-        @ConfigOption(name = "Panel lines", desc = "Which lines the panel shows, and in what order.")
-        @ConfigEditorAccordion(id = 78)
-        public transient boolean linesFolder = false;
-
-        @Expose
-        @ConfigOption(name = "Show worth", desc = "Also show what the collected items are worth on the bazaar.")
-        @ConfigEditorBoolean
-        @ConfigAccordionId(id = 78)
-        public boolean showValue = true;
-
-        @Expose
-        @ConfigOption(name = "Price", desc = "Instant Sell is what selling right now pays; Sell Order is what a listed order brings once it fills.")
-        @ConfigEditorDropdown
-        @ConfigAccordionId(id = 78)
-        public ItemValue.PriceMode priceMode = ItemValue.PriceMode.INSTANT_SELL;
-
-        @Expose
-        @ConfigOption(name = "Show total", desc = "The collection you already have. Open the collections menu once so the mod can read it.")
-        @ConfigEditorBoolean
-        @ConfigAccordionId(id = 78)
-        public boolean showTotal = true;
-
-        @Expose
-        @ConfigOption(name = "Show gained", desc = "What came in since the last reset.")
-        @ConfigEditorBoolean
-        @ConfigAccordionId(id = 78)
-        public boolean showGained = true;
-
-        @Expose
-        @ConfigOption(name = "Show per hour", desc = "The pace, from the tracked time.")
-        @ConfigEditorBoolean
-        @ConfigAccordionId(id = 78)
-        public boolean showPerHour = true;
-
-        @Expose
-        @ConfigOption(name = "Show next tier", desc = "The next tier of the collection and, from the pace, when it is reached. Needs the total, so open the collections menu once.")
-        @ConfigEditorBoolean
-        @ConfigAccordionId(id = 78)
-        public boolean showNextTier = true;
-
-        @Expose
-        @ConfigOption(name = "Line order", desc = "In which order Total, Gained and Per hour stand under each collection.")
-        @ConfigEditorDropdown
-        @ConfigAccordionId(id = 78)
-        public LineOrder lineOrder = LineOrder.TOTAL_GAINED_HOUR;
-
-        /** Die drei Zeilen unter einer Collection, in jeder moeglichen Reihenfolge */
-        public enum LineOrder {
-            TOTAL_GAINED_HOUR("Total, Gained, Per hour", "TGH"),
-            TOTAL_HOUR_GAINED("Total, Per hour, Gained", "THG"),
-            GAINED_TOTAL_HOUR("Gained, Total, Per hour", "GTH"),
-            GAINED_HOUR_TOTAL("Gained, Per hour, Total", "GHT"),
-            HOUR_TOTAL_GAINED("Per hour, Total, Gained", "HTG"),
-            HOUR_GAINED_TOTAL("Per hour, Gained, Total", "HGT");
-
-            public final String label;
-            /** T = Total, G = Gained, H = Per hour */
-            public final String code;
-
-            LineOrder(String label, String code) {
-                this.label = label;
-                this.code = code;
-            }
-
-            @Override
-            public String toString() {
-                return label;
-            }
-        }
-
-        @Expose
-        @ConfigOption(name = "Pause after", desc = "Seconds without anything collected before the timer pauses. The idle time is taken off again.")
-        @ConfigEditorSlider(minValue = 10f, maxValue = 600f, minStep = 5f)
-        public int pauseAfterSeconds = 120;
-
-        @Expose
-        @ConfigOption(name = "Rows", desc = "How many collections the panel lists.")
-        @ConfigEditorSlider(minValue = 1f, maxValue = 10f, minStep = 1f)
-        public int maxRows = 4;
-
-        @ConfigOption(name = "Reset", desc = "Clears the gained amounts and the timer. The totals from the collections menu stay.")
-        @ConfigEditorButton(buttonText = "Reset")
-        public transient Runnable resetTracker = () -> {
-        };
-
-        /** Kennungen der gewaehlten Collections */
-        @Expose
-        public List<String> selected = new ArrayList<>();
-        /** Zuwachs seit dem Reset, in Einheiten der Collection */
-        @Expose
-        public Map<String, Long> gains = new HashMap<>();
-        /** Was die dafuer eingesammelten Items wert waren */
-        @Expose
-        public Map<String, Double> values = new HashMap<>();
-        /** Gesamtstand aus dem Collections-Menue, sobald es einmal offen war */
-        @Expose
-        public Map<String, Long> totals = new HashMap<>();
-        /** Zuwachs seit genau diesem Stand - so waechst Total mit, ohne doppelt zu zaehlen */
-        @Expose
-        public Map<String, Long> sinceRead = new HashMap<>();
-        /** War der abgelesene Stand genau? Auf Co-op-Profilen ist die eigene Zeile gerundet */
-        @Expose
-        public Map<String, Boolean> totalExact = new HashMap<>();
-        @Expose
-        public long uptimeMillis = 0L;
-        @Expose
-        public long startedAt = 0L;
-
-        @Expose
-        public float hudX = 0.75f;
-        @Expose
-        public float hudY = 0.12f;
-        @Expose
-        public float hudScale = 1.0f;
-        @Expose
-        public float hudAlpha = 1.0f;
-    }
-
     public static class FishingCategory {
 
         @ConfigOption(name = "Fishing", desc = "Everything about fishing lives in the sub tabs on the left.")
@@ -2457,7 +2300,7 @@ public class ModConfig extends Config {
         public boolean hidePlayers = false;
 
         @Expose
-        @ConfigOption(name = "Hide lootshare messages", desc = "Hides the chat lines \"LOOT SHARE You received ... for assisting <player>!\" while you wear the full Frozen Blaze armor: its aura kills sea creatures for the whole party, and every kill would add such a line. Lines about loot from somebody else's catch (\"... from <player> catching ...\") stay. The Hunting tracker and the rare loot alert still read the lines first, so they keep counting. From Feesh.")
+        @ConfigOption(name = "Hide lootshare messages", desc = "Hides the chat lines \"LOOT SHARE You received ... for assisting <player>!\" while you wear the full Frozen Blaze armor: its aura kills sea creatures for the whole party, and every kill would add such a line. Lines about loot from somebody else's catch (\"... from <player> catching ...\") stay. The rare loot alert still reads the lines first, so it keeps counting. From Feesh.")
         @ConfigEditorBoolean
         public boolean hideLootshare = false;
 
@@ -5157,8 +5000,8 @@ public class ModConfig extends Config {
     /**
      * Inventory: Hilfen fuer die Fenster von SkyBlock - sortiert wie bei SkyHanni (Inventory > Auction house, Inventory > Bazaar).
      *
-     * Der Reiter "Bazaar" weiter oben ist ein anderer: Er rechnet, was Kauf- und Verkaufsauftraege einbringen (/shoki flipprofit). Hier stehen
-     * die Hilfen beim Handeln selbst.
+     * Der Reiter "Bazaar flips" (bis 2.4.14 ein eigener Reiter oben) rechnet, was Kauf- und Verkaufsauftraege einbringen (/shoki flipprofit).
+     * Im Reiter "Bazaar" stehen die Hilfen beim Handeln selbst.
      */
     public static class InventoryCategory {
 
@@ -5173,6 +5016,10 @@ public class ModConfig extends Config {
         @Expose
         @Category(name = "Bazaar", desc = "Helpers for buying and selling at the bazaar: purchase helper, order helper, best sell method and the cancelled buy order clipboard. Idea from SkyHanni.")
         public BazaarHelpersCategory bazaar = new BazaarHelpersCategory();
+
+        @Expose
+        @Category(name = "Bazaar flips", desc = "Buying and selling through your own orders: what the spread leaves after tax, and how briskly a good trades. Open the list with /shoki flipprofit.")
+        public BazaarCategory flips = new BazaarCategory();
     }
 
     /**
@@ -5207,7 +5054,7 @@ public class ModConfig extends Config {
      * Inventory > Bazaar: die Hilfen beim Handeln im Basar.
      *
      * Die Idee ist SkyHanni (LGPL-2.1, Inventory > Bazaar: Purchase Helper, Order Helper, Best Sell Method, Cancelled Buy Order Clipboard). Der Reiter
-     * "Bazaar" weiter oben rechnet dagegen, was Auftraege einbringen (/shoki flipprofit).
+     * "Bazaar flips" daneben rechnet dagegen, was Auftraege einbringen (/shoki flipprofit).
      */
     public static class BazaarHelpersCategory {
 
@@ -6059,7 +5906,7 @@ public class ModConfig extends Config {
      * Der Bazaar-Handel mit eigenen Auftraegen.
      *
      * Was hier steht, gilt fuer jeden Verkauf und nicht nur fuer ein Fenster - deshalb
-     * eine eigene Kategorie und keine Schalterreihe im Fenster selbst.
+     * eine eigene Kategorie und keine Schalterreihe im Fenster selbst. Seit 2.4.15 unter Inventory > Bazaar flips (davor ein Reiter oben).
      */
     public static class BazaarCategory {
 
@@ -6544,13 +6391,9 @@ public class ModConfig extends Config {
 
     public static class HuntingCategory {
 
-        @ConfigOption(name = "Hunting", desc = "Everything about shard hunting lives in the sub tabs on the left.")
+        @ConfigOption(name = "Hunting", desc = "Everything about shard hunting lives in the sub tab on the left.")
         @ConfigEditorInfoText
         public transient String about = "";
-
-        @Expose
-        @Category(name = "Hunting Tracker", desc = "Counts every shard you catch and prices the haul on the bazaar: total, per hour, and the top shards.")
-        public HuntingTrackerCategory tracker = new HuntingTrackerCategory();
 
         @Expose
         @Category(name = "Fusions", desc = "Which shard fusions pay off right now, from the bazaar. Open the list with /shoki shardprofit.")
@@ -6624,67 +6467,6 @@ public class ModConfig extends Config {
         };
     }
 
-    /**
-     * Der Hunting Tracker: nur Shards, bewertet mit dem Basar.
-     *
-     * Der Zaehlstand liegt hier, damit er einen Neustart ueberlebt - bis zum Reset.
-     */
-    public static class HuntingTrackerCategory {
-
-        @Expose
-        @ConfigOption(name = "Enabled", desc = "Count shards from You caught and CHARM! lines. Off means nothing is counted or priced.")
-        @ConfigEditorBoolean
-        public boolean enabled = false;
-
-        @Expose
-        @ConfigOption(name = "Show panel", desc = "The tracker panel on screen. Move it with /shoki hud.")
-        @ConfigEditorBoolean
-        public boolean showHud = true;
-
-        @Expose
-        @ConfigOption(name = "Timer", desc = "Track hunting time for Profit/h. Off hides Time and Profit/h and counts only the shards.")
-        @ConfigEditorBoolean
-        public boolean timerEnabled = true;
-
-        @Expose
-        @ConfigOption(name = "Price", desc = "Instant Sell is what selling right now pays; Sell Order is what a listed order brings once it fills. The total follows the live price.")
-        @ConfigEditorDropdown
-        public ItemValue.PriceMode priceMode = ItemValue.PriceMode.INSTANT_SELL;
-
-        @Expose
-        @ConfigOption(name = "Pause after", desc = "Seconds without a catch before the timer pauses. The idle time since the last catch is taken off again, so Profit/h does not drop while you are away.")
-        @ConfigEditorSlider(minValue = 10f, maxValue = 600f, minStep = 5f)
-        public int pauseAfterSeconds = 120;
-
-        @Expose
-        @ConfigOption(name = "Rows", desc = "How many shards the panel lists, most valuable first.")
-        @ConfigEditorSlider(minValue = 1f, maxValue = 15f, minStep = 1f)
-        public int maxRows = 8;
-
-        @ConfigOption(name = "Reset", desc = "Clears the count and the timer.")
-        @ConfigEditorButton(buttonText = "Reset")
-        public transient Runnable resetTracker = () -> {
-        };
-
-        // Zaehlstand und Zeit - kein Menuefeld, nur Ablage
-        @Expose
-        public Map<String, Integer> counts = new HashMap<>();
-        @Expose
-        public long uptimeMillis = 0L;
-        @Expose
-        public long startedAt = 0L;
-
-        // Lage des Kastens, gesetzt ueber /shoki hud
-        @Expose
-        public float hudX = 0.75f;
-        @Expose
-        public float hudY = 0.4f;
-        @Expose
-        public float hudScale = 1.0f;
-        @Expose
-        public float hudAlpha = 1.0f;
-    }
-
 
     /**
      * Bis 1.0.0 lagen die drei Bereiche als Akkordeon in einer Kategorie "ShokiTeufel".
@@ -6730,7 +6512,7 @@ public class ModConfig extends Config {
         public boolean editorShowsAll = true;
 
         @Expose
-        @ConfigOption(name = "Ask before reset", desc = "Asks \"Reset the tracker?\" before a tracker is reset - for the Collections, Hunting, Profit and Sea creature trackers, whether you click [Reset] in the panel or the Reset button in the settings. Off: a click resets right away.")
+        @ConfigOption(name = "Ask before reset", desc = "Asks \"Reset the tracker?\" before a tracker is reset - for the Profit and Sea creature trackers, whether you click [Reset] in the panel or the Reset button in the settings. Off: a click resets right away.")
         @ConfigEditorBoolean
         public boolean confirmReset = true;
 

@@ -941,8 +941,7 @@ public final class RareLootHandler {
 
         out.append("[guild]\n").append(GuildEvents.status()).append("\n\n");
 
-        out.append("[collections]\n").append(CollectionTracker.status()).append("\n")
-                .append(CollectionData.status()).append("\n\n");
+        out.append("[collections]\n").append(CollectionData.status()).append("\n\n");
 
         out.append("[banners]\n");
         List<BannerDesign> designs = ModConfig.INSTANCE.chat.banner.designs;

@@ -11,10 +11,8 @@ import com.shokiteufel.shokimod.gui.ShokiConfigEditor;
 import com.shokiteufel.shokimod.handler.FloorDropHandler;
 import com.shokiteufel.shokimod.handler.NetworkHandler;
 import com.shokiteufel.shokimod.handler.CakeReminder;
-import com.shokiteufel.shokimod.handler.CollectionTracker;
 import com.shokiteufel.shokimod.handler.GuildEvents;
 import com.shokiteufel.shokimod.handler.HotspotTracker;
-import com.shokiteufel.shokimod.handler.HuntingTracker;
 import com.shokiteufel.shokimod.handler.RareLootHandler;
 import com.shokiteufel.shokimod.render.DropBanner;
 import com.shokiteufel.shokimod.render.EntityHighlightManager;
@@ -99,7 +97,6 @@ public class ShokiMod implements ClientModInitializer {
         FloorDropHandler.register();
         com.shokiteufel.shokimod.handler.ParticleTracer.register();
         RareLootHandler.register();
-        HuntingTracker.register();
         com.shokiteufel.shokimod.handler.ProfitTracker.register();
         GuildEvents.register();
         CakeReminder.register();
@@ -148,7 +145,6 @@ public class ShokiMod implements ClientModInitializer {
         // Ein Helfer-Skript von einem Update liegt jetzt nicht mehr im Weg
         com.shokiteufel.shokimod.util.ModUpdater.cleanupHelper();
         HotspotTracker.register();
-        CollectionTracker.register();
         com.shokiteufel.shokimod.scanner.DyeRotation.init();
         NestTracker.register();
         ContestState.register();

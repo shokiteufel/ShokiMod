@@ -352,7 +352,7 @@ public final class ItemValue {
      * Liegt ein direkt bei Hypixel geholter Stand vor, zaehlt der: Er ist Sekunden
      * alt statt bis zu zehn Minuten. So bekommen alle Funktionen die schnelleren
      * Zahlen mit, ohne dass jede einzeln danach fragen muesste - der Rare Loot, der
-     * Hunting Tracker, die Sammlungen.
+     * Profit Tracker, die Handwerksrezepte.
      *
      * <p>Geholt wird dadurch nichts zusaetzlich. {@link BazaarLive} laeuft nur,
      * solange eines der Profit-Fenster offen ist; was hier ankommt, ist ein

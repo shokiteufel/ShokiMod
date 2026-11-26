@@ -99,8 +99,6 @@ public class NetworkHandler {
             com.shokiteufel.shokimod.handler.ProfitTracker.onChatMessage(msg, unformattedMsg);
             // Der Shiny-Ruf eines anderen: nur hoeren, nichts aendern
             ShinyAlert.onChatMessage(unformattedMsg);
-            // Der Hunting Tracker zaehlt dieselben Shard-Zeilen mit
-            HuntingTracker.onChatMessage(unformattedMsg);
             // Der Kuchen-Alarm merkt sich, wann welcher Kuchen gegessen wurde
             CakeReminder.onChatMessage(unformattedMsg);
             RareCatchAlert.onChatMessage(unformattedMsg);
@@ -139,8 +137,6 @@ public class NetworkHandler {
             com.shokiteufel.shokimod.handler.CorpseKeyCost.onChatMessage(unformattedMsg);
             // "Your Divan's Drill has 50% fuel remaining!" bekommt eine Zeile zum Auftanken
             com.shokiteufel.shokimod.handler.DrillRefuel.onChatMessage(unformattedMsg);
-            // Der Collection-Tracker braucht die Nachricht selbst: die Aufstellung haengt am Mauszeiger
-            CollectionTracker.onChatMessage(message, unformattedMsg);
             // Der Profit-Tracker liest seine Chat-Quellen (Saecke, Leichen, Shards) aus dem Paketstrom (KernAnschluss), nicht hier
 
             // Ein "false" blendet die Originalzeile aus

@@ -108,7 +108,7 @@ public class FlipProfitScreen extends Screen {
     }
 
     private static ModConfig.BazaarCategory cfg() {
-        return ModConfig.INSTANCE.bazaar;
+        return ModConfig.INSTANCE.inventory.flips;
     }
 
     private int left() {

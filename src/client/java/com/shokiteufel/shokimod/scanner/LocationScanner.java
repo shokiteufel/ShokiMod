@@ -150,8 +150,6 @@ public class LocationScanner {
         // Neues Gebiet: alle Uhren halten an, bis wieder geangelt wird oder etwas hereinkommt
         if (before != null && !before.equals(area) && !"Unknown".equals(before)) {
             com.shokiteufel.shokimod.handler.ProfitTracker.pauseNow();
-            com.shokiteufel.shokimod.handler.HuntingTracker.pauseNow();
-            com.shokiteufel.shokimod.handler.CollectionTracker.pauseNow();
             com.shokiteufel.shokimod.handler.SeaCreatureTracker.pauseNow();
         }
         // Unbekannte Gebiete in die Auswahlliste der Chatregeln aufnehmen
