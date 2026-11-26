@@ -100,6 +100,8 @@ public class NetworkHandler {
             // Der Kuchen-Alarm merkt sich, wann welcher Kuchen gegessen wurde
             CakeReminder.onChatMessage(unformattedMsg);
             RareCatchAlert.onChatMessage(unformattedMsg);
+            // Ein eigenes Cocoon: Titel und Gruppenchat, wie eingestellt
+            com.shokiteufel.shokimod.handler.SeaCreatureCocoon.onChatMessage(unformattedMsg);
             // Der Zaehler fuer Faenge, Double Hooks und Cocoons liest dieselbe Zeile
             com.shokiteufel.shokimod.handler.SeaCreatureTracker.onChatMessage(unformattedMsg);
             com.shokiteufel.shokimod.handler.MineshaftProfit.onChatMessage(unformattedMsg);

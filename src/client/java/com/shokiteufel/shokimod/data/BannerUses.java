@@ -93,6 +93,11 @@ public final class BannerUses {
                 name -> ModConfig.INSTANCE.fishing.air.bannerDesign = name,
                 "Feesh",
                 () -> resolved(ModConfig.INSTANCE.fishing.air.bannerDesign)));
+        out.add(new Use("Cocoon", "Cocoon", "A sea creature of yours was cocooned",
+                () -> ModConfig.INSTANCE.fishing.cocoon.bannerDesign,
+                name -> ModConfig.INSTANCE.fishing.cocoon.bannerDesign = name,
+                BannerDesign.ALERT_BAND,
+                () -> resolved(ModConfig.INSTANCE.fishing.cocoon.bannerDesign)));
         out.add(new Use("Hotspot gone", "Spot", "The warning when your hotspot despawns",
                 () -> ModConfig.INSTANCE.fishing.hotspot.warningDesign,
                 name -> ModConfig.INSTANCE.fishing.hotspot.warningDesign = name,

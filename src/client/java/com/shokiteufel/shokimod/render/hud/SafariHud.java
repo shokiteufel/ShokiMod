@@ -19,7 +19,7 @@ public final class SafariHud {
 
     /** Ein Kasten auf dem Bildschirm. Traegt seine eigene Lage und Groesse in der Config */
     public enum Panel {
-        PROGRESS, MISSING, CONTEST, NEARBY, HUNTING, GUILD, COLLECTION, PROFIT, MINING, PET, PERFORMANCE, SEATRACKER, EFFECTS, SEAHP, DARK_AUCTION, FIRE_VEIL, DEPLOYABLES, FORGE, SKILL_XP, FROZEN_BLAZE;
+        PROGRESS, MISSING, CONTEST, NEARBY, HUNTING, GUILD, COLLECTION, PROFIT, MINING, PET, PERFORMANCE, SEATRACKER, EFFECTS, SEAHP, DARK_AUCTION, FIRE_VEIL, DEPLOYABLES, FORGE, SKILL_XP, FROZEN_BLAZE, FISHING_HOOK, FISHING_BAIT;
 
         public boolean visible() {
             ModConfig.SafariCategory c = ModConfig.INSTANCE.safari;
@@ -56,6 +56,10 @@ public final class SafariHud {
                 case SKILL_XP -> ModConfig.INSTANCE.skillXp.enabled && ModConfig.INSTANCE.skillXp.showHud && SkillXpHud.hasRows();
                 // Nur mit dem ganzen Set am Koerper; im HUD-Editor immer
                 case FROZEN_BLAZE -> FrozenBlazeHud.shownNow();
+                // Nur solange der Haken etwas sagt; im HUD-Editor immer
+                case FISHING_HOOK -> FishingHookHud.shownNow();
+                // Nur mit der Angel in der Hand; im HUD-Editor immer
+                case FISHING_BAIT -> FishingBaitHud.shownNow();
             };
         }
 
@@ -94,6 +98,8 @@ public final class SafariHud {
                 case FORGE -> "Forge";
                 case SKILL_XP -> "Skill XP";
                 case FROZEN_BLAZE -> "Aura timer";
+                case FISHING_HOOK -> "Hook display";
+                case FISHING_BAIT -> "Bait display";
             };
         }
 
@@ -147,6 +153,8 @@ public final class SafariHud {
                 case FORGE -> ModConfig.INSTANCE.mining.forge.hudX;
                 case SKILL_XP -> ModConfig.INSTANCE.skillXp.hudX;
                 case FROZEN_BLAZE -> ModConfig.INSTANCE.fishing.frozenBlaze.timerHudX;
+                case FISHING_HOOK -> ModConfig.INSTANCE.fishing.hookDisplay.hudX;
+                case FISHING_BAIT -> ModConfig.INSTANCE.fishing.baitDisplay.hudX;
             };
         }
 
@@ -173,6 +181,8 @@ public final class SafariHud {
                 case FORGE -> ModConfig.INSTANCE.mining.forge.hudY;
                 case SKILL_XP -> ModConfig.INSTANCE.skillXp.hudY;
                 case FROZEN_BLAZE -> ModConfig.INSTANCE.fishing.frozenBlaze.timerHudY;
+                case FISHING_HOOK -> ModConfig.INSTANCE.fishing.hookDisplay.hudY;
+                case FISHING_BAIT -> ModConfig.INSTANCE.fishing.baitDisplay.hudY;
             };
         }
 
@@ -199,6 +209,8 @@ public final class SafariHud {
                 case FORGE -> ModConfig.INSTANCE.mining.forge.hudScale;
                 case SKILL_XP -> ModConfig.INSTANCE.skillXp.hudScale;
                 case FROZEN_BLAZE -> ModConfig.INSTANCE.fishing.frozenBlaze.timerHudScale;
+                case FISHING_HOOK -> ModConfig.INSTANCE.fishing.hookDisplay.hudScale;
+                case FISHING_BAIT -> ModConfig.INSTANCE.fishing.baitDisplay.hudScale;
             };
         }
 
@@ -285,6 +297,14 @@ public final class SafariHud {
                     ModConfig.INSTANCE.fishing.frozenBlaze.timerHudX = x;
                     ModConfig.INSTANCE.fishing.frozenBlaze.timerHudY = y;
                 }
+                case FISHING_HOOK -> {
+                    ModConfig.INSTANCE.fishing.hookDisplay.hudX = x;
+                    ModConfig.INSTANCE.fishing.hookDisplay.hudY = y;
+                }
+                case FISHING_BAIT -> {
+                    ModConfig.INSTANCE.fishing.baitDisplay.hudX = x;
+                    ModConfig.INSTANCE.fishing.baitDisplay.hudY = y;
+                }
             }
         }
 
@@ -312,6 +332,8 @@ public final class SafariHud {
                 case FORGE -> ModConfig.INSTANCE.mining.forge.hudAlpha;
                 case SKILL_XP -> ModConfig.INSTANCE.skillXp.hudAlpha;
                 case FROZEN_BLAZE -> ModConfig.INSTANCE.fishing.frozenBlaze.timerHudAlpha;
+                case FISHING_HOOK -> ModConfig.INSTANCE.fishing.hookDisplay.hudAlpha;
+                case FISHING_BAIT -> ModConfig.INSTANCE.fishing.baitDisplay.hudAlpha;
             };
         }
 
@@ -341,6 +363,8 @@ public final class SafariHud {
                 case FORGE -> ModConfig.INSTANCE.mining.forge.hudAlpha = clamped;
                 case SKILL_XP -> ModConfig.INSTANCE.skillXp.hudAlpha = clamped;
                 case FROZEN_BLAZE -> ModConfig.INSTANCE.fishing.frozenBlaze.timerHudAlpha = clamped;
+                case FISHING_HOOK -> ModConfig.INSTANCE.fishing.hookDisplay.hudAlpha = clamped;
+                case FISHING_BAIT -> ModConfig.INSTANCE.fishing.baitDisplay.hudAlpha = clamped;
             }
         }
 
@@ -368,6 +392,8 @@ public final class SafariHud {
                 case FORGE -> ModConfig.INSTANCE.mining.forge.hudScale = clamped;
                 case SKILL_XP -> ModConfig.INSTANCE.skillXp.hudScale = clamped;
                 case FROZEN_BLAZE -> ModConfig.INSTANCE.fishing.frozenBlaze.timerHudScale = clamped;
+                case FISHING_HOOK -> ModConfig.INSTANCE.fishing.hookDisplay.hudScale = clamped;
+                case FISHING_BAIT -> ModConfig.INSTANCE.fishing.baitDisplay.hudScale = clamped;
             }
         }
 
@@ -404,11 +430,12 @@ public final class SafariHud {
 
         /** Kaesten, deren Zahlen mit jedem Tick gleichmaessig herunterlaufen und deshalb mit jedem Tick neu gebaut werden */
         private boolean tickBound() {
-            return this == FIRE_VEIL || this == DEPLOYABLES;
+            return this == FIRE_VEIL || this == DEPLOYABLES || this == FISHING_HOOK;
         }
 
         /** Die Uhr des letzten Ticks, nach der ein tickgebundener Kasten gebaut wird */
         private long tickClock() {
+            if (this == FISHING_HOOK) return com.shokiteufel.shokimod.handler.FishingHookDisplay.tickTime();
             return this == FIRE_VEIL ? com.shokiteufel.shokimod.handler.FireVeil.tickTime()
                     : com.shokiteufel.shokimod.handler.DeployableTimers.tickTime();
         }
@@ -435,6 +462,8 @@ public final class SafariHud {
                 case FORGE -> ForgeHud.build();
                 case SKILL_XP -> SkillXpHud.build();
                 case FROZEN_BLAZE -> FrozenBlazeHud.build();
+                case FISHING_HOOK -> FishingHookHud.build();
+                case FISHING_BAIT -> FishingBaitHud.build();
             };
         }
     }

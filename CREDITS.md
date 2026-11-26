@@ -300,6 +300,24 @@ Die aelteren Feesh-Eintraege (Pet-Stufen, Rare catch, HP-Anzeige, Banner, Bueche
   Neu ist, was darauf aufsetzt: eine Ansage je Mob, wenn ein seltener in den Umkreis kommt, und ein Kasten um seine Trefferbox (`SeaCreatureNear`,
   `SeaCreatureBoxRenderer`). Feesh hat beides nicht - sein Alarm liest nur den Chat. Die Tabelle der seltenen Bewohner ist dieselbe wie bei "Rare catch".
 
+### SkyHanni (LGPL-2.1, `hannibal002/SkyHanni`)
+
+Seit Version 2.4.10 (26.11.2026) werden Funktionen von SkyHanni nachgebaut, die der User dort sieht und hier haben will. Gelesen wurde der
+Quelltext (Stand 25.11.2026, Version 7.48). **Übernommen ist jeweils die Regel** - was Hypixel schreibt, wo etwas liegt, wann etwas gilt -; **alles
+Geschriebene ist eigene Arbeit**: Java statt Kotlin, eigener Aufbau über die Kästen, Banner und Einstellungen dieser Mod, eigener Wortlaut, eigene
+Beschreibungen, eigene Tests. Es steht nichts Geschriebenes aus SkyHanni in dieser Mod.
+
+- **Fishing > Hook display** (`FishingHookDisplay`, `FishingHookHud`): SkyHanni „Fishing Hook Display". Regel: Hypixels Ruestungsstaender am eigenen Haken
+  traegt die Zeit; gelb und fett eine Zahl oder ein „!!!". Eigene Zutaten: Suche je Tick statt Namens-Ereignisse, einstellbarer Alarmtext mit „&"-Farbzeichen,
+  Vorlaufzeit, Ausblenden des Originals ueber den vorhandenen Einsprung in `shouldRender`.
+- **Fishing > Bait display** (`FishingBaitDisplay`, `FishingBaitHud`): SkyHanni „Fishing Bait Display". Regel: Der Koeder liegt im letzten Platz der Schnellzugriffsleiste, in seiner
+  Beschreibung steht „Bait Remaining: N"; ohne Koeder „No Bait". Eigene Zutaten: Lesen alle fuenf Ticks, ein Kasten des HUD-Editors.
+- **Fishing > Cocoon settings** (`SeaCreatureCocoon`, `CocoonScreen`): SkyHanni „Cocoon Settings". Regel: Die Chatzeile „CAUGHT! You cocooned a X!"; je Bewohner Titel
+  („X Has Been Cocooned") und Gruppenchat („My X has been cocooned!"), ohne eigene Wahl die seltenen. Eigene Zutaten: Titel ueber die Banner dieser Mod mit
+  waehlbarem Design und Ton, ein eigenes Fenster fuer die Liste (`/shoki cocoons`).
+
+---
+
 ### IQ (Apache-2.0, PeHenrii und DarkJota, `iqaddons/IQ`)
 
 Aus IQ, einer Kuudra-Mod fuer Hypixel SkyBlock, kommen die Funktionen im Reiter **IQ**. Sie sind in Java nachgebaut; die Regeln, Zahlen und der

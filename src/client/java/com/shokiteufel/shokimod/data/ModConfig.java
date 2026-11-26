@@ -155,6 +155,25 @@ public class ModConfig extends Config {
     }
 
     /**
+     * Die Teile von Fishing, die seit 2.4.10 dazukamen (Hook display, Bait display, Cocoon settings): Eine Datei von vorher kennt sie nicht, und
+     * von Hand beschaedigte Werte werden auf das Zulaessige zurueckgesetzt.
+     */
+    static void repairFishingExtras(FishingCategory fishing) {
+        if (fishing == null) return;
+        if (fishing.hookDisplay == null) fishing.hookDisplay = new HookDisplayCategory();
+        if (fishing.hookDisplay.customAlertText == null) fishing.hookDisplay.customAlertText = "&c&l!!!";
+        fishing.hookDisplay.customReelInTime = Math.max(0f, Math.min(1f, fishing.hookDisplay.customReelInTime));
+        if (fishing.baitDisplay == null) fishing.baitDisplay = new BaitDisplayCategory();
+        if (fishing.cocoon == null) fishing.cocoon = new SeaCocoonCategory();
+        if (fishing.cocoon.bannerDesign == null) fishing.cocoon.bannerDesign = BannerDesign.ALERT_BAND;
+        if (fishing.cocoon.soundFile == null) fishing.cocoon.soundFile = "";
+        if (fishing.cocoon.warnPicks == null) fishing.cocoon.warnPicks = new HashMap<>();
+        if (fishing.cocoon.sharePicks == null) fishing.cocoon.sharePicks = new HashMap<>();
+        fishing.cocoon.warnPicks.values().removeIf(v -> v == null);
+        fishing.cocoon.sharePicks.values().removeIf(v -> v == null);
+    }
+
+    /**
      * Die Pause des Skill-XP-Zaehlers war in 0.2.0 von Haus aus 60 Sekunden und ist jetzt 30. Eine Datei, die noch die alten 60 traegt, hat die
      * Vorgabe nie angefasst (ein Wert von Hand waere ein anderer) und bekommt einmalig die neue.
      *
@@ -437,6 +456,7 @@ public class ModConfig extends Config {
         if (INSTANCE.fishing.air == null) INSTANCE.fishing.air = new OutOfAirCategory();
         if (INSTANCE.fishing.air.bannerDesign == null) INSTANCE.fishing.air.bannerDesign = "Feesh";
         if (INSTANCE.fishing.air.soundFile == null) INSTANCE.fishing.air.soundFile = "";
+        repairFishingExtras(INSTANCE.fishing);
         if (INSTANCE.logs == null) INSTANCE.logs = new LogsCategory();
         if (INSTANCE.mining.cold == null) INSTANCE.mining.cold = new ColdAlertCategory();
         if (INSTANCE.mining.cold.bannerDesign == null) INSTANCE.mining.cold.bannerDesign = BannerDesign.ALERT_BAND;
@@ -750,6 +770,13 @@ public class ModConfig extends Config {
                 com.shokiteufel.shokimod.handler.OutOfAirAlert::test);
         INSTANCE.fishing.air.openSound = soundPicker(() -> INSTANCE.fishing.air.soundFile,
                 picked -> INSTANCE.fishing.air.soundFile = picked);
+        INSTANCE.fishing.cocoon.test = () -> Minecraft.getInstance().execute(
+                com.shokiteufel.shokimod.handler.SeaCreatureCocoon::test);
+        INSTANCE.fishing.cocoon.openSound = soundPicker(() -> INSTANCE.fishing.cocoon.soundFile,
+                picked -> INSTANCE.fishing.cocoon.soundFile = picked);
+        INSTANCE.fishing.cocoon.openList = () -> Minecraft.getInstance().execute(() ->
+                Minecraft.getInstance().setScreenAndShow(new com.shokiteufel.shokimod.gui.CocoonScreen(
+                        Minecraft.getInstance().gui.screen())));
         INSTANCE.mining.cold.test = () -> Minecraft.getInstance().execute(
                 com.shokiteufel.shokimod.handler.ColdAlert::test);
         INSTANCE.mining.cold.openSound = soundPicker(() -> INSTANCE.mining.cold.soundFile,
@@ -2208,6 +2235,159 @@ public class ModConfig extends Config {
         @Expose
         @Category(name = "Frozen Blaze", desc = "For fishing in the full Frozen Blaze armor, whose aura kills the sea creatures around you: it clears the screen and the chat. Detection from Feesh.")
         public FrozenBlazeCategory frozenBlaze = new FrozenBlazeCategory();
+
+        @Expose
+        @Category(name = "Hook display", desc = "The timer Hypixel shows over your fishing hook, big on your screen. Idea from SkyHanni.")
+        public HookDisplayCategory hookDisplay = new HookDisplayCategory();
+
+        @Expose
+        @Category(name = "Bait display", desc = "The bait in your last hotbar slot - its icon, how many are left and its name - while you hold a fishing rod. Idea from SkyHanni.")
+        public BaitDisplayCategory baitDisplay = new BaitDisplayCategory();
+
+        @Expose
+        @Category(name = "Cocoon settings", desc = "What happens when your Primordial belt or a Blood Shot reforge cocoons a sea creature: a title and a sound for you, a line in the party chat for the others. Idea from SkyHanni.")
+        public SeaCocoonCategory cocoon = new SeaCocoonCategory();
+    }
+
+    /**
+     * Fishing > Hook display: die Zeit, die Hypixel ueber den Haken schreibt, gross auf den Bildschirm.
+     *
+     * Die Idee ist SkyHanni (LGPL-2.1, "Fishing Hook Display"): Hypixel setzt einen Ruestungsstaender ueber den Haken, dessen Name von 3.0
+     * herunterzaehlt und bei "!!!" steht, wenn man einholen soll. Dieselbe Zahl steht hier, wo man sie sieht, ohne auf den Haken zu schauen.
+     */
+    public static class HookDisplayCategory {
+
+        @ConfigOption(name = "Hook display", desc = "Shows the number Hypixel writes over your fishing hook - the seconds until you can reel in, then !!! - big on your screen, so you do not have to look at the hook. It reads the text over your own hook while you hold a fishing rod. Move and resize it in /shoki hud (search \"Hook display\"). Off until you turn it on.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Enabled", desc = "Shows the hook timer on your screen.")
+        @ConfigEditorBoolean
+        public boolean enabled = false;
+
+        @Expose
+        @ConfigOption(name = "Custom alert", desc = "Replaces the red !!! of Hypixel with your own text. & is the colour sign: &c&l!!! is red and bold, &a&lNOW a green NOW.")
+        @ConfigEditorText
+        public String customAlertText = "&c&l!!!";
+
+        @Expose
+        @ConfigOption(name = "Custom reel in time", desc = "Shows your custom alert as soon as the time to reel in is this many seconds or less, a little before Hypixel's !!!. 0 waits for the number to reach 0.")
+        @ConfigEditorSlider(minValue = 0f, maxValue = 1f, minStep = 0.1f)
+        public float customReelInTime = 0f;
+
+        @Expose
+        @ConfigOption(name = "Hide armor stand", desc = "Hides Hypixel's own text over the hook while the display on your screen is shown, so the number is not there twice.")
+        @ConfigEditorBoolean
+        public boolean hideArmorStand = true;
+
+        // Lage des Kastens, gesetzt ueber /shoki hud; ohne Untergrund (Deckkraft 0), nur die Schrift
+        @Expose
+        public float hudX = 0.5f;
+        @Expose
+        public float hudY = 0.62f;
+        @Expose
+        public float hudScale = 3.0f;
+        @Expose
+        public float hudAlpha = 0.0f;
+    }
+
+    /**
+     * Fishing > Bait display: der Koeder in der letzten Schnellzugriffsleiste, mit Bild, Anzahl und Name, solange man eine Angel haelt.
+     *
+     * Die Idee ist SkyHanni (LGPL-2.1, "Fishing Bait Display"): Der Koeder liegt im neunten Platz der Leiste, und in seiner Beschreibung
+     * steht "Bait Remaining: 49".
+     */
+    public static class BaitDisplayCategory {
+
+        @ConfigOption(name = "Bait display", desc = "Shows the bait you fish with while you hold a fishing rod: its icon, how many are left and its name. It reads the item in the last slot of your hotbar (the one the bait goes into); with nothing there it says No Bait. Move and resize it in /shoki hud (search \"Bait display\"). Off until you turn it on.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Enabled", desc = "Shows the bait panel while you hold a fishing rod.")
+        @ConfigEditorBoolean
+        public boolean enabled = false;
+
+        @Expose
+        @ConfigOption(name = "Show bait icon", desc = "Draws the picture of the bait next to its name.")
+        @ConfigEditorBoolean
+        public boolean showIcon = true;
+
+        // Lage des Kastens, gesetzt ueber /shoki hud
+        @Expose
+        public float hudX = 0.62f;
+        @Expose
+        public float hudY = 0.93f;
+        @Expose
+        public float hudScale = 1.0f;
+        @Expose
+        public float hudAlpha = 1.0f;
+    }
+
+    /**
+     * Fishing > Cocoon settings: was bei einem Cocoon geschieht - Titel und Ton fuer einen selbst, eine Zeile in den Gruppenchat fuer die anderen.
+     *
+     * Die Idee ist SkyHanni (LGPL-2.1, "Cocoon Settings"): Hypixel schreibt "CAUGHT! You cocooned a Yeti!", wenn der Guertel The Primordial
+     * oder die Umschmiedung Blood Shot einen Meeresbewohner einspinnt. Je Meeresbewohner steht einzeln, ob er meldet; ohne eigene Wahl melden
+     * die seltenen.
+     */
+    public static class SeaCocoonCategory {
+
+        @ConfigOption(name = "Cocoon settings", desc = "For the sea creatures your Primordial belt or a Blood Shot reforge turns into a cocoon (Hypixel writes \"CAUGHT! You cocooned a ...!\"). Which creatures count is picked in the list below; without a choice of your own, the rare ones do. Everything is off until you turn it on.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Send title", desc = "Shows a banner \"<creature> Has Been Cocooned\" for the creatures picked in the list - so you know what is in the cocoon.")
+        @ConfigEditorBoolean
+        public boolean warn = false;
+
+        @Expose
+        @ConfigOption(name = "Share in party chat", desc = "Writes \"My <creature> has been cocooned!\" into the party chat for the creatures picked in the list. If you are in no party, Hypixel answers with its own line and nothing else happens.")
+        @ConfigEditorBoolean
+        public boolean share = false;
+
+        @ConfigOption(name = "Which creatures", desc = "Opens the list of sea creatures: for each one, whether it gets a title and whether it is shared. Same as /shoki cocoons.")
+        @ConfigEditorButton(buttonText = "Open")
+        public transient Runnable openList = () -> {
+        };
+
+        @ConfigOption(name = "Title and sound", desc = "How the title looks and which sound goes with it.")
+        @ConfigEditorAccordion(id = 120)
+        public transient boolean warnFolder = false;
+
+        /** Das Design des Titels - gewaehlt im Sandkasten (Liste "Use for") */
+        @Expose
+        public String bannerDesign = BannerDesign.ALERT_BAND;
+
+        @Expose
+        @ConfigOption(name = "Sound", desc = "Plays a sound with the title: five pings in a row, or your own file below.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 120)
+        public boolean sound = true;
+
+        @ConfigOption(name = "Sound file", desc = "Your own file from config/shokimod/sounds. Empty plays the five pings.")
+        @ConfigEditorButton(buttonText = "Pick")
+        @ConfigAccordionId(id = 120)
+        public transient Runnable openSound = () -> {
+        };
+
+        @Expose
+        public String soundFile = "";
+
+        @ConfigOption(name = "Test", desc = "Shows the title and plays the sound once, whether the title is switched on or not.")
+        @ConfigEditorButton(buttonText = "Test")
+        @ConfigAccordionId(id = 120)
+        public transient Runnable test = () -> {
+        };
+
+        /** Je Meeresbewohner: gibt es einen Titel? Ohne Eintrag gilt "selten" */
+        @Expose
+        public Map<String, Boolean> warnPicks = new HashMap<>();
+        /** Je Meeresbewohner: geht es in den Gruppenchat? Ohne Eintrag gilt "selten" */
+        @Expose
+        public Map<String, Boolean> sharePicks = new HashMap<>();
     }
 
     /**

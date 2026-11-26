@@ -55,6 +55,7 @@ public class ShokiMod implements ClientModInitializer {
     private static boolean openCraftProfitNextTick = false;
     private static boolean openFlipProfitNextTick = false;
     private static boolean openSeaCreaturesNextTick = false;
+    private static boolean openCocoonsNextTick = false;
     private static boolean openEffectsNextTick = false;
     private static boolean openChatRulesNextTick = false;
     private static boolean openProfitItemsNextTick = false;
@@ -110,6 +111,9 @@ public class ShokiMod implements ClientModInitializer {
         com.shokiteufel.shokimod.handler.NoCursorReset.register();
         com.shokiteufel.shokimod.handler.FireVeil.register();
         com.shokiteufel.shokimod.handler.FrozenBlaze.register();
+        com.shokiteufel.shokimod.handler.FishingHookDisplay.register();
+        com.shokiteufel.shokimod.handler.FishingBaitDisplay.register();
+        com.shokiteufel.shokimod.handler.SeaCreatureCocoon.register();
         com.shokiteufel.shokimod.handler.SeaCreatureNear.register();
         com.shokiteufel.shokimod.handler.PestReminder.register();
         com.shokiteufel.shokimod.handler.VisitorReminder.register();
@@ -173,6 +177,10 @@ public class ShokiMod implements ClientModInitializer {
             if (openSeaCreaturesNextTick) {
                 openSeaCreaturesNextTick = false;
                 client.setScreenAndShow(new com.shokiteufel.shokimod.gui.SeaCreatureScreen(null));
+            }
+            if (openCocoonsNextTick) {
+                openCocoonsNextTick = false;
+                client.setScreenAndShow(new com.shokiteufel.shokimod.gui.CocoonScreen(null));
             }
             if (openChatRulesNextTick) {
                 openChatRulesNextTick = false;
@@ -313,6 +321,11 @@ public class ShokiMod implements ClientModInitializer {
                         // Neunzig Zeilen passen in keine Einstellungsliste
                         .then(ClientCommands.literal("seacreatures").executes(context -> {
                             openSeaCreaturesNextTick = true;
+                            return 1;
+                        }))
+                        // /shoki cocoons -> welcher Meeresbewohner bei einem Cocoon einen Titel und eine Zeile im Gruppenchat bekommt
+                        .then(ClientCommands.literal("cocoons").executes(context -> {
+                            openCocoonsNextTick = true;
                             return 1;
                         }))
                         // /shoki chatrules -> die Chat-Regeln: Woerter und was bei ihnen passiert.

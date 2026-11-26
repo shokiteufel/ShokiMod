@@ -317,6 +317,22 @@ public final class FeatureGate {
         return ModConfig.INSTANCE.fishing.hooks.hideOthers;
     }
 
+    /** Fishing > Hook display: Jeden Tick die Ruestungsstaender am eigenen Haken lesen - nur wenn es an ist. Braucht den Ort (nur in SkyBlock) */
+    public static boolean hookDisplay() {
+        return ModConfig.INSTANCE.fishing.hookDisplay.enabled;
+    }
+
+    /** Fishing > Bait display: alle fuenf Ticks den Koeder in der Leiste lesen - nur wenn es an ist. Braucht den Ort (nur in SkyBlock) */
+    public static boolean baitDisplay() {
+        return ModConfig.INSTANCE.fishing.baitDisplay.enabled;
+    }
+
+    /** Fishing > Cocoon settings: die Chatzeile "CAUGHT! You cocooned ..." auswerten - nur wenn Titel oder Teilen an ist. Braucht den Ort (nur in SkyBlock) */
+    public static boolean seaCocoon() {
+        ModConfig.SeaCocoonCategory c = ModConfig.INSTANCE.fishing.cocoon;
+        return c.warn || c.share;
+    }
+
     /** Die Stummschaltung schaut bei jedem Ton nach - nur wenn mindestens einer der beiden Schalter an ist */
     public static boolean mute() {
         ModConfig.MuteCategory c = ModConfig.INSTANCE.fishing.mute;
@@ -329,6 +345,7 @@ public final class FeatureGate {
                 // Die Kampfzeiten brauchen die Server-Kennung: Die Sitzung beginnt neu, wenn die Lobby wechselt
                 || slayerSpawn() || slayerKillTime() || darkAuction() || darkAuctionTimer() || hidePlayersDungeon() || nearbyRare() || ModConfig.INSTANCE.effects.enabled || mineshaftAnnounce()
                 // Die Dungeon-Funktionen fragen die Tab-Liste und die Seitenleiste (DungeonLauf, Funny Map): ohne diese Zeile stuende sie nur, solange eine der Funktionen oben an ist
-                || roomScan() || iHateDoors() || dungeonLog() || leapMenu() || hideOtherHooks() || mineshaftKeys();
+                || roomScan() || iHateDoors() || dungeonLog() || leapMenu() || hideOtherHooks() || mineshaftKeys()
+                || hookDisplay() || baitDisplay() || seaCocoon();
     }
 }
