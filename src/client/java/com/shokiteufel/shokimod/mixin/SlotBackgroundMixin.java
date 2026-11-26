@@ -1,6 +1,7 @@
 package com.shokiteufel.shokimod.mixin;
 
 import com.shokiteufel.shokimod.handler.TrashBooks;
+import com.shokiteufel.shokimod.handler.WindowHighlights;
 
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -25,5 +26,7 @@ public abstract class SlotBackgroundMixin {
                     target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;item(Lnet/minecraft/world/item/ItemStack;III)V"))
     private void shokimod$beforeItem(GuiGraphicsExtractor graphics, Slot slot, int x, int y, CallbackInfo ci) {
         TrashBooks.onSlot(graphics, slot);
+        // Inventory > Bazaar: Purchase helper und Order helper markieren Plaetze des Behaelters
+        WindowHighlights.onSlot(graphics, slot);
     }
 }

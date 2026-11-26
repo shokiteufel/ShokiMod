@@ -333,6 +333,15 @@ Beschreibungen, eigene Tests. Es steht nichts Geschriebenes aus SkyHanni in dies
   im Platz 13; sein Preis (niedrigster BIN mal Stapelgröße) minus ein Coin kommt in die Zwischenablage, einmal je Stück; ohne bekannten Preis wird sie geleert. In „Auctions Browser", „Manage Auctions" und
   „Auctions: ..." kopiert eine Taste den Preis der Auktion unter dem Zeiger (Zeile „Buy it now", „Starting bid" oder „Top bid") minus ein Coin. Eigene Zutaten: Die Preise sind die niedrigsten BIN des
   Profit-Trackers (`ItemValue.LOWEST_BIN`, auch für Pets), die Taste ist eine Taste dieser Mod (steigende Flanke), das Fenster kopiert beim erneuten Öffnen mit demselben Stück wieder, eigener Wortlaut.
+- **Inventory > Bazaar** (`BazaarHelpers`, `WindowHighlights`, `BazaarSellHud`): SkyHanni „Purchase Helper", „Order Helper", „Best Sell Method" und „Cancelled Buy Order Clipboard" (`BazaarApi`,
+  `BazaarOrderApi`, `BazaarOrderHelper`, `BazaarBestSellMethod`, `BazaarCancelledBuyOrderClipboard`). Regeln: Das gesuchte Stück ist in den Listen des Basars (Plätze 9 bis 44) grün; jeder Auftrag in
+  „Your Bazaar Orders" heißt „BUY/SELL Name" und trägt Menge, „Filled: x/y", „You have n items to claim!" und „Price per unit: p coins" - „100%!" ist fertig (grün), ein Kaufauftrag unter dem besten
+  Kaufauftrag oder ein Verkaufsangebot über dem billigsten Angebot ist überboten (gold); im Fenster eines Produkts (Platz 10 „Buy Instantly", Platz 13 das Stück) ist der Unterschied zwischen Sofortverkauf
+  und Angebot (billigstes Angebot minus bester Kaufauftrag) mal die Menge im Inventar zu sehen; im Fenster „Order options" nennt Platz 11 („Cancel Order") die fehlenden Stücke, und nach
+  „[Bazaar] Cancelled! Refunded N coins from cancelling Buy Order!" steht eine Zeile mit Klick zum erneuten Bestellen. Eigene Zutaten: Die Markierungen sitzen über den vorhandenen Einsprung vor dem Stück
+  (`SlotBackgroundMixin`), die Preise sind die Basarpreise des Profit-Trackers (Spitzen des Auftragsbuchs), welcher Auftrag gemeint ist, merkt sich der Zeiger statt eines Klick-Ereignisses, die Suche
+  merkt sich auch /bz und /bazaar, der Klick läuft über `/shoki bzreorder`, der Kasten ist ein Kasten des HUD-Editors, eigener Wortlaut. Nicht übernommen: Hide Order Owner, Hide Trade Partners, Daily Limit
+  Tracker, Price Website, Max Items With Purse und Craft Materials - sie standen nicht im Auftrag.
 
 ---
 

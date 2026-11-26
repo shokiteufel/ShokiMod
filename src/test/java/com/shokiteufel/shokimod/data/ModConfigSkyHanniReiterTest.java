@@ -1,0 +1,114 @@
+package com.shokiteufel.shokimod.data;
+
+import io.github.notenoughupdates.moulconfig.processor.ConfigProcessorDriver;
+import io.github.notenoughupdates.moulconfig.processor.MoulConfigProcessor;
+import io.github.notenoughupdates.moulconfig.processor.ProcessedCategory;
+import io.github.notenoughupdates.moulconfig.processor.ProcessedOption;
+import org.junit.jupiter.api.Test;
+
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
+import java.util.LinkedHashMap;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+/**
+ * Wie der Editor die Reiter sieht, die seit 2.4.10 nach SkyHanni dazukamen (Fishing: Hook display, Bait display, Cocoon settings; Slayer: Cocoon und
+ * Spawn particles; Skill progress mit Progress bar und Overflow; Inventory mit Auction house und Bazaar). Derselbe Weg wie beim Oeffnen des Fensters:
+ * Ein Fehler in den Annotationen (doppelte Gruppe, falscher Feldtyp, eine dritte Ebene) wuerde dort das Fenster zerbrechen - hier faellt er vorher auf.
+ */
+class ModConfigSkyHanniReiterTest {
+
+    private static final class Ergebnis {
+        LinkedHashMap<String, ? extends ProcessedCategory> kategorien;
+        String fehlerausgabe;
+    }
+
+    private static Ergebnis verarbeiten() {
+        ModConfig config = new ModConfig();
+        PrintStream alt = System.err;
+        ByteArrayOutputStream puffer = new ByteArrayOutputStream();
+        Ergebnis e = new Ergebnis();
+        try {
+            System.setErr(new PrintStream(puffer, true));
+            MoulConfigProcessor<ModConfig> prozessor = MoulConfigProcessor.withDefaults(config);
+            new ConfigProcessorDriver(prozessor).processConfig(config);
+            e.kategorien = prozessor.getAllCategories();
+        } finally {
+            System.setErr(alt);
+        }
+        e.fehlerausgabe = puffer.toString();
+        return e;
+    }
+
+    private static ProcessedCategory nach(Ergebnis e, String teilDesFeldnamens) {
+        for (var k : e.kategorien.entrySet()) {
+            if (k.getKey().contains(teilDesFeldnamens)) return k.getValue();
+        }
+        return null;
+    }
+
+    @Test
+    void theEditorReadsTheWholeConfigWithoutWarnings() {
+        Ergebnis e = verarbeiten();
+        assertFalse(e.fehlerausgabe.contains("double recursive"), e.fehlerausgabe);
+        assertFalse(e.fehlerausgabe.contains("sub categories inside of an accordion"), e.fehlerausgabe);
+        assertFalse(e.fehlerausgabe.contains("Cannot mix"), e.fehlerausgabe);
+        assertFalse(e.fehlerausgabe.toLowerCase().contains("exception"), e.fehlerausgabe);
+        assertFalse(e.fehlerausgabe.toLowerCase().contains("duplicate"), e.fehlerausgabe);
+    }
+
+    @Test
+    void theNewFishingTabsAreSubCategoriesOfFishing() {
+        Ergebnis e = verarbeiten();
+        ProcessedCategory fishing = nach(e, "ModConfig.fishing");
+        assertNotNull(fishing, "der Reiter Fishing");
+        for (String name : new String[] {"FishingCategory.hookDisplay", "FishingCategory.baitDisplay", "FishingCategory.cocoon"}) {
+            ProcessedCategory c = nach(e, name);
+            assertNotNull(c, name);
+            assertEquals(fishing.getIdentifier(), c.getParentCategoryId(), name + " haengt unter Fishing");
+        }
+    }
+
+    @Test
+    void skillProgressHasTheBarAndOverflowBelowIt() {
+        Ergebnis e = verarbeiten();
+        ProcessedCategory skill = nach(e, "ModConfig.skillProgress");
+        assertNotNull(skill, "der Reiter Skill progress");
+        for (String name : new String[] {"SkillProgressCategory.bar", "SkillProgressCategory.overflow"}) {
+            ProcessedCategory c = nach(e, name);
+            assertNotNull(c, name);
+            assertEquals(skill.getIdentifier(), c.getParentCategoryId(), name + " haengt unter Skill progress");
+        }
+    }
+
+    @Test
+    void inventoryHasAuctionHouseAndBazaarBelowIt() {
+        Ergebnis e = verarbeiten();
+        ProcessedCategory inventory = nach(e, "ModConfig.inventory");
+        assertNotNull(inventory, "der Reiter Inventory");
+        for (String name : new String[] {"InventoryCategory.auctions", "InventoryCategory.bazaar"}) {
+            ProcessedCategory c = nach(e, name);
+            assertNotNull(c, name);
+            assertEquals(inventory.getIdentifier(), c.getParentCategoryId(), name + " haengt unter Inventory");
+        }
+    }
+
+    @Test
+    void theSlayerGroupsForCocoonAndSpawnParticlesHoldTheirOptions() {
+        Ergebnis e = verarbeiten();
+        ProcessedCategory slayer = nach(e, "ModConfig.slayer");
+        assertNotNull(slayer, "der Reiter Slayer");
+        int cocoonOptions = 0;
+        int particleOptions = 0;
+        for (ProcessedOption o : slayer.getOptions()) {
+            if (o.getAccordionId() == 121) cocoonOptions++;
+            if (o.getAccordionId() == 122) particleOptions++;
+        }
+        assertTrue(cocoonOptions >= 4, "Cocoon: Titel, Ton, Datei, Test - gezaehlt " + cocoonOptions);
+        assertEquals(3, particleOptions, "drei Arten Spawn-Partikel");
+    }
+}

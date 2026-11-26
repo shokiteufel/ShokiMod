@@ -19,7 +19,7 @@ public final class SafariHud {
 
     /** Ein Kasten auf dem Bildschirm. Traegt seine eigene Lage und Groesse in der Config */
     public enum Panel {
-        PROGRESS, MISSING, CONTEST, NEARBY, HUNTING, GUILD, COLLECTION, PROFIT, MINING, PET, PERFORMANCE, SEATRACKER, EFFECTS, SEAHP, DARK_AUCTION, FIRE_VEIL, DEPLOYABLES, FORGE, SKILL_XP, FROZEN_BLAZE, FISHING_HOOK, FISHING_BAIT, SKILL_PROGRESS, SKILL_BAR;
+        PROGRESS, MISSING, CONTEST, NEARBY, HUNTING, GUILD, COLLECTION, PROFIT, MINING, PET, PERFORMANCE, SEATRACKER, EFFECTS, SEAHP, DARK_AUCTION, FIRE_VEIL, DEPLOYABLES, FORGE, SKILL_XP, FROZEN_BLAZE, FISHING_HOOK, FISHING_BAIT, SKILL_PROGRESS, SKILL_BAR, BAZAAR_SELL;
 
         public boolean visible() {
             ModConfig.SafariCategory c = ModConfig.INSTANCE.safari;
@@ -63,6 +63,8 @@ public final class SafariHud {
                 // Nach einem Zugewinn drei Sekunden (mit "Always show" immer); im HUD-Editor immer
                 case SKILL_PROGRESS -> SkillProgressHud.shownNow();
                 case SKILL_BAR -> SkillBarHud.shownNow();
+                // Im Fenster eines Basar-Produkts mit etwas im Inventar; im HUD-Editor immer
+                case BAZAAR_SELL -> BazaarSellHud.shownNow();
             };
         }
 
@@ -105,6 +107,7 @@ public final class SafariHud {
                 case FISHING_BAIT -> "Bait display";
                 case SKILL_PROGRESS -> "Skill progress";
                 case SKILL_BAR -> "Skill progress";
+                case BAZAAR_SELL -> "Best sell method";
             };
         }
 
@@ -162,6 +165,7 @@ public final class SafariHud {
                 case FISHING_BAIT -> ModConfig.INSTANCE.fishing.baitDisplay.hudX;
                 case SKILL_PROGRESS -> ModConfig.INSTANCE.skillProgress.hudX;
                 case SKILL_BAR -> ModConfig.INSTANCE.skillProgress.barHudX;
+                case BAZAAR_SELL -> ModConfig.INSTANCE.inventory.bazaar.hudX;
             };
         }
 
@@ -192,6 +196,7 @@ public final class SafariHud {
                 case FISHING_BAIT -> ModConfig.INSTANCE.fishing.baitDisplay.hudY;
                 case SKILL_PROGRESS -> ModConfig.INSTANCE.skillProgress.hudY;
                 case SKILL_BAR -> ModConfig.INSTANCE.skillProgress.barHudY;
+                case BAZAAR_SELL -> ModConfig.INSTANCE.inventory.bazaar.hudY;
             };
         }
 
@@ -222,6 +227,7 @@ public final class SafariHud {
                 case FISHING_BAIT -> ModConfig.INSTANCE.fishing.baitDisplay.hudScale;
                 case SKILL_PROGRESS -> ModConfig.INSTANCE.skillProgress.hudScale;
                 case SKILL_BAR -> ModConfig.INSTANCE.skillProgress.barHudScale;
+                case BAZAAR_SELL -> ModConfig.INSTANCE.inventory.bazaar.hudScale;
             };
         }
 
@@ -324,6 +330,10 @@ public final class SafariHud {
                     ModConfig.INSTANCE.skillProgress.barHudX = x;
                     ModConfig.INSTANCE.skillProgress.barHudY = y;
                 }
+                case BAZAAR_SELL -> {
+                    ModConfig.INSTANCE.inventory.bazaar.hudX = x;
+                    ModConfig.INSTANCE.inventory.bazaar.hudY = y;
+                }
             }
         }
 
@@ -355,6 +365,7 @@ public final class SafariHud {
                 case FISHING_BAIT -> ModConfig.INSTANCE.fishing.baitDisplay.hudAlpha;
                 case SKILL_PROGRESS -> ModConfig.INSTANCE.skillProgress.hudAlpha;
                 case SKILL_BAR -> ModConfig.INSTANCE.skillProgress.barHudAlpha;
+                case BAZAAR_SELL -> ModConfig.INSTANCE.inventory.bazaar.hudAlpha;
             };
         }
 
@@ -388,6 +399,7 @@ public final class SafariHud {
                 case FISHING_BAIT -> ModConfig.INSTANCE.fishing.baitDisplay.hudAlpha = clamped;
                 case SKILL_PROGRESS -> ModConfig.INSTANCE.skillProgress.hudAlpha = clamped;
                 case SKILL_BAR -> ModConfig.INSTANCE.skillProgress.barHudAlpha = clamped;
+                case BAZAAR_SELL -> ModConfig.INSTANCE.inventory.bazaar.hudAlpha = clamped;
             }
         }
 
@@ -419,6 +431,7 @@ public final class SafariHud {
                 case FISHING_BAIT -> ModConfig.INSTANCE.fishing.baitDisplay.hudScale = clamped;
                 case SKILL_PROGRESS -> ModConfig.INSTANCE.skillProgress.hudScale = clamped;
                 case SKILL_BAR -> ModConfig.INSTANCE.skillProgress.barHudScale = clamped;
+                case BAZAAR_SELL -> ModConfig.INSTANCE.inventory.bazaar.hudScale = clamped;
             }
         }
 
@@ -492,6 +505,7 @@ public final class SafariHud {
                 case FISHING_BAIT -> FishingBaitHud.build();
                 case SKILL_PROGRESS -> SkillProgressHud.build();
                 case SKILL_BAR -> SkillBarHud.build();
+                case BAZAAR_SELL -> BazaarSellHud.build();
             };
         }
     }

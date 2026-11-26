@@ -106,6 +106,8 @@ public class NetworkHandler {
             RareCatchAlert.onChatMessage(unformattedMsg);
             // Ein eigenes Cocoon: Titel und Gruppenchat, wie eingestellt
             com.shokiteufel.shokimod.handler.SeaCreatureCocoon.onChatMessage(unformattedMsg);
+            // Inventory > Bazaar: Kauf und Verkauf merken; die Abbruchzeile eines Kaufauftrags ersetzt die Mod durch ihre eigene
+            boolean bazaarCancelled = com.shokiteufel.shokimod.handler.BazaarHelpers.onChatMessage(unformattedMsg);
             // Der eigene Slayer-Boss wurde eingesponnen: Titel und Ton
             com.shokiteufel.shokimod.handler.SlayerCocoon.onChatMessage(unformattedMsg);
             // Der Zaehler fuer Faenge, Double Hooks und Cocoons liest dieselbe Zeile
@@ -149,6 +151,8 @@ public class NetworkHandler {
             if (zeigen && com.shokiteufel.shokimod.handler.FrozenBlaze.hidesLootshare(unformattedMsg)) zeigen = false;
             // Fishing > Frozen Blaze: Die Zeilen des NPC "Tribe Member" auf Wunsch auch
             if (zeigen && com.shokiteufel.shokimod.handler.FrozenBlaze.hidesTribeMember(unformattedMsg)) zeigen = false;
+            // Inventory > Bazaar: Hypixels Abbruchzeile weicht der Zeile mit dem Klick
+            if (zeigen && bazaarCancelled) zeigen = false;
 
             // Die Sammelzeile der Saecke zuletzt - erst muss jeder sie gelesen haben.
             //

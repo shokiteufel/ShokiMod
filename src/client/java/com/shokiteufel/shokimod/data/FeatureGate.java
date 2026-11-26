@@ -296,6 +296,12 @@ public final class FeatureGate {
         return c.autoCopyUnderbid || c.hasCopyKey();
     }
 
+    /** Inventory > Bazaar: Fenster des Basars lesen, Plaetze markieren, Suchen mitschreiben - nur wenn eine der vier Hilfen an ist. Braucht den Ort (nur in SkyBlock) */
+    public static boolean bazaarHelpers() {
+        ModConfig.BazaarHelpersCategory c = ModConfig.INSTANCE.inventory.bazaar;
+        return c.purchaseHelper || c.orderHelper || c.bestSellMethod || c.cancelledBuyOrderClipboard;
+    }
+
     /** Die Kampfzeiten der Slayer-Bosse lesen alle fuenf Ticks die Seitenleiste und den Chat - nur wenn eine der Zeilen an ist */
     public static boolean slayerKillTime() {
         return ModConfig.INSTANCE.slayer.bossKillTime || ModConfig.INSTANCE.slayer.questKillTime;
@@ -367,6 +373,6 @@ public final class FeatureGate {
                 || slayerSpawn() || slayerKillTime() || darkAuction() || darkAuctionTimer() || hidePlayersDungeon() || nearbyRare() || ModConfig.INSTANCE.effects.enabled || mineshaftAnnounce()
                 // Die Dungeon-Funktionen fragen die Tab-Liste und die Seitenleiste (DungeonLauf, Funny Map): ohne diese Zeile stuende sie nur, solange eine der Funktionen oben an ist
                 || roomScan() || iHateDoors() || dungeonLog() || leapMenu() || hideOtherHooks() || mineshaftKeys()
-                || hookDisplay() || baitDisplay() || seaCocoon() || slayerCocoon() || slayerSpawnParticles() || skillProgress() || auctionUnderbid();
+                || hookDisplay() || baitDisplay() || seaCocoon() || slayerCocoon() || slayerSpawnParticles() || skillProgress() || auctionUnderbid() || bazaarHelpers();
     }
 }

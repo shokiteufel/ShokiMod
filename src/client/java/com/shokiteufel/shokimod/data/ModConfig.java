@@ -188,6 +188,7 @@ public class ModConfig extends Config {
         if (c == null) return;
         if (c.inventory == null) c.inventory = new InventoryCategory();
         if (c.inventory.auctions == null) c.inventory.auctions = new AuctionHouseHelpersCategory();
+        if (c.inventory.bazaar == null) c.inventory.bazaar = new BazaarHelpersCategory();
     }
 
     static void repairFishingExtras(FishingCategory fishing) {
@@ -5168,6 +5169,10 @@ public class ModConfig extends Config {
         @Expose
         @Category(name = "Auction house", desc = "Helpers for the auction house. Idea from SkyHanni.")
         public AuctionHouseHelpersCategory auctions = new AuctionHouseHelpersCategory();
+
+        @Expose
+        @Category(name = "Bazaar", desc = "Helpers for buying and selling at the bazaar: purchase helper, order helper, best sell method and the cancelled buy order clipboard. Idea from SkyHanni.")
+        public BazaarHelpersCategory bazaar = new BazaarHelpersCategory();
     }
 
     /**
@@ -5196,6 +5201,49 @@ public class ModConfig extends Config {
         public boolean hasCopyKey() {
             return copyUnderbidKey >= 32;
         }
+    }
+
+    /**
+     * Inventory > Bazaar: die Hilfen beim Handeln im Basar.
+     *
+     * Die Idee ist SkyHanni (LGPL-2.1, Inventory > Bazaar: Purchase Helper, Order Helper, Best Sell Method, Cancelled Buy Order Clipboard). Der Reiter
+     * "Bazaar" weiter oben rechnet dagegen, was Auftraege einbringen (/shoki flipprofit).
+     */
+    public static class BazaarHelpersCategory {
+
+        @ConfigOption(name = "Bazaar", desc = "Helpers for buying and selling at the bazaar: the item you search for is marked, your orders show when they are ready or outbid, the sell window tells what an instant sell costs you against an offer, and a cancelled buy order can be placed again with one click. Everything is off until you turn it on.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Purchase helper", desc = "Marks the item you are trying to buy in the bazaar lists with a green square: after you search with /bz or /bazaar (or click the re-order line of the cancelled buy order clipboard), the entry of that name is lit in the windows that follow. It goes out when you have bought it or set up an order for it.")
+        @ConfigEditorBoolean
+        public boolean purchaseHelper = false;
+
+        @Expose
+        @ConfigOption(name = "Order helper", desc = "In Your Bazaar Orders (and the co-op list) marks every order that is ready to pick up with a green square, and every order that is outbid with a gold one: a buy order below the best buy order, a sell offer above the cheapest sell offer. The prices come from the bazaar prices the mod already fetches.")
+        @ConfigEditorBoolean
+        public boolean orderHelper = false;
+
+        @Expose
+        @ConfigOption(name = "Best sell method", desc = "In the window of a bazaar product, shows how much you lose by selling what you carry instantly instead of through a sell offer: (cheapest offer - best buy order) x the amount in your inventory. Nothing shows if you carry none. Move and resize it in /shoki hud (search \"Best sell method\").")
+        @ConfigEditorBoolean
+        public boolean bestSellMethod = false;
+
+        @Expose
+        @ConfigOption(name = "Cancelled buy order clipboard", desc = "When you cancel a buy order, writes how many items were still missing and offers to order them again: one click on the line searches the bazaar for the item and puts the amount in your clipboard, ready to paste. The amount is in your clipboard from the start. Replaces Hypixel's own cancel line.")
+        @ConfigEditorBoolean
+        public boolean cancelledBuyOrderClipboard = false;
+
+        // Lage des Kastens "Best sell method", gesetzt ueber /shoki hud
+        @Expose
+        public float hudX = 0.55f;
+        @Expose
+        public float hudY = 0.2f;
+        @Expose
+        public float hudScale = 1.0f;
+        @Expose
+        public float hudAlpha = 1.0f;
     }
 
     public static class SkillXpCategory {

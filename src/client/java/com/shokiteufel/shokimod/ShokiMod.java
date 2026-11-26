@@ -117,6 +117,7 @@ public class ShokiMod implements ClientModInitializer {
         com.shokiteufel.shokimod.handler.SlayerCocoon.register();
         com.shokiteufel.shokimod.handler.SkillProgress.register();
         com.shokiteufel.shokimod.handler.AuctionUnderbid.register();
+        com.shokiteufel.shokimod.handler.BazaarHelpers.register();
         com.shokiteufel.shokimod.handler.SlayerSpawnParticles.register();
         com.shokiteufel.shokimod.handler.SeaCreatureNear.register();
         com.shokiteufel.shokimod.handler.PestReminder.register();
@@ -325,6 +326,11 @@ public class ShokiMod implements ClientModInitializer {
                         // Neunzig Zeilen passen in keine Einstellungsliste
                         .then(ClientCommands.literal("seacreatures").executes(context -> {
                             openSeaCreaturesNextTick = true;
+                            return 1;
+                        }))
+                        // /shoki bzreorder -> das Ziel der Chatzeile nach einem abgebrochenen Kaufauftrag: das Stueck im Basar neu suchen
+                        .then(ClientCommands.literal("bzreorder").executes(context -> {
+                            com.shokiteufel.shokimod.handler.BazaarHelpers.reorder();
                             return 1;
                         }))
                         // /shoki cocoons -> welcher Meeresbewohner bei einem Cocoon einen Titel und eine Zeile im Gruppenchat bekommt
