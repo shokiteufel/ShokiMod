@@ -5,6 +5,7 @@ import com.shokiteufel.shokimod.data.FeatureGate;
 import com.shokiteufel.shokimod.data.GameState;
 import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.mixin.AbstractContainerScreenAccessor;
+import com.shokiteufel.shokimod.render.hud.HudNumbers;
 import com.shokiteufel.shokimod.util.BazaarIds;
 import com.shokiteufel.shokimod.util.BazaarLive;
 import com.shokiteufel.shokimod.util.ItemNames;
@@ -240,10 +241,19 @@ public final class BazaarHelpers {
      * entfaellt, wenn es die Zahl nicht gibt.
      */
     static List<String> priceLines(BazaarPrice price, double npc) {
+        return priceLines(price, npc, false);
+    }
+
+    /**
+     * Wie {@link #priceLines(BazaarPrice, double)}; mit {@code bold} steht die Zahl fett ("§6Bazaar Buy: §6§l550", HUD > Bold numbers). Der Text ohne
+     * {@code bold} ist derselbe wie immer: Fett gibt es nur in der Anzeige (Tooltip), nicht in {@link #coins}.
+     */
+    static List<String> priceLines(BazaarPrice price, double npc, boolean bold) {
+        String style = bold ? "§l" : "";
         List<String> out = new ArrayList<>(3);
-        if (price != null && price.highestBid() > 0) out.add("§6Bazaar Buy: §6" + coins(price.highestBid()));
-        if (price != null && price.cheapestOffer() > 0) out.add("§6Bazaar Sell: §6" + coins(price.cheapestOffer()));
-        if (npc > 0) out.add("§6NPC Sell: §6" + coins(npc));
+        if (price != null && price.highestBid() > 0) out.add("§6Bazaar Buy: §6" + style + coins(price.highestBid()));
+        if (price != null && price.cheapestOffer() > 0) out.add("§6Bazaar Sell: §6" + style + coins(price.cheapestOffer()));
+        if (npc > 0) out.add("§6NPC Sell: §6" + style + coins(npc));
         return out;
     }
 
@@ -402,7 +412,7 @@ public final class BazaarHelpers {
         if (id == null) return;
         BazaarPrice price = ItemValue.bazaarPrice(id);
         if (price == null) return;
-        for (String line : priceLines(price, ItemNames.npcSellPrice(id))) lines.add(Component.literal(line));
+        for (String line : priceLines(price, ItemNames.npcSellPrice(id), HudNumbers.bold())) lines.add(Component.literal(line));
     }
 
     /** Das Fenster eines Produkts: Platz 10 "Buy Instantly", Platz 13 das Stueck - dann der Unterschied zwischen Sofortverkauf und Angebot */

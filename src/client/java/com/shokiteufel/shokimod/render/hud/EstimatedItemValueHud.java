@@ -37,7 +37,10 @@ public final class EstimatedItemValueHud {
         List<String> lines = EstimatedItemValue.display();
         if (lines.isEmpty() && HudEditorScreen.isOpen()) lines = SAMPLE;
         HudPanel panel = new HudPanel();
-        for (String line : lines) panel.line(line, HudColours.WHITE);
+        // HUD > Bold numbers: die Coin-Betraege der Posten fett wie die Summe "§6§l...". Die Zeilen selbst (EivCalculator, display()) bleiben
+        // unveraendert - Tests pruefen ihren Text; der Fettdruck kommt erst hier, beim Bau des Kastens (nicht in jedem Bild)
+        boolean bold = HudNumbers.bold();
+        for (String line : lines) panel.line(bold ? HudNumbers.boldCoins(line) : line, HudColours.WHITE);
         return panel;
     }
 }

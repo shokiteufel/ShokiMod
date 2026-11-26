@@ -110,7 +110,7 @@ public final class ProfitHud {
                 panel.pair(prefix(clickable) + row.name() + " x" + HudNumbers.amount(row.count())
                                 + mark(row.itemId(), row.mode()),
                         worth, ProfitTracker.colourOf(row.itemId()),
-                        row.value() < 0 ? HudColours.RED : VALUE_COLOUR);
+                        row.value() < 0 ? HudColours.RED : VALUE_COLOUR).boldValue();
                 ids.add(row.itemId());
             }
             if (rows.size() > limit) {
@@ -125,22 +125,23 @@ public final class ProfitHud {
         negativeRow = ids.size();
         // Je einmal gerechnet und dann nur noch gelesen: Jede Summe geht sonst durch alle Zeilen
         double negative = ProfitTracker.negativeTotal();
+        // Die Betraege rechts sind fett (HUD > Bold numbers), die Zeiten und Namen nicht
         panel.pair("Negative:", ItemValue.format(negative), LABEL_COLOUR,
-                negative < 0 ? HudColours.RED : VALUE_COLOUR);
+                negative < 0 ? HudColours.RED : VALUE_COLOUR).boldValue();
         ids.add(null);
         // Nur, wenn im gezeigten Zeitraum schon ein Boss bezahlt wurde
         if (ProfitTracker.spawnCost() < 0) {
-            panel.pair("Spawn cost:", ItemValue.format(ProfitTracker.spawnCost()), LABEL_COLOUR, HudColours.RED);
+            panel.pair("Spawn cost:", ItemValue.format(ProfitTracker.spawnCost()), LABEL_COLOUR, HudColours.RED).boldValue();
             ids.add(null);
         }
         double total = ProfitTracker.total();
         panel.pair("Total:", ItemValue.format(total), LABEL_COLOUR,
-                total < 0 ? HudColours.RED : VALUE_COLOUR);
+                total < 0 ? HudColours.RED : VALUE_COLOUR).boldValue();
         ids.add(null);
         // Beide Zeilen einzeln: Wer nur wissen will, wie lange er schon dran ist,
         // braucht die Coins je Stunde nicht daneben
         if (cfg.timerEnabled && cfg.showPerHour) {
-            panel.pair("Profit/h:", ItemValue.format(ProfitTracker.perHour(total)), LABEL_COLOUR, VALUE_COLOUR);
+            panel.pair("Profit/h:", ItemValue.format(ProfitTracker.perHour(total)), LABEL_COLOUR, VALUE_COLOUR).boldValue();
             ids.add(null);
         }
         if (cfg.timerEnabled && cfg.showTime) {

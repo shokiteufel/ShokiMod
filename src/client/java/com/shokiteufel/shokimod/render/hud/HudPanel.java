@@ -7,6 +7,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.ToIntFunction;
 
 /**
  * Ein Kasten mit Zeilen, wie ihn crittermod fuer seine beiden Anzeigen benutzt.
@@ -14,6 +15,11 @@ import java.util.List;
  * Vier Zeilenarten reichen aus: Ueberschrift, freier Text, Beschriftung mit Wert
  * rechtsbuendig, und ein Fortschrittsbalken. Der Kasten misst seine Breite selbst
  * am laengsten Inhalt, damit nichts abgeschnitten wird und nichts flattert.
+ *
+ * <p>Fettdruck (HUD > Bold numbers): Ein Aufrufer markiert eine Zeile mit {@link #boldValue()} (oder ein Stueck einer Segment-Zeile mit
+ * {@link Segment#withNumber}), dann zeichnet und MISST der Kasten den Wert fett. Der gespeicherte Text der Zeile bleibt dabei unveraendert;
+ * der fette Text entsteht beim Ausmessen einmal je Kasten ({@link #measure}) und wird danach nur noch gezeichnet. Weil Messen und Zeichnen
+ * denselben fetten Text benutzen (ein fettes Zeichen ist einen Punkt breiter), stimmen Kastenbreite und die rechtsbuendigen Spalten.
  */
 public class HudPanel {
 
@@ -43,8 +49,33 @@ public class HudPanel {
 
     private enum Kind { TITLE, TEXT, PAIR, BAR, BLANK, ICON, TABLE, SEGMENTS, ALIGNED, SUBICON }
 
-    /** Ein Stueck einer Segment-Zeile: ein Text in einer eigenen Farbe */
-    public record Segment(String text, int colour) {
+    /**
+     * Ein Stueck einer Segment-Zeile: ein Text in einer eigenen Farbe.
+     *
+     * @param boldFrom Anfang der Zahl im Text, die bei "Bold numbers" fett wird (einschliesslich)
+     * @param boldTo   Ende der Zahl (ausschliesslich); gleich oder kleiner als boldFrom: nichts wird fett
+     */
+    public record Segment(String text, int colour, int boldFrom, int boldTo) {
+
+        /** Ohne fette Zahl */
+        public Segment(String text, int colour) {
+            this(text, colour, 0, 0);
+        }
+
+        /** "Total: " + "123" + " 4%": der Text ist alles zusammen, fett wird nur die Zahl in der Mitte */
+        public static Segment withNumber(String before, String number, String after, int colour) {
+            return new Segment(before + number + after, colour, before.length(), before.length() + number.length());
+        }
+
+        /**
+         * Der Text, wie er gezeichnet und gemessen wird. Ohne Fettdruck genau {@link #text}; mit Fettdruck steht "§l" vor der Zahl und "§r"
+         * dahinter (das Zurueck setzt die Farbe des Stuecks wieder ein, denn die kommt vom Zeichnen, nicht aus dem Text).
+         */
+        String shown(boolean bold) {
+            if (!bold || boldFrom < 0 || boldTo <= boldFrom || boldTo > text.length()) return text;
+            String head = text.substring(0, boldFrom) + "§l" + text.substring(boldFrom, boldTo);
+            return boldTo == text.length() ? head : head + "§r" + text.substring(boldTo);
+        }
     }
 
     /** Zwischen zwei Segmenten einer Zeile */
@@ -54,7 +85,18 @@ public class HudPanel {
     private record Row(Kind kind, String label, String value,
                        int labelColour, int valueColour, int current, int max,
                        net.minecraft.world.item.ItemStack icon, String extra,
-                       List<Segment> parts, float scale) {
+                       List<Segment> parts, float scale, boolean bold) {
+
+        /** Ohne Fettdruck */
+        Row(Kind kind, String label, String value, int labelColour, int valueColour, int current, int max,
+            net.minecraft.world.item.ItemStack icon, String extra, List<Segment> parts, float scale) {
+            this(kind, label, value, labelColour, valueColour, current, max, icon, extra, parts, scale, false);
+        }
+
+        /** Dieselbe Zeile mit fettem Wert */
+        Row withBold() {
+            return new Row(kind, label, value, labelColour, valueColour, current, max, icon, extra, parts, scale, true);
+        }
 
         /** Ohne Segmente */
         Row(Kind kind, String label, String value, int labelColour, int valueColour, int current, int max,
@@ -97,6 +139,34 @@ public class HudPanel {
     }
 
     private final List<Row> rows = new ArrayList<>();
+
+    /**
+     * Ob die markierten Werte fett sind ("Bold numbers"): einmal beim Bau gelesen, nicht in jedem Bild. Ein Kasten wird oft neu gebaut (hoechstens
+     * eine Viertelsekunde alt, siehe SafariHud), also gilt eine Aenderung des Schalters sofort danach - und ein einzelner Kasten ist in sich
+     * stimmig: Er misst und zeichnet mit demselben Stand.
+     */
+    private final boolean boldNumbers;
+
+    public HudPanel() {
+        this(HudNumbers.bold());
+    }
+
+    /** Mit festem Stand des Schalters - fuer die Pruefung, die keine Konfiguration anfassen soll */
+    HudPanel(boolean boldNumbers) {
+        this.boldNumbers = boldNumbers;
+    }
+
+    /**
+     * Die Texte der Werte, wie sie gemessen und gezeichnet werden: die gespeicherten Werte, bei markierten Zeilen und eingeschaltetem Fettdruck mit
+     * "§l" (siehe {@link #measure}). Gefuellt beim Ausmessen, danach nur gelesen - im Zeichnen entsteht kein neuer Text.
+     */
+    private String[] shownValue = null;
+    /** Die zweite Zelle der Tabellenzeilen, wie sie gezeichnet wird */
+    private String[] shownExtra = null;
+    /** Die Stuecke der Segment-Zeilen, wie sie gezeichnet werden (je Zeile ein Feld, bei anderen Zeilen null) */
+    private String[][] shownParts = null;
+    /** Dieselben Stuecke ohne Farbcodes fuer den Umriss ("Glowing text") */
+    private String[][] shownPartsPlain = null;
 
     /**
      * Gibt es eine Zeile, die buendig unter dem Text einer Bild-Zeile beginnt? Dann steht auch der Wert der Bild-Zeile
@@ -263,6 +333,32 @@ public class HudPanel {
         return this;
     }
 
+    /**
+     * Welche Zeilenarten einen fetten Wert kennen: die mit einer Wert-Spalte (Paar, buendige Zeile, Bild-Zeile, Tabelle). Ueberschrift und Text haben
+     * keine; der Wert eines Balkens ist "x/y", kein Betrag; eine Segment-Zeile traegt ihre fetten Zahlen in den Stuecken ({@link Segment#withNumber}).
+     */
+    private static boolean boldable(Kind kind) {
+        return switch (kind) {
+            case PAIR, ALIGNED, ICON, SUBICON, TABLE -> true;
+            case TITLE, TEXT, BAR, BLANK, SEGMENTS -> false;
+        };
+    }
+
+    /**
+     * Macht den Wert der zuletzt hinzugefuegten Zeile fett, sofern "Bold numbers" an ist. Der Aufrufer sagt damit, dass dort ein Betrag oder eine
+     * Menge steht (Coins, Stueckzahl) - Zeiten, Namen und Anteile bleiben schlicht. Bei einer Tabellenzeile werden die Zahlen beider Zellen fett,
+     * nicht ihr Anteil (hinter {@link #CELL_SPLIT}). Bei Zeilenarten ohne Wert-Spalte geschieht nichts.
+     */
+    public HudPanel boldValue() {
+        if (rows.isEmpty()) return this;
+        int last = rows.size() - 1;
+        Row row = rows.get(last);
+        if (!boldable(row.kind())) return this;
+        rows.set(last, row.withBold());
+        measuredWidth = -1;   // die Breite muss neu ausgemessen werden
+        return this;
+    }
+
     /** Wie viele Zeilen der Kasten hat - fuer Klicks auf eine bestimmte */
     public int rowCount() {
         return rows.size();
@@ -293,14 +389,73 @@ public class HudPanel {
     }
 
     private int contentWidth(Font font) {
-        measure(font);
+        // Der Methodenverweis entsteht nur, wenn wirklich gemessen wird - nicht in jedem Bild
+        if (measuredWidth < 0) measure(font::width);
         return measuredWidth;
     }
 
-    private void measure(Font font) {
+    /** Wie {@link #width(Font)} (ohne den Rand), aber mit einer beliebigen Breitenfunktion - fuer die Pruefung, die keine Schrift hat */
+    int contentWidth(ToIntFunction<String> width) {
+        measure(width);
+        return measuredWidth;
+    }
+
+    /** Der Text des Werts einer Zeile, wie er gemessen und gezeichnet wird; erst nach dem Ausmessen */
+    String shownValue(int row) {
+        return shownValue[row];
+    }
+
+    /** Die zweite Zelle einer Tabellenzeile, wie sie gezeichnet wird; erst nach dem Ausmessen */
+    String shownExtra(int row) {
+        return shownExtra[row];
+    }
+
+    /** Ein Stueck einer Segment-Zeile, wie es gezeichnet wird; erst nach dem Ausmessen */
+    String shownPart(int row, int part) {
+        return shownParts[row][part];
+    }
+
+    /**
+     * Eine Zelle "Zahl|Anteil" mit fetter Zahl: nur der Teil vor {@link #CELL_SPLIT} wird fett, der Anteil bleibt. Ohne Trenner ist die ganze
+     * Zelle die Zahl.
+     */
+    private static String boldCell(String cell) {
+        int i = cell.indexOf(CELL_SPLIT);
+        if (i < 0) return HudNumbers.bolden(cell);
+        return HudNumbers.bolden(cell.substring(0, i)) + cell.substring(i);
+    }
+
+    /**
+     * Ausmessen: die Texte der Werte festlegen (fett oder nicht) und alle Breiten damit rechnen. Einmal je Kasten; gezeichnet wird danach nur noch.
+     *
+     * @param w die Breite eines Textes in Punkten - im Spiel die Schrift, in der Pruefung eine eigene Funktion
+     */
+    private void measure(ToIntFunction<String> w) {
         if (measuredWidth >= 0) return;
 
         valueWidths = new int[rows.size()];
+        // Zuerst die Texte, wie sie gezeichnet werden: Alle Breiten unten rechnen mit ihnen, nicht mit dem gespeicherten Wert
+        shownValue = new String[rows.size()];
+        shownExtra = new String[rows.size()];
+        shownParts = new String[rows.size()][];
+        shownPartsPlain = new String[rows.size()][];
+        for (int i = 0; i < rows.size(); i++) {
+            Row row = rows.get(i);
+            boolean bold = boldNumbers && row.bold();
+            boolean table = row.kind() == Kind.TABLE;
+            shownValue[i] = !bold ? row.value() : table ? boldCell(row.value()) : HudNumbers.bolden(row.value());
+            shownExtra[i] = bold && table ? boldCell(row.extra()) : row.extra();
+            if (row.kind() == Kind.SEGMENTS) {
+                shownParts[i] = new String[row.parts().size()];
+                shownPartsPlain[i] = new String[row.parts().size()];
+                for (int p = 0; p < shownParts[i].length; p++) {
+                    Segment part = row.parts().get(p);
+                    String shown = part.shown(boldNumbers);
+                    shownParts[i][p] = shown;
+                    shownPartsPlain[i][p] = shown.equals(part.text()) ? TextCache.ohneFarben(shown) : outlineOfBold(shown);
+                }
+            }
+        }
         anchored = false;
         twoColumns = false;
         labelX = 0;
@@ -314,10 +469,10 @@ public class HudPanel {
                 // Beschriftungen der buendigen Zeilen stehen darunter in derselben Spalte ("Held Item:" unter "Pet:"), die Werte
                 // beginnen hinter der breitesten von ihnen
                 twoColumns = !row.value().isEmpty();
-                int labelWidth = font.width(row.label());
+                int labelWidth = w.applyAsInt(row.label());
                 for (Row other : rows) {
                     if (other.kind() == Kind.ALIGNED || other.kind() == Kind.SUBICON) {
-                        labelWidth = Math.max(labelWidth, font.width(other.label()));
+                        labelWidth = Math.max(labelWidth, w.applyAsInt(other.label()));
                     }
                 }
                 valueX = labelX + (labelWidth > 0 ? labelWidth + GUTTER : GUTTER);
@@ -333,42 +488,45 @@ public class HudPanel {
         firstShare = 0;
         secondNumber = 0;
         secondShare = 0;
-        for (Row row : rows) {
-            if (row.kind() != Kind.TABLE) continue;
-            firstNumber = Math.max(firstNumber, font.width(numberOf(row.value())));
-            firstShare = Math.max(firstShare, font.width(shareOf(row.value())));
-            secondNumber = Math.max(secondNumber, font.width(numberOf(row.extra())));
-            secondShare = Math.max(secondShare, font.width(shareOf(row.extra())));
+        for (int i = 0; i < rows.size(); i++) {
+            if (rows.get(i).kind() != Kind.TABLE) continue;
+            // Die Zellen, wie sie gezeichnet werden: bei fettem Wert ist die Zahl breiter, und die Spalten richten sich danach
+            String first = shownValue[i];
+            String second = shownExtra[i];
+            firstNumber = Math.max(firstNumber, w.applyAsInt(numberOf(first)));
+            firstShare = Math.max(firstShare, w.applyAsInt(shareOf(first)));
+            secondNumber = Math.max(secondNumber, w.applyAsInt(numberOf(second)));
+            secondShare = Math.max(secondShare, w.applyAsInt(shareOf(second)));
             // Eine Zelle ohne Anteil (eine Kopfzeile) darf auch breiter sein als beide Spalten
-            firstColumn = Math.max(firstColumn, font.width(joined(row.value())));
-            secondColumn = Math.max(secondColumn, font.width(joined(row.extra())));
+            firstColumn = Math.max(firstColumn, w.applyAsInt(joined(first)));
+            secondColumn = Math.max(secondColumn, w.applyAsInt(joined(second)));
         }
         firstColumn = Math.max(firstColumn, firstNumber + (firstShare > 0 ? CELL_GAP + firstShare : 0));
         secondColumn = Math.max(secondColumn, secondNumber + (secondShare > 0 ? CELL_GAP + secondShare : 0));
         for (int i = 0; i < rows.size(); i++) {
             Row row = rows.get(i);
-            valueWidths[i] = row.value().isEmpty() ? 0 : font.width(row.value());
+            valueWidths[i] = row.value().isEmpty() ? 0 : w.applyAsInt(shownValue[i]);
             labelOutline[i] = stripColours(row.label());
-            valueOutline[i] = stripColours(row.value());
+            valueOutline[i] = stripColours(shownValue[i]);
 
             int width = switch (row.kind()) {
-                case TITLE, TEXT -> font.width(row.label());
-                case PAIR -> font.width(row.label()) + GUTTER + valueWidths[i];
-                case BAR -> font.width(row.label()) + GUTTER + BAR_WIDTH + GUTTER + valueWidths[i];
+                case TITLE, TEXT -> w.applyAsInt(row.label());
+                case PAIR -> w.applyAsInt(row.label()) + GUTTER + valueWidths[i];
+                case BAR -> w.applyAsInt(row.label()) + GUTTER + BAR_WIDTH + GUTTER + valueWidths[i];
                 case BLANK -> 0;
-                case TABLE -> font.width(row.label()) + GUTTER + firstColumn
+                case TABLE -> w.applyAsInt(row.label()) + GUTTER + firstColumn
                               + (secondColumn == 0 ? 0 : GUTTER + secondColumn);
                 case ICON -> anchored && twoColumns && valueWidths[i] > 0
                         ? valueX + valueWidths[i]
-                        : iconSize() + GUTTER + font.width(row.label())
+                        : iconSize() + GUTTER + w.applyAsInt(row.label())
                           + (valueWidths[i] == 0 ? 0 : GUTTER + valueWidths[i]);
                 case SUBICON -> {
-                    int text = alignedTextWidth(font, row, valueWidths[i]);
+                    int text = alignedTextWidth(w, row, valueWidths[i]);
                     yield anchored ? text : subSize(row) + (text == 0 ? 0 : GUTTER + text);
                 }
-                case ALIGNED -> anchored ? alignedTextWidth(font, row, valueWidths[i])
-                        : font.width(row.label()) + GUTTER + valueWidths[i];
-                case SEGMENTS -> (int) Math.ceil(segmentsWidth(font, row) * row.scale());
+                case ALIGNED -> anchored ? alignedTextWidth(w, row, valueWidths[i])
+                        : w.applyAsInt(row.label()) + GUTTER + valueWidths[i];
+                case SEGMENTS -> (int) Math.ceil(segmentsWidth(w, shownParts[i]) * row.scale());
             };
             widest = Math.max(widest, width);
         }
@@ -379,18 +537,18 @@ public class HudPanel {
      * Wie weit der Text einer buendigen Zeile vom linken Rand des Inhalts reicht. Zwei Spalten: die Beschriftung beginnt in der Spalte der
      * Beschriftung, der Wert in der Spalte der Werte; eine Spalte: beides hintereinander ab dem Text der Bild-Zeile.
      */
-    private int alignedTextWidth(Font font, Row row, int valueWidth) {
-        int labelWidth = font.width(row.label());
+    private int alignedTextWidth(ToIntFunction<String> w, Row row, int valueWidth) {
+        int labelWidth = w.applyAsInt(row.label());
         if (twoColumns) return valueWidth > 0 ? valueX + valueWidth : labelX + labelWidth;
-        return labelX + labelWidth + (row.label().isEmpty() || valueWidth == 0 ? 0 : font.width(" ")) + valueWidth;
+        return labelX + labelWidth + (row.label().isEmpty() || valueWidth == 0 ? 0 : w.applyAsInt(" ")) + valueWidth;
     }
 
-    /** Die Breite einer Segment-Zeile in ihren eigenen Massen, vor dem Verkleinern */
-    private static int segmentsWidth(Font font, Row row) {
+    /** Die Breite einer Segment-Zeile in ihren eigenen Massen, vor dem Verkleinern: die Stuecke so, wie sie gezeichnet werden */
+    private static int segmentsWidth(ToIntFunction<String> w, String[] parts) {
         int width = 0;
-        for (int i = 0; i < row.parts().size(); i++) {
-            if (i > 0) width += font.width(SEGMENT_SEPARATOR);
-            width += font.width(row.parts().get(i).text());
+        for (int i = 0; i < parts.length; i++) {
+            if (i > 0) width += w.applyAsInt(SEGMENT_SEPARATOR);
+            width += w.applyAsInt(parts[i]);
         }
         return width;
     }
@@ -429,6 +587,28 @@ public class HudPanel {
      */
     private static String stripColours(String text) {
         return TextCache.stripColours(text);
+    }
+
+    /**
+     * Die Farbcodes (0-9, a-f) herausnehmen, "§l" und "§r" bleiben. Fuer das Stueck einer Segment-Zeile mit fetter Zahl: Das "§r" beendet dort den
+     * Fettdruck hinter der Zahl; faellt es weg (wie bei {@link #stripColours}), laeuft der Umriss hinter der Zahl fett weiter und stimmt nicht mehr mit
+     * der Schrift ueberein.
+     */
+    static String outlineOfBold(String text) {
+        if (text == null || text.indexOf('§') < 0) return text == null ? "" : text;
+        StringBuilder out = new StringBuilder(text.length());
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c == '§' && i + 1 < text.length()) {
+                char code = Character.toLowerCase(text.charAt(i + 1));
+                if ((code >= '0' && code <= '9') || (code >= 'a' && code <= 'f')) {
+                    i++;
+                    continue;
+                }
+            }
+            out.append(c);
+        }
+        return out.toString();
     }
 
     /**
@@ -534,7 +714,7 @@ public class HudPanel {
                 if (!row.value().isEmpty()) {
                     // Mit einer buendigen Zeile darunter beginnt der Wert links, in der Spalte der Werte
                     int wertX = anchored && twoColumns ? x + valueX : x + content - valueWidth;
-                    text(graphics, font, row.value(), valueOutline[index], wertX, textY, row.valueColour());
+                    text(graphics, font, shownValue[index], valueOutline[index], wertX, textY, row.valueColour());
                 }
             }
             case SUBICON -> {
@@ -557,7 +737,7 @@ public class HudPanel {
                 if (!row.value().isEmpty()) {
                     int vx = anchored && twoColumns ? x + valueX
                             : tx + (row.label().isEmpty() ? 0 : TextCache.breite(font, row.label()) + TextCache.breite(font, " "));
-                    text(graphics, font, row.value(), valueOutline[index], vx, textY, row.valueColour());
+                    text(graphics, font, shownValue[index], valueOutline[index], vx, textY, row.valueColour());
                 }
             }
             case ALIGNED -> {
@@ -567,12 +747,12 @@ public class HudPanel {
                     if (!row.value().isEmpty()) {
                         int vx = twoColumns ? x + valueX
                                 : ax + (row.label().isEmpty() ? 0 : TextCache.breite(font, row.label()) + TextCache.breite(font, " "));
-                        text(graphics, font, row.value(), valueOutline[index], vx, y, row.valueColour());
+                        text(graphics, font, shownValue[index], valueOutline[index], vx, y, row.valueColour());
                     }
                 } else {
                     // Kein Bild, an dem man sich ausrichten koennte: wie eine Paar-Zeile
                     text(graphics, font, row.label(), labelOutline[index], x, y, row.labelColour());
-                    text(graphics, font, row.value(), valueOutline[index], x + content - valueWidth, y, row.valueColour());
+                    text(graphics, font, shownValue[index], valueOutline[index], x + content - valueWidth, y, row.valueColour());
                 }
             }
             case TITLE, TEXT -> text(graphics, font, row.label(), labelOutline[index],
@@ -590,9 +770,10 @@ public class HudPanel {
                         text(graphics, font, SEGMENT_SEPARATOR, SEGMENT_SEPARATOR, cursor, 0, SEPARATOR_COLOUR);
                         cursor += TextCache.breite(font, SEGMENT_SEPARATOR);
                     }
-                    Segment part = row.parts().get(i);
-                    text(graphics, font, part.text(), TextCache.ohneFarben(part.text()), cursor, 0, part.colour());
-                    cursor += TextCache.breite(font, part.text());
+                    // Der Text, wie er gemessen wurde (mit "§l" um die Zahl, wenn sie fett ist)
+                    String shown = shownParts[index][i];
+                    text(graphics, font, shown, shownPartsPlain[index][i], cursor, 0, row.parts().get(i).colour());
+                    cursor += TextCache.breite(font, shown);
                 }
                 graphics.pose().popMatrix();
             }
@@ -600,13 +781,13 @@ public class HudPanel {
                 text(graphics, font, row.label(), labelOutline[index], x, y, row.labelColour());
                 int secondRight = x + content;
                 int firstRight = secondRight - (secondColumn == 0 ? 0 : secondColumn + GUTTER);
-                drawCell(graphics, font, row.value(), firstRight, firstNumber, firstShare, y, row.valueColour());
-                drawCell(graphics, font, row.extra(), secondRight, secondNumber, secondShare, y, row.valueColour());
+                drawCell(graphics, font, shownValue[index], firstRight, firstNumber, firstShare, y, row.valueColour());
+                drawCell(graphics, font, shownExtra[index], secondRight, secondNumber, secondShare, y, row.valueColour());
             }
             case PAIR -> {
                 text(graphics, font, row.label(), labelOutline[index], x, y, row.labelColour());
                 int valueX = x + content - valueWidth;
-                text(graphics, font, row.value(), valueOutline[index], valueX, y, row.valueColour());
+                text(graphics, font, shownValue[index], valueOutline[index], valueX, y, row.valueColour());
             }
             case BAR -> {
                 text(graphics, font, row.label(), labelOutline[index], x, y, row.labelColour());

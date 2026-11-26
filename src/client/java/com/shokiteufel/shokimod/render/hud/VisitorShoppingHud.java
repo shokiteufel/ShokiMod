@@ -11,6 +11,7 @@ import com.shokiteufel.shokimod.util.ItemValue;
 import net.minecraft.client.Minecraft;
 
 import java.util.List;
+import java.util.function.UnaryOperator;
 
 /**
  * Der Kasten der Einkaufsliste der Besucher (Garden > Visitor Shopping List).
@@ -22,14 +23,19 @@ import java.util.List;
 public final class VisitorShoppingHud {
 
     /** Das Beispiel im HUD-Editor, solange kein Besucher da ist */
-    static final List<String> SAMPLE = List.of(
-            "§7Visitor Shopping List: §7(§6125k§7)",
-            " §7- §fEnchanted Carrot §ex160 §7(§6100k§7)",
-            " §7- §fEnchanted Cocoa Bean §ex48 §7(§625k§7)",
-            "",
-            "§e2 §7New Visitors:",
-            " §7- §fSpaceman",
-            " §7- §fJacob");
+    static final List<String> SAMPLE = sample(UnaryOperator.identity());
+
+    /** Das Beispiel; {@code number} formt jede Zahl (Menge, Preis) fuer die Anzeige - schlicht oder fett */
+    static List<String> sample(UnaryOperator<String> number) {
+        return List.of(
+                "§7Visitor Shopping List: §7(§6" + number.apply("125k") + "§7)",
+                " §7- §fEnchanted Carrot §ex" + number.apply("160") + " §7(§6" + number.apply("100k") + "§7)",
+                " §7- §fEnchanted Cocoa Bean §ex" + number.apply("48") + " §7(§6" + number.apply("25k") + "§7)",
+                "",
+                "§e2 §7New Visitors:",
+                " §7- §fSpaceman",
+                " §7- §fJacob");
+    }
 
     private VisitorShoppingHud() {
     }
@@ -42,12 +48,21 @@ public final class VisitorShoppingHud {
 
     /** Die Liste, wie sie jetzt aussieht */
     static ShoppingListText.Built built() {
-        return ShoppingListText.build(VisitorBook.INSTANCE, ModConfig.INSTANCE.garden.shoppingList.showPrice, VisitorPrices::buyPrice, ItemValue::format);
+        boolean showPrice = ModConfig.INSTANCE.garden.shoppingList.showPrice;
+        // HUD > Bold numbers: Menge und Preise fett, nur in dieser Anzeige. ItemValue.format selbst bleibt schlicht (es geht auch in Chat und
+        // Befehle); der Fettdruck wird hier um das Ergebnis gelegt. "§l" nach dem Farbcode: "§6" + "§l100k", das naechste "§7" beendet es.
+        if (!HudNumbers.bold()) {
+            return ShoppingListText.build(VisitorBook.INSTANCE, showPrice, VisitorPrices::buyPrice, ItemValue::format);
+        }
+        return ShoppingListText.build(VisitorBook.INSTANCE, showPrice, VisitorPrices::buyPrice,
+                coins -> HudNumbers.bolden(ItemValue.format(coins)), HudNumbers::bolden);
     }
 
     public static HudPanel build() {
         ShoppingListText.Built built = built();
-        List<String> lines = built.isEmpty() && HudEditorScreen.isOpen() ? SAMPLE : built.lines();
+        List<String> lines = built.isEmpty() && HudEditorScreen.isOpen()
+                ? (HudNumbers.bold() ? sample(HudNumbers::bolden) : SAMPLE)
+                : built.lines();
         HudPanel panel = new HudPanel();
         for (String line : lines) {
             if (line.isEmpty()) panel.blank();

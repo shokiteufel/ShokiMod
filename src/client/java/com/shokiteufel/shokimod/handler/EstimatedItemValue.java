@@ -5,6 +5,7 @@ import com.shokiteufel.shokimod.data.GameState;
 import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.data.ModConfig.EstimatedItemValueCategory;
 import com.shokiteufel.shokimod.mixin.AbstractContainerScreenAccessor;
+import com.shokiteufel.shokimod.render.hud.HudNumbers;
 import com.shokiteufel.shokimod.util.EivCalculator;
 import com.shokiteufel.shokimod.util.EivData;
 import com.shokiteufel.shokimod.util.EivFormat;
@@ -286,6 +287,8 @@ public final class EstimatedItemValue {
         List<String> out = wardrobeLines(valueName, names, totals);
         if (out.isEmpty()) return;
         lines.add(Component.empty());
-        for (String line : out) lines.add(Component.literal(line));
+        // HUD > Bold numbers: die Betraege der Stuecke fett (die Summe ist es schon); wardrobeLines() selbst bleibt unveraendert
+        boolean bold = HudNumbers.bold();
+        for (String line : out) lines.add(Component.literal(bold ? HudNumbers.boldCoins(line) : line));
     }
 }

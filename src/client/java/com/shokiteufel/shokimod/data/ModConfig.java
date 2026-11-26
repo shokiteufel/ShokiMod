@@ -8580,6 +8580,16 @@ public class ModConfig extends Config {
         public boolean glowingHudText = false;
 
         /**
+         * Fettdruck fuer die Zahlen in den Kaesten (Betraege, Preise, Summen) - nur beim Anzeigen, nie im Wert selbst: Chat, Befehle und
+         * Party-Meldungen bekommen weiter den schlichten Text. Von Haus aus an; ein boolean braucht beim Laden keine Reparatur (fehlt das Feld
+         * in einer alten Datei, gilt die Vorgabe).
+         */
+        @Expose
+        @ConfigOption(name = "Bold numbers", desc = "Draws the amounts in the panels (profit, prices, values) in bold, as Total does in SkyHanni's Estimated Item Value. The short form (k, M, B) stays.")
+        @ConfigEditorBoolean
+        public boolean boldNumbers = true;
+
+        /**
          * Bis 2.4.8 war das Leuchten von Haus aus an und kostete bei grossen Panels die Haelfte der Spielzeit; seit 2.4.9 ist es von Haus aus aus.
          * Eine alte Datei traegt noch das alte "an" (die Vorgabe wurde mitgeschrieben): {@link ModConfig#migrateHudGlow} stellt es einmal auf aus.
          */

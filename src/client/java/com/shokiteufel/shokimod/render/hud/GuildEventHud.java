@@ -81,7 +81,7 @@ public final class GuildEventHud {
         } else {
             for (int i = 0; i < rows.size() && i < limit; i++) {
                 Row row = rows.get(i);
-                panel.pair("#" + row.rank() + " " + row.ign(), score(row.score()), LABEL_COLOUR, VALUE_COLOUR);
+                panel.pair("#" + row.rank() + " " + row.ign(), score(row.score()), LABEL_COLOUR, VALUE_COLOUR).boldValue();
             }
         }
 
@@ -89,7 +89,7 @@ public final class GuildEventHud {
         if (own == null) {
             panel.pair("You:", "not joined", LABEL_COLOUR, MUTED);
         } else {
-            panel.pair("You: #" + own.rank(), score(own.score()), OWN_COLOUR, VALUE_COLOUR);
+            panel.pair("You: #" + own.rank(), score(own.score()), OWN_COLOUR, VALUE_COLOUR).boldValue();
         }
     }
 

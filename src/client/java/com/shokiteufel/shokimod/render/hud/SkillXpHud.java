@@ -50,14 +50,15 @@ public final class SkillXpHud {
         List<Row> rows = SkillXpTracker.rows(now);
         // HudEditorScreen.isOpen() statt Minecraft.screen: Der Zugriff darauf heisst auf 26.2 und 26.3 anders, das Flag nicht
         if (rows.isEmpty() && HudEditorScreen.isOpen()) {
-            panel.pair("Fishing 12:34", "1.25M  5.97M/h", LABEL_COLOUR, VALUE_COLOUR);
-            panel.pair("Farming 3:10", "310k  5.9M/h", LABEL_COLOUR, VALUE_COLOUR);
+            panel.pair("Fishing 12:34", "1.25M  5.97M/h", LABEL_COLOUR, VALUE_COLOUR).boldValue();
+            panel.pair("Farming 3:10", "310k  5.9M/h", LABEL_COLOUR, VALUE_COLOUR).boldValue();
             return panel;
         }
         int shown = Math.max(1, Math.min(12, ModConfig.INSTANCE.skillXp.maxRows));
         for (int i = 0; i < rows.size() && i < shown; i++) {
             Row row = rows.get(i);
-            panel.pair(row.skill() + " " + clock(row.activeMs()), value(row), LABEL_COLOUR, VALUE_COLOUR);
+            // Erfahrung und Rate rechts sind fett (HUD > Bold numbers); die aktive Zeit steht in der Beschriftung und bleibt schlicht
+            panel.pair(row.skill() + " " + clock(row.activeMs()), value(row), LABEL_COLOUR, VALUE_COLOUR).boldValue();
         }
         panel.pair("Time", clock(SkillXpTracker.longestActiveMs(now)), HudColours.GRAY, HudColours.GRAY);
         return panel;

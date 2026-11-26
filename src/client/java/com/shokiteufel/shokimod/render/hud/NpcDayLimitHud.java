@@ -24,7 +24,9 @@ public final class NpcDayLimitHud {
 
     public static HudPanel build() {
         HudPanel panel = new HudPanel();
-        panel.line(NpcDayLimit.hudLine(), HudColours.WHITE);
+        // "§6400k§f/§6500m": bei HUD > Bold numbers beides fett; NpcDayLimit.hudLine() selbst bleibt unveraendert (Tests pruefen den Text)
+        String line = NpcDayLimit.hudLine();
+        panel.line(HudNumbers.bold() ? HudNumbers.bolden(line) : line, HudColours.WHITE);
         return panel;
     }
 }

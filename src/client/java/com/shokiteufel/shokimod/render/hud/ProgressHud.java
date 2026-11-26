@@ -66,7 +66,7 @@ public final class ProgressHud {
             if (perPlayer.size() > 1) {
                 panel.blank();
                 perPlayer.forEach((player, count) ->
-                        panel.pair(player, String.valueOf(count), LABEL_COLOUR, HudColours.WHITE));
+                        panel.pair(player, String.valueOf(count), LABEL_COLOUR, HudColours.WHITE).boldValue());
             }
         }
 

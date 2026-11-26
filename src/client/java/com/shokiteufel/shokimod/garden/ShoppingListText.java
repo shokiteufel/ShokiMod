@@ -6,6 +6,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.function.DoubleFunction;
 import java.util.function.ToDoubleFunction;
+import java.util.function.UnaryOperator;
 
 /**
  * Der Text der Einkaufsliste der Besucher ("Visitor Shopping List") und die Regel, wo sie steht.
@@ -59,6 +60,18 @@ public final class ShoppingListText {
      * @param format    schreibt eine Summe kurz ("12.3k")
      */
     public static Built build(VisitorBook book, boolean showPrice, ToDoubleFunction<String> unitPrice, DoubleFunction<String> format) {
+        return build(book, showPrice, unitPrice, format, UnaryOperator.identity());
+    }
+
+    /**
+     * Wie {@link #build(VisitorBook, boolean, ToDoubleFunction, DoubleFunction)}, mit einer Schrift fuer die Mengen.
+     *
+     * @param amountStyle formt die Zahl einer Menge ("160") fuer die Anzeige, zum Beispiel fett; steht hinter dem "x" und vor dem naechsten Farbcode, den
+     *                    ein "§l" darin also beendet. Die Preise formt {@code format}. Der Aufrufer macht aus beidem nur bei der Anzeige etwas
+     *                    Besonderes - der Text dieser Klasse selbst bleibt schlicht
+     */
+    public static Built build(VisitorBook book, boolean showPrice, ToDoubleFunction<String> unitPrice, DoubleFunction<String> format,
+                              UnaryOperator<String> amountStyle) {
         List<String> lines = new ArrayList<>();
         List<String> visitorAt = new ArrayList<>();
         List<String> itemAt = new ArrayList<>();
@@ -76,7 +89,7 @@ public final class ShoppingListText {
             List<String> itemLines = new ArrayList<>();
             List<String> itemNames = new ArrayList<>();
             for (Map.Entry<String, Integer> item : totals.entrySet()) {
-                StringBuilder line = new StringBuilder(" §7- §f").append(item.getKey()).append(" §ex").append(amount(item.getValue()));
+                StringBuilder line = new StringBuilder(" §7- §f").append(item.getKey()).append(" §ex").append(amountStyle.apply(amount(item.getValue())));
                 if (showPrice) {
                     double unit = unitPrice == null ? -1.0 : unitPrice.applyAsDouble(item.getKey());
                     if (unit > 0) {

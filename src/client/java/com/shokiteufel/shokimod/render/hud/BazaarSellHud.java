@@ -27,7 +27,8 @@ public final class BazaarSellHud {
         String text = BazaarHelpers.sellDifference();
         if (text == null) text = SAMPLE;
         HudPanel panel = new HudPanel();
-        panel.line(text, HudColours.WHITE);
+        // HUD > Bold numbers: der Betrag ("§6120k coins" -> "§6§l120k coins"); BazaarHelpers.sellDifference() bleibt unveraendert
+        panel.line(HudNumbers.styleCoins(text), HudColours.WHITE);
         return panel;
     }
 }

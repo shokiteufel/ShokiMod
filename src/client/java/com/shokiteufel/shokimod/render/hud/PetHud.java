@@ -242,7 +242,7 @@ public final class PetHud {
         double haben = PetState.xpHave();
         double noetig = PetState.xpNeed();
         if (haben >= 0 && noetig > 0) {
-            panel.pair("XP:", compact(haben) + " / " + compact(noetig), LABEL_COLOUR, VALUE_COLOUR);
+            panel.pair("XP:", compact(haben) + " / " + compact(noetig), LABEL_COLOUR, VALUE_COLOUR).boldValue();
         }
     }
 

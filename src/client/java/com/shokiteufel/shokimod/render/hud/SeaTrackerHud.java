@@ -61,15 +61,16 @@ public final class SeaTrackerHud {
         // Die Summen stehen unten in einer Zeile: Total, Double Hooks und Blood Shots nebeneinander,
         // jedes mit seinem Anteil. Die Summe selbst hat keinen - der waere immer hundert.
         List<Segment> sums = new ArrayList<>();
-        sums.add(new Segment("Total: " + HudNumbers.amount(total.total), TOTAL_COLOUR));
+        // Segment.withNumber: der Text bleibt "Total: 5", bei HUD > Bold numbers wird nur die Zahl fett (nicht der Name, nicht der Anteil)
+        sums.add(Segment.withNumber("Total: ", HudNumbers.amount(total.total), "", TOTAL_COLOUR));
         if (cfg.showDoubleHooks) {
-            sums.add(new Segment("DH: " + HudNumbers.amount(total.dh) + " " + percent(total.dh, events(total)),
+            sums.add(Segment.withNumber("DH: ", HudNumbers.amount(total.dh), " " + percent(total.dh, events(total)),
                     DOUBLE_HOOK_COLOUR));
         }
         if (cfg.showBloodShot) {
             // Anteil an allem, was gefangen wurde: die Blood Shots kommen zu den Faengen hinzu
-            sums.add(new Segment("BS: " + HudNumbers.amount(total.cc) + " "
-                    + percent(total.cc, total.total + total.cc), BLOOD_SHOT_COLOUR));
+            sums.add(Segment.withNumber("BS: ", HudNumbers.amount(total.cc),
+                    " " + percent(total.cc, total.total + total.cc), BLOOD_SHOT_COLOUR));
         }
         panel.segments(SUMMARY_SCALE, sums);
 
@@ -77,9 +78,9 @@ public final class SeaTrackerHud {
         if (session) {
             panel.table("Time:", clock(SeaCreatureTracker.sessionMillis()), "", LABEL_COLOUR, LABEL_COLOUR);
             panel.segments(SUMMARY_SCALE, List.of(
-                    new Segment("SC/h: " + HudNumbers.amount(Math.round(SeaCreatureTracker.perHour())),
+                    Segment.withNumber("SC/h: ", HudNumbers.amount(Math.round(SeaCreatureTracker.perHour())), "",
                             SEA_CREATURE_COLOUR),
-                    new Segment("Hooks/h: " + HudNumbers.amount(Math.round(SeaCreatureTracker.hooksPerHour())),
+                    Segment.withNumber("Hooks/h: ", HudNumbers.amount(Math.round(SeaCreatureTracker.hooksPerHour())), "",
                             DOUBLE_HOOK_COLOUR)));
         }
         return panel;
@@ -108,7 +109,8 @@ public final class SeaTrackerHud {
                              ModConfig.SeaTrackerCategory cfg) {
         String first = share(count.total, total.total);
         String second = cfg.showDoubleHooks ? share(count.dh, events(count)) : "";
-        panel.table(name, first, second, colour, LABEL_COLOUR);
+        // Die Zahlen beider Zellen fett, ihr Anteil (hinter CELL_SPLIT) schlicht
+        panel.table(name, first, second, colour, LABEL_COLOUR).boldValue();
     }
 
     /** Wie oft die Angel ausgeworfen wurde: ein Double Hook bringt zwei Fange auf einmal */

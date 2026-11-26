@@ -37,11 +37,11 @@ public final class ContestHud {
         // Ohne Bracket ist man noch unter der ersten Schwelle; die Menge steht trotzdem da
         String bracket = ContestState.bracket();
         panel.pair(bracket.isEmpty() ? "Collected:" : bracket + ":",
-                String.valueOf(ContestState.amount()), LABEL_COLOUR, AMOUNT_COLOUR);
+                String.valueOf(ContestState.amount()), LABEL_COLOUR, AMOUNT_COLOUR).boldValue();
 
         if (!ContestState.next().isEmpty()) {
             panel.pair(ContestState.next() + " in:", "+" + ContestState.needed(),
-                    LABEL_COLOUR, TIME_COLOUR);
+                    LABEL_COLOUR, TIME_COLOUR).boldValue();
         }
         return panel;
     }

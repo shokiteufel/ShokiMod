@@ -81,7 +81,7 @@ public final class MissingHud {
         if (standing == 0) return;
 
         panel.blank();
-        panel.pair("Mounds nearby", String.valueOf(standing), LABEL_COLOUR, HudColours.WHITE);
+        panel.pair("Mounds nearby", String.valueOf(standing), LABEL_COLOUR, HudColours.WHITE).boldValue();
     }
 
     private static void appendWalls(HudPanel panel, SafariBiome biome) {
@@ -95,7 +95,7 @@ public final class MissingHud {
         if (standing == 0) {
             panel.line("Walls all broken", DONE_COLOUR);
         } else {
-            panel.pair("Walls to break", String.valueOf(standing), LABEL_COLOUR, HudColours.WHITE);
+            panel.pair("Walls to break", String.valueOf(standing), LABEL_COLOUR, HudColours.WHITE).boldValue();
         }
     }
 
@@ -111,7 +111,7 @@ public final class MissingHud {
         if (open == 0) {
             panel.line("All " + nests.size() + " nests punched", DONE_COLOUR);
         } else {
-            panel.pair("Nests to punch", String.valueOf(open), LABEL_COLOUR, HudColours.WHITE);
+            panel.pair("Nests to punch", String.valueOf(open), LABEL_COLOUR, HudColours.WHITE).boldValue();
         }
     }
 
