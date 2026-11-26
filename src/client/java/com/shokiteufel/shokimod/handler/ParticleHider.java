@@ -212,6 +212,9 @@ public final class ParticleHider {
     public static Action decide(ClientboundLevelParticlesPacket packet) {
         // Fire Veil Overlay (Reiter IQ): Solange der eigene Ring gezeichnet wird, kommen die Flammen des Spiels weg
         if (isFireVeilFlame(packet)) return Action.HIDE;
+        // Slayer > Spawn particles: die Partikel, mit denen ein Boss erscheint, ausblenden oder trotz Sodium Extra immer zeigen
+        Action spawn = SlayerSpawnParticles.decide(packet);
+        if (spawn != Action.NONE) return spawn;
         ModConfig.ParticlesCategory cfg = ModConfig.INSTANCE.particles;
         if (!anyOn(cfg)) return Action.NONE;
 

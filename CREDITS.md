@@ -315,6 +315,12 @@ Beschreibungen, eigene Tests. Es steht nichts Geschriebenes aus SkyHanni in dies
 - **Fishing > Cocoon settings** (`SeaCreatureCocoon`, `CocoonScreen`): SkyHanni „Cocoon Settings". Regel: Die Chatzeile „CAUGHT! You cocooned a X!"; je Bewohner Titel
   („X Has Been Cocooned") und Gruppenchat („My X has been cocooned!"), ohne eigene Wahl die seltenen. Eigene Zutaten: Titel ueber die Banner dieser Mod mit
   waehlbarem Design und Ton, ein eigenes Fenster fuer die Liste (`/shoki cocoons`).
+- **Slayer > Cocoon** (`SlayerCocoon`): SkyHanni „Slayer Cocoon Title" und „Slayer Cocoon Notification Sound". Regel: die Chatzeile „YOU COCOONED YOUR SLAYER BOSS"; Titel
+  „Slayer Boss Cocooned!", zehn Töne im Abstand von hundert Millisekunden. Eigene Zutaten: Titel über die Banner dieser Mod (Design im Sandkasten), wählbare Tondatei, beides einzeln schaltbar, Testknopf.
+- **Slayer > Spawn particles** (`SlayerSpawnParticles`, Einsprung in `ParticleHider.decide`): SkyHanni „Spawn Particles" (`HideSlayerSpawnParticles`). Regel: drei Arten (enchant = weiß,
+  witch = lila, entity_effect = „Slayer specific"), nur bei laufender Slayer-Quest und nur nahe einem Mob, der in den letzten drei Sekunden gestorben ist (Abstand im Quadrat unter fünf).
+  Eigene Zutaten: je Art drei Stellungen (wie es ist / ausblenden / immer zeigen), wobei „immer zeigen" über den vorhandenen Weg von „Show always" (`ParticleForce`) auch gegen
+  Sodium Extra durchsetzt; die toten Mobs findet ein Tick alle zwei Ticks (`Mob.isDeadOrDying`) statt eines Gesundheits-Ereignisses; die Quest erkennt die Seitenleistenzeile „Slayer Quest".
 
 ---
 

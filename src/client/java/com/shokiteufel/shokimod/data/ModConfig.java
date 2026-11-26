@@ -158,6 +158,16 @@ public class ModConfig extends Config {
      * Die Teile von Fishing, die seit 2.4.10 dazukamen (Hook display, Bait display, Cocoon settings): Eine Datei von vorher kennt sie nicht, und
      * von Hand beschaedigte Werte werden auf das Zulaessige zurueckgesetzt.
      */
+    /** Die Cocoon-Einstellungen des Slayer-Reiters (seit 2.4.11): fehlende Teile ergaenzen */
+    static void repairSlayerCocoon(SlayerCategory slayer) {
+        if (slayer == null) return;
+        if (slayer.cocoonBannerDesign == null) slayer.cocoonBannerDesign = BannerDesign.ALERT_BAND;
+        if (slayer.cocoonSoundFile == null) slayer.cocoonSoundFile = "";
+        if (slayer.spawnWhite == null) slayer.spawnWhite = SlayerCategory.SpawnParticleMode.AS_IS;
+        if (slayer.spawnPurple == null) slayer.spawnPurple = SlayerCategory.SpawnParticleMode.AS_IS;
+        if (slayer.spawnSlayer == null) slayer.spawnSlayer = SlayerCategory.SpawnParticleMode.AS_IS;
+    }
+
     static void repairFishingExtras(FishingCategory fishing) {
         if (fishing == null) return;
         if (fishing.hookDisplay == null) fishing.hookDisplay = new HookDisplayCategory();
@@ -457,6 +467,7 @@ public class ModConfig extends Config {
         if (INSTANCE.fishing.air.bannerDesign == null) INSTANCE.fishing.air.bannerDesign = "Feesh";
         if (INSTANCE.fishing.air.soundFile == null) INSTANCE.fishing.air.soundFile = "";
         repairFishingExtras(INSTANCE.fishing);
+        repairSlayerCocoon(INSTANCE.slayer);
         if (INSTANCE.logs == null) INSTANCE.logs = new LogsCategory();
         if (INSTANCE.mining.cold == null) INSTANCE.mining.cold = new ColdAlertCategory();
         if (INSTANCE.mining.cold.bannerDesign == null) INSTANCE.mining.cold.bannerDesign = BannerDesign.ALERT_BAND;
@@ -796,6 +807,10 @@ public class ModConfig extends Config {
                 com.shokiteufel.shokimod.handler.SlayerBossSpawn::test);
         INSTANCE.slayer.resetKillTimes = () -> Minecraft.getInstance().execute(
                 com.shokiteufel.shokimod.handler.SlayerKillTime::askReset);
+        INSTANCE.slayer.testCocoon = () -> Minecraft.getInstance().execute(
+                com.shokiteufel.shokimod.handler.SlayerCocoon::test);
+        INSTANCE.slayer.openCocoonSound = soundPicker(() -> INSTANCE.slayer.cocoonSoundFile,
+                picked -> INSTANCE.slayer.cocoonSoundFile = picked);
         INSTANCE.collections.tracker.resetTracker = () -> Minecraft.getInstance().execute(CollectionTracker::askReset);
         INSTANCE.collections.tracker.openPicker = () -> Minecraft.getInstance().execute(() ->
                 Minecraft.getInstance().setScreenAndShow(new CollectionPickerScreen(Minecraft.getInstance().gui.screen())));
@@ -6110,6 +6125,86 @@ public class ModConfig extends Config {
         @ConfigAccordionId(id = 77)
         public transient Runnable test = () -> {
         };
+
+        @ConfigOption(name = "Cocoon", desc = "When your Primordial belt or a Blood Shot reforge cocoons your Slayer boss: a title and a sound.")
+        @ConfigEditorAccordion(id = 121)
+        public transient boolean cocoonFolder = false;
+
+        @Expose
+        @ConfigOption(name = "Slayer Cocoon Title", desc = "Shows a banner \"Slayer Boss Cocooned!\" the moment your Slayer boss is cocooned (Hypixel writes \"YOU COCOONED YOUR SLAYER BOSS\"). The design is picked in Alerts > Banner > Sandbox. Works in SkyBlock only. Idea from SkyHanni.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 121)
+        public boolean cocoonTitle = false;
+
+        /** Das Design des Cocoon-Banners - gewaehlt im Sandkasten (Liste "Use for") */
+        @Expose
+        public String cocoonBannerDesign = BannerDesign.ALERT_BAND;
+
+        @Expose
+        @ConfigOption(name = "Slayer Cocoon Notification Sound", desc = "Plays a sound when your Slayer boss is cocooned: ten pings in a row, or your own file below. Works in SkyBlock only. Idea from SkyHanni.")
+        @ConfigEditorBoolean
+        @ConfigAccordionId(id = 121)
+        public boolean cocoonDing = false;
+
+        @ConfigOption(name = "Cocoon sound file", desc = "Your own file from config/shokimod/sounds. Empty plays the ten pings.")
+        @ConfigEditorButton(buttonText = "Pick")
+        @ConfigAccordionId(id = 121)
+        public transient Runnable openCocoonSound = () -> {
+        };
+
+        @Expose
+        public String cocoonSoundFile = "";
+
+        @ConfigOption(name = "Test cocoon", desc = "Shows the cocoon title and plays the sound once, whether they are switched on or not.")
+        @ConfigEditorButton(buttonText = "Test")
+        @ConfigAccordionId(id = 121)
+        public transient Runnable testCocoon = () -> {
+        };
+
+        @ConfigOption(name = "Spawn particles", desc = "The particles that spring up where the last of your quest mobs died and your boss appears.")
+        @ConfigEditorAccordion(id = 122)
+        public transient boolean spawnParticleFolder = false;
+
+        @Expose
+        @ConfigOption(name = "White particles", desc = "The white sparkles of the spawn (enchant particles). As is: the game and your other mods decide. Hide: not drawn. Show always: drawn even when a mod like Sodium Extra switches that particle kind off. Only near a mob that just died while you have a Slayer quest. Works in SkyBlock only.")
+        @ConfigEditorDropdown
+        @ConfigAccordionId(id = 122)
+        public SpawnParticleMode spawnWhite = SpawnParticleMode.AS_IS;
+
+        @Expose
+        @ConfigOption(name = "Purple particles", desc = "The purple swirls of the spawn (witch particles). As is, Hide or Show always - see White particles.")
+        @ConfigEditorDropdown
+        @ConfigAccordionId(id = 122)
+        public SpawnParticleMode spawnPurple = SpawnParticleMode.AS_IS;
+
+        @Expose
+        @ConfigOption(name = "Slayer specific particles", desc = "The coloured cloud that is different for every Slayer (spell particles). As is, Hide or Show always - see White particles.")
+        @ConfigEditorDropdown
+        @ConfigAccordionId(id = 122)
+        public SpawnParticleMode spawnSlayer = SpawnParticleMode.AS_IS;
+
+        /** Was mit einer Art Spawn-Partikel geschieht */
+        public enum SpawnParticleMode {
+            AS_IS("As is"),
+            HIDE("Hide"),
+            SHOW_ALWAYS("Show always");
+
+            private final String label;
+
+            SpawnParticleMode(String label) {
+                this.label = label;
+            }
+
+            @Override
+            public String toString() {
+                return label;
+            }
+        }
+
+        /** Greift eine der drei Einstellungen ein? (Die Partikel-Pakete fragen das als Erstes: drei Feldzugriffe) */
+        public boolean anySpawnParticle() {
+            return spawnWhite != SpawnParticleMode.AS_IS || spawnPurple != SpawnParticleMode.AS_IS || spawnSlayer != SpawnParticleMode.AS_IS;
+        }
 
         @ConfigOption(name = "Kill time", desc = "Chat lines with how long your Slayer boss took.")
         @ConfigEditorAccordion(id = 114)

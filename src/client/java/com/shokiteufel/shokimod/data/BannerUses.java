@@ -160,6 +160,11 @@ public final class BannerUses {
                 name -> ModConfig.INSTANCE.slayer.spawnBannerDesign = name,
                 BannerDesign.ALERT_BAND,
                 () -> resolved(ModConfig.INSTANCE.slayer.spawnBannerDesign)));
+        out.add(new Use("Slayer cocoon", "SCocoon", "Your Slayer boss was cocooned",
+                () -> ModConfig.INSTANCE.slayer.cocoonBannerDesign,
+                name -> ModConfig.INSTANCE.slayer.cocoonBannerDesign = name,
+                BannerDesign.ALERT_BAND,
+                () -> resolved(ModConfig.INSTANCE.slayer.cocoonBannerDesign)));
         out.add(new Use("Cold", "Cold", "The warning when your cold gets close to freezing",
                 () -> ModConfig.INSTANCE.mining.cold.bannerDesign,
                 name -> ModConfig.INSTANCE.mining.cold.bannerDesign = name,

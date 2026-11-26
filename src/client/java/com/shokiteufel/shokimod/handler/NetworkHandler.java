@@ -102,6 +102,8 @@ public class NetworkHandler {
             RareCatchAlert.onChatMessage(unformattedMsg);
             // Ein eigenes Cocoon: Titel und Gruppenchat, wie eingestellt
             com.shokiteufel.shokimod.handler.SeaCreatureCocoon.onChatMessage(unformattedMsg);
+            // Der eigene Slayer-Boss wurde eingesponnen: Titel und Ton
+            com.shokiteufel.shokimod.handler.SlayerCocoon.onChatMessage(unformattedMsg);
             // Der Zaehler fuer Faenge, Double Hooks und Cocoons liest dieselbe Zeile
             com.shokiteufel.shokimod.handler.SeaCreatureTracker.onChatMessage(unformattedMsg);
             com.shokiteufel.shokimod.handler.MineshaftProfit.onChatMessage(unformattedMsg);
