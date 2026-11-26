@@ -218,6 +218,7 @@ public class ModConfig extends Config {
         if (c == null) return;
         if (c.uiVisuals == null) c.uiVisuals = new UiVisualsCategory();
         if (c.uiVisuals.inventoryScreen == null) c.uiVisuals.inventoryScreen = new SkyblockInventoryScreenCategory();
+        if (c.uiVisuals.inputCalculator == null) c.uiVisuals.inputCalculator = new InputCalculatorCategory();
     }
 
     /** Gemerkte Spielernamen (Chat > Tab Complete): nie null, nur gueltige Namen (bis 16 Buchstaben, Ziffern und Unterstriche), keine Doppelten, hoechstens 5000 */
@@ -5920,6 +5921,23 @@ public class ModConfig extends Config {
         @Expose
         @Category(name = "Skyblock Inventory Screen", desc = "Your SkyBlock equipment in the inventory window. Off until you turn it on. Idea from Skyblocker.")
         public SkyblockInventoryScreenCategory inventoryScreen = new SkyblockInventoryScreenCategory();
+
+        @Expose
+        @Category(name = "Input Calculator", desc = "Calculate in the number signs (auction bid, bazaar price and amount). Off until you turn it on. Idea from Skyblocker.")
+        public InputCalculatorCategory inputCalculator = new InputCalculatorCategory();
+    }
+
+    /** UI & Visuals > Input Calculator: Rechnen auf den Zahlenschildern - siehe {@code handler.SignCalculator} und {@code util.InputCalculator} */
+    public static class InputCalculatorCategory {
+
+        @ConfigOption(name = "Input Calculator", desc = "Calculations in the number signs of SkyBlock (auction starting bid, bazaar price per unit and amount). Off until you turn it on. Idea from Skyblocker.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Calculate in Number Signs", desc = "While you type in a number sign, shows the result in green under \"Edit Sign Message\" (for example 45656445465 = 45,656,445,465, or 1.5m*2 = 3,000,000), and puts the result into the sign when you finish a calculation (amounts are rounded to whole numbers, prices to two decimals). Understands + - * / % ^, brackets, and k, m, b, t for thousand, million, billion, trillion. A plain number such as 1.5m stays as you typed it: SkyBlock reads that itself. Idea from Skyblocker.")
+        @ConfigEditorBoolean
+        public boolean enabled = false;
     }
 
     /** UI & Visuals > Skyblock Inventory Screen: die Equipment-Plaetze neben dem Inventarfenster (Taste E) - siehe {@code equipment.EquipmentInventory} */
@@ -6053,11 +6071,16 @@ public class ModConfig extends Config {
         public boolean hideFarDeaths = false;
 
         @Expose
-        @ConfigOption(name = "Current Chat Display", desc = "Displays a GUI element that indicates what chat you are in (e.g. Party, Guild, Coop, All). It shows while the chat is open and for two seconds after, once Hypixel has told the mod which chat it is (every /chat command does). Move it with /shoki hud. Idea from SkyHanni.")
+        @ConfigOption(name = "Current Chat Display", desc = "Displays a GUI element that indicates what chat you are in (e.g. Party, Guild, Coop, All). It shows while the chat is open and for two seconds after. Right after you join, the mod assumes the All chat (Hypixel starts there) until a message tells it otherwise (every /chat command does). Idea from SkyHanni.")
         @ConfigEditorBoolean
         public boolean currentChatDisplay = false;
 
-        // Lage des Kastens, gesetzt ueber /shoki hud
+        @Expose
+        @ConfigOption(name = "Current Chat Display Free Position", desc = "Off (the default): the Current Chat Display sits right above the chat input line, at the left edge, like SkyHanni does, and moving it in the HUD editor has no effect. On: it sits where you put it with /shoki hud.")
+        @ConfigEditorBoolean
+        public boolean currentChatFreePosition = false;
+
+        // Lage des Kastens, gesetzt ueber /shoki hud (gilt nur, wenn "Free Position" an ist)
         @Expose
         public float currentChatHudX = 0.01f;
         @Expose

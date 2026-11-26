@@ -177,7 +177,7 @@ public final class SafariHud {
                 case BAZAAR_SELL -> ModConfig.INSTANCE.inventory.bazaar.hudX;
                 case NPC_LIMIT -> ModConfig.INSTANCE.misc.npcLimit.hudX;
                 case ITEM_VALUE -> ModConfig.INSTANCE.inventory.itemValue.hudX;
-                case CURRENT_CHAT -> ModConfig.INSTANCE.chatTab.currentChatHudX;
+                case CURRENT_CHAT -> CurrentChatHud.x();
                 case VISITOR_LIST -> ModConfig.INSTANCE.garden.shoppingList.hudX;
                 case GARDEN_PLOTS -> ModConfig.INSTANCE.garden.plots.hudX;
             };
@@ -211,7 +211,7 @@ public final class SafariHud {
                 case BAZAAR_SELL -> ModConfig.INSTANCE.inventory.bazaar.hudY;
                 case NPC_LIMIT -> ModConfig.INSTANCE.misc.npcLimit.hudY;
                 case ITEM_VALUE -> ModConfig.INSTANCE.inventory.itemValue.hudY;
-                case CURRENT_CHAT -> ModConfig.INSTANCE.chatTab.currentChatHudY;
+                case CURRENT_CHAT -> CurrentChatHud.y();
                 case VISITOR_LIST -> ModConfig.INSTANCE.garden.shoppingList.hudY;
                 case GARDEN_PLOTS -> ModConfig.INSTANCE.garden.plots.hudY;
             };

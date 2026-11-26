@@ -32,6 +32,11 @@ public class HudPanel {
     /** Abstand zwischen Beschriftung und Wert in einer Paar-Zeile */
     private static final int GUTTER = 8;
     private static final int LINE_HEIGHT = 10;
+
+    /** Die Hoehe eines Kastens mit einer einzigen schlichten Zeile (ohne Skalierung): Zeile und Rand oben und unten */
+    public static int singleLineHeight() {
+        return LINE_HEIGHT + PADDING * 2;
+    }
     private static final int BAR_WIDTH = 60;
     /**
      * Kraeftig deckend, nicht bloss angedeutet.

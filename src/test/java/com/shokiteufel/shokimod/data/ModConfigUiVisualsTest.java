@@ -28,7 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * UI & Visuals > Skyblock Inventory Screen > Show Equipment in Inventory (nach Skyblocker): von Haus aus aus, speichern und laden, eine Datei von vorher, beschaedigte
- * Werte, das Tor in {@link FeatureGate} (mit dem Ort) - und wie der Editor die neue Kategorie liest: direkt nach Misc, vor ikohS, mit genau einer Unterkategorie.
+ * Werte, das Tor in {@link FeatureGate} (mit dem Ort) - und wie der Editor die neue Kategorie liest: direkt nach Misc, vor ikohS, mit ihren Unterkategorien (seit 2.5.8 zwei: dazu Input Calculator).
  */
 class ModConfigUiVisualsTest {
 
@@ -78,10 +78,14 @@ class ModConfigUiVisualsTest {
         JsonObject root = JsonParser.parseString(ModConfig.GSON.toJson(new ModConfig())).getAsJsonObject();
         JsonObject ui = root.getAsJsonObject("uiVisuals");
         assertNotNull(ui, "uiVisuals steht in der Datei");
-        assertEquals(List.of("inventoryScreen"), new ArrayList<>(ui.keySet()), "nur die Unterkategorie, kein Infotext");
+        // Seit 2.5.8 zwei Unterkategorien (dazu Input Calculator); die Pruefung "nur Unterkategorien, kein Infotext" und "nur der Schalter" gilt fuer beide
+        assertEquals(List.of("inventoryScreen", "inputCalculator"), new ArrayList<>(ui.keySet()), "nur die Unterkategorien, kein Infotext");
         JsonObject screen = ui.getAsJsonObject("inventoryScreen");
         assertEquals(List.of("showEquipment"), new ArrayList<>(screen.keySet()), "nur der Schalter");
         assertFalse(screen.get("showEquipment").getAsBoolean());
+        JsonObject calculator = ui.getAsJsonObject("inputCalculator");
+        assertEquals(List.of("enabled"), new ArrayList<>(calculator.keySet()), "nur der Schalter");
+        assertFalse(calculator.get("enabled").getAsBoolean());
     }
 
     @Test
@@ -228,8 +232,12 @@ class ModConfigUiVisualsTest {
         }
     }
 
+    /**
+     * Seit 2.5.8 hat UI & Visuals zwei Unterkategorien (Skyblock Inventory Screen und Input Calculator); bis 2.5.7 genau eine. Die Zahl hier ist die der Anforderung von heute,
+     * kein Abschwaechen: Der Test heisst nicht mehr "genau eine", prueft aber weiter jede Unterkategorie einzeln (Infotext und ein Schalter, von Haus aus aus).
+     */
     @Test
-    void uiAndVisualsHasExactlyOneSubCategoryWithExactlyOneSwitch() {
+    void uiAndVisualsHasTwoSubCategoriesEachWithExactlyOneSwitch() {
         Ergebnis e = verarbeiten();
         ProcessedCategory ui = nach(e, "ModConfig.uiVisuals");
         ProcessedCategory sub = nach(e, "UiVisualsCategory.inventoryScreen");
@@ -241,7 +249,16 @@ class ModConfigUiVisualsTest {
         for (ProcessedCategory category : e.kategorien.values()) {
             if (ui.getIdentifier().equals(category.getParentCategoryId())) children++;
         }
-        assertEquals(1, children, "genau eine Unterkategorie");
+        assertEquals(2, children, "zwei Unterkategorien");
+
+        ProcessedCategory calculator = nach(e, "UiVisualsCategory.inputCalculator");
+        assertNotNull(calculator, "die Unterkategorie Input Calculator");
+        assertEquals(ui.getIdentifier(), calculator.getParentCategoryId(), "haengt unter UI & Visuals");
+        List<String> calculatorNames = optionNames(calculator);
+        assertEquals(List.of("Input Calculator", "Calculate in Number Signs"), calculatorNames, "Infotext und ein Schalter");
+        ProcessedOption calculatorOption = calculator.getOptions().get(calculatorNames.indexOf("Calculate in Number Signs"));
+        assertEquals("GuiOptionEditorBoolean", calculatorOption.getEditor().getClass().getSimpleName());
+        assertEquals(Boolean.FALSE, calculatorOption.get(), "von Haus aus aus");
 
         assertEquals(List.of("UI & Visuals"), optionNames(ui), "im Reiter selbst nur der Infotext");
         List<String> names = optionNames(sub);

@@ -47,6 +47,15 @@ public final class ChatChannelTracker {
         return privateEnd;
     }
 
+    /**
+     * Nach dem Betreten des Servers, solange noch nichts gelesen wurde: Es gilt der Chat "All" (Hypixel setzt einen dorthin; eine spaetere Meldung ueberschreibt
+     * das). Ohne das stuende der Kasten leer, bis man das erste Mal {@code /chat} tippt - und wer ihn einschaltet, will ihn sehen. Ein bekannter Chat bleibt unberuehrt:
+     * Das Betreten kommt bei einem Wechsel zwischen Servern noch einmal.
+     */
+    public void assumeAllIfUnknown() {
+        if (channel == null) set(ChatChannel.ALL, null);
+    }
+
     /** Vergisst alles: der naechste Wechsel, den Hypixel meldet, ist wieder der erste */
     public void reset() {
         channel = null;

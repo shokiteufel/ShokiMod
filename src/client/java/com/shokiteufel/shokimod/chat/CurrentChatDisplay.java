@@ -15,6 +15,8 @@ import net.minecraft.client.gui.screens.ChatScreen;
  * "kurz danach" im Code vorbereitet, aber nie angeschlossen ("this is currently never called"); hier gilt er: zwei Sekunden nach dem Schliessen des Chats. Die
  * Umsetzung ist eigene Arbeit: Java, der Kasten ist ein Kasten des HUD-Editors ({@code SafariHud.Panel.CURRENT_CHAT}).
  *
+ * <p>Ort: Vorgabe wie bei SkyHanni kurz ueber der Chat-Eingabe (siehe {@code CurrentChatHud}). Nach dem Betreten gilt "All", bis Hypixel etwas anderes meldet.
+ *
  * <p>Abweichungen: Der Chat wird nicht bei jedem Welt- oder Serverwechsel vergessen, sondern nur, wenn die Verbindung endet. Auf Hypixel bleibt der Chat ueber die
  * Wechsel zwischen den Servern bestehen (die Party laeuft weiter); ein Vergessen bei jedem Wechsel liesse den Kasten in SkyBlock fast immer leer. Gemerkt wird nur
  * im Speicher - SkyHanni speichert den Chat in der Datei des Spielers.
@@ -35,6 +37,8 @@ public final class CurrentChatDisplay {
         ClientTickEvents.END_CLIENT_TICK.register(CurrentChatDisplay::tick);
         // Die Verbindung endet: der naechste Wechsel, den Hypixel meldet, ist wieder der erste
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> reset());
+        // Neu verbunden: bis Hypixel etwas anderes meldet, ist man im Chat "All"
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> TRACKER.assumeAllIfUnknown());
     }
 
     /** Eine Chatzeile (Klartext): sagt sie, in welchem Chat man ist? */
