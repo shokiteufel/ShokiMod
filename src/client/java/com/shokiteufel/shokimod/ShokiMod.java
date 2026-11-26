@@ -114,6 +114,7 @@ public class ShokiMod implements ClientModInitializer {
         com.shokiteufel.shokimod.handler.SlayerCocoon.register();
         com.shokiteufel.shokimod.handler.SkillProgress.register();
         com.shokiteufel.shokimod.handler.AuctionUnderbid.register();
+        com.shokiteufel.shokimod.handler.AuctionHighlights.register();
         com.shokiteufel.shokimod.handler.BazaarHelpers.register();
         com.shokiteufel.shokimod.handler.NpcDayLimit.register();
         com.shokiteufel.shokimod.handler.WarpCommands.register();

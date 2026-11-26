@@ -2,6 +2,7 @@ package com.shokiteufel.shokimod.chat;
 
 import com.shokiteufel.shokimod.data.ModConfig.ChatFilterTypesCategory;
 import com.shokiteufel.shokimod.data.ModConfig.ChatTabCategory;
+import com.shokiteufel.shokimod.data.ModConfig.FishingCategory;
 
 import net.minecraft.network.chat.Component;
 
@@ -100,6 +101,17 @@ public final class ChatFilterEngine {
      * @param now     die Uhr in Millisekunden
      */
     public ChatVerdict decide(String plain, Component message, ChatTabCategory t, ChatPlace p, long now) {
+        return decide(plain, message, t, null, p, now);
+    }
+
+    /**
+     * Wie {@link #decide(String, Component, ChatTabCategory, ChatPlace, long)}, dazu mit den Einstellungen von Fishing: Shorten Fishing Message und Compact Double Hook
+     * schreiben die Fang-Zeilen der Meeresbewohner um (erste Stufe: die Zeile "It's a Double Hook!" ausblenden, zweite: die Fang-Zeile aendern). Sie gehoeren nicht
+     * zu Chat und kommen deshalb als eigener Wert; null heisst, Fishing greift nicht ein.
+     *
+     * @param fishing die Einstellungen des Reiters Fishing, oder null
+     */
+    public ChatVerdict decide(String plain, Component message, ChatTabCategory t, FishingCategory fishing, ChatPlace p, long now) {
         if (plain == null || t == null || t.filterTypes == null) return ChatVerdict.SHOW;
         ChatFilterTypesCategory f = t.filterTypes;
 
@@ -125,9 +137,15 @@ public final class ChatFilterEngine {
 
         // 2b. Chat (Teil 2), erste Stufe: Zeilen kuerzen. Die Zeile wird nur gebaut, wenn einer dieser Schalter an ist
         boolean rewriting = t.anyRewrite();
-        Incoming in = rewriting ? new Incoming(plain, message) : null;
+        // Fishing > Shorten Fishing Message / Compact Double Hook: eigene Schalter, derselbe Weg
+        boolean seaLines = fishing != null && fishing.anyChatLine();
+        Incoming in = rewriting || seaLines ? new Incoming(plain, message) : null;
         if (rewriting) {
             v = rewrites.compact(in, t, p, now);
+            if (v != null) return v;
+        }
+        if (seaLines) {
+            v = rewrites.compactFishing(in, fishing, p, now);
             if (v != null) return v;
         }
 
@@ -138,7 +156,7 @@ public final class ChatFilterEngine {
         if (hidesChat(plain, t, p, now)) return ChatVerdict.HIDE;
 
         // 5. Chat (Teil 2), zweite Stufe: eine Zeile, die bis hierher stehen blieb, umschreiben
-        return rewriting ? rewrites.modify(in, t, p, now) : ChatVerdict.SHOW;
+        return rewriting || seaLines ? rewrites.modify(in, t, fishing, p, now) : ChatVerdict.SHOW;
     }
 
     /** Die einfachen Schalter: eine Gruppe von Zeilen je Schalter (Reihenfolge wie bei SkyHanni) */

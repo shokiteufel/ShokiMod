@@ -186,6 +186,11 @@ public class ModConfig extends Config {
         if (c == null) return;
         if (c.inventory == null) c.inventory = new InventoryCategory();
         if (c.inventory.auctions == null) c.inventory.auctions = new AuctionHouseHelpersCategory();
+        // Die Farben der Markierungen im Auktionshaus: im Format des Waehlers (ein alter Hexwert wird umgeschrieben, Unlesbares durch die Vorgabe ersetzt)
+        AuctionHouseHelpersCategory auctions = c.inventory.auctions;
+        auctions.soldColour = ColourText.forPicker(auctions.soldColour, 0x55FF55);
+        auctions.expiredColour = ColourText.forPicker(auctions.expiredColour, 0xFF5555);
+        auctions.underbidColour = ColourText.forPicker(auctions.underbidColour, 0xFFAA00);
         if (c.inventory.bazaar == null) c.inventory.bazaar = new BazaarHelpersCategory();
         if (c.inventory.flips == null) c.inventory.flips = new BazaarCategory();
         if (c.inventory.flips.tax == null) c.inventory.flips.tax = SellTax.PLAIN;
@@ -286,6 +291,8 @@ public class ModConfig extends Config {
 
     static void repairFishingExtras(FishingCategory fishing) {
         if (fishing == null) return;
+        // Eine Auswahl mit unbekanntem Namen macht Gson zu null
+        if (fishing.compactDoubleHookPosition == null) fishing.compactDoubleHookPosition = CompactDoubleHookPosition.LEFT;
         if (fishing.hookDisplay == null) fishing.hookDisplay = new HookDisplayCategory();
         if (fishing.hookDisplay.customAlertText == null) fishing.hookDisplay.customAlertText = "&c&l!!!";
         fishing.hookDisplay.customReelInTime = Math.max(0f, Math.min(1f, fishing.hookDisplay.customReelInTime));
@@ -2174,7 +2181,7 @@ public class ModConfig extends Config {
 
     public static class FishingCategory {
 
-        @ConfigOption(name = "Fishing", desc = "Everything about fishing lives in the sub tabs on the left.")
+        @ConfigOption(name = "Fishing", desc = "Most of fishing lives in the sub tabs on the left. The settings for the chat lines of a catch (Shorten Fishing Message, Compact Double Hook) are below.")
         @ConfigEditorInfoText
         public transient String about = "";
 
@@ -2229,6 +2236,43 @@ public class ModConfig extends Config {
         @Expose
         @Category(name = "Cocoon settings", desc = "What happens when your Primordial belt or a Blood Shot reforge cocoons a sea creature: a title and a sound for you, a line in the party chat for the others. Idea from SkyHanni.")
         public SeaCocoonCategory cocoon = new SeaCocoonCategory();
+
+        @Expose
+        @ConfigOption(name = "Shorten Fishing Message", desc = "Shortens the chat line that says what sea creature you caught to \"You caught a Squid!\" (blue, with the name in the colour of the creature). Only the catch line of a sea creature changes; every other line stays. Off until you turn it on. Idea from SkyHanni.")
+        @ConfigEditorBoolean
+        public boolean shortenFishingMessage = false;
+
+        @Expose
+        @ConfigOption(name = "Compact Double Hook", desc = "Puts DOUBLE HOOK! into the catch line of the sea creature instead of a line of its own before it: Hypixel's line \"It's a Double Hook! Woot woot!\" is hidden, and the catch line that follows within a tenth of a second carries the text. Off until you turn it on (SkyHanni has it on). Idea from SkyHanni.")
+        @ConfigEditorBoolean
+        public boolean compactDoubleHook = false;
+
+        @Expose
+        @ConfigOption(name = "Compact Double Hook Position", desc = "Where to put the DOUBLE HOOK! text in the catch message: in front of it (Left) or behind it (Right). Requires Compact Double Hook to be enabled!")
+        @ConfigEditorDropdown
+        public CompactDoubleHookPosition compactDoubleHookPosition = CompactDoubleHookPosition.LEFT;
+
+        /** Greift einer der beiden Schalter in die Fang-Zeilen des Chats ein? Der Chat-Weg fragt das, bevor er die Zeile liest */
+        public boolean anyChatLine() {
+            return shortenFishingMessage || compactDoubleHook;
+        }
+    }
+
+    /** Fishing > Compact Double Hook Position: wo "DOUBLE HOOK!" in der Fang-Zeile steht */
+    public enum CompactDoubleHookPosition {
+        LEFT("Left"),
+        RIGHT("Right");
+
+        private final String label;
+
+        CompactDoubleHookPosition(String label) {
+            this.label = label;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
     }
 
     /**
@@ -4961,6 +5005,11 @@ public class ModConfig extends Config {
         public boolean showActionLeft = false;
 
         @Expose
+        @ConfigOption(name = "Hide in action bar", desc = "Hide the skill progress in the Hypixel action bar: the gain \"+881.8 Fishing (99.61%)\" is cut out of the line, so it is not there twice. Health, mana, defense and the rest stay as they are. It works only while Skill progress is on, and it is on from the start.")
+        @ConfigEditorBoolean
+        public boolean hideInActionBar = true;
+
+        @Expose
         @ConfigOption(name = "Always show", desc = "Keeps the panel on screen for the last skill you gained in. Off: it shows for three seconds after every gain.")
         @ConfigEditorBoolean
         public boolean alwaysShow = false;
@@ -5125,9 +5174,34 @@ public class ModConfig extends Config {
      */
     public static class AuctionHouseHelpersCategory {
 
-        @ConfigOption(name = "Auction house", desc = "Copies a price one coin below the cheapest offer, so you can paste it into the price field of an auction. The prices are the lowest BIN prices the mod already uses for the profit tracker. Off until you turn it on.")
+        @ConfigOption(name = "Auction house", desc = "Marks your own auctions in the window Manage Auctions (sold, expired, underbid) and copies a price one coin below the cheapest offer, so you can paste it into the price field of an auction. The prices are the lowest BIN prices the mod already uses for the profit tracker. Everything is off until you turn it on.")
         @ConfigEditorInfoText
         public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Highlight Auctions", desc = "In Manage Auctions, marks your own auctions that are sold (Sold Color) or expired (Expired Color). Off until you turn it on (SkyHanni has it on).")
+        @ConfigEditorBoolean
+        public boolean highlightAuctions = false;
+
+        @Expose
+        @ConfigOption(name = "Sold Color", desc = "Colour of the sold auctions. Click the colour to pick one; the opacity slider of the picker changes nothing here.")
+        @ConfigEditorColour
+        public String soldColour = ColourText.ofRgb(0x55FF55);
+
+        @Expose
+        @ConfigOption(name = "Expired Color", desc = "Colour of the expired auctions. Click the colour to pick one; the opacity slider of the picker changes nothing here.")
+        @ConfigEditorColour
+        public String expiredColour = ColourText.ofRgb(0xFF5555);
+
+        @Expose
+        @ConfigOption(name = "Highlight Underbid Auctions", desc = "In Manage Auctions, marks your own BIN auctions that are outbid: the Buy it now price is higher than the estimated value of the item (the sum of Estimated Item Value, so its price tables are needed). An item whose value is not known is not marked. It works without Highlight Auctions.")
+        @ConfigEditorBoolean
+        public boolean highlightUnderbid = false;
+
+        @Expose
+        @ConfigOption(name = "Underbid Color", desc = "Colour of the underbid auctions. Click the colour to pick one; the opacity slider of the picker changes nothing here.")
+        @ConfigEditorColour
+        public String underbidColour = ColourText.ofRgb(0xFFAA00);
 
         @Expose
         @ConfigOption(name = "Auto copy underbid price", desc = "When you open the Create BIN Auction window with an item in it, copies the lowest BIN price of that item (times the stack size) minus one coin to your clipboard and tells you in the chat. For an item whose price is not known the clipboard is emptied, so an old price does not slip in. Opening the window again with the same item copies again.")

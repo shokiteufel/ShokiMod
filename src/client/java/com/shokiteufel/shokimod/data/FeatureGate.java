@@ -280,6 +280,23 @@ public final class FeatureGate {
         return ModConfig.INSTANCE.skillProgress.enabled;
     }
 
+    /** Skill progress > Hide in action bar: den Zugewinn aus der Aktionsleiste schneiden - nur wenn Skill progress UND der Schalter an sind. Braucht den Ort (nur in SkyBlock; skillProgress() steht schon in location()) */
+    public static boolean hideSkillGain() {
+        ModConfig.SkillProgressCategory c = ModConfig.INSTANCE.skillProgress;
+        return c.enabled && c.hideInActionBar;
+    }
+
+    /** Inventory > Auction house > Highlight Auctions und Highlight Underbid Auctions: Manage Auctions lesen und Plaetze markieren - nur wenn eines von beiden an ist. Braucht den Ort (nur in SkyBlock) */
+    public static boolean auctionHighlights() {
+        ModConfig.AuctionHouseHelpersCategory c = ModConfig.INSTANCE.inventory.auctions;
+        return c.highlightAuctions || c.highlightUnderbid;
+    }
+
+    /** Fishing > Shorten Fishing Message und Compact Double Hook: die Fang-Zeilen im Chat lesen und umschreiben - nur wenn eines von beiden an ist. Braucht den Ort (nur in SkyBlock) */
+    public static boolean fishingLines() {
+        return ModConfig.INSTANCE.fishing.anyChatLine();
+    }
+
     /** Inventory > Auction house: das Fenster zum Einstellen lesen und auf die Taste achten - nur wenn eines von beiden an ist. Braucht den Ort (nur in SkyBlock) */
     public static boolean auctionUnderbid() {
         ModConfig.AuctionHouseHelpersCategory c = ModConfig.INSTANCE.inventory.auctions;
@@ -316,7 +333,8 @@ public final class FeatureGate {
 
     /** Chat (Teil 1): greift irgendein Schalter in den Chat ein? Der Chat-Weg fragt das fuer jede Zeile als Erstes - ist es nein, kostet eine Zeile nichts weiter */
     public static boolean chatFilters() {
-        return ModConfig.INSTANCE.chatTab.anyFilter();
+        // Fishing > Shorten Fishing Message / Compact Double Hook laufen ueber denselben Weg, auch wenn kein Schalter von Chat an ist
+        return ModConfig.INSTANCE.chatTab.anyFilter() || fishingLines();
     }
 
     /** Chat (Teil 1): braucht ein eingeschalteter Schalter das Gebiet? Dann liest die Mod die Tab-Liste (in SkyBlock) */
@@ -460,6 +478,7 @@ public final class FeatureGate {
                 // Die Dungeon-Funktionen fragen die Tab-Liste und die Seitenleiste (DungeonLauf, Funny Map): ohne diese Zeile stuende sie nur, solange eine der Funktionen oben an ist
                 || roomScan() || iHateDoors() || dungeonLog() || leapMenu() || hideOtherHooks() || mineshaftKeys()
                 || hookDisplay() || baitDisplay() || seaCocoon() || slayerCocoon() || slayerSpawnParticles() || skillProgress() || auctionUnderbid() || bazaarHelpers()
+                || auctionHighlights() || fishingLines()
                 || npcDayLimit() || warpCommands() || fixDoubleClicks() || estimatedItemValue()
                 // Chat (Teil 1): die Filter nach Ort (Dungeon, Garden, Bergbau, Foraging, Spider's Den, Crystal Hollows, Kuudra)
                 // Chat (Teil 2): alles, was umschreibt, und SkyBlock XP in Chat gelten nur in SkyBlock (chatFiltersLocation schliesst die umschreibenden ein)

@@ -1,6 +1,7 @@
 package com.shokiteufel.shokimod.chat;
 
 import com.shokiteufel.shokimod.data.ModConfig.ChatTabCategory;
+import com.shokiteufel.shokimod.data.ModConfig.FishingCategory;
 import com.shokiteufel.shokimod.data.ModConfig.PlayerMessagesCategory;
 import com.shokiteufel.shokimod.data.ModConfig.RareDropMessagesCategory;
 
@@ -31,6 +32,7 @@ final class ChatRewrites {
     private final CompactJacobClaim jacob = new CompactJacobClaim();
     private final DarkAuctionItems darkAuction = new DarkAuctionItems();
     private final RareDropMessages rareDrop = new RareDropMessages();
+    private final SeaCreatureLines seaLines = new SeaCreatureLines();
 
     /** Neue Welt: was ueber mehrere Zeilen gemerkt wurde, gilt nicht mehr */
     void reset() {
@@ -39,6 +41,7 @@ final class ChatRewrites {
         jacob.reset();
         darkAuction.reset();
         rareDrop.reset();
+        seaLines.reset();
     }
 
     /** Wartet noch etwas, das erst der Tick schreibt? */
@@ -69,9 +72,28 @@ final class ChatRewrites {
         return null;
     }
 
-    /** Zweite Stufe: eine Zeile umschreiben, die bis hierher stehen blieb. Liefert SHOW, REPLACE (die neue Zeile) oder HIDE (die Zeile wird zurueckgehalten) */
+    /**
+     * Erste Stufe fuer Fishing > Compact Double Hook: die Zeile "It's a Double Hook!" ausblenden und den Zeitpunkt merken. Null heisst, nicht zustaendig.
+     * Die Einstellungen sind die von Fishing, nicht die von Chat.
+     */
+    ChatVerdict compactFishing(Incoming in, FishingCategory f, ChatPlace p, long now) {
+        if (f == null || !f.compactDoubleHook || !p.skyblock()) return null;
+        return seaLines.doubleHookLine(in, f, now);
+    }
+
+    /** Zweite Stufe ohne die Einstellungen von Fishing (die Tests von Chat und jeder Aufruf vor Fishing > Shorten Fishing Message) */
     ChatVerdict modify(Incoming in, ChatTabCategory t, ChatPlace p, long now) {
-        if (!t.anyRewrite() || !p.skyblock()) return ChatVerdict.SHOW;
+        return modify(in, t, null, p, now);
+    }
+
+    /**
+     * Zweite Stufe: eine Zeile umschreiben, die bis hierher stehen blieb. Liefert SHOW, REPLACE (die neue Zeile) oder HIDE (die Zeile wird zurueckgehalten).
+     *
+     * @param f die Einstellungen von Fishing (Shorten Fishing Message, Compact Double Hook); null heisst, die Fang-Zeilen bleiben, wie sie sind
+     */
+    ChatVerdict modify(Incoming in, ChatTabCategory t, FishingCategory f, ChatPlace p, long now) {
+        boolean fishing = f != null && f.anyChatLine();
+        if ((!t.anyRewrite() && !fishing) || !p.skyblock()) return ChatVerdict.SHOW;
         String plain = in.plain;
         RareDropMessagesCategory rd = t.rareDrop;
         boolean rare = rd != null && plain.startsWith("RARE DROP!");
@@ -110,6 +132,10 @@ final class ChatRewrites {
         }
         if (t.shortenCoinAmounts && ShortenCoins.mayApply(cur != null ? cur.plain() : plain)) {
             cur = or(cur, ShortenCoins.rewrite(cur != null ? cur : in.styled()));
+        }
+        // Fishing: die Fang-Zeile eines Meeresbewohners kuerzen und/oder mit "DOUBLE HOOK!" versehen
+        if (fishing) {
+            cur = or(cur, seaLines.catchLine(cur != null ? cur : in.styled(), f, now));
         }
         // Chat (Teil 4): zuletzt der Klick der Uebersetzung, auf der Zeile, wie sie jetzt aussieht (eine Zeile mit eigenem Klick bleibt, wie sie ist)
         if (translating && player != null && player.translatable() && !player.message().plain().isBlank()) {

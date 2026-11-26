@@ -8,8 +8,10 @@ import com.shokiteufel.shokimod.scanner.ItemChanges;
 import com.shokiteufel.shokimod.scanner.MiningState;
 import com.shokiteufel.shokimod.scanner.NestTracker;
 import com.shokiteufel.shokimod.session.SessionManager;
+import com.shokiteufel.shokimod.util.ScoreboardUtils;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
+import net.minecraft.network.chat.Component;
 
 /** Serverwechsel und eingehende Chatnachrichten. */
 public class NetworkHandler {
@@ -58,41 +60,16 @@ public class NetworkHandler {
             com.shokiteufel.shokimod.chat.ChatFilters.worldChanged();
         });
 
-        ClientReceiveMessageEvents.ALLOW_GAME.register((message, overlay) -> {
-            String msg = message.getString();
+        // Die Action Bar: alle Leser UND die Aenderung (Skill progress > Hide in action bar) stehen in MODIFY_GAME. Dort wird das ORIGINAL gelesen, danach erst
+        // geaendert; ALLOW_GAME laesst sie nur durch. Wer zuerst laeuft, ALLOW_GAME oder MODIFY_GAME, ist damit gleich: Jeder Leser sieht die Leiste genau einmal,
+        // und zwar so, wie Hypixel sie schickte (ein Leser in ALLOW_GAME saehe sie, je nach Reihenfolge, schon ohne den Zugewinn)
+        ClientReceiveMessageEvents.MODIFY_GAME.register((message, overlay) -> overlay ? onActionBar(message) : message);
 
-            // Die Action Bar ist keine Chatzeile, dort greifen keine Regeln - bis auf
-            // eine: Beim Abbauen steht der Essence-Zugang dort ("+3 Fossil Essence")
-            // und sonst nirgends. Wer das Widget der Tab-Liste nicht anhat, wird nur
-            // hier gezaehlt. Die Zeile kommt in jedem Tick, deshalb erst der billige
-            // Blick auf das Wort und nur dann die Arbeit
-            if (overlay) {
-                // Der Skill-XP-Zaehler liest den Zugewinn "+3,909.8 Fishing (...)": nur bei einem Plus, und nur wenn er an ist
-                if (FeatureGate.skillXp() && msg.indexOf('+') >= 0 && GameState.Server.isSkyblock()) {
-                    com.shokiteufel.shokimod.handler.SkillXpTracker.onActionBar(COLOUR_CODE.matcher(msg).replaceAll(""));
-                }
-                // Skill progress: Stufe und Fortschritt aus derselben Zeile; nur bei einem Plus, und nur wenn es an ist
-                if (FeatureGate.skillProgress() && msg.indexOf('+') >= 0 && GameState.Server.isSkyblock()) {
-                    com.shokiteufel.shokimod.handler.SkillProgress.onActionBar(COLOUR_CODE.matcher(msg).replaceAll(""));
-                }
-                // Chat (Teil 2): SkyBlock XP in Chat - erst der Schalter, dann ein Blick auf das Wort, dann erst wird die Leiste gelesen
-                if (FeatureGate.skyblockXpInChat() && msg.indexOf("SkyBlock XP") >= 0 && GameState.Server.isSkyblock()) {
-                    com.shokiteufel.shokimod.chat.SkyblockXpInChat.onActionBar(message);
-                }
-                // Im Dungeon steht dort "0/6 Secrets": wie viele des Raums schon gefunden sind (Funny Map: "3/9" statt nur "9")
-                if (msg.indexOf("Secrets") >= 0 && FeatureGate.funnyMap() && GameState.Server.isSkyblock()) {
-                    com.shokiteufel.shokimod.dungeonkarte.FunnyKarte.onActionBar(COLOUR_CODE.matcher(msg).replaceAll(""));
-                }
-                if (FeatureGate.itemChanges() && GameState.Server.isSkyblock()) {
-                    // Auch die Zeile ohne Essence wird gemeldet: An ihr merkt der
-                    // Zaehler, dass das Segment weg ist, und laesst denselben Betrag
-                    // spaeter wieder zaehlen
-                    ItemChanges.report(EssenceState.processActionBar(msg.contains("Essence")
-                            ? COLOUR_CODE.matcher(msg).replaceAll("")
-                            : ""), "essence bar");
-                }
-                return true;
-            }
+        ClientReceiveMessageEvents.ALLOW_GAME.register((message, overlay) -> {
+            // Die Action Bar ist keine Chatzeile, dort greifen keine Regeln: Ihre Leser stehen in onActionBar (MODIFY_GAME)
+            if (overlay) return true;
+
+            String msg = message.getString();
 
             String unformattedMsg = COLOUR_CODE.matcher(msg).replaceAll("");
 
@@ -177,5 +154,50 @@ public class NetworkHandler {
             }
             return zeigen;
         });
+    }
+
+    /**
+     * Die Aktionsleiste: erst lesen alle Leser das ORIGINAL (jeder einmal), dann schneidet "Hide in action bar" auf Wunsch den Zugewinn der Faehigkeit heraus.
+     * Gibt die Zeile zurueck, die angezeigt wird: bei ausgeschaltetem Schalter (oder wenn nichts zu entfernen ist) dieselbe Komponente, sonst eine neue.
+     *
+     * Beim Abbauen steht der Essence-Zugang dort ("+3 Fossil Essence") und sonst nirgends. Wer das Widget der Tab-Liste nicht anhat, wird nur hier gezaehlt.
+     * Die Zeile kommt in jedem Tick, deshalb erst der billige Blick auf das Wort und nur dann die Arbeit.
+     */
+    static Component onActionBar(Component message) {
+        String msg = message.getString();
+
+        // Der Skill-XP-Zaehler liest den Zugewinn "+3,909.8 Fishing (...)": nur bei einem Plus, und nur wenn er an ist
+        if (FeatureGate.skillXp() && msg.indexOf('+') >= 0 && GameState.Server.isSkyblock()) {
+            com.shokiteufel.shokimod.handler.SkillXpTracker.onActionBar(COLOUR_CODE.matcher(msg).replaceAll(""));
+        }
+        // Skill progress: Stufe und Fortschritt aus derselben Zeile; nur bei einem Plus, und nur wenn es an ist.
+        // skillShown: Der Zugewinn ist in den Kasten gegangen - nur dann darf er unten aus der Leiste
+        boolean skillShown = false;
+        if (FeatureGate.skillProgress() && msg.indexOf('+') >= 0 && GameState.Server.isSkyblock()) {
+            skillShown = com.shokiteufel.shokimod.handler.SkillProgress.onActionBar(COLOUR_CODE.matcher(msg).replaceAll(""));
+        }
+        // Chat (Teil 2): SkyBlock XP in Chat - erst der Schalter, dann ein Blick auf das Wort, dann erst wird die Leiste gelesen
+        if (FeatureGate.skyblockXpInChat() && msg.indexOf("SkyBlock XP") >= 0 && GameState.Server.isSkyblock()) {
+            com.shokiteufel.shokimod.chat.SkyblockXpInChat.onActionBar(message);
+        }
+        // Im Dungeon steht dort "0/6 Secrets": wie viele des Raums schon gefunden sind (Funny Map: "3/9" statt nur "9")
+        if (msg.indexOf("Secrets") >= 0 && FeatureGate.funnyMap() && GameState.Server.isSkyblock()) {
+            com.shokiteufel.shokimod.dungeonkarte.FunnyKarte.onActionBar(COLOUR_CODE.matcher(msg).replaceAll(""));
+        }
+        if (FeatureGate.itemChanges() && GameState.Server.isSkyblock()) {
+            // Auch die Zeile ohne Essence wird gemeldet: An ihr merkt der
+            // Zaehler, dass das Segment weg ist, und laesst denselben Betrag
+            // spaeter wieder zaehlen
+            ItemChanges.report(EssenceState.processActionBar(msg.contains("Essence")
+                    ? COLOUR_CODE.matcher(msg).replaceAll("")
+                    : ""), "essence bar");
+        }
+
+        // Zuletzt, nach allen Lesern: Skill progress > Hide in action bar
+        if (!skillShown || !FeatureGate.hideSkillGain()) return message;
+        String legacy = ScoreboardUtils.toLegacyString(message);
+        String stripped = SkillProgress.stripSkillGain(legacy);
+        // Nichts zu entfernen: dieselbe Komponente, nichts neu gebaut
+        return stripped.equals(legacy) ? message : Component.literal(stripped);
     }
 }

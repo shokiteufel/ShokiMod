@@ -141,11 +141,15 @@ public final class SkillProgress {
 
     // ------------------------------------------------------------------ Lesen der Aktionsleiste
 
-    /** Eine Aktionsleiste ist gekommen (der Text ohne Farbcodes). Bei ausgeschaltetem Skill progress wird sie gar nicht erst gelesen */
-    public static void onActionBar(String plain) {
-        if (plain == null || plain.indexOf('+') < 0) return;
+    /**
+     * Eine Aktionsleiste ist gekommen (der Text ohne Farbcodes). Bei ausgeschaltetem Skill progress wird sie gar nicht erst gelesen.
+     *
+     * @return ob die Leiste einen Zugewinn trug, der in den Kasten ging - nur dann steht die Zahl dort und darf "Hide in action bar" sie aus der Leiste nehmen
+     */
+    public static boolean onActionBar(String plain) {
+        if (plain == null || plain.indexOf('+') < 0) return false;
         Update update = apply(plain, TabListScanner.lastLines(), cfg().skills);
-        if (update == null) return;
+        if (update == null) return false;
         long now = System.currentTimeMillis();
         active = update.skill();
         cfg().lastSkill = update.skill().displayName();
@@ -153,6 +157,82 @@ public final class SkillProgress {
         version++;
         dirty = true;
         if (update.overflowLevelUp() && cfg().overflow.inChat) announceLevelUp(update.skill(), update.oldOverflowLevel(), update.info().overflowLevel);
+        return true;
+    }
+
+    // ------------------------------------------------------------------ Hide in action bar
+
+    /** Ist dieser Teil der Aktionsleiste (ohne Farbcodes, ohne Randleerzeichen) der Zugewinn einer bekannten Faehigkeit: "+881.8 Fishing (99.61%)" oder "(1,234/0)"? */
+    static boolean isGainSegment(String part) {
+        if (part == null) return false;
+        Matcher fraction = FRACTION.matcher(part);
+        if (fraction.matches()) return Skill.byName(fraction.group("skill")) != null;
+        Matcher percent = PERCENT.matcher(part);
+        return percent.matches() && Skill.byName(percent.group("skill")) != null;
+    }
+
+    private static boolean isCodeLetter(char c) {
+        return "0123456789abcdefklmnorABCDEFKLMNOR".indexOf(c) >= 0;
+    }
+
+    /**
+     * Schneidet den Zugewinn der Faehigkeit aus dem Text einer Aktionsleiste - "Hide in action bar". Die Leiste ist Text MIT Farbcodes ({@code §3+881.8 Fishing (99.61%)});
+     * erkannt wird der Zugewinn im Klartext (zwei oder mehr Leerzeichen trennen die Teile, wie beim Lesen in {@link #apply}), entfernt wird er samt seinen Farbcodes und den
+     * Leerzeichen davor, und der Rest wird getrimmt. Alles andere (Leben, Mana, Defense ...) bleibt mit seinen Codes. Steht kein Zugewinn darin, kommt derselbe Text
+     * (dieselbe Zeichenkette) zurueck.
+     *
+     * Die Idee ist SkyHannis ({@code SkillProgress.onActionBar}: das Stueck mit Leerzeichen davor entfernen, dann trimmen); dort wird nach einem Muster mit
+     * Farbcodes zwischen den Zeichen gesucht, hier ueber die Zuordnung Klartext-Stelle zu Stelle im Text mit Codes.
+     */
+    public static String stripSkillGain(String legacyText) {
+        if (legacyText == null || legacyText.indexOf('+') < 0) return legacyText;
+        int length = legacyText.length();
+        // Der Klartext und, zu jedem seiner Zeichen, die Stelle im Text mit Codes
+        StringBuilder plain = new StringBuilder(length);
+        int[] at = new int[length + 1];
+        for (int i = 0; i < length; i++) {
+            char c = legacyText.charAt(i);
+            if (c == '§' && i + 1 < length && isCodeLetter(legacyText.charAt(i + 1))) {
+                i++;
+                continue;
+            }
+            at[plain.length()] = i;
+            plain.append(c);
+        }
+        at[plain.length()] = length;
+        String clear = plain.toString();
+
+        // Die Teile mit ihrer Lage im Klartext (ohne Randleerzeichen)
+        List<int[]> gains = new ArrayList<>();
+        Matcher separator = PART_SPLIT.matcher(clear);
+        int from = 0;
+        while (true) {
+            boolean found = separator.find();
+            int to = found ? separator.start() : clear.length();
+            int a = from;
+            int b = to;
+            while (a < b && Character.isWhitespace(clear.charAt(a))) a++;
+            while (b > a && Character.isWhitespace(clear.charAt(b - 1))) b--;
+            if (a < b && isGainSegment(clear.substring(a, b))) gains.add(new int[] {a, b});
+            if (!found) break;
+            from = separator.end();
+        }
+        if (gains.isEmpty()) return legacyText;
+
+        StringBuilder out = new StringBuilder(legacyText);
+        // Von hinten nach vorn, damit die Stellen vorn stimmen bleiben
+        for (int g = gains.size() - 1; g >= 0; g--) {
+            int[] part = gains.get(g);
+            int start = at[part[0]];
+            int end = at[part[1] - 1] + 1;
+            // Die Codes unmittelbar vor dem Stueck gehoeren zu ihm, dann die Leerzeichen davor
+            while (start >= 2 && legacyText.charAt(start - 2) == '§' && isCodeLetter(legacyText.charAt(start - 1))) start -= 2;
+            while (start > 0 && Character.isWhitespace(legacyText.charAt(start - 1))) start--;
+            out.delete(start, end);
+        }
+        // Stand der Zugewinn vorn, bleiben die Leerzeichen dahinter - sie liegen hinter den Codes, die nicht zu ihm gehoerten
+        String rest = out.toString().replaceFirst("^((?:§[0-9a-fk-orA-FK-OR])*)\\s+", "$1");
+        return rest.trim();
     }
 
     /**

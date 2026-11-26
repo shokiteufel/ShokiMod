@@ -432,6 +432,20 @@ Beschreibungen, eigene Tests. Es steht nichts Geschriebenes aus SkyHanni in dies
   (SkyHanni liest die Zeichen und Ränge aus einer Datei seines Repos, die nicht im Quelltext liegt), SkyHannis Liste der Sperrwörter (sie liegt ebenfalls in seinem Repo;
   die Mod hat eine kleine eigene), die drei Muster des Rang-Verbergers für Namen ohne Rang in Zeilen, die kein Spielerchat sind, der Abgleich der Sprachauswahl mit dem
   Textfeld durch Rückrufe.
+- **Fishing-Zeilen, Auction-house-Markierungen und Action Bar** (`SeaCreatureLines`, `AuctionHighlights`, die freien Farben in `WindowHighlights`,
+  `SkillProgress.stripSkillGain`; die Einstellungen in `FishingCategory`, `AuctionHouseHelpersCategory` und `SkillProgressCategory`): drei kleine Funktionen aus SkyHanni
+  (`SeaCreatureManager`, `AuctionsHighlighter`, `SkillProgress`, `SkillApi`). Regeln: „Compact Double Hook“ blendet die Zeile „It's a Double Hook! (Woot woot!)“ aus und
+  merkt den Zeitpunkt; die nächste Fang-Zeile eines Meeresbewohners innerhalb von 100 Millisekunden bekommt „DOUBLE HOOK! “ in Fettgelb davor (Left) oder dahinter
+  (Right), der Zeitpunkt wird nach einer Fang-Zeile vergessen, nicht bei einer anderen Zeile; „Shorten Fishing Message“ macht daraus „You caught a/an <Name>!“ in Blau
+  mit dem Namen in der Farbe des Meeresbewohners; „Highlight Auctions“ färbt in „Manage Auctions“ die Einträge mit „Status: Sold!“ und „Status: Expired!“ ein, „Highlight
+  Underbid Auctions“ die mit „Buy it now: N coins“, wenn N größer ist als der geschätzte Wert des Stücks (Summe von Estimated Item Value; bei gleichem Wert oder ohne
+  Wert nicht); „Hide in action bar“ schneidet den Zugewinn „+881.8 Fishing (99.61%)“ samt den Leerzeichen davor aus der Aktionsleiste und trimmt den Rest. Eigene
+  Zutaten: die Fang-Zeilen stehen schon in der Tabelle von Feesh (`SeaCreatures`), die Farbe des Namens ist deren Seltenheitsfarbe, die Aktionsleiste wird aus
+  `MODIFY_GAME` gelesen und geändert (ALLOW_GAME lässt sie nur durch), damit jeder Leser das Original genau einmal sieht, der Zugewinn wird im Klartext erkannt und samt seinen
+  Farbcodes entfernt, die Markierungen im Auktionshaus tragen freie Farben aus dem Farbwähler, eigener Wortlaut. **Abweichungen:** „Highlight Underbid Auctions“ gilt
+  auch ohne „Highlight Auctions“ (bei SkyHanni liegt es darin), der geschätzte Wert wird mit der Stapelgröße malgenommen, ein Name mit „The“ davor bekommt keinen
+  Artikel, „Hide in action bar“ wirkt nur, wenn der Zugewinn auch im Kasten gelandet ist, und alle Schalter außer „Hide in action bar“ sind von Haus aus aus (SkyHanni:
+  Highlight Auctions und Compact Double Hook an, Hide In Action Bar aus).
 
 ---
 

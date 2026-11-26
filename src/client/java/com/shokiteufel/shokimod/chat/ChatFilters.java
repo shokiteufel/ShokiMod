@@ -103,7 +103,8 @@ public final class ChatFilters {
         if (sending) return false;
         // Billig zuerst: Ist nichts an, ist hier Schluss
         if (!FeatureGate.chatFilters()) return false;
-        ChatVerdict verdict = ENGINE.decide(plain, message, ModConfig.INSTANCE.chatTab, LIVE, System.currentTimeMillis());
+        // Fishing > Shorten Fishing Message / Compact Double Hook gehen als eigene Einstellungen mit (sie gehoeren nicht zu Chat)
+        ChatVerdict verdict = ENGINE.decide(plain, message, ModConfig.INSTANCE.chatTab, ModConfig.INSTANCE.fishing, LIVE, System.currentTimeMillis());
         if (verdict.kind() == ChatVerdict.Kind.SHOW) return false;
         if (verdict.kind() == ChatVerdict.Kind.REPLACE) sendAll(verdict);
         return true;
