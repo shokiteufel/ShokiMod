@@ -5918,7 +5918,7 @@ public class ModConfig extends Config {
         public transient String about = "";
 
         @Expose
-        @Category(name = "Skyblock Inventory Screen", desc = "Your SkyBlock equipment next to the inventory window. Off until you turn it on. Idea from Skyblocker.")
+        @Category(name = "Skyblock Inventory Screen", desc = "Your SkyBlock equipment in the inventory window. Off until you turn it on. Idea from Skyblocker.")
         public SkyblockInventoryScreenCategory inventoryScreen = new SkyblockInventoryScreenCategory();
     }
 
@@ -5930,7 +5930,7 @@ public class ModConfig extends Config {
         public transient String about = "";
 
         @Expose
-        @ConfigOption(name = "Show Equipment in Inventory", desc = "Shows your four SkyBlock equipment pieces (necklace, cloak, belt, gloves or bracelet) in a strip beside the inventory window, and opens /equipment when you click one. The display is a cache: it is filled when you open /equipment (or the Equipment Sets window) and is not updated in real time, so open /equipment once after you change a piece. Kept per profile, with its own set for the Rift and the Safari, and remembered after a restart. Idea from Skyblocker.")
+        @ConfigOption(name = "Show Equipment in Inventory", desc = "Shows your four SkyBlock equipment pieces (necklace, cloak, belt, gloves or bracelet) inside the inventory window, to the right of your character, and opens /equipment when you click one. The off-hand slot and the recipe book button move a little to the right to make room. The slots take the look of the window, so they follow your resource pack (dark or light). The display is a cache: it is filled when you open /equipment (or the Equipment Sets window) and is not updated in real time, so open /equipment once after you change a piece. Kept per profile, with its own set for the Rift and the Safari, and remembered after a restart. Idea from Skyblocker.")
         @ConfigEditorBoolean
         public boolean showEquipment = false;
     }

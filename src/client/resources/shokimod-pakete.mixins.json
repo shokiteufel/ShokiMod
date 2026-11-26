@@ -7,8 +7,10 @@
 		"ChatPeekHudMixin",
 		"ConnectionMixin",
 		"DoppelklickMixin",
+		"InventoryEquipmentMixin",
 		"ListenerAndPacketMixin",
-		"PacketProcessorMixin"
+		"PacketProcessorMixin",
+		"SlotXAccessor"
 	],
 	"injectors": {
 		"defaultRequire": 0

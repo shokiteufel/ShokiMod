@@ -1,80 +1,83 @@
 package com.shokiteufel.shokimod.equipment;
 
 /**
- * Wo die vier Equipment-Plaetze neben dem Inventarfenster stehen - nur Ganzzahlen, ohne Spieltypen: Es wird in jedem Bild gerechnet und darf nichts anlegen.
+ * Wo die vier Equipment-Plaetze im Inventarfenster stehen - nur Ganzzahlen, ohne Spieltypen: Es wird in jedem Bild gerechnet und darf nichts anlegen.
  *
- * Herkunft der Idee: Skyblocker (LGPL-3.0, {@code SkyblockInventoryScreen}). Von dort stammt die Reihenfolge: vier Plaetze untereinander, von oben nach unten
- * Halskette, Umhang, Guertel, Handschuhe. Die Umsetzung ist eigene Arbeit: Skyblocker ersetzt das ganze Inventarfenster durch ein eigenes und legt die Plaetze
- * hinein (neben die Spielfigur); hier bleibt das Fenster, wie es ist, und die Plaetze stehen in einem schmalen Streifen links daneben (rechts davon zeichnet
- * das Spiel die Statuseffekte). Ist das Rezeptbuch offen, rueckt der Streifen links neben das Buch.
+ * Herkunft der Idee: Skyblocker (LGPL-3.0, {@code SkyblockInventoryScreen}). Von dort stammen die Reihenfolge (vier Plaetze untereinander, von oben nach unten
+ * Halskette, Umhang, Guertel, Handschuhe) und der Ort: in der Luecke zwischen der Spielfigur und dem Bastelfeld. Der vierte Platz liegt dabei auf dem Zweithand-Platz
+ * des Spiels; der rueckt deshalb ein Stueck nach rechts (unter das Bastelfeld), und der Knopf des Rezeptbuchs mit ihm. Die Umsetzung ist eigene Arbeit: Skyblocker
+ * ersetzt das ganze Inventarfenster durch ein eigenes; hier bleibt das Fenster, wie es ist, und {@link EquipmentInventory} zeichnet hinein.
  *
- * Die Zahlen sind die des Spiels: Das Inventarfenster ist 176 breit, ein Platz 18, der Gegenstand darin 16; das Rezeptbuch ist 147 breit und schliesst links an
- * das Fenster an.
+ * Alle Zahlen sind vom Fenster aus gezaehlt (linke obere Ecke = 0/0), wie die Plaetze des Spiels; mit dem Rezeptbuch wandert alles mit dem Fenster. Die Rahmen und
+ * der Hintergrund kommen aus dem Spiel (der Fensterhintergrund und das Bild {@code container/slot}): Sie folgen damit dem Aussehen, das man gewaehlt hat (Texturpaket,
+ * dunkle oder helle Oberflaeche) - die Mod legt keine eigenen Farben fest.
  */
 public final class EquipmentLayout {
 
-    /** Wie breit das Inventarfenster des Spiels ist (die Breite steht in einem geschuetzten Feld, an das hier niemand heran will) */
+    /** Wie breit das Inventarfenster des Spiels ist */
     public static final int IMAGE_WIDTH = 176;
-    /** Ein Platz mit seinem Rahmen: achtzehn mal achtzehn */
+    /** Ein Platz mit seinem Rahmen: achtzehn mal achtzehn; der Gegenstand darin ist 16 gross und sitzt einen Punkt eingerueckt */
     public static final int SLOT = 18;
-    /** Der Rand zwischen dem Platz und dem Rand des Streifens */
-    public static final int PAD = 4;
-    public static final int PANEL_WIDTH = SLOT + 2 * PAD;
-    public static final int PANEL_HEIGHT = SLOT * EquipmentRules.SLOTS + 2 * PAD;
-    /** Der Abstand zwischen dem Streifen und dem Fenster (oder dem Rezeptbuch) */
-    public static final int GAP = 2;
-    public static final int RECIPE_BOOK_WIDTH = 147;
-    /** Ab dieser Verschiebung des Fensters gegen die Mitte gilt das Rezeptbuch als offen (es verschiebt das Fenster um fast achtzig) */
-    static final int RECIPE_BOOK_SHIFT = 8;
-    /** Kein Platz fuer den Streifen: Er wuerde ueber den linken Rand des Bildschirms ragen */
-    public static final int NO_ROOM = Integer.MIN_VALUE;
+    /** Der linke Rand des ersten Rahmens: Der Gegenstand steht bei 77 (wie der Zweithand-Platz des Spiels), der Rahmen einen Punkt davor */
+    public static final int FRAME_X = 76;
+    /** Der obere Rand des ersten Rahmens: Der Gegenstand steht bei 8 (wie der Helm links), der Rahmen einen Punkt davor */
+    public static final int FRAME_Y = 7;
+    /** Der Zweithand-Platz des Spiels: Gegenstand bei 77 / 62 */
+    public static final int OFFHAND_X = 77;
+    public static final int OFFHAND_Y = 62;
+    /** Um so viele Punkte rueckt der Zweithand-Platz nach rechts (und der Knopf des Rezeptbuchs): hinter den vierten Equipment-Platz, unter das Bastelfeld (Gegenstand dann bei 98) */
+    public static final int SHIFT = 21;
+    /** Der Knopf des Rezeptbuchs: links oben bei 104 / 61, zwanzig breit, achtzehn hoch */
+    public static final int BUTTON_X = 104;
+    public static final int BUTTON_Y = 61;
+    public static final int BUTTON_WIDTH = 20;
+    public static final int BUTTON_HEIGHT = 18;
+
+    /**
+     * Das Sechseck, das auf einem leeren Platz steht (Skyblocker zeigt dort ein Bild je Platz; hier ein schlichter Umriss, einer fuer alle vier): rechteckige Stuecke
+     * {x, y, Breite, Hoehe} im Gegenstandsfeld (16 mal 16), links und rechts gleich. Ein Umriss mit zwei Punkten Steigung, 14 breit und 16 hoch.
+     */
+    static final int[][] HEXAGON = {
+            {7, 0, 2, 1},
+            {5, 1, 2, 1}, {9, 1, 2, 1},
+            {3, 2, 2, 1}, {11, 2, 2, 1},
+            {1, 3, 2, 1}, {13, 3, 2, 1},
+            {1, 4, 1, 8}, {14, 4, 1, 8},
+            {1, 12, 2, 1}, {13, 12, 2, 1},
+            {3, 13, 2, 1}, {11, 13, 2, 1},
+            {5, 14, 2, 1}, {9, 14, 2, 1},
+            {7, 15, 2, 1},
+    };
 
     private EquipmentLayout() {
     }
 
-    /** Ist das Rezeptbuch offen? Dann sitzt das Fenster nicht mehr in der Mitte des Bildschirms, sondern ein gutes Stueck weiter rechts */
-    static boolean recipeBookOpen(int leftPos, int screenWidth) {
-        return leftPos - (screenWidth - IMAGE_WIDTH) / 2 > RECIPE_BOOK_SHIFT;
+    /** Der linke Rand von Rahmen i auf dem Bildschirm (alle vier stehen gleich weit links) */
+    public static int slotX(int leftPos) {
+        return leftPos + FRAME_X;
     }
 
-    /**
-     * Der linke Rand des Streifens, oder {@link #NO_ROOM}, wenn links neben dem Fenster kein Platz ist.
-     *
-     * @param leftPos     der linke Rand des Inventarfensters
-     * @param screenWidth die Breite des Bildschirms (in Spielpunkten)
-     */
-    public static int panelX(int leftPos, int screenWidth) {
-        int right = leftPos - GAP - (recipeBookOpen(leftPos, screenWidth) ? RECIPE_BOOK_WIDTH + 1 : 0);
-        int x = right - PANEL_WIDTH;
-        return x >= 0 ? x : NO_ROOM;
+    /** Der obere Rand von Rahmen i auf dem Bildschirm */
+    public static int slotY(int topPos, int i) {
+        return topPos + FRAME_Y + i * SLOT;
     }
 
-    /** Der obere Rand des Streifens: auf der Hoehe des Fensters */
-    public static int panelY(int topPos) {
-        return topPos;
+    /** Der linke Rand des Rahmens, den der Zweithand-Platz an seinem neuen Ort bekommt (im Fenster, nicht auf dem Bildschirm) */
+    public static int movedOffhandFrameX() {
+        return OFFHAND_X + SHIFT - 1;
     }
 
-    /** Der linke Rand von Platz i (mit seinem Rahmen) */
-    public static int slotX(int panelX) {
-        return panelX + PAD;
+    /** Der obere Rand desselben Rahmens (im Fenster) */
+    public static int offhandFrameY() {
+        return OFFHAND_Y - 1;
     }
 
-    /** Der obere Rand von Platz i (mit seinem Rahmen) */
-    public static int slotY(int panelY, int i) {
-        return panelY + PAD + i * SLOT;
-    }
-
-    /** Welcher Platz (0 bis 3) liegt unter dem Zeiger, oder -1 */
-    public static int slotAt(int panelX, int panelY, double mouseX, double mouseY) {
-        double dx = mouseX - slotX(panelX);
-        double dy = mouseY - slotY(panelY, 0);
+    /** Welcher Platz (0 bis 3) liegt unter dem Zeiger (Bildschirmkoordinaten), oder -1 */
+    public static int slotAt(int leftPos, int topPos, double mouseX, double mouseY) {
+        double dx = mouseX - slotX(leftPos);
+        double dy = mouseY - slotY(topPos, 0);
         if (dx < 0 || dx >= SLOT || dy < 0) return -1;
         int i = (int) (dy / SLOT);
         return i < EquipmentRules.SLOTS ? i : -1;
-    }
-
-    /** Liegt der Zeiger irgendwo im Streifen (auch zwischen den Plaetzen und auf dem Rand)? */
-    public static boolean inPanel(int panelX, int panelY, double mouseX, double mouseY) {
-        return mouseX >= panelX && mouseX < panelX + PANEL_WIDTH && mouseY >= panelY && mouseY < panelY + PANEL_HEIGHT;
     }
 }

@@ -4,6 +4,7 @@ import com.shokiteufel.shokimod.ShokiMod;
 import com.shokiteufel.shokimod.data.FeatureGate;
 import com.shokiteufel.shokimod.data.GameState;
 import com.shokiteufel.shokimod.mixin.AbstractContainerScreenAccessor;
+import com.shokiteufel.shokimod.paket.mixin.SlotXAccessor;
 import com.shokiteufel.shokimod.scanner.PetState;
 import com.shokiteufel.shokimod.util.ModPaths;
 
@@ -14,6 +15,9 @@ import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
@@ -23,6 +27,7 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -39,12 +44,18 @@ import java.util.List;
  * Safari, wo es den Kleiderschrank nicht gibt, /stats); der Tooltip des Platzes ist der des Gegenstandes. Wie gelesen wird, steht in {@link EquipmentRules}, was
  * gemerkt wird, in {@link EquipmentStore}. Die Umsetzung ist eigene Arbeit: Java; Skyblocker ersetzt das ganze Inventarfenster durch ein eigenes ({@code Minecraft.handleKeybinds}
  * baut statt des {@code InventoryScreen} den eigenen, ein Mixin verschiebt dazu Platz 45 und den Knopf des Rezeptbuchs). Das tut diese Mod nicht: Das Fenster bleibt das
- * des Spiels, und die Plaetze stehen in einem schmalen Streifen links daneben ({@link EquipmentLayout}), gezeichnet nach dem Fenster ({@code ScreenEvents.afterExtract}),
- * der Klick kommt aus {@code ScreenMouseEvents.allowMouseClick}. Es gibt kein neues Mixin (nur der Zugriff auf Lage des Fensters und Platz unter dem Zeiger, den es
- * schon gibt): Ein Fehler hier kann den Start nicht verhindern.
+ * des Spiels. Die vier Plaetze stehen im Fenster rechts neben der Spielfigur ({@link EquipmentLayout}); gezeichnet werden sie von einem Einsprung in
+ * {@code InventoryScreen.extractLabels} ({@link com.shokiteufel.shokimod.paket.mixin.InventoryEquipmentMixin}), nach dem Hintergrund und vor den Gegenstaenden des
+ * Fensters. Der Zweithand-Platz rueckt dazu nach rechts (Zugriff {@link com.shokiteufel.shokimod.paket.mixin.SlotXAccessor}), der Knopf des Rezeptbuchs auch (er ist ein
+ * Bauteil des Fensters, seine Lage wird vor jedem Bild gesetzt). Der Klick kommt aus {@code ScreenMouseEvents.allowMouseClick}. Beide Mixins stehen in der nicht
+ * erforderlichen Konfiguration ({@code shokimod-pakete.mixins.json}): Ein Fehler hier kann den Start nicht verhindern, es fehlt dann nur die Anzeige.
  *
- * <p>Abweichungen: Keine Symbole fuer leere Plaetze (der Streifen zeigt sie leer; der Tooltip nennt den Platz), kein Eintrag fuer das Wiki-Nachschlagen, und kein Schalter
- * "Open Equipment To '/stats'" (der gehoert bei Skyblocker nicht zu diesem Schalter). Ein Klick im Streifen schickt den Befehl hoechstens alle 0,4 Sekunden.
+ * <p>Die Farben macht das Spiel: Der Fensterhintergrund und der Rahmen ({@code container/slot}) kommen aus dem gewaehlten Aussehen (Texturpaket, dunkle oder helle
+ * Oberflaeche); die Mod legt nur die Farbe des Sechsecks auf leeren Plaetzen fest, halbdurchsichtig, damit es auf hellem und dunklem Grund zu sehen ist.
+ *
+ * <p>Abweichungen: Ein schlichtes Sechseck statt eines Bildes je Platz, kein Eintrag fuer das Wiki-Nachschlagen, und kein Schalter "Open Equipment To '/stats'" (der gehoert
+ * bei Skyblocker nicht zu diesem Schalter). Ein Klick auf einen Platz schickt den Befehl hoechstens alle 0,4 Sekunden. Gilt nur fuer das Inventarfenster des Spiels selbst
+ * (nicht fuer ein Fenster, das von ihm erbt, wie das von Skyblocker: dort stuende alles doppelt).
  */
 public final class EquipmentInventory {
 
@@ -57,11 +68,8 @@ public final class EquipmentInventory {
     private static final Identifier SLOT_SPRITE = Identifier.withDefaultNamespace("container/slot");
     private static final Identifier HIGHLIGHT_BACK = Identifier.withDefaultNamespace("container/slot_highlight_back");
     private static final Identifier HIGHLIGHT_FRONT = Identifier.withDefaultNamespace("container/slot_highlight_front");
-    /** Die Farben des Streifens: wie die Flaeche der Fenster des Spiels (schwarzer Rand, hell, hell oben und links, dunkel unten und rechts) */
-    private static final int BORDER = 0xFF000000;
-    private static final int FACE = 0xFFC6C6C6;
-    private static final int LIGHT = 0xFFFFFFFF;
-    private static final int SHADOW = 0xFF555555;
+    /** Das Sechseck auf einem leeren Platz: mittelgrau, zu sechzig vom Hundert deckend - auf dunklem Grund heller, auf hellem dunkler als der Platz selbst */
+    private static final int EMPTY_OUTLINE = 0x99B8B8B8;
 
     /** Was auf einem leeren Platz steht, wenn man mit der Maus darueber faehrt: einmal gebaut, nie je Bild */
     private static final Component[] EMPTY_TIPS = new Component[EquipmentRules.SLOTS];
@@ -78,6 +86,13 @@ public final class EquipmentInventory {
     private static int ticks = 0;
     private static long lastClickAt = 0L;
     private static boolean failedOnce = false;
+    /** Ging der Zugriff auf die Lage der Plaetze schief (der Mixin fehlt)? Dann bleibt die Anzeige fuer die Sitzung aus, statt halb zu stehen */
+    private static boolean broken = false;
+    /** Das Inventarfenster, in dem die Plaetze zuletzt gezeichnet wurden: Nur dort fangen sie Klicks ab, nur dort ist der Zweithand-Platz verschoben */
+    private static InventoryScreen placedFor = null;
+    /** Der verschobene Zweithand-Platz (null: nicht verschoben) und der verschobene Knopf des Rezeptbuchs (null: nicht gefunden oder nicht verschoben) */
+    private static Slot movedOffhand = null;
+    private static AbstractWidget movedButton = null;
 
     private EquipmentInventory() {
     }
@@ -94,7 +109,11 @@ public final class EquipmentInventory {
     private static void onScreenInit(Screen screen) {
         if (!(screen instanceof AbstractContainerScreen<?>)) return;
         ScreenMouseEvents.allowMouseClick(screen).register(EquipmentInventory::allowClick);
-        if (screen instanceof InventoryScreen) ScreenEvents.afterExtract(screen).register(EquipmentInventory::afterExtract);
+        // Beim Schliessen kommt alles an seinen Platz: Das Inventar des Spielers (und mit ihm der Zweithand-Platz) lebt weiter, das Fenster nicht
+        if (screen instanceof InventoryScreen) {
+            ScreenEvents.remove(screen).register(closed -> restoreLayout());
+            ScreenEvents.afterExtract(screen).register(EquipmentInventory::afterExtract);
+        }
     }
 
     /** Laeuft die Funktion jetzt? Eingeschaltet und in SkyBlock - sonst zeichnet und liest die Mod auf anderen Servern */
@@ -114,6 +133,8 @@ public final class EquipmentInventory {
     // ------------------------------------------------------------------ Lesen
 
     private static void tick(Minecraft client) {
+        // Falls das Schliessen des Fensters die Rueckmeldung nicht gebracht hat: Ist kein Inventarfenster mehr offen, kommt der Zweithand-Platz an seinen Ort zurueck
+        if (placedFor != null && !(client.gui.screen() instanceof InventoryScreen)) restoreLayout();
         if (!active() || client.player == null) {
             endWatch();
             return;
@@ -194,7 +215,8 @@ public final class EquipmentInventory {
     private static boolean allowClick(Screen screen, MouseButtonEvent click) {
         if (!active()) return true;
         try {
-            if (screen instanceof InventoryScreen) return !panelClick(screen, click);
+            // Im Inventarfenster zaehlt nur, was die Mod selbst gezeichnet hat: Steht nichts da (Mixin fehlt, anderes Fenster), geht der Klick ans Spiel
+            if (screen instanceof InventoryScreen) return !(screen == placedFor && equipmentClick(screen, click));
             takeSetOff(screen);
         } catch (RuntimeException e) {
             warnOnce("handling a click failed", e);
@@ -203,18 +225,14 @@ public final class EquipmentInventory {
     }
 
     /**
-     * Ein Klick im Inventarfenster: Liegt er im Streifen, ist er hier erledigt und das Fenster bekommt ihn nicht - es sieht einen Klick links neben seinem Rand als
-     * "ausserhalb" und liesse den Gegenstand am Zeiger fallen. Auf einem Platz kommt der Befehl dazu.
+     * Ein Klick im Inventarfenster: Liegt er auf einem der vier Plaetze, ist er hier erledigt (das Fenster bekommt ihn nicht) und der Befehl geht los.
      *
-     * @return ob der Klick im Streifen lag
+     * @return ob der Klick auf einem Platz lag
      */
-    private static boolean panelClick(Screen screen, MouseButtonEvent click) {
+    private static boolean equipmentClick(Screen screen, MouseButtonEvent click) {
         AbstractContainerScreenAccessor accessor = (AbstractContainerScreenAccessor) screen;
-        int panelX = EquipmentLayout.panelX(accessor.shokimod$leftPos(), screen.width);
-        if (panelX == EquipmentLayout.NO_ROOM) return false;
-        int panelY = EquipmentLayout.panelY(accessor.shokimod$topPos());
-        if (!EquipmentLayout.inPanel(panelX, panelY, click.x(), click.y())) return false;
-        if (EquipmentLayout.slotAt(panelX, panelY, click.x(), click.y()) >= 0) sendCommand();
+        if (EquipmentLayout.slotAt(accessor.shokimod$leftPos(), accessor.shokimod$topPos(), click.x(), click.y()) < 0) return false;
+        sendCommand();
         return true;
     }
 
@@ -243,47 +261,117 @@ public final class EquipmentInventory {
 
     // ------------------------------------------------------------------ Zeichnen
 
-    /** Nach dem Inventarfenster: der Streifen mit den vier Plaetzen. Im Bild wird nichts angelegt: Zahlen, Farben und Texte stehen fertig da */
-    private static void afterExtract(Screen screen, GuiGraphicsExtractor graphics, int mouseX, int mouseY, float tickDelta) {
-        if (!active()) return;
+    /**
+     * Vom Einsprung in {@code InventoryScreen.extractLabels} aus, in jedem Bild: Rahmen und Inhalt der vier Plaetze im Fenster. Die Zeichenflaeche ist hier schon auf die
+     * linke obere Ecke des Fensters verschoben (die Zahlen aus {@link EquipmentLayout} gelten also direkt); Maus und Fenster-Ecke kommen in Bildschirmkoordinaten.
+     * Im Bild wird nichts angelegt: Zahlen, Farben und Texte stehen fertig da.
+     */
+    public static void drawInWindow(InventoryScreen screen, GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
+        if (screen.getClass() != InventoryScreen.class) return;
+        if (broken || !active()) {
+            restoreLayout();
+            return;
+        }
         try {
             AbstractContainerScreenAccessor accessor = (AbstractContainerScreenAccessor) screen;
-            int panelX = EquipmentLayout.panelX(accessor.shokimod$leftPos(), screen.width);
-            if (panelX == EquipmentLayout.NO_ROOM) return;
-            int panelY = EquipmentLayout.panelY(accessor.shokimod$topPos());
-            Minecraft client = Minecraft.getInstance();
-            ItemStack[] items = store().get(PetState.profileId(), EquipmentSet.forMap(GameState.Server.map), lookup(client));
-            int hovered = EquipmentLayout.slotAt(panelX, panelY, mouseX, mouseY);
+            int left = accessor.shokimod$leftPos();
+            int top = accessor.shokimod$topPos();
+            if (!placeLayout(screen, left, top)) return;
+            ItemStack[] items = store().get(PetState.profileId(), EquipmentSet.forMap(GameState.Server.map), lookup(Minecraft.getInstance()));
+            int hovered = EquipmentLayout.slotAt(left, top, mouseX, mouseY);
 
-            drawPanel(graphics, panelX, panelY);
+            int x = EquipmentLayout.FRAME_X;
             for (int i = 0; i < EquipmentRules.SLOTS; i++) {
-                int x = EquipmentLayout.slotX(panelX);
-                int y = EquipmentLayout.slotY(panelY, i);
+                int y = EquipmentLayout.FRAME_Y + i * EquipmentLayout.SLOT;
                 graphics.blitSprite(RenderPipelines.GUI_TEXTURED, SLOT_SPRITE, x, y, EquipmentLayout.SLOT, EquipmentLayout.SLOT);
                 if (i == hovered) graphics.blitSprite(RenderPipelines.GUI_TEXTURED, HIGHLIGHT_BACK, x - 3, y - 3, 24, 24);
-                if (!items[i].isEmpty()) graphics.item(items[i], x + 1, y + 1);
+                if (items[i].isEmpty()) drawHexagon(graphics, x + 1, y + 1);
+                else graphics.item(items[i], x + 1, y + 1);
                 if (i == hovered) graphics.blitSprite(RenderPipelines.GUI_TEXTURED, HIGHLIGHT_FRONT, x - 3, y - 3, 24, 24);
             }
-            if (hovered >= 0) {
-                // Der Tooltip des Gegenstandes ist der des Spiels (mit den Zeilen, die andere Funktionen dazugeben); ein leerer Platz nennt nur seinen Namen
-                if (items[hovered].isEmpty()) graphics.setTooltipForNextFrame(client.font, EMPTY_TIPS[hovered], mouseX, mouseY);
-                else graphics.setTooltipForNextFrame(client.font, items[hovered], mouseX, mouseY);
-            }
+            // Der Zweithand-Platz hat an seinem neuen Ort keinen Rahmen im Hintergrund des Fensters: hier unter seinem Gegenstand (der kommt danach)
+            graphics.blitSprite(RenderPipelines.GUI_TEXTURED, SLOT_SPRITE, EquipmentLayout.movedOffhandFrameX(), EquipmentLayout.offhandFrameY(),
+                    EquipmentLayout.SLOT, EquipmentLayout.SLOT);
         } catch (RuntimeException e) {
             warnOnce("drawing the equipment slots failed", e);
         }
     }
 
-    /** Die Flaeche des Streifens wie die der Fenster des Spiels: schwarzer Rand, hellgrau, oben und links hell, unten und rechts dunkel */
-    private static void drawPanel(GuiGraphicsExtractor graphics, int x, int y) {
-        int w = EquipmentLayout.PANEL_WIDTH;
-        int h = EquipmentLayout.PANEL_HEIGHT;
-        graphics.fill(x, y, x + w, y + h, BORDER);
-        graphics.fill(x + 1, y + 1, x + w - 1, y + h - 1, FACE);
-        graphics.fill(x + 1, y + 1, x + w - 2, y + 3, LIGHT);
-        graphics.fill(x + 1, y + 1, x + 3, y + h - 2, LIGHT);
-        graphics.fill(x + 3, y + h - 3, x + w - 1, y + h - 1, SHADOW);
-        graphics.fill(x + w - 3, y + 3, x + w - 1, y + h - 1, SHADOW);
+    /** Das Sechseck eines leeren Platzes: x und y sind die linke obere Ecke des Gegenstandsfeldes */
+    private static void drawHexagon(GuiGraphicsExtractor graphics, int x, int y) {
+        for (int[] part : EquipmentLayout.HEXAGON) {
+            graphics.fill(x + part[0], y + part[1], x + part[0] + part[2], y + part[1] + part[3], EMPTY_OUTLINE);
+        }
+    }
+
+    /**
+     * Zweithand-Platz und Knopf des Rezeptbuchs an ihre neuen Orte (jedes Bild, aber ohne Folgen, wenn schon geschehen: der Knopf stellt das Spiel beim Auf- und Zuklappen
+     * des Buches wieder an seine alte Stelle).
+     *
+     * @return ob alles steht und gezeichnet werden darf
+     */
+    private static boolean placeLayout(InventoryScreen screen, int left, int top) {
+        Slot shield = screen.getMenu().getSlot(InventoryMenu.SHIELD_SLOT);
+        if (shield != movedOffhand) {
+            // Steht der Platz nicht dort, wo ihn das Spiel hinsetzt, hat ihn schon jemand verschoben: Dann bleibt alles, wie es ist
+            if (shield.x != EquipmentLayout.OFFHAND_X) return false;
+            try {
+                ((SlotXAccessor) (Object) shield).shokimod$setX(EquipmentLayout.OFFHAND_X + EquipmentLayout.SHIFT);
+            } catch (ClassCastException e) {
+                broken = true;
+                warnOnce("moving the off-hand slot failed (mixin missing), the equipment slots stay off", e);
+                return false;
+            }
+            movedOffhand = shield;
+        }
+        placedFor = screen;
+        if (movedButton != null && !screen.children().contains(movedButton)) movedButton = null;
+        if (movedButton == null) {
+            for (GuiEventListener child : screen.children()) {
+                if (child instanceof Button button && button.getX() == left + EquipmentLayout.BUTTON_X
+                        && Math.abs(button.getY() - (top + EquipmentLayout.BUTTON_Y)) <= 2) {
+                    movedButton = button;
+                    break;
+                }
+            }
+        }
+        if (movedButton != null) movedButton.setX(left + EquipmentLayout.BUTTON_X + EquipmentLayout.SHIFT);
+        return true;
+    }
+
+    /** Alles zurueck an den Ort des Spiels: beim Schliessen des Fensters, beim Ausschalten und wenn der Zugriff nicht geht */
+    private static void restoreLayout() {
+        Slot shield = movedOffhand;
+        AbstractWidget button = movedButton;
+        InventoryScreen screen = placedFor;
+        movedOffhand = null;
+        movedButton = null;
+        placedFor = null;
+        try {
+            if (shield != null) ((SlotXAccessor) (Object) shield).shokimod$setX(EquipmentLayout.OFFHAND_X);
+            if (button != null && screen != null) button.setX(((AbstractContainerScreenAccessor) screen).shokimod$leftPos() + EquipmentLayout.BUTTON_X);
+        } catch (RuntimeException e) {
+            warnOnce("putting the off-hand slot back failed", e);
+        }
+    }
+
+    /** Nach dem Fenster: der Tooltip des Platzes unter dem Zeiger (er gehoert nicht in die verschobene Zeichenflaeche des Fensters) */
+    private static void afterExtract(Screen screen, GuiGraphicsExtractor graphics, int mouseX, int mouseY, float tickDelta) {
+        if (screen != placedFor || !active()) return;
+        try {
+            // Mit einem Gegenstand am Zeiger zeigt das Spiel auch sonst keinen Tooltip
+            if (!((InventoryScreen) screen).getMenu().getCarried().isEmpty()) return;
+            AbstractContainerScreenAccessor accessor = (AbstractContainerScreenAccessor) screen;
+            int hovered = EquipmentLayout.slotAt(accessor.shokimod$leftPos(), accessor.shokimod$topPos(), mouseX, mouseY);
+            if (hovered < 0) return;
+            Minecraft client = Minecraft.getInstance();
+            ItemStack[] items = store().get(PetState.profileId(), EquipmentSet.forMap(GameState.Server.map), lookup(client));
+            // Der Tooltip des Gegenstandes ist der des Spiels (mit den Zeilen, die andere Funktionen dazugeben); ein leerer Platz nennt nur seinen Namen
+            if (items[hovered].isEmpty()) graphics.setTooltipForNextFrame(client.font, EMPTY_TIPS[hovered], mouseX, mouseY);
+            else graphics.setTooltipForNextFrame(client.font, items[hovered], mouseX, mouseY);
+        } catch (RuntimeException e) {
+            warnOnce("drawing the equipment tooltip failed", e);
+        }
     }
 
     private static void warnOnce(String what, RuntimeException e) {
