@@ -188,7 +188,8 @@ public final class PartyInvites {
                 .withStyle(style -> style
                         .withClickEvent(new ClickEvent.RunCommand(run))
                         .withHoverEvent(new HoverEvent.ShowText(Component.literal("Click to run " + run))));
-        chat(client, Component.literal(name + " wrote \"" + text + "\" in the guild chat ").withStyle(ChatFormatting.YELLOW).append(click));
+        // Chat (Teil 2) > Hide Clickable Hints: Mit dem Schalter fehlt der Knopf, Klick und Hover liegen auf der ganzen Zeile
+        chat(client, com.shokiteufel.shokimod.chat.ClickableHints.attach(Component.literal(name + " wrote \"" + text + "\" in the guild chat ").withStyle(ChatFormatting.YELLOW), click));
     }
 
     /** Merkt einen Schreiber fuer die Einladen-Taste; alte Eintraege fallen dabei heraus */

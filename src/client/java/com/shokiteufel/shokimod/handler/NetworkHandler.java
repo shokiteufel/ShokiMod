@@ -75,6 +75,10 @@ public class NetworkHandler {
                 if (FeatureGate.skillProgress() && msg.indexOf('+') >= 0 && GameState.Server.isSkyblock()) {
                     com.shokiteufel.shokimod.handler.SkillProgress.onActionBar(COLOUR_CODE.matcher(msg).replaceAll(""));
                 }
+                // Chat (Teil 2): SkyBlock XP in Chat - erst der Schalter, dann ein Blick auf das Wort, dann erst wird die Leiste gelesen
+                if (FeatureGate.skyblockXpInChat() && msg.indexOf("SkyBlock XP") >= 0 && GameState.Server.isSkyblock()) {
+                    com.shokiteufel.shokimod.chat.SkyblockXpInChat.onActionBar(message);
+                }
                 // Im Dungeon steht dort "0/6 Secrets": wie viele des Raums schon gefunden sind (Funny Map: "3/9" statt nur "9")
                 if (msg.indexOf("Secrets") >= 0 && FeatureGate.funnyMap() && GameState.Server.isSkyblock()) {
                     com.shokiteufel.shokimod.dungeonkarte.FunnyKarte.onActionBar(COLOUR_CODE.matcher(msg).replaceAll(""));
@@ -157,7 +161,8 @@ public class NetworkHandler {
             // Inventory > Bazaar: Hypixels Abbruchzeile weicht der Zeile mit dem Klick
             if (zeigen && bazaarCancelled) zeigen = false;
             // Chat (Teil 1): ausblenden oder durch eine kompakte Zeile ersetzen - zuletzt, damit jeder Handler oben die Zeile schon gesehen hat
-            if (zeigen && com.shokiteufel.shokimod.chat.ChatFilters.hides(unformattedMsg)) zeigen = false;
+            // Chat (Teil 2): dazu die Komponente der Zeile - wer sie umschreibt (Muenzen kuerzen, Pet-Seltenheit ...), baut die neue aus ihren Teilen
+            if (zeigen && com.shokiteufel.shokimod.chat.ChatFilters.hides(unformattedMsg, message)) zeigen = false;
 
             // Die Sammelzeile der Saecke zuletzt - erst muss jeder sie gelesen haben.
             //

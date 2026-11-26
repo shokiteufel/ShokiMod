@@ -8,7 +8,9 @@ import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -138,6 +140,56 @@ class ModConfigSkyHanniReiterTest {
             if (k.getKey().contains("ModConfig.chat") && !k.getKey().contains("ModConfig.chatTab")) alerts = k.getValue();
         }
         assertNotNull(alerts, "der Reiter Alerts (ModConfig.chat) bleibt");
+    }
+
+    @Test
+    void chatHasRareDropMessagesAndCompactPotionMessagesBelowItInTheOrderOfSkyHanni() {
+        Ergebnis e = verarbeiten();
+        ProcessedCategory chat = nach(e, "ModConfig.chatTab");
+        assertNotNull(chat, "der Reiter Chat");
+        ProcessedCategory rare = nach(e, "ChatTabCategory.rareDrop");
+        ProcessedCategory potion = nach(e, "ChatTabCategory.compactPotion");
+        assertNotNull(rare, "ChatTabCategory.rareDrop");
+        assertNotNull(potion, "ChatTabCategory.compactPotion");
+        assertEquals(chat.getIdentifier(), rare.getParentCategoryId(), "Rare Drop Messages haengt unter Chat");
+        assertEquals(chat.getIdentifier(), potion.getParentCategoryId(), "Compact Potion Messages haengt unter Chat");
+        assertEquals(4, rare.getOptions().size(), "Info und drei Schalter");
+        assertEquals(3, potion.getOptions().size(), "Info und zwei Schalter");
+
+        // Die Unterreiter stehen wie bei SkyHanni: Chat Filter Types, dann Rare Drop Messages, dann Compact Potion Messages
+        List<String> subTabs = new ArrayList<>();
+        for (var k : e.kategorien.entrySet()) {
+            if (chat.getIdentifier().equals(k.getValue().getParentCategoryId())) subTabs.add(k.getKey());
+        }
+        int types = indexOfKeyContaining(subTabs, "ChatTabCategory.filterTypes");
+        int rareAt = indexOfKeyContaining(subTabs, "ChatTabCategory.rareDrop");
+        int potionAt = indexOfKeyContaining(subTabs, "ChatTabCategory.compactPotion");
+        assertTrue(types >= 0 && types < rareAt && rareAt < potionAt, "Reihenfolge der Unterreiter: " + subTabs);
+
+        // Die Schalter von Chat stehen an der Stelle, die zu SkyHannis Reihenfolge passt; die Dungeon Filters sind weiter ein Akkordeon mit elf Arten
+        assertEquals(11, optionsInFoldOut(chat, 130), "Dungeon Filters: elf Arten");
+        List<String> names = new ArrayList<>();
+        // Der Name ist ein StructuredText; sein toString() ist "MoulConfigText(text=Name)"
+        for (ProcessedOption o : chat.getOptions()) {
+            String shown = String.valueOf(o.getName());
+            names.add(shown.startsWith("MoulConfigText(text=") && shown.endsWith(")") ? shown.substring("MoulConfigText(text=".length(), shown.length() - 1) : shown);
+        }
+        String[] skyHanniOrder = {"Dungeon Boss Messages", "Hide Far Deaths", "Compact Bestiary Messages", "Compact Enchanting Rewards", "Compact Jacob Claim",
+                "Arachne Hider", "Sack Change Hider", "Only Hide on Garden", "SkyBlock XP in Chat", "Anita's Accessories", "Sky Mall Messages",
+                "Show Actual Powder Gained", "Hide Foraging Buff Messages", "Shorten Coin Amounts", "Hide Clickable Hints", "Dark Auction Item Display"};
+        int last = -1;
+        for (String name : skyHanniOrder) {
+            int at = names.indexOf(name);
+            assertTrue(at > last, name + " steht hinter dem vorigen (Stelle " + at + ", vorige " + last + "): " + names);
+            last = at;
+        }
+    }
+
+    private static int indexOfKeyContaining(List<String> keys, String part) {
+        for (int i = 0; i < keys.size(); i++) {
+            if (keys.get(i).contains(part)) return i;
+        }
+        return -1;
     }
 
     @Test

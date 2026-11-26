@@ -4,19 +4,31 @@ import com.shokiteufel.shokimod.data.FeatureGate;
 import com.shokiteufel.shokimod.data.GameState;
 import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.handler.DungeonLauf;
+import com.shokiteufel.shokimod.scanner.MiningState;
+import com.shokiteufel.shokimod.scanner.PetState;
 import com.shokiteufel.shokimod.util.ScoreboardUtils;
+import com.shokiteufel.shokimod.util.SkyBlockItems;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.player.AbstractClientPlayer;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.ItemLore;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.regex.Pattern;
 
 /**
  * Der Reiter Chat (Teil 1) im Spiel: Die Chatzeile des Servers laeuft hier durch {@link ChatFilterEngine}; ausgeblendet wird sie, indem
@@ -31,6 +43,10 @@ import java.util.Locale;
  * <p>Der Weg laeuft bei JEDER Chatzeile: Ist kein Schalter des Reiters an, kostet er einen Feldzugriff je Schalter und sonst nichts - weder ein
  * String noch ein Muster. Ersetzen geht nur ueber Zeilen, die die Mod selbst in den Chat schreibt ({@code sendSystemMessage}); sie laufen nicht
  * durch diesen Weg zurueck, und ein Schutz gegen Schleifen steht trotzdem davor.
+ *
+ * <p>Chat (Teil 2): Die Zeile kommt jetzt auch als Komponente herein (mit Farben, Klick und Hover): Wer eine Zeile umschreibt, baut die neue aus den Teilen der
+ * alten. Was die Funktionen vom Spiel wissen muessen (Experimentation Table offen, verzauberte Buecher im Inventar, Bohrer in der Hand), liest {@link LivePlace}
+ * erst, wenn danach gefragt wird; der Tick ruft {@code poll}, damit auch schreibt, was erst spaeter feststeht.
  */
 public final class ChatFilters {
 
@@ -41,8 +57,16 @@ public final class ChatFilters {
     private static final ChatFilterEngine ENGINE = new ChatFilterEngine();
     private static final ChatPlace LIVE = new LivePlace();
 
+    /** Der Titel eines Fensters des Experimentation Table: er selbst oder eines seiner drei Spiele (Superpairs, Chronomatron, Ultrasequencer) */
+    private static final Pattern EXPERIMENT_TABLE = Pattern.compile(
+            "(?:Superpairs|Chronomatron|Ultrasequencer) (?:\\(.+\\)|➜ Stakes|Rewards)|Experimentation Table");
+    private static final long EXPERIMENT_WINDOW_MILLIS = 3000L;
+    private static final Pattern COLOUR_CODE = Pattern.compile("§.");
+
     private static boolean sending = false;
     private static int ticks = 0;
+    /** Wann der Experimentation Table zuletzt offen war (Millisekunden), oder 0 */
+    private static long experimentSeenAt = 0L;
 
     private ChatFilters() {
     }
@@ -55,6 +79,8 @@ public final class ChatFilters {
     /** Eine neue Welt: was der Filter ueber mehrere Zeilen gemerkt hat, gilt nicht mehr */
     public static void worldChanged() {
         ENGINE.worldChanged(ModConfig.INSTANCE.chatTab);
+        experimentSeenAt = 0L;
+        SkyblockXpInChat.reset();
     }
 
     /**
@@ -63,25 +89,54 @@ public final class ChatFilters {
      * @param plain die Zeile ohne Farbcodes
      */
     public static boolean hides(String plain) {
+        return hides(plain, null);
+    }
+
+    /**
+     * Wie {@link #hides(String)}, mit der Zeile als Komponente: Wer eine Zeile umschreibt (Muenzen kuerzen, den Namen eines Pets ergaenzen ...), braucht ihre Stile.
+     *
+     * @param plain   die Zeile ohne Farbcodes
+     * @param message die Zeile des Servers als Komponente; null geht (dann haben die Zeilen, die umgeschrieben werden, keinen Stil)
+     */
+    public static boolean hides(String plain, Component message) {
         if (sending) return false;
         // Billig zuerst: Ist nichts an, ist hier Schluss
         if (!FeatureGate.chatFilters()) return false;
-        ChatVerdict verdict = ENGINE.decide(plain, ModConfig.INSTANCE.chatTab, LIVE, System.currentTimeMillis());
+        ChatVerdict verdict = ENGINE.decide(plain, message, ModConfig.INSTANCE.chatTab, LIVE, System.currentTimeMillis());
         if (verdict.kind() == ChatVerdict.Kind.SHOW) return false;
-        if (verdict.kind() == ChatVerdict.Kind.REPLACE) {
-            sending = true;
-            try {
-                for (ChatVerdict.Line line : verdict.lines()) send(line);
-            } finally {
-                sending = false;
-            }
-        }
+        if (verdict.kind() == ChatVerdict.Kind.REPLACE) sendAll(verdict);
         return true;
+    }
+
+    private static void sendAll(ChatVerdict verdict) {
+        sending = true;
+        try {
+            for (ChatVerdict.Line line : verdict.lines()) send(line);
+        } finally {
+            sending = false;
+        }
+    }
+
+    /** Eine Zeile der Mod in den Chat schreiben, ohne dass sie durch den Chat-Weg zurueckkommt (zum Beispiel SkyBlock XP in Chat) */
+    public static void say(Component text) {
+        Minecraft client = Minecraft.getInstance();
+        if (client == null || client.player == null) return;
+        boolean was = sending;
+        sending = true;
+        try {
+            client.player.sendSystemMessage(text);
+        } finally {
+            sending = was;
+        }
     }
 
     private static void send(ChatVerdict.Line line) {
         Minecraft client = Minecraft.getInstance();
         if (client == null || client.player == null) return;
+        if (line.component() != null) {
+            client.player.sendSystemMessage(line.component());
+            return;
+        }
         MutableComponent text = Component.literal(line.text());
         if (line.command() != null) {
             text = text.withStyle(style -> {
@@ -94,6 +149,8 @@ public final class ChatFilters {
     }
 
     private static void tick(Minecraft client) {
+        // Chat (Teil 2): was spaeter feststeht schreiben und den Experimentation Table beobachten - nur wenn eine der Funktionen daran an ist
+        if (FeatureGate.chatTick()) rewriteTick(client);
         if (!FeatureGate.farDeaths()) return;
         if (++ticks < LOOK_EVERY_TICKS) return;
         ticks = 0;
@@ -105,6 +162,20 @@ public final class ChatFilters {
             if (other.distanceToSqr(client.player) <= NEAR_RADIUS_SQR) ENGINE.playerSeen(other.getName().getString(), now);
         }
         ENGINE.prunePlayers(now);
+    }
+
+    /** Der Tick fuer die umschreibenden Funktionen: den Table merken, dann schreiben, was faellig ist */
+    private static void rewriteTick(Minecraft client) {
+        if (client == null || client.player == null) return;
+        ModConfig.ChatTabCategory c = ModConfig.INSTANCE.chatTab;
+        long now = System.currentTimeMillis();
+        if (c.compactExperiments && client.gui.screen() instanceof AbstractContainerScreen<?> screen) {
+            String title = COLOUR_CODE.matcher(screen.getTitle().getString()).replaceAll("").trim();
+            if (EXPERIMENT_TABLE.matcher(title).matches()) experimentSeenAt = now;
+        }
+        if (!ENGINE.hasPending() && !c.rareDrop.enchantedBookMissingMessage) return;
+        ChatVerdict due = ENGINE.poll(c, LIVE, now);
+        if (due.kind() == ChatVerdict.Kind.REPLACE) sendAll(due);
     }
 
     /** Der echte Ort: die Gebietszeile der Tab-Liste, der Dungeon-Zustand, die Seitenleiste und die Adresse des Servers - jedes erst, wenn gefragt wird */
@@ -141,6 +212,65 @@ public final class ChatFilters {
             Minecraft client = Minecraft.getInstance();
             ServerData server = client == null ? null : client.getCurrentServer();
             return server != null && server.ip != null && server.ip.toLowerCase(Locale.ROOT).contains("alpha.hypixel.net");
+        }
+
+        @Override
+        public boolean experimentTableRecent(long now) {
+            return experimentSeenAt > 0L && now - experimentSeenAt <= EXPERIMENT_WINDOW_MILLIS;
+        }
+
+        @Override
+        public boolean menuOpen() {
+            Minecraft client = Minecraft.getInstance();
+            return client != null && client.gui.screen() != null;
+        }
+
+        /** Die verzauberten Buecher im Inventar: der Name aus der ersten Zeile der Beschreibung, mit Farbcodes, und wie viele davon da sind */
+        @Override
+        public Map<String, Integer> enchantedBooks() {
+            Minecraft client = Minecraft.getInstance();
+            if (client == null || client.player == null) return Map.of();
+            Inventory inventory = client.player.getInventory();
+            Map<String, Integer> out = null;
+            for (int i = 0; i < inventory.getContainerSize(); i++) {
+                ItemStack stack = inventory.getItem(i);
+                if (stack.isEmpty() || !stack.is(Items.ENCHANTED_BOOK)) continue;
+                String name = bookName(stack);
+                if (name == null) continue;
+                if (out == null) out = new HashMap<>();
+                out.merge(name, stack.getCount(), Integer::sum);
+            }
+            return out == null ? Map.of() : out;
+        }
+
+        private static String bookName(ItemStack stack) {
+            ItemLore lore = stack.get(DataComponents.LORE);
+            if (lore == null) return null;
+            for (Component line : lore.lines()) {
+                String text = COLOUR_CODE.matcher(line.getString()).replaceAll("").trim();
+                if (text.isEmpty() || text.contains("Combinable in Anvil")) continue;
+                return StyledText.of(line).legacy().strip();
+            }
+            return null;
+        }
+
+        /** Was Gemstone Powder vervielfacht, soweit die Mod es kennt: Sky Mall, das Scatha-Pet und der Bohrer in der Hand */
+        @Override
+        public PowderContext powderContext() {
+            boolean skyMall = "+15% Powder".equals(MiningState.skyMall());
+            int scatha = PetState.known() && "Scatha".equalsIgnoreCase(PetState.name()) && "LEGENDARY".equalsIgnoreCase(PetState.rarity())
+                    ? PetState.level() : -1;
+            Minecraft client = Minecraft.getInstance();
+            String heldName = "";
+            List<String> heldLore = List.of();
+            if (client != null && client.player != null) {
+                ItemStack held = client.player.getMainHandItem();
+                if (!held.isEmpty()) {
+                    heldLore = SkyBlockItems.loreOf(held);
+                    heldName = StyledText.of(held.getHoverName()).legacy().strip();
+                }
+            }
+            return new PowderContext(skyMall, scatha, heldName, heldLore);
         }
     }
 }

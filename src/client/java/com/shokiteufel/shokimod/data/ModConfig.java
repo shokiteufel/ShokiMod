@@ -212,6 +212,9 @@ public class ModConfig extends Config {
         if (c == null) return;
         if (c.chatTab == null) c.chatTab = new ChatTabCategory();
         if (c.chatTab.filterTypes == null) c.chatTab.filterTypes = new ChatFilterTypesCategory();
+        // Chat (Teil 2): die zwei Unterkategorien (keine Auswahlen darin, also nichts weiter zu reparieren)
+        if (c.chatTab.compactPotion == null) c.chatTab.compactPotion = new CompactPotionCategory();
+        if (c.chatTab.rareDrop == null) c.chatTab.rareDrop = new RareDropMessagesCategory();
         ChatFilterTypesCategory f = c.chatTab.filterTypes;
         if (f.powderGoblinEggs == null) f.powderGoblinEggs = PowderGoblinEggs.YELLOW_UP;
         if (f.powderRuby == null) f.powderRuby = PowderGemstones.FINE_UP;
@@ -5354,6 +5357,10 @@ public class ModConfig extends Config {
 
     /**
      * Chat (Teil 1, seit 2.4.18): Zeilen ausblenden oder durch eine kompakte ersetzen - sortiert wie bei SkyHanni (Chat und Chat > Chat Filter Types).
+     * Chat (Teil 2): dazu die Funktionen, die eine Zeile umschreiben (Compact Potion/Bestiary/Enchanting/Jacob, Rare Drop Messages, Shorten Coin Amounts,
+     * Show Actual Powder Gained, Dark Auction Item Display, SkyBlock XP in Chat, Hide Clickable Hints) - an der Stelle, an der sie bei SkyHanni stehen. Die zwei
+     * Unterkategorien (Rare Drop Messages, Compact Potion Messages) stehen hinter Chat Filter Types, in der Reihenfolge von SkyHanni; Unterkategorien sind eigene Reiter
+     * und stehen deshalb nicht zwischen den Schaltern.
      *
      * Nicht verwechseln mit dem Reiter "Alerts" ({@link ChatRulesCategory}, Feld {@code chat}): Dort reagiert die Mod auf Zeilen, hier raeumt sie den
      * Chat auf. Alles von Haus aus aus; wo SkyHanni eine Unteroption voreinstellt, die nur wirkt, wenn ihr Hauptschalter an ist, bleibt sie so.
@@ -5363,7 +5370,7 @@ public class ModConfig extends Config {
      */
     public static class ChatTabCategory {
 
-        @ConfigOption(name = "Chat", desc = "Tidies up the chat: hides lines you do not want to read, or swaps a long block for one short line. The switches here are for the dungeon, deaths, sacks and a few mining and foraging messages; everything else lives in the sub tab Chat Filter Types. Everything is off until you turn it on. Idea from SkyHanni.")
+        @ConfigOption(name = "Chat", desc = "Tidies up the chat: hides lines you do not want to read, or swaps a long block for one short line. The switches here are for the dungeon, deaths, sacks and a few mining and foraging messages, and for the lines the mod rewrites (compact messages, shorter coins ...); the sub tabs hold the rest. Everything is off until you turn it on. Idea from SkyHanni.")
         @ConfigEditorInfoText
         public transient String about = "";
 
@@ -5448,6 +5455,21 @@ public class ModConfig extends Config {
         public boolean hideFarDeaths = false;
 
         @Expose
+        @ConfigOption(name = "Compact Bestiary Messages", desc = "Compact the Bestiary level up message, only showing additional information when hovering. The long line above the message stays (the mod cannot take back a line that is already shown), so the long line below is written again under the short message.")
+        @ConfigEditorBoolean
+        public boolean compactBestiary = false;
+
+        @Expose
+        @ConfigOption(name = "Compact Enchanting Rewards", desc = "Compact the rewards gained from Add-ons and Experiments in the Experimentation Table, only showing additional information when hovering.")
+        @ConfigEditorBoolean
+        public boolean compactExperiments = false;
+
+        @Expose
+        @ConfigOption(name = "Compact Jacob Claim", desc = "Compact the Jacob Claim message (Garden), only showing full information when hovering.")
+        @ConfigEditorBoolean
+        public boolean compactJacobClaim = false;
+
+        @Expose
         @ConfigOption(name = "Arachne Hider", desc = "Hide chat messages about the Arachne Fight while outside of Arachne's Sanctuary. The Venom Shot lines go everywhere in the Spider's Den.")
         @ConfigEditorBoolean
         public boolean hideArachne = false;
@@ -5463,6 +5485,11 @@ public class ModConfig extends Config {
         public boolean onlyHideSacksChangeOnGarden = false;
 
         @Expose
+        @ConfigOption(name = "SkyBlock XP in Chat", desc = "Send the SkyBlock XP messages into the chat. Hypixel shows them in the action bar for a moment only (\"+7 SkyBlock XP (Kill Combo) (45/100)\"); with this on they stay in the chat, once for each new value.")
+        @ConfigEditorBoolean
+        public boolean skyBlockXpInChat = false;
+
+        @Expose
         @ConfigOption(name = "Anita's Accessories", desc = "Hide Anita's Accessories' fortune bonus messages outside the Garden.")
         @ConfigEditorBoolean
         public boolean hideAnita = false;
@@ -5473,13 +5500,41 @@ public class ModConfig extends Config {
         public boolean hideSkyMall = false;
 
         @Expose
+        @ConfigOption(name = "Show Actual Powder Gained", desc = "Shows both base and actual Gemstone Powder amounts in the chest messages of the Crystal Hollows, accounting for the Sky Mall perk, the legendary Scatha pet and the drill in your hand. Format: Gemstone Powder x1,944 (x3,888). Not counted: the HOTM Powder Buff, attribute shards and the 2x Powder event - the mod does not read them, so the actual amount can be too low (the tooltip says so). Not used while Powder Mining under Chat Filter Types shortens the line.")
+        @ConfigEditorBoolean
+        public boolean showEffectivePowder = false;
+
+        @Expose
         @ConfigOption(name = "Hide Foraging Buff Messages", desc = "Hide the Lottery and Beekeeper messages outside of Foraging Islands.")
         @ConfigEditorBoolean
         public boolean hideForagingBuff = false;
 
         @Expose
+        @ConfigOption(name = "Shorten Coin Amounts", desc = "Replace coin amounts in chat messages with their shortened version. e.g. 5,100,000 Coins -> 5.1M Coins. Only amounts the server writes in gold are changed.")
+        @ConfigEditorBoolean
+        public boolean shortenCoinAmounts = false;
+
+        @Expose
+        @ConfigOption(name = "Hide Clickable Hints", desc = "Hides the 'Click to ...' hint at the end of the mod's own messages (re-ordering a cancelled bazaar buy order, the party invite buttons, the year summary of the profit tracker). The message is still clickable and shows infos on hover. The named buttons ([Get Cakes!], [Go], [Refuel ...]) stay.")
+        @ConfigEditorBoolean
+        public boolean hideClickableHints = false;
+
+        @Expose
+        @ConfigOption(name = "Dark Auction Item Display", desc = "Adds the item name to the highest bidder message at the Dark Auction.")
+        @ConfigEditorBoolean
+        public boolean darkAuctionItemDisplay = false;
+
+        @Expose
         @Category(name = "Chat Filter Types", desc = "Hide whole kinds of messages: Powder Mining chests, Crystal Nucleus runs, the stash, lobby and warp lines, Hoppity, parkour and many more. Everything is off until you turn it on. Idea from SkyHanni.")
         public ChatFilterTypesCategory filterTypes = new ChatFilterTypesCategory();
+
+        @Expose
+        @Category(name = "Rare Drop Messages", desc = "Make the messages about rare pets and enchanted books say more: the rarity of a pet drop, the name of a book. Everything is off until you turn it on. Idea from SkyHanni.")
+        public RareDropMessagesCategory rareDrop = new RareDropMessagesCategory();
+
+        @Expose
+        @Category(name = "Compact Potion Messages", desc = "Shorten the chat messages about potion effects: 'Potion Effect! Speed IV by Name'. Off until you turn it on. Idea from SkyHanni.")
+        public CompactPotionCategory compactPotion = new CompactPotionCategory();
 
         /** Ist einer der elf Schalter der Dungeon Filters an? */
         public boolean anyDungeonFilter() {
@@ -5490,19 +5545,94 @@ public class ModConfig extends Config {
         /** Greift irgendein Schalter des Reiters in den Chat ein? Der Chat-Weg fragt das zuerst: ist es nein, kostet eine Zeile nichts weiter */
         public boolean anyFilter() {
             return anyDungeonFilter() || dungeonBossMessages || hideFarDeaths || hideArachne || hideSacksChange || hideAnita || hideSkyMall
-                    || hideForagingBuff || (filterTypes != null && filterTypes.anyOn());
+                    || hideForagingBuff || (filterTypes != null && filterTypes.anyOn()) || anyRewrite();
+        }
+
+        /** Chat (Teil 2): Ist einer der Schalter an, die Zeilen kuerzen (Potion, Bestiary, Enchanting, Jacob)? */
+        public boolean anyCompact() {
+            return (compactPotion != null && compactPotion.enabled) || compactBestiary || compactExperiments || compactJacobClaim;
+        }
+
+        /**
+         * Chat (Teil 2): Ist einer der Schalter an, die eine Chatzeile umschreiben oder kuerzen? "SkyBlock XP in Chat" und "Hide Clickable Hints" nicht: Sie lesen
+         * die Aktionsleiste und stehen in den Meldungen der Mod, keine Chatzeile des Servers.
+         */
+        public boolean anyRewrite() {
+            return anyCompact() || showEffectivePowder || shortenCoinAmounts || darkAuctionItemDisplay || (rareDrop != null && rareDrop.any());
         }
 
         /** Braucht ein eingeschalteter Schalter den Ort (Gebietszeile der Tab-Liste)? Dann muss sie gelesen werden */
         public boolean needsLocation() {
+            // Alles, was umschreibt, gilt nur in SkyBlock - und das weiss die Mod erst, wenn sie den Ort liest
             return anyDungeonFilter() || dungeonBossMessages || hideFarDeaths || hideArachne || (hideSacksChange && onlyHideSacksChangeOnGarden)
-                    || hideAnita || hideSkyMall || hideForagingBuff || (filterTypes != null && filterTypes.needsLocation());
+                    || hideAnita || hideSkyMall || hideForagingBuff || (filterTypes != null && filterTypes.needsLocation()) || anyRewrite();
+        }
+
+        /** Chat (Teil 2): Muss der Tick des Chats laufen? Er schreibt, was erst spaeter feststeht (Enchanting, Jacob, Buchname) und liest den Experimentation Table */
+        public boolean needsTick() {
+            return hideFarDeaths || compactExperiments || compactJacobClaim || (rareDrop != null && (rareDrop.enchantedBook || rareDrop.enchantedBookMissingMessage));
         }
 
         /** Fragt ein eingeschalteter Schalter, ob man in einem Dungeon steht? Dann muss {@code DungeonLauf} mitlesen */
         public boolean needsDungeon() {
             return anyDungeonFilter() || dungeonBossMessages || hideFarDeaths;
         }
+    }
+
+    /**
+     * Chat > Rare Drop Messages: die Meldungen ueber seltene Pets und Buecher genauer machen. Alles von Haus aus aus.
+     *
+     * Herkunft der Idee: SkyHanni (LGPL-2.1, {@code RareDropMessagesConfig}). Von dort stammen die drei Schalter, ihre Namen und ihre Reihenfolge; SkyHanni stellt
+     * zwei davon von Haus aus an, hier sind alle aus. Die Umsetzung ist eigene Arbeit: Java.
+     */
+    public static class RareDropMessagesCategory {
+
+        @ConfigOption(name = "Rare Drop Messages", desc = "Make the messages about rare pets and enchanted books say more. Everything is off until you turn it on. Idea from SkyHanni.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Pet Drop Rarity", desc = "Shows what rarity the pet drop is in the pet drop message, e.g. PET DROP! EPIC Slug (+1300). Also for pets you catch, claim, or hear about from other players.")
+        @ConfigEditorBoolean
+        public boolean petRarity = false;
+
+        @Expose
+        @ConfigOption(name = "Enchanted Book Name", desc = "Shows what enchantment the dropped enchanted book is. The mod cannot change a line that is already shown, so it holds the 'RARE DROP! Enchanted Book' line back for up to 1.5 seconds until the book is in your inventory and then writes it with the name; without a book it writes the line as it was.")
+        @ConfigEditorBoolean
+        public boolean enchantedBook = false;
+
+        @Expose
+        @ConfigOption(name = "Missing Enchanted Book Message", desc = "Sends a custom Rare Drop message if you get a slayer enchanted book (Smite VI/VII, Ender Slayer VI/VII, Mana Steal I, Smarty Pants I, Bane of Arthropods VI, Critical VI, Fire Aspect III, Ultimate Reiterate I) without a message in chat.")
+        @ConfigEditorBoolean
+        public boolean enchantedBookMissingMessage = false;
+
+        /** Ist einer der drei Schalter an? */
+        public boolean any() {
+            return petRarity || enchantedBook || enchantedBookMissingMessage;
+        }
+    }
+
+    /**
+     * Chat > Compact Potion Messages: die Meldungen ueber Traenke kuerzen.
+     *
+     * Herkunft der Idee: SkyHanni (LGPL-2.1, {@code CompactPotionConfig}). Von dort stammen die zwei Schalter, ihre Namen und ihre Vorgaben; SkyHanni stellt "Enabled" von
+     * Haus aus an, hier ist es aus ("Clickable Chat Message" behaelt die Vorgabe, es wirkt erst, wenn "Enabled" an ist). Die Umsetzung ist eigene Arbeit: Java.
+     */
+    public static class CompactPotionCategory {
+
+        @ConfigOption(name = "Compact Potion Messages", desc = "Shorten chat messages about potion effects: 'Potion Effect! Speed IV by Name'. Off until you turn it on. Idea from SkyHanni.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Enabled", desc = "Shorten chat messages about player potion effects.")
+        @ConfigEditorBoolean
+        public boolean enabled = false;
+
+        @Expose
+        @ConfigOption(name = "Clickable Chat Message", desc = "Make the Compact Potion message open the Potion effects menu on click.")
+        @ConfigEditorBoolean
+        public boolean clickableChatMessage = true;
     }
 
     /** Chat Filter Types > Powder Mining > Goblin Egg: ab welcher Farbe ein Ei gezeigt wird (die Reihenfolge ist die der Auswahl) */

@@ -482,13 +482,14 @@ public final class BazaarHelpers {
 
     /** Die Zeile mit dem Klick: "Bazaar buy order cancelled. Click to order it again." und darunter die Menge */
     static Component reorderLine(Reorder reorder) {
-        MutableComponent head = Component.literal("[ShokiMod] ").withStyle(ChatFormatting.DARK_AQUA)
-                .append(Component.literal("Bazaar buy order cancelled. ").withStyle(ChatFormatting.GOLD))
-                .append(Component.literal("[Click to order again]").withStyle(ChatFormatting.GREEN, ChatFormatting.BOLD)
-                        .withStyle(style -> style
-                                .withClickEvent(new ClickEvent.RunCommand("/shoki bzreorder"))
-                                .withHoverEvent(new HoverEvent.ShowText(Component.literal(
-                                        "Searches the bazaar for " + reorder.product() + " and keeps " + reorder.amount() + " in your clipboard")))));
+        // Chat (Teil 2) > Hide Clickable Hints: Mit dem Schalter fehlt der Knopf, Klick und Hover liegen auf der ganzen Zeile
+        Component hint = Component.literal("[Click to order again]").withStyle(ChatFormatting.GREEN, ChatFormatting.BOLD)
+                .withStyle(style -> style
+                        .withClickEvent(new ClickEvent.RunCommand("/shoki bzreorder"))
+                        .withHoverEvent(new HoverEvent.ShowText(Component.literal(
+                                "Searches the bazaar for " + reorder.product() + " and keeps " + reorder.amount() + " in your clipboard"))));
+        MutableComponent head = com.shokiteufel.shokimod.chat.ClickableHints.attach(Component.literal("[ShokiMod] ").withStyle(ChatFormatting.DARK_AQUA)
+                .append(Component.literal("Bazaar buy order cancelled. ").withStyle(ChatFormatting.GOLD)), hint);
         return head.append(Component.literal("\n  " + String.format(Locale.US, "%,d", reorder.amount()) + "x " + reorder.product()
                 + " for " + reorder.refunded() + " coins").withStyle(ChatFormatting.GRAY));
     }

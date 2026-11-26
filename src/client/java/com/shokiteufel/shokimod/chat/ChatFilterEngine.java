@@ -3,6 +3,8 @@ package com.shokiteufel.shokimod.chat;
 import com.shokiteufel.shokimod.data.ModConfig.ChatFilterTypesCategory;
 import com.shokiteufel.shokimod.data.ModConfig.ChatTabCategory;
 
+import net.minecraft.network.chat.Component;
+
 import java.util.regex.Pattern;
 
 /**
@@ -13,6 +15,10 @@ import java.util.regex.Pattern;
  * Die Reihenfolge: erst die mehrzeiligen Bloecke, dann die Filter mit eigenem Gedaechtnis (Watchdog, Stash, Powder Mining, Crystal Nucleus - jeder
  * muss jede Zeile sehen), dann die einfachen Schalter von "Chat Filter Types" in der Reihenfolge von SkyHanni, dann die Schalter von "Chat" (Dungeon,
  * Tode, Arachne, Sacks). Jede Gruppe fragt zuerst ihren Schalter - ein Feldzugriff -, dann den Ort, dann erst die Zeile.
+ *
+ * Chat (Teil 2): Davor und dahinter laufen die Funktionen, die eine Zeile umschreiben ({@link ChatRewrites}): erst die, die Zeilen kuerzen (Potion, Bestiary,
+ * Enchanting, Jacob - nach den Filtern mit Gedaechtnis, vor den einfachen Schaltern), dann die, die eine nicht ausgeblendete Zeile aendern (Pet-Seltenheit, Dark
+ * Auction, Powder, Muenzen). Was spaeter faellig wird, liefert {@link #poll}.
  *
  * Herkunft der Idee: SkyHanni (LGPL-2.1, {@code ChatFilter}): Dort laeuft jede Chatzeile durch eine Folge von Schaltern und Listen, und die erste
  * Gruppe, die trifft, blendet die Zeile aus. Die Umsetzung ist eigene Arbeit: Java, eine Entscheidung als reiner Wert (ausblenden, ersetzen, lassen) statt
@@ -39,6 +45,7 @@ public final class ChatFilterEngine {
     private final StashFilter stash = new StashFilter();
     private final WatchdogFilter watchdog = new WatchdogFilter();
     private final FarDeathMessages deaths = new FarDeathMessages();
+    private final ChatRewrites rewrites = new ChatRewrites();
 
     /** Neue Welt: was ueber mehrere Zeilen gemerkt wurde, gilt nicht mehr. {@code c} darf null sein (dann wird alles vergessen) */
     public void worldChanged(ChatTabCategory c) {
@@ -46,6 +53,7 @@ public final class ChatFilterEngine {
         nucleus.reset();
         watchdog.reset();
         deaths.reset();
+        rewrites.reset();
         // Bei "Once Per World" gilt auch der zuletzt gemeldete Stash-Stand nicht mehr
         stash.worldChanged(c == null || c.filterTypes == null || c.filterTypes.stashOncePerWorld);
     }
@@ -60,15 +68,38 @@ public final class ChatFilterEngine {
         deaths.prune(now);
     }
 
+    /** Wartet noch etwas, das erst {@link #poll} schreibt? */
+    public boolean hasPending() {
+        return rewrites.pending();
+    }
+
+    /**
+     * Was ist inzwischen faellig (Chat Teil 2)? Vom Tick des Chats gerufen; SHOW heisst: nichts, REPLACE: diese Zeilen schreiben.
+     *
+     * @param t   die Einstellungen des Reiters Chat
+     * @param p   wo man steht und was im Inventar liegt
+     * @param now die Uhr in Millisekunden
+     */
+    public ChatVerdict poll(ChatTabCategory t, ChatPlace p, long now) {
+        if (t == null || p == null) return ChatVerdict.SHOW;
+        return rewrites.poll(t, p, now);
+    }
+
+    /** Wie {@link #decide(String, Component, ChatTabCategory, ChatPlace, long)}, ohne die Komponente der Zeile: Was Stil braucht, bekommt keinen */
+    public ChatVerdict decide(String plain, ChatTabCategory t, ChatPlace p, long now) {
+        return decide(plain, null, t, p, now);
+    }
+
     /**
      * Was geschieht mit dieser Zeile?
      *
-     * @param plain die Zeile ohne Farbcodes
-     * @param t     die Einstellungen des Reiters Chat
-     * @param p     wo man steht
-     * @param now   die Uhr in Millisekunden
+     * @param plain   die Zeile ohne Farbcodes
+     * @param message die Zeile als Komponente (mit Farben, Klick und Hover) - oder null, dann gibt es keine Stile (siehe {@link Incoming})
+     * @param t       die Einstellungen des Reiters Chat
+     * @param p       wo man steht
+     * @param now     die Uhr in Millisekunden
      */
-    public ChatVerdict decide(String plain, ChatTabCategory t, ChatPlace p, long now) {
+    public ChatVerdict decide(String plain, Component message, ChatTabCategory t, ChatPlace p, long now) {
         if (plain == null || t == null || t.filterTypes == null) return ChatVerdict.SHOW;
         ChatFilterTypesCategory f = t.filterTypes;
 
@@ -92,11 +123,22 @@ public final class ChatFilterEngine {
             if (v != null) return v;
         }
 
+        // 2b. Chat (Teil 2), erste Stufe: Zeilen kuerzen. Die Zeile wird nur gebaut, wenn einer dieser Schalter an ist
+        boolean rewriting = t.anyRewrite();
+        Incoming in = rewriting ? new Incoming(plain, message) : null;
+        if (rewriting) {
+            v = rewrites.compact(in, t, p, now);
+            if (v != null) return v;
+        }
+
         // 3. Die einfachen Schalter von Chat Filter Types
         if (hidesGeneral(plain, f, t, p)) return ChatVerdict.HIDE;
 
         // 4. Die Schalter von Chat
-        return hidesChat(plain, t, p, now) ? ChatVerdict.HIDE : ChatVerdict.SHOW;
+        if (hidesChat(plain, t, p, now)) return ChatVerdict.HIDE;
+
+        // 5. Chat (Teil 2), zweite Stufe: eine Zeile, die bis hierher stehen blieb, umschreiben
+        return rewriting ? rewrites.modify(in, t, p, now) : ChatVerdict.SHOW;
     }
 
     /** Die einfachen Schalter: eine Gruppe von Zeilen je Schalter (Reihenfolge wie bei SkyHanni) */

@@ -329,6 +329,16 @@ public final class FeatureGate {
         return ModConfig.INSTANCE.chatTab.needsDungeon();
     }
 
+    /** Chat (Teil 2): SkyBlock XP in Chat liest die Aktionsleiste - nur wenn es an ist. Braucht den Ort (nur in SkyBlock) */
+    public static boolean skyblockXpInChat() {
+        return ModConfig.INSTANCE.chatTab.skyBlockXpInChat;
+    }
+
+    /** Chat (Teil 2): Muss der Tick des Chats laufen (Hide Far Deaths, Enchanting-Belohnungen, Jacob, Buchname, fehlende Buchmeldung)? Nur wenn einer davon an ist */
+    public static boolean chatTick() {
+        return ModConfig.INSTANCE.chatTab.needsTick();
+    }
+
     /** Chat > Hide Far Deaths: einmal in der Sekunde die Spieler in der Naehe lesen - nur wenn es an ist. Braucht den Ort (nur in SkyBlock) */
     public static boolean farDeaths() {
         return ModConfig.INSTANCE.chatTab.hideFarDeaths;
@@ -408,6 +418,7 @@ public final class FeatureGate {
                 || hookDisplay() || baitDisplay() || seaCocoon() || slayerCocoon() || slayerSpawnParticles() || skillProgress() || auctionUnderbid() || bazaarHelpers()
                 || npcDayLimit() || warpCommands() || fixDoubleClicks() || estimatedItemValue()
                 // Chat (Teil 1): die Filter nach Ort (Dungeon, Garden, Bergbau, Foraging, Spider's Den, Crystal Hollows, Kuudra)
-                || chatFiltersLocation();
+                // Chat (Teil 2): alles, was umschreibt, und SkyBlock XP in Chat gelten nur in SkyBlock (chatFiltersLocation schliesst die umschreibenden ein)
+                || chatFiltersLocation() || skyblockXpInChat();
     }
 }

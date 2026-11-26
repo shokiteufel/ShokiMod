@@ -1,6 +1,8 @@
 package com.shokiteufel.shokimod.chat;
 
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -27,6 +29,36 @@ public interface ChatPlace {
 
     /** Ist man im Alpha-Netzwerk von Hypixel? */
     boolean alphaNetwork();
+
+    // ---- Chat (Teil 2): was die umschreibenden Funktionen sonst noch vom Spiel wissen wollen (jedes erst, wenn gefragt wird) ----
+
+    /** War der Experimentation Table (oder eines seiner Spiele) in den letzten drei Sekunden offen oder ist er es noch? */
+    default boolean experimentTableRecent(long now) {
+        return false;
+    }
+
+    /** Die verzauberten Buecher im Inventar: ihr Name mit Farbcodes ("§9Angler VI") und wie viele davon da sind */
+    default Map<String, Integer> enchantedBooks() {
+        return Map.of();
+    }
+
+    /** Ist ein Fenster (Truhe, Menue) offen? Was dann ins Inventar kommt, ist meist gekauft oder verschoben, kein Drop */
+    default boolean menuOpen() {
+        return false;
+    }
+
+    /** Was Gemstone Powder vervielfacht, soweit die Mod es kennt */
+    default PowderContext powderContext() {
+        return PowderContext.NONE;
+    }
+
+    /**
+     * Die Quellen fuer "Show Actual Powder Gained": Sky Mall mit mehr Powder, die Stufe des Scatha-Pets (legendaer; -1, wenn es nicht das aktive ist), der Name des
+     * Gegenstands in der Hand mit Farbcodes und seine Beschreibung ohne
+     */
+    record PowderContext(boolean skyMallExtraPowder, int scathaLevel, String heldNameLegacy, List<String> heldLore) {
+        public static final PowderContext NONE = new PowderContext(false, -1, "", List.of());
+    }
 
     /** Ein fester Ort, fuer Tests */
     static ChatPlace of(boolean skyblock, String area, boolean dungeon) {
@@ -99,5 +131,9 @@ public interface ChatPlace {
 
     static boolean isKuudra(String area) {
         return KUUDRA.contains(key(area));
+    }
+
+    static boolean isDarkAuction(String area) {
+        return key(area).equals("dark auction");
     }
 }

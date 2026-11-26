@@ -376,6 +376,25 @@ Beschreibungen, eigene Tests. Es steht nichts Geschriebenes aus SkyHanni in dies
   bleiben, dafür gibt es „Empty“), die Warnung „Disable Empty Warnings“, das Vervollständigen mit Tab, die Dungeon-Schalter Rare Drops, Solo Class, Solo Stats und Fairy (bei SkyHanni unter
   Dungeon) und alles aus Chat, was nicht ausblendet (Peek Chat, Player Messages, Sound Responses, Rare Drop Messages, Copy Chat, Current Chat Display, Compact Potion/Bestiary/Enchanting/
   Jacob, Translator, SkyBlock XP in Chat, Show Actual Powder Gained, Shorten Coin Amounts, Hide Clickable Hints, Dark Auction Item Display).
+- **Chat (Teil 2)** (`ChatRewrites`, `StyledText`, `Incoming`, `CompactPotionMessages`, `CompactBestiary`, `CompactExperimentRewards`, `CompactJacobClaim`, `ShortenCoins`, `ActualPowder`,
+  `DarkAuctionItems`, `RareDropMessages`, `SkyblockXpInChat`, `ClickableHints`; die Einstellungen `ChatTabCategory`, `RareDropMessagesCategory`, `CompactPotionCategory`): die Funktionen von
+  SkyHanni „Chat“, die eine Zeile umschreiben statt sie auszublenden (`CompactSplashPotionMessage`, `CompactBestiaryChatMessage`, `CompactExperimentRewards`, `CompactJacobClaim`,
+  `ShortenCoins`, `DarkAuctionItemDisplay`, `RareDropMessages`, `SkyblockXPInChat`, `ActualGemstonePowderDisplay`, `ActionBarStatsData`, `ChatConfig.hideClickableHint`).
+  Regeln: die sechs Tranknachrichten und ihre kurze Zeile „Potion Effect! … by …“ mit Klick auf /effects; der Bestiary-Block (Zeile „BESTIARY“, Stufe, Beschreibung beim Zeigen, Meilenstein
+  als eigene Zeile, höchstens 15 Zeilen); die Belohnungen des Experimentation Table (nur in den drei Sekunden nach dem Schließen, 100 Millisekunden nach der letzten Belohnung);
+  der Jacob-Block (Tickets, Bücher, Medaillen, Bits, Overclocker; die Bits sind die letzte Zeile, sonst 300 Millisekunden Pause); Zahlen am Anfang eines goldenen Teils als „5.1M“; die
+  Rechnung des tatsächlichen Powders (Zuschläge innerhalb einer Gruppe addiert, Gruppen multipliziert; Bohrer, Sky Mall 15 %, Scatha 0,2 % je Stufe); das Stück der Dark Auction hinter
+  der Zeile mit dem höchsten Gebot; die Seltenheit des Pets vor dem Namen (fünf Meldungen, „a“ wird zu „an“), der Name des Buchs in „RARE DROP! Enchanted Book“, die Meldung für
+  ein Slayer-Buch ohne Zeile und die Liste der Slayer-Bücher; SkyBlock XP aus der Aktionsleiste in den Chat; der Hinweis „Click to …“ fällt weg, Klick und Hover bleiben. Die Beispielzeilen
+  der Tests sind SkyHannis „REGEX-TEST“-Zeilen ohne Farbcodes (mit den Farben der Teile, wo die Regel sie braucht). Eigene Zutaten: die Zeile als Folge von Stücken mit Stil (`StyledText`:
+  ersetzen, einfügen, anhängen, dabei bleiben Farbe, Klick und Hover je Stück), der Text mit Farbcodes für genau den Abschnitt, den ein Muster getroffen hat, statt Muster mit Codes, die
+  Uhr des Chats (`poll`) statt verzögerter Aufgaben, zwei Stufen wie bei SkyHannis „Allow“ und „Modify“ vor und nach den Ausblend-Schaltern, die Bestiary-Zeile zwischen zwei langen Linien
+  (die öffnende bleibt stehen, die schließende wird noch einmal geschrieben), die Zeile „RARE DROP! Enchanted Book“ wird bis zu 1,5 Sekunden zurückgehalten, bis das Buch im Inventar ist,
+  statt nachträglich geändert zu werden, ein Anspruch des Experimentation Table ohne Belohnung und ein Block ohne Ende gehen nicht verloren, „Hide Clickable Hints“ liegt auf den vier
+  Zeilen der Mod mit angehängtem Knopf, eigener Wortlaut. **Nicht übernommen:** das nachträgliche Löschen und Ändern schon gezeigter Zeilen, der HOTM-Zuschlag „Powder Buff“, die
+  Attribute (Atomized Crystals und seine Echos) und das Ereignis „2x Powder“ bei „Show Actual Powder Gained“ (ShokiMod liest sie nicht; der Text beim Zeigen sagt es), die „User Luck“ an
+  der Meldung für ein fehlendes Buch, und von SkyHannis Hinweisen die Zeile „[CLICK to … or disable this feature]“ unter ihren eigenen Meldungen (bei ShokiMod gibt es nur Knöpfe am
+  Ende einer Zeile).
 
 ---
 

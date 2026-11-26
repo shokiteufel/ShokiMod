@@ -1,5 +1,7 @@
 package com.shokiteufel.shokimod.chat;
 
+import net.minecraft.network.chat.Component;
+
 import java.util.List;
 
 /**
@@ -26,11 +28,28 @@ public record ChatVerdict(Kind kind, List<Line> lines) {
     /**
      * Eine eigene Zeile. {@code text} darf Farbcodes ({@code §}) enthalten; {@code command} ist ein Befehl mit Schraegstrich, der beim Klick laeuft
      * (oder null), {@code hover} der Text beim Zeigen (oder null).
+     *
+     * Chat (Teil 2): Eine Zeile kann auch fertig als {@code component} kommen (mit allen Stilen, Klick und Text beim Zeigen, etwa die umgeschriebene
+     * Zeile des Servers); dann sind {@code text}, {@code command} und {@code hover} null und die Komponente wird so geschrieben, wie sie ist.
      */
-    public record Line(String text, String command, String hover) {
+    public record Line(String text, String command, String hover, Component component) {
+
+        public Line(String text, String command, String hover) {
+            this(text, command, hover, null);
+        }
 
         public static Line of(String text) {
-            return new Line(text, null, null);
+            return new Line(text, null, null, null);
+        }
+
+        /** Eine fertige Komponente */
+        public static Line ofComponent(Component component) {
+            return new Line(null, null, null, component);
+        }
+
+        /** Der Text mit Farbcodes - auch bei einer fertigen Komponente (fuer die Tests und das Protokoll) */
+        public String legacyText() {
+            return component == null ? text : StyledText.of(component).legacy();
         }
     }
 

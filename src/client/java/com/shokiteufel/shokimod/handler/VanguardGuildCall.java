@@ -98,10 +98,10 @@ public final class VanguardGuildCall {
                 .withStyle(style -> style
                         .withClickEvent(new ClickEvent.RunCommand(run))
                         .withHoverEvent(new HoverEvent.ShowText(Component.literal("Click to run " + run))));
-        client.player.sendSystemMessage(Component.literal("[ShokiMod] ")
+        // Chat (Teil 2) > Hide Clickable Hints: Mit dem Schalter fehlt der Knopf, Klick und Hover liegen auf der ganzen Zeile
+        client.player.sendSystemMessage(com.shokiteufel.shokimod.chat.ClickableHints.attach(Component.literal("[ShokiMod] ")
                 .withStyle(ChatFormatting.DARK_AQUA)
                 .append(Component.literal(name + " wants to join the Vanguard shaft ")
-                        .withStyle(ChatFormatting.YELLOW))
-                .append(click));
+                        .withStyle(ChatFormatting.YELLOW)), click));
     }
 }

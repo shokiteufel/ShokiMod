@@ -1870,18 +1870,19 @@ public final class ProfitTracker {
         if (wert <= 0) return;
 
         String befehl = "/shoki dayprofit " + jahr;
-        say(Component.literal("You earned ").withStyle(ChatFormatting.YELLOW)
+        // Chat (Teil 2) > Hide Clickable Hints: Mit dem Schalter fehlt der Knopf, Klick und Hover liegen auf der ganzen Zeile
+        Component hinweis = Component.literal("[Click here]")
+                .withStyle(ChatFormatting.AQUA, ChatFormatting.BOLD)
+                .withStyle(style -> style
+                        .withClickEvent(new net.minecraft.network.chat.ClickEvent.RunCommand(befehl))
+                        .withHoverEvent(new net.minecraft.network.chat.HoverEvent.ShowText(
+                                Component.literal(satz.counts.size()
+                                        + " kinds of item - click for the list"))));
+        say(com.shokiteufel.shokimod.chat.ClickableHints.attach(Component.literal("You earned ").withStyle(ChatFormatting.YELLOW)
                 .append(Component.literal(ItemValue.format(Math.round(wert)))
                         .withStyle(ChatFormatting.GREEN))
                 .append(Component.literal(" coins in SkyBlock Year " + jahr + ". ")
-                        .withStyle(ChatFormatting.YELLOW))
-                .append(Component.literal("[Click here]")
-                        .withStyle(ChatFormatting.AQUA, ChatFormatting.BOLD)
-                        .withStyle(style -> style
-                                .withClickEvent(new net.minecraft.network.chat.ClickEvent.RunCommand(befehl))
-                                .withHoverEvent(new net.minecraft.network.chat.HoverEvent.ShowText(
-                                        Component.literal(satz.counts.size()
-                                                + " kinds of item - click for the list"))))));
+                        .withStyle(ChatFormatting.YELLOW)), hinweis));
     }
 
     /** Eine Zeile der Mod im Chat */
