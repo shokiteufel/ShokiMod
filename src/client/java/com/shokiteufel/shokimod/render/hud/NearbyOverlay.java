@@ -173,11 +173,24 @@ public final class NearbyOverlay {
 
     /** Gibt es bei offenem Fenster ueberhaupt etwas Anklickbares? */
     public static boolean anyClickable() {
-        if (!interactive()) return HuntingBoxOverlay.shown();
-        return HuntingBoxOverlay.shown() || shown()
-                || SafariHud.Panel.PROFIT.visible() || SafariHud.Panel.SEATRACKER.visible()
-                || SafariHud.Panel.SKILL_XP.visible()
-                || SafariHud.Panel.VISITOR_LIST.visible() || SafariHud.Panel.GARDEN_PLOTS.visible();
+        boolean own = interactive();
+        boolean hunting = HuntingBoxOverlay.shown();
+        // Die Einkaufsliste der Besucher steht auch vor dem Chat, dem Fenster eines Besuchers und dem Basar (siehe VisitorWindow.screenAllowsList)
+        boolean visitors = SafariHud.Panel.VISITOR_LIST.visible();
+        if (!own) return anyClickable(false, hunting, false, false, false, false, visitors, false);
+        return anyClickable(true, hunting, shown(), SafariHud.Panel.PROFIT.visible(), SafariHud.Panel.SEATRACKER.visible(),
+                SafariHud.Panel.SKILL_XP.visible(), visitors, SafariHud.Panel.GARDEN_PLOTS.visible());
+    }
+
+    /**
+     * Rein: Gibt es etwas Anklickbares? Im eigenen Inventar zaehlt jeder Kasten, der steht; in jedem anderen Fenster gehoert ein Klick dem Fenster - ausser auf dem
+     * Jagd-Knopf und auf der Einkaufsliste der Besucher. Die steht dort, wo man auf ihre Gegenstaende wartet (beim Besucher, im Basar), und ihr Klick schluckt nur,
+     * wenn er auf einer Zeile mit Besucher oder Gegenstand liegt.
+     */
+    static boolean anyClickable(boolean ownInventory, boolean hunting, boolean nearby, boolean profit, boolean seaTracker, boolean skillXp,
+                                boolean visitorList, boolean gardenPlots) {
+        if (!ownInventory) return hunting || visitorList;
+        return hunting || nearby || profit || seaTracker || skillXp || visitorList || gardenPlots;
     }
 
     /** Sitzt der Zeiger auf einer Zeile? Dann handeln und den Klick schlucken */
@@ -187,8 +200,9 @@ public final class NearbyOverlay {
         // er den Klick auch zuerst
         if (HuntingBoxOverlay.handleClick(mouseX, mouseY)) return true;
 
-        // Alles Weitere gehoert dem eigenen Inventar
-        if (!interactive()) return false;
+        // Alles Weitere gehoert dem eigenen Inventar - bis auf die Einkaufsliste der Besucher: Sie steht auch vor dem Chat, dem Fenster eines Besuchers und dem
+        // Basar. Ihr Klick auf einen Gegenstand sucht ihn im Basar; liegt der Klick auf keiner Zeile mit Besucher oder Gegenstand, bleibt er beim Fenster
+        if (!interactive()) return SafariHud.Panel.VISITOR_LIST.visible() && VisitorShoppingHud.handleClick(mouseX, mouseY);
 
         if (shown()) {
             SafariHud.Panel panel = SafariHud.Panel.NEARBY;

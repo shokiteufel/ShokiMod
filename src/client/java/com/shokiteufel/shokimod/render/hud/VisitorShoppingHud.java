@@ -17,8 +17,10 @@ import java.util.function.UnaryOperator;
  * Der Kasten der Einkaufsliste der Besucher (Garden > Visitor Shopping List).
  *
  * Herkunft der Idee: SkyHanni (LGPL-2.1, "Visitor Shopping List"). Was in der Liste steht und wo sie steht, regelt {@link ShoppingListText}; hier ist der Kasten des
- * HUD-Editors ({@code /shoki hud}) dazu - im Editor immer, mit einem Beispiel, damit er sich setzen laesst. Bei offenem Inventar ist er anklickbar: Ein Klick auf den Namen
- * eines Besuchers nimmt ihn aus der Summe (durchgestrichen) und wieder hinein, ein Klick auf einen Gegenstand sucht ihn im Basar.
+ * HUD-Editors ({@code /shoki hud}) dazu - im Editor immer, mit einem Beispiel, damit er sich setzen laesst. Er ist anklickbar, solange ein Fenster mit freiem Zeiger
+ * offen ist, vor dem die Liste steht: das eigene Inventar, der Chat, das Fenster eines Besuchers und der Basar (bis 2.5.10 nur das Inventar - im Fenster des
+ * Besuchers und im Basar, wo man auf die Gegenstaende wartet, ging der Klick ins Leere). Ein Klick auf den Namen eines Besuchers nimmt ihn aus der Summe
+ * (durchgestrichen) und wieder hinein, ein Klick auf einen Gegenstand sucht ihn im Basar ({@code /bazaar <Gegenstand>}, die Suche geht gleich auf).
  */
 public final class VisitorShoppingHud {
 
