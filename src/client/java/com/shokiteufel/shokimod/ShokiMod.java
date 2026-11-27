@@ -151,6 +151,7 @@ public class ShokiMod implements ClientModInitializer {
         com.shokiteufel.shokimod.handler.HotspotShare.register();
         com.shokiteufel.shokimod.handler.PartyInvites.register();
         com.shokiteufel.shokimod.handler.ShortcutHandler.register();
+        com.shokiteufel.shokimod.handler.CommandAliasHandler.register();
         com.shokiteufel.shokimod.scanner.MineshaftState.register();
         com.shokiteufel.shokimod.scanner.CorpseFinder.register();
         com.shokiteufel.shokimod.scanner.OreVeins.register();
@@ -387,7 +388,7 @@ public class ShokiMod implements ClientModInitializer {
                             openChatRulesNextTick = true;
                             return 1;
                         }))
-                        // /shoki shortcut -> Tasten, die einen Befehl oder Satz abschicken
+                        // /shoki shortcut -> zwei Reiter: Tasten, die einen Befehl oder Satz abschicken, und Aliase (/g schickt /warp garden)
                         .then(ClientCommands.literal("shortcut").executes(context -> {
                             com.shokiteufel.shokimod.handler.ShortcutHandler.requestOpen();
                             return 1;

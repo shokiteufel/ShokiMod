@@ -573,6 +573,9 @@ public class ModConfig extends Config {
         if (INSTANCE.chat == null) INSTANCE.chat = new ChatRulesCategory();
         if (INSTANCE.shortcuts == null) INSTANCE.shortcuts = new ArrayList<>();
         Shortcut.normalize(INSTANCE.shortcuts);
+        // Eine Datei von vor 2.5.13 kennt die Aliase nicht (dann bleibt die leere Liste), eine von Hand bearbeitete kann sie als null fuehren
+        if (INSTANCE.aliases == null) INSTANCE.aliases = new ArrayList<>();
+        CommandAlias.normalize(INSTANCE.aliases);
         if (INSTANCE.safari == null) INSTANCE.safari = new SafariCategory();
         // Der Unterreiter kann in einer Datei von vor 1.1.4 als null stehen
         if (INSTANCE.chat.rareLoot == null) INSTANCE.chat.rareLoot = new RareLootCategory();
@@ -1364,6 +1367,13 @@ public class ModConfig extends Config {
      */
     @Expose
     public List<Shortcut> shortcuts = new ArrayList<>();
+
+    /**
+     * Aliase: ein kurzer Befehl, der beim Abschicken durch einen laengeren ersetzt wird ({@code /g} schickt {@code /warp garden}). Wie die Tasten kein Reiter in den
+     * Einstellungen: Gepflegt wird die Liste im zweiten Reiter des Fensters {@code /shoki shortcut}. Leer heisst: nichts wird ersetzt.
+     */
+    @Expose
+    public List<CommandAlias> aliases = new ArrayList<>();
 
     @Expose
     @Category(name = "Mining", desc = "Helpers for the mining islands: commissions, your pickaxe ability and the Sky Mall buff of the day.")
