@@ -2,6 +2,7 @@ package com.shokiteufel.shokimod.gui;
 
 import com.shokiteufel.shokimod.ShokiMod;
 import com.shokiteufel.shokimod.data.BannerDesign;
+import com.shokiteufel.shokimod.data.FeatureGate;
 import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.handler.MouseButtons;
 import com.shokiteufel.shokimod.render.DropBanner;
@@ -349,6 +350,8 @@ public class HudEditorScreen extends Screen {
      * sehen und sich fragen, warum er im Spiel fehlt.
      */
     private static boolean editorShows(SafariHud.Panel panel) {
+        // Die Kaesten von 26.3 fehlen auch mit "Show: All panels", solange der 26.3-Schalter aus ist: der Editor sieht aus wie vor 2.4.10
+        if (panel.from263() && !FeatureGate.update263()) return false;
         if (panel.visible()) return true;
         if (!ModConfig.INSTANCE.hud.editorShowsAll) return false;
         return panel != SafariHud.Panel.NEARBY;

@@ -93,11 +93,14 @@ public final class BannerUses {
                 name -> ModConfig.INSTANCE.fishing.air.bannerDesign = name,
                 "Feesh",
                 () -> resolved(ModConfig.INSTANCE.fishing.air.bannerDesign)));
-        out.add(new Use("Cocoon", "Cocoon", "A sea creature of yours was cocooned",
-                () -> ModConfig.INSTANCE.fishing.cocoon.bannerDesign,
-                name -> ModConfig.INSTANCE.fishing.cocoon.bannerDesign = name,
-                BannerDesign.ALERT_BAND,
-                () -> resolved(ModConfig.INSTANCE.fishing.cocoon.bannerDesign)));
+        // Beide Cocoon-Meldungen gehoeren zu 26.3: Mit dem Schalter aus stehen sie nicht in der Liste (die Einstellung bleibt gespeichert)
+        if (FeatureGate.update263()) {
+            out.add(new Use("Cocoon", "Cocoon", "A sea creature of yours was cocooned",
+                    () -> ModConfig.INSTANCE.fishing.cocoon.bannerDesign,
+                    name -> ModConfig.INSTANCE.fishing.cocoon.bannerDesign = name,
+                    BannerDesign.ALERT_BAND,
+                    () -> resolved(ModConfig.INSTANCE.fishing.cocoon.bannerDesign)));
+        }
         out.add(new Use("Hotspot gone", "Spot", "The warning when your hotspot despawns",
                 () -> ModConfig.INSTANCE.fishing.hotspot.warningDesign,
                 name -> ModConfig.INSTANCE.fishing.hotspot.warningDesign = name,
@@ -160,11 +163,13 @@ public final class BannerUses {
                 name -> ModConfig.INSTANCE.slayer.spawnBannerDesign = name,
                 BannerDesign.ALERT_BAND,
                 () -> resolved(ModConfig.INSTANCE.slayer.spawnBannerDesign)));
-        out.add(new Use("Slayer cocoon", "SCocoon", "Your Slayer boss was cocooned",
-                () -> ModConfig.INSTANCE.slayer.cocoonBannerDesign,
-                name -> ModConfig.INSTANCE.slayer.cocoonBannerDesign = name,
-                BannerDesign.ALERT_BAND,
-                () -> resolved(ModConfig.INSTANCE.slayer.cocoonBannerDesign)));
+        if (FeatureGate.update263()) {
+            out.add(new Use("Slayer cocoon", "SCocoon", "Your Slayer boss was cocooned",
+                    () -> ModConfig.INSTANCE.slayer.cocoonBannerDesign,
+                    name -> ModConfig.INSTANCE.slayer.cocoonBannerDesign = name,
+                    BannerDesign.ALERT_BAND,
+                    () -> resolved(ModConfig.INSTANCE.slayer.cocoonBannerDesign)));
+        }
         out.add(new Use("Cold", "Cold", "The warning when your cold gets close to freezing",
                 () -> ModConfig.INSTANCE.mining.cold.bannerDesign,
                 name -> ModConfig.INSTANCE.mining.cold.bannerDesign = name,

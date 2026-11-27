@@ -1,6 +1,7 @@
 package com.shokiteufel.shokimod.gui;
 
 import com.shokiteufel.shokimod.data.CommandAlias;
+import com.shokiteufel.shokimod.data.FeatureGate;
 import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.data.Shortcut;
 import com.shokiteufel.shokimod.handler.ShortcutHandler;
@@ -99,24 +100,29 @@ public class ShortcutScreen extends Screen {
 
     @Override
     protected void init() {
+        // Die Aliase gehoeren zu 26.3: Mit dem Schalter aus gibt es nur die Tasten, das Fenster sieht aus wie vor 2.4.10
+        boolean aliasesOn = FeatureGate.update263();
+        if (!aliasesOn && tab == Tab.ALIASES) tab = Tab.KEYS;
         page = Math.min(page, pageCount() - 1);
 
         int left = width / 2 - ROW_WIDTH / 2;
         int rows = rowsPerPage();
         int start = page * rows;
 
-        // Die zwei Reiter; der offene ist ausgegraut
-        int tabsLeft = width / 2 - TAB_WIDTH - GAP / 2;
+        // Die zwei Reiter; der offene ist ausgegraut. Ohne Aliase bleibt der eine, in der Mitte
+        int tabsLeft = aliasesOn ? width / 2 - TAB_WIDTH - GAP / 2 : width / 2 - TAB_WIDTH / 2;
         Button keysTab = Button.builder(Component.literal("Key shortcuts"), button -> switchTab(Tab.KEYS))
                 .bounds(tabsLeft, TAB_Y, TAB_WIDTH, WIDGET_HEIGHT).build();
         keysTab.active = tab != Tab.KEYS;
         keysTab.setTooltip(Tooltip.create(Component.literal("A key sends a command or a message.")));
         addRenderableWidget(keysTab);
-        Button aliasTab = Button.builder(Component.literal("Command aliases"), button -> switchTab(Tab.ALIASES))
-                .bounds(tabsLeft + TAB_WIDTH + GAP, TAB_Y, TAB_WIDTH, WIDGET_HEIGHT).build();
-        aliasTab.active = tab != Tab.ALIASES;
-        aliasTab.setTooltip(Tooltip.create(Component.literal("A short command that is swapped for a longer one when you send it: /g sends /warp garden.")));
-        addRenderableWidget(aliasTab);
+        if (aliasesOn) {
+            Button aliasTab = Button.builder(Component.literal("Command aliases"), button -> switchTab(Tab.ALIASES))
+                    .bounds(tabsLeft + TAB_WIDTH + GAP, TAB_Y, TAB_WIDTH, WIDGET_HEIGHT).build();
+            aliasTab.active = tab != Tab.ALIASES;
+            aliasTab.setTooltip(Tooltip.create(Component.literal("A short command that is swapped for a longer one when you send it: /g sends /warp garden.")));
+            addRenderableWidget(aliasTab);
+        }
 
         if (tab == Tab.KEYS) initKeyRows(left, rows, start);
         else initAliasRows(left, rows, start);

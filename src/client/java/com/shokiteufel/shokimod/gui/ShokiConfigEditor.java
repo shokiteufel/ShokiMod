@@ -1,17 +1,20 @@
 package com.shokiteufel.shokimod.gui;
 
 import com.shokiteufel.shokimod.ShokiMod;
+import com.shokiteufel.shokimod.data.FeatureGate;
 import com.shokiteufel.shokimod.data.ModConfig;
+import com.shokiteufel.shokimod.data.Update263Scope;
 
 import io.github.notenoughupdates.moulconfig.gui.MoulConfigEditor;
 import io.github.notenoughupdates.moulconfig.processor.ProcessedCategory;
 import io.github.notenoughupdates.moulconfig.observer.GetSetter;
 import io.github.notenoughupdates.moulconfig.processor.MoulConfigProcessor;
-import io.github.notenoughupdates.moulconfig.processor.ProcessedCategory;
+import io.github.notenoughupdates.moulconfig.processor.ProcessedOption;
 
 import java.lang.reflect.Field;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Predicate;
 
 /**
@@ -60,11 +63,38 @@ public class ShokiConfigEditor extends MoulConfigEditor<ModConfig> {
     }
 
     private static final List<Hidden> HIDDEN = List.of(
-            hidden("mobVisuals", typed -> SECRET_SHA256.equals(sha256(typed.trim()))),
+            hidden("mobVisuals", ShokiConfigEditor::isSecret),
             // ikohS (ShokiMods eigene Funktionen) ist ebenso verborgen und geht mit demselben Codewort auf
-            hidden("ikohS", typed -> SECRET_SHA256.equals(sha256(typed.trim()))),
+            hidden("ikohS", ShokiConfigEditor::isSecret),
             hidden("bugHunt", typed -> BUG_WORD.equalsIgnoreCase(typed.trim()) || LOG_WORD.equalsIgnoreCase(typed.trim())),
             hidden("logs", typed -> LOG_WORD.equalsIgnoreCase(typed.trim())));
+
+    /**
+     * Das Codewort-Ergebnis des letzten Suchtexts. Das Menue fragt je Bild an gut zwanzig Stellen, ob ein verborgener Reiter offen ist; jedes Mal SHA-256 zu rechnen
+     * (mit 32 Formatierungen fuer den Hex-Text) war der teuerste Teil davon. Der Text aendert sich nur beim Tippen.
+     */
+    private record SecretCheck(String text, boolean match) {
+    }
+
+    private static volatile SecretCheck lastSecret = new SecretCheck(null, false);
+
+    /** Steht im Suchfeld das Codewort? Das Ergebnis wird fuer denselben Text gemerkt */
+    static boolean isSecret(String typed) {
+        SecretCheck last = lastSecret;
+        if (typed.equals(last.text())) return last.match();
+        boolean match = SECRET_SHA256.equals(sha256(typed.trim()));
+        lastSecret = new SecretCheck(typed, match);
+        return match;
+    }
+
+    /** MoulConfigs Liste der Eintraege, die gerade zu sehen sind (privat). Null, wenn sie anders heisst: dann bleiben die Eintraege der Liste von 26.3 stehen */
+    private static final Field VISIBLE_OPTIONS = findVisibleOptions();
+
+    /** Stand des 26.3-Schalters beim letzten Aufbau der Eintraege: aendert er sich, werden sie neu aufgebaut */
+    private boolean appliedUpdate263 = true;
+
+    /** Ist der Konstruktor durch? Davor ruft die Oberklasse {@link #updateSearchResults(boolean)} schon, mitten im Aufbau ihrer Tabellen */
+    private boolean constructed = false;
 
     /** Der Rohtext des Suchfelds. Null, wenn MoulConfig ihn nicht mehr so ablegt */
     private final GetSetter<String> searchText;
@@ -91,6 +121,58 @@ public class ShokiConfigEditor extends MoulConfigEditor<ModConfig> {
         this.lastSaved = getSelectedCategory();
         this.savedSearch = typed();
         this.waitingSearch = savedSearch;
+        // Die Oberklasse hat die Eintraege schon einmal aufgebaut, aber vor diesem Konstruktor und womoeglich vor ihren Nachschlagetabellen: noch einmal
+        this.constructed = true;
+        this.appliedUpdate263 = FeatureGate.update263();
+        hideUpdate263Options();
+    }
+
+    /**
+     * Mit dem 26.3-Schalter aus: die einzelnen Eintraege von 26.3 (in Reitern, die auch Aelteres enthalten) nehmen wir aus der Liste der sichtbaren.
+     *
+     * MoulConfig fragt bei leerem Suchfeld gar nicht erst, welche Eintraege passen: Es nimmt alle. Darum setzt der Suchfilter hier nicht an, sondern das
+     * Ergebnis: Aus MoulConfigs Menge der sichtbaren Eintraege fallen die heraus, die {@link Update263Scope} nennt. Ganze Reiter nimmt
+     * {@link #getCurrentlyVisibleCategories()} heraus. Die Einstellungen selbst bleiben unberuehrt.
+     */
+    @Override
+    public void updateSearchResults(boolean reset) {
+        super.updateSearchResults(reset);
+        hideUpdate263Options();
+    }
+
+    @SuppressWarnings("unchecked")
+    private void hideUpdate263Options() {
+        if (FeatureGate.update263() || VISIBLE_OPTIONS == null) return;
+        try {
+            Set<ProcessedOption> visible = (Set<ProcessedOption>) VISIBLE_OPTIONS.get(this);
+            if (visible == null) return;
+            visible.removeAll(Update263Scope.optionsToHide(getAllOptions(), this::getOptionFromField));
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            // Mitten im Aufbau der Oberklasse fehlen die Nachschlagetabellen noch; der Konstruktor ruft es danach noch einmal. Danach ist es ein echter Fehler
+            if (constructed) ShokiMod.LOGGER.warn("Could not hide the 26.3 entries of the settings.", e);
+        }
+    }
+
+    private static Field findVisibleOptions() {
+        try {
+            Field field = MoulConfigEditor.class.getDeclaredField("currentlyVisibleOptions");
+            field.setAccessible(true);
+            return field;
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            ShokiMod.LOGGER.warn("MoulConfig's list of visible options not readable, the 26.3 entries stay in the menu.", e);
+            return null;
+        }
+    }
+
+    /**
+     * Jedes Bild: Hat der 26.3-Schalter gewechselt, werden die Eintraege neu aufgebaut - sonst ginge das Ausblenden (und Zurueckholen) erst beim naechsten Tippen
+     * in der Suche.
+     */
+    void refreshForUpdate263() {
+        boolean on = FeatureGate.update263();
+        if (on == appliedUpdate263) return;
+        appliedUpdate263 = on;
+        updateSearchResults();
     }
 
     /**
@@ -126,7 +208,8 @@ public class ShokiConfigEditor extends MoulConfigEditor<ModConfig> {
         if (id != null && !id.isBlank()) {
             try {
                 ProcessedCategory category = getAllCategories().get(id);
-                if (category != null) {
+                // Ein Reiter von 26.3 kommt nicht zurueck, solange der Schalter aus ist (er steht dann nicht in der Liste)
+                if (category != null && !Update263Scope.categoryHidden(category.getIdentifier(), category.getParentCategoryId())) {
                     Hidden hidden = hiddenOf(category);
                     if (hidden == null || unlocked(hidden)) setSelectedCategory(category);
                 }
@@ -146,6 +229,7 @@ public class ShokiConfigEditor extends MoulConfigEditor<ModConfig> {
      */
     @Override
     public void render() {
+        refreshForUpdate263();
         super.render();
         rememberTab();
         rememberSearch();
@@ -203,7 +287,10 @@ public class ShokiConfigEditor extends MoulConfigEditor<ModConfig> {
     public LinkedHashMap<String, ProcessedCategory> getCurrentlyVisibleCategories() {
         LinkedHashMap<String, ProcessedCategory> visible = super.getCurrentlyVisibleCategories();
         visible.entrySet().removeIf(entry -> {
-            Hidden hidden = hiddenOf(entry.getValue());
+            // Mit dem 26.3-Schalter aus: die Reiter von 26.3 (und ihre Unter-Reiter) fehlen, das Menue sieht aus wie vor 2.4.10
+            ProcessedCategory category = entry.getValue();
+            if (Update263Scope.categoryHidden(category.getIdentifier(), category.getParentCategoryId())) return true;
+            Hidden hidden = hiddenOf(category);
             return hidden != null && !unlocked(hidden);
         });
         return visible;
@@ -263,14 +350,16 @@ public class ShokiConfigEditor extends MoulConfigEditor<ModConfig> {
         try {
             search(text);
             for (ProcessedCategory kategorie : getCurrentlySearchedCategories().values()) {
+                if (Update263Scope.categoryHidden(kategorie.getIdentifier(), kategorie.getParentCategoryId())) continue;
                 String name = kategorie.getDisplayName().getText();
                 if (name != null && name.trim().equalsIgnoreCase(text.trim())) {
                     setSelectedCategory(kategorie);
                     return;
                 }
             }
-            // Kein genauer Treffer: dann wenigstens die erste der gefilterten Liste
+            // Kein genauer Treffer: dann wenigstens die erste der gefilterten Liste (ein ausgeblendeter Reiter von 26.3 zaehlt nicht)
             for (ProcessedCategory kategorie : getCurrentlySearchedCategories().values()) {
+                if (Update263Scope.categoryHidden(kategorie.getIdentifier(), kategorie.getParentCategoryId())) continue;
                 setSelectedCategory(kategorie);
                 return;
             }

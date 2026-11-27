@@ -5999,17 +5999,19 @@ public class ModConfig extends Config {
      *
      * <p>Aus heisst: keine dieser Funktionen tut etwas (siehe {@link FeatureGate#update263()}, {@code SafariHud.Panel#from263()} und die wenigen Stellen, die ihren
      * Schalter selbst lesen). Die Schalter in den Reitern werden dabei nicht angefasst: Wer den 26.3-Schalter wieder einschaltet, hat genau das zurueck, was an war.
+     * Seit 2.6.3 verschwinden mit dem Schalter aus auch die Reiter, Unter-Reiter und Eintraege dieser Funktionen aus dem Menue (siehe {@code Update263Scope}), sodass
+     * es aussieht wie vor 2.4.10.
      * Von Haus aus an, denn die einzelnen Funktionen sind alle von Haus aus aus - ein Schalter, der von Haus aus aus waere, schaltete bei jedem, der schon etwas
      * eingestellt hat, nach dem Update alles ab.
      */
     public static class Update263Category {
 
-        @ConfigOption(name = "26.3", desc = "One switch for everything that came with the move to 26.3 (versions 2.4.10 and later). These functions were meant as a stopgap while SkyHanni and Skyblocker had no version for 26.3. Their own settings stay in their tabs.")
+        @ConfigOption(name = "26.3", desc = "One switch for everything that came with the move to 26.3 (versions 2.4.10 and later). These functions were meant as a stopgap while SkyHanni and Skyblocker had no version for 26.3. Their own settings stay in their tabs. With the switch off, these tabs and entries are hidden from this menu, so it looks like before.")
         @ConfigEditorInfoText
         public transient String about = "";
 
         @Expose
-        @ConfigOption(name = "Enable 26.3 features", desc = "On: the 26.3 functions work as you set them in their own tabs. Off: none of them does anything. Your settings in the tabs are not touched, so turning this on again brings back exactly what was on. Useful once SkyHanni or Skyblocker run on 26.3 and would do the same thing twice. On from the start; every function in it is still off until you turn it on in its own tab.")
+        @ConfigOption(name = "Enable 26.3 features", desc = "On: the 26.3 functions work as you set them in their own tabs. Off: none of them does anything, and their tabs and entries disappear from this menu. Your settings are not touched, so turning this on again brings back exactly what was on. Useful once SkyHanni or Skyblocker run on 26.3 and would do the same thing twice. On from the start; every function in it is still off until you turn it on in its own tab.")
         @ConfigEditorBoolean
         public boolean enabled = true;
 
