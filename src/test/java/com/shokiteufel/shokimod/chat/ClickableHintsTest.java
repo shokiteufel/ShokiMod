@@ -72,4 +72,22 @@ class ClickableHintsTest {
             ModConfig.INSTANCE = saved;
         }
     }
+
+    @Test
+    void withThe263SwitchOffTheHintsStayAsTheyWereBeforeTheFunction() {
+        ModConfig saved = ModConfig.INSTANCE;
+        try {
+            ModConfig.INSTANCE = new ModConfig();
+            ModConfig.INSTANCE.chatTab.hideClickableHints = true;
+            assertTrue(ClickableHints.hidden());
+            ModConfig.INSTANCE.update263.enabled = false;
+            assertFalse(ClickableHints.hidden(), "aus: die Hinweise stehen wieder da");
+            assertEquals("[ShokiMod] Name wrote hello in the guild chat [Click to invite Name]", ClickableHints.attach(line(), hint()).getString());
+            assertTrue(ModConfig.INSTANCE.chatTab.hideClickableHints, "der Schalter selbst bleibt");
+            ModConfig.INSTANCE.update263.enabled = true;
+            assertTrue(ClickableHints.hidden());
+        } finally {
+            ModConfig.INSTANCE = saved;
+        }
+    }
 }

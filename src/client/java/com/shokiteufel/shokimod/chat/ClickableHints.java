@@ -1,5 +1,6 @@
 package com.shokiteufel.shokimod.chat;
 
+import com.shokiteufel.shokimod.data.FeatureGate;
 import com.shokiteufel.shokimod.data.ModConfig;
 
 import net.minecraft.network.chat.ClickEvent;
@@ -26,9 +27,9 @@ public final class ClickableHints {
     private ClickableHints() {
     }
 
-    /** Ist der Schalter an? */
+    /** Ist der Schalter an? Mit dem 26.3-Schalter aus bleibt es bei den Hinweisen, wie sie vor dieser Funktion waren */
     public static boolean hidden() {
-        return ModConfig.INSTANCE.chatTab.hideClickableHints;
+        return FeatureGate.update263() && ModConfig.INSTANCE.chatTab.hideClickableHints;
     }
 
     /** Haengt den Hinweis an die Zeile - oder, mit dem Schalter, nur seinen Klick und Hover auf die ganze Zeile */

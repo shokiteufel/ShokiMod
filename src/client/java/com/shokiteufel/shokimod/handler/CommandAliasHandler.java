@@ -2,6 +2,7 @@ package com.shokiteufel.shokimod.handler;
 
 import com.shokiteufel.shokimod.ShokiMod;
 import com.shokiteufel.shokimod.data.CommandAlias;
+import com.shokiteufel.shokimod.data.FeatureGate;
 import com.shokiteufel.shokimod.data.ModConfig;
 
 import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
@@ -32,7 +33,8 @@ public final class CommandAliasHandler {
     /** Der Befehl, der wirklich geschickt wird (ohne Schraegstrich) - mit den Eintraegen der Einstellungen */
     static String rewrite(String command) {
         ModConfig config = ModConfig.INSTANCE;
-        if (config == null || config.aliases == null || config.aliases.isEmpty()) return command;
+        // Mit dem 26.3-Schalter aus ersetzt die Mod nichts (die Liste bleibt gespeichert)
+        if (config == null || config.aliases == null || config.aliases.isEmpty() || !FeatureGate.update263()) return command;
         return CommandAlias.rewrite(config.aliases, command);
     }
 }

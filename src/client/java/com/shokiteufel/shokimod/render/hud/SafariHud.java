@@ -1,5 +1,6 @@
 package com.shokiteufel.shokimod.render.hud;
 
+import com.shokiteufel.shokimod.data.FeatureGate;
 import com.shokiteufel.shokimod.data.GameState;
 import com.shokiteufel.shokimod.data.ModConfig;
 import net.minecraft.client.Minecraft;
@@ -21,7 +22,21 @@ public final class SafariHud {
     public enum Panel {
         PROGRESS, MISSING, CONTEST, NEARBY, GUILD, PROFIT, MINING, PET, PERFORMANCE, SEATRACKER, EFFECTS, SEAHP, DARK_AUCTION, FIRE_VEIL, DEPLOYABLES, FORGE, SKILL_XP, FROZEN_BLAZE, FISHING_HOOK, FISHING_BAIT, SKILL_PROGRESS, SKILL_BAR, BAZAAR_SELL, NPC_LIMIT, ITEM_VALUE, CURRENT_CHAT, VISITOR_LIST, GARDEN_PLOTS, LEGION_BOBBIN;
 
+        /**
+         * Gehoert der Kasten zu einer Funktion, die seit der Umstellung auf 26.3 (ab 2.4.10) dazukam? Mit dem 26.3-Schalter aus ruht er ({@link #visible()}); die
+         * Schalter der Funktion selbst bleiben dabei, wie sie sind.
+         */
+        public boolean from263() {
+            return switch (this) {
+                case FISHING_HOOK, FISHING_BAIT, SKILL_PROGRESS, SKILL_BAR, BAZAAR_SELL, NPC_LIMIT, ITEM_VALUE, CURRENT_CHAT, VISITOR_LIST, GARDEN_PLOTS,
+                        LEGION_BOBBIN -> true;
+                default -> false;
+            };
+        }
+
         public boolean visible() {
+            // Zuerst der 26.3-Schalter: Ist er aus, wird auch das, was der Kasten sonst fragt (Fenster, Gebiet, Chat), nicht angefasst
+            if (from263() && !FeatureGate.update263()) return false;
             ModConfig.SafariCategory c = ModConfig.INSTANCE.safari;
             return switch (this) {
                 case PROGRESS -> c.showProgressHud;

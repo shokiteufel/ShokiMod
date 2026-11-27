@@ -6,6 +6,7 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import com.shokiteufel.shokimod.ShokiMod;
+import com.shokiteufel.shokimod.data.FeatureGate;
 import com.shokiteufel.shokimod.data.GameState;
 import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.handler.WarpCommands;
@@ -65,8 +66,12 @@ public final class TabCompleteCommands {
                         .executes(context -> run(name, StringArgumentType.getString(context, "text"))));
     }
 
-    /** Die Schalter, wie sie jetzt stehen */
+    /** Alle Schalter aus: so sieht die Funktion aus, solange der 26.3-Schalter aus ist */
+    private static final TabCompleteRules.Switches NONE = new TabCompleteRules.Switches(false, false, false, false, false, false, false, false, false, false, false);
+
+    /** Die Schalter, wie sie jetzt stehen - mit dem 26.3-Schalter aus alle aus (die Einstellungen selbst bleiben, wie sie sind) */
     static TabCompleteRules.Switches switches() {
+        if (!FeatureGate.update263()) return NONE;
         ModConfig.TabCompleteCategory c = ModConfig.INSTANCE.chatTab.tabComplete;
         return new TabCompleteRules.Switches(c.warps, c.islandPlayers, c.friends, c.onlyBestFriends, c.party, c.guild, c.gfsSack, c.viewRecipe, c.showItem,
                 c.call, c.stashCommand);

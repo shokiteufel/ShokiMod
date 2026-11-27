@@ -18,6 +18,17 @@ public final class FeatureGate {
     private FeatureGate() {
     }
 
+    /**
+     * Der 26.3-Schalter (ModConfig {@code update263}, seit 2.6.2): Arbeiten die Funktionen, die seit der Umstellung auf 26.3 (ab 2.4.10) dazukamen? Aus heisst: keine tut
+     * etwas - ihre eigenen Schalter bleiben dabei unberuehrt. Ein fehlender Eintrag (alte Datei, Tests) gilt als an. Jede Abfrage unten, die zu so einer Funktion gehoert,
+     * fragt zuerst hier; Kaesten tun es ueber {@code SafariHud.Panel#visible()}.
+     */
+    public static boolean update263() {
+        ModConfig config = ModConfig.INSTANCE;
+        ModConfig.Update263Category c = config == null ? null : config.update263;
+        return c == null || c.enabled;
+    }
+
     /** Soll noch irgendein Mob markiert werden - eigener Eintrag, seltenes Exemplar oder etwas aus dem Slayer-Reiter? */
     public static boolean mobMarkers() {
         // Der Slayer-Reiter hat seine eigenen Schalter und haengt nicht am Hauptschalter der Mobs
@@ -170,11 +181,13 @@ public final class FeatureGate {
 
     /** Garden > Visitor Shopping List: die Besucher mitfuehren und die Liste zeichnen - nur wenn sie an ist. Braucht den Ort (nur in SkyBlock) */
     public static boolean visitorShoppingList() {
+        if (!update263()) return false;
         return ModConfig.INSTANCE.garden.shoppingList.enabled;
     }
 
     /** Garden > Visitor Reward Warning: eine der sechs Sperren fuer die Knoepfe im Besucherfenster ist an */
     public static boolean visitorBlocking() {
+        if (!update263()) return false;
         ModConfig.GardenRewardWarningCategory c = ModConfig.INSTANCE.garden.rewardWarning;
         return c.preventRefusing || c.preventRefusingNew || c.preventRefusingCopper || c.preventAcceptingCopper
                 || c.preventRefusingLowLoss || c.preventAcceptingHighLoss;
@@ -182,6 +195,7 @@ public final class FeatureGate {
 
     /** Garden > Visitor Reward Warning: das Fenster der Besucher lesen - nur wenn eine der Funktionen daraus an ist. Braucht den Ort (nur in SkyBlock) */
     public static boolean visitorRewardWarning() {
+        if (!update263()) return false;
         ModConfig.GardenRewardWarningCategory c = ModConfig.INSTANCE.garden.rewardWarning;
         return c.notifyInChat || c.showOverName || visitorBlocking();
     }
@@ -193,6 +207,7 @@ public final class FeatureGate {
 
     /** Garden > Garden Plots Widget: die befallenen Plots aus der Tab-Liste lesen und die Karte zeichnen - nur wenn es an ist. Braucht den Ort (nur in SkyBlock) */
     public static boolean gardenPlots() {
+        if (!update263()) return false;
         return ModConfig.INSTANCE.garden.plots.enabled;
     }
 
@@ -295,66 +310,78 @@ public final class FeatureGate {
 
     /** Der Titel und der Ton beim Cocoon des Slayer-Bosses lesen die Chatzeile - nur wenn einer der beiden an ist. Braucht den Ort (nur in SkyBlock) */
     public static boolean slayerCocoon() {
+        if (!update263()) return false;
         return ModConfig.INSTANCE.slayer.cocoonTitle || ModConfig.INSTANCE.slayer.cocoonDing;
     }
 
     /** Die Spawn-Partikel des Slayers: tote Mobs suchen und Partikel-Pakete pruefen - nur wenn eine der drei Arten verstellt ist. Braucht den Ort (nur in SkyBlock) */
     public static boolean slayerSpawnParticles() {
+        if (!update263()) return false;
         return ModConfig.INSTANCE.slayer.anySpawnParticle();
     }
 
     /** Skill progress liest die Aktionsleiste, die Tab-Liste und das Menue der Faehigkeiten - nur wenn es an ist. Braucht den Ort (nur in SkyBlock) */
     public static boolean skillProgress() {
+        if (!update263()) return false;
         return ModConfig.INSTANCE.skillProgress.enabled;
     }
 
     /** Skill progress > Hide in action bar: den Zugewinn aus der Aktionsleiste schneiden - nur wenn Skill progress UND der Schalter an sind. Braucht den Ort (nur in SkyBlock; skillProgress() steht schon in location()) */
     public static boolean hideSkillGain() {
+        if (!update263()) return false;
         ModConfig.SkillProgressCategory c = ModConfig.INSTANCE.skillProgress;
         return c.enabled && c.hideInActionBar;
     }
 
     /** Inventory > Auction house > Highlight Auctions und Highlight Underbid Auctions: Manage Auctions lesen und Plaetze markieren - nur wenn eines von beiden an ist. Braucht den Ort (nur in SkyBlock) */
     public static boolean auctionHighlights() {
+        if (!update263()) return false;
         ModConfig.AuctionHouseHelpersCategory c = ModConfig.INSTANCE.inventory.auctions;
         return c.highlightAuctions || c.highlightUnderbid;
     }
 
     /** Fishing > Shorten Fishing Message und Compact Double Hook: die Fang-Zeilen im Chat lesen und umschreiben - nur wenn eines von beiden an ist. Braucht den Ort (nur in SkyBlock) */
     public static boolean fishingLines() {
+        if (!update263()) return false;
         return ModConfig.INSTANCE.fishing.anyChatLine();
     }
 
     /** Inventory > Auction house: das Fenster zum Einstellen lesen und auf die Taste achten - nur wenn eines von beiden an ist. Braucht den Ort (nur in SkyBlock) */
     public static boolean auctionUnderbid() {
+        if (!update263()) return false;
         ModConfig.AuctionHouseHelpersCategory c = ModConfig.INSTANCE.inventory.auctions;
         return c.autoCopyUnderbid || c.hasCopyKey();
     }
 
     /** Inventory > Bazaar: Fenster des Basars lesen, Plaetze markieren, Suchen mitschreiben - nur wenn eine der vier Hilfen an ist. Braucht den Ort (nur in SkyBlock) */
     public static boolean bazaarHelpers() {
+        if (!update263()) return false;
         ModConfig.BazaarHelpersCategory c = ModConfig.INSTANCE.inventory.bazaar;
         return c.purchaseHelper || c.orderHelper || c.bestSellMethod || c.cancelledBuyOrderClipboard || c.orderPrices;
     }
 
     /** Misc > NPC Daily Limit Tracker: die Verkaufszeilen im Chat zaehlen - nur wenn er an ist. Braucht den Ort (nur in SkyBlock) */
     public static boolean npcDayLimit() {
+        if (!update263()) return false;
         return ModConfig.INSTANCE.misc.npcLimit.enabled;
     }
 
     /** Misc > Legion/Bobbin Overlay: Spieler und Haken ringsum zaehlen, die Ruestung lesen - nur wenn es an ist. Braucht den Ort (nur in SkyBlock) */
     public static boolean legionBobbin() {
+        if (!update263()) return false;
         return ModConfig.INSTANCE.misc.legionBobbin.enabled;
     }
 
     /** Misc: Warp-Befehle kuerzen oder ersetzen - nur wenn einer der beiden Schalter an ist. Braucht den Ort (nur in SkyBlock) */
     public static boolean warpCommands() {
+        if (!update263()) return false;
         ModConfig.MiscCategory c = ModConfig.INSTANCE.misc;
         return c.shortenWarp || c.replaceWarpIs;
     }
 
     /** Misc > Fix item double clicks: jedes gesendete Block-Paket pruefen - nur wenn es an ist. Braucht den Ort (nur in SkyBlock) */
     public static boolean fixDoubleClicks() {
+        if (!update263()) return false;
         return ModConfig.INSTANCE.misc.fixDoubleClicks;
     }
 
@@ -363,69 +390,82 @@ public final class FeatureGate {
      * {@link #location()} bliebe der Ort ungelesen, und die Mod rechnete auf keinem Server.
      */
     public static boolean inputCalculator() {
+        if (!update263()) return false;
         return ModConfig.INSTANCE.uiVisuals.inputCalculator.enabled;
     }
 
     /** Inventory > Estimated Item Value: den Gegenstand unter der Maus lesen und rechnen - nur wenn der Kasten, die Tooltip-Zeile oder eine Kleiderschrank-Summe an ist. Braucht den Ort (nur in SkyBlock) */
     public static boolean estimatedItemValue() {
+        if (!update263()) return false;
         ModConfig.EstimatedItemValueCategory c = ModConfig.INSTANCE.inventory.itemValue;
         return c.enabled || c.showTooltip || c.armor || c.equipment;
     }
 
     /** Chat (Teil 1): greift irgendein Schalter in den Chat ein? Der Chat-Weg fragt das fuer jede Zeile als Erstes - ist es nein, kostet eine Zeile nichts weiter */
     public static boolean chatFilters() {
+        if (!update263()) return false;
         // Fishing > Shorten Fishing Message / Compact Double Hook laufen ueber denselben Weg, auch wenn kein Schalter von Chat an ist
         return ModConfig.INSTANCE.chatTab.anyFilter() || fishingLines();
     }
 
     /** Chat (Teil 1): braucht ein eingeschalteter Schalter das Gebiet? Dann liest die Mod die Tab-Liste (in SkyBlock) */
     public static boolean chatFiltersLocation() {
+        if (!update263()) return false;
         return ModConfig.INSTANCE.chatTab.needsLocation();
     }
 
     /** Chat (Teil 1): fragt ein eingeschalteter Schalter, ob man in einem Dungeon steht? Dann liest {@code DungeonLauf} mit */
     public static boolean chatFiltersDungeon() {
+        if (!update263()) return false;
         return ModConfig.INSTANCE.chatTab.needsDungeon();
     }
 
     /** Chat (Teil 2): SkyBlock XP in Chat liest die Aktionsleiste - nur wenn es an ist. Braucht den Ort (nur in SkyBlock) */
     public static boolean skyblockXpInChat() {
+        if (!update263()) return false;
         return ModConfig.INSTANCE.chatTab.skyBlockXpInChat;
     }
 
     /** Chat (Teil 2): Muss der Tick des Chats laufen (Hide Far Deaths, Enchanting-Belohnungen, Jacob, Buchname, fehlende Buchmeldung)? Nur wenn einer davon an ist */
     public static boolean chatTick() {
+        if (!update263()) return false;
         return ModConfig.INSTANCE.chatTab.needsTick();
     }
 
     /** Chat > Hide Far Deaths: einmal in der Sekunde die Spieler in der Naehe lesen - nur wenn es an ist. Braucht den Ort (nur in SkyBlock) */
     public static boolean farDeaths() {
+        if (!update263()) return false;
         return ModConfig.INSTANCE.chatTab.hideFarDeaths;
     }
 
     /** Chat (Teil 3) > Peek Chat: eine Taste gewaehlt? Dann fragen die zwei Einspruenge des Chats, ob sie gehalten wird */
     public static boolean chatPeek() {
+        if (!update263()) return false;
         return ModConfig.INSTANCE.chatTab.hasPeekKey();
     }
 
     /** Chat (Teil 3) > Copy Chat: ein Rechtsklick im Chatfenster kopiert die Zeile - nur wenn es an ist */
     public static boolean copyChat() {
+        if (!update263()) return false;
         return ModConfig.INSTANCE.chatTab.copyChat;
     }
 
     /** Chat (Teil 3) > Current Chat Display: merkt, in welchem Chat man ist, und zeigt den Kasten - nur wenn es an ist. Braucht den Ort (der Kasten steht nur in SkyBlock) */
     public static boolean currentChatDisplay() {
+        if (!update263()) return false;
         return ModConfig.INSTANCE.chatTab.currentChatDisplay;
     }
 
     /** Chat (Teil 3) > Sound Responses: jede Chatzeile auf die Woerter der Tiere lesen - nur wenn es an ist und eine Art. Braucht den Ort (nur in SkyBlock) */
     public static boolean chatSoundResponses() {
+        if (!update263()) return false;
         ModConfig.ChatSoundResponseCategory c = ModConfig.INSTANCE.chatTab.soundResponse;
         return c != null && c.enabled && c.anyType();
     }
 
     /** Chat (Teil 3) > Tab Complete: die Befehle fuehren nur aus, wenn einer der Schalter an ist. Braucht den Ort (nur in SkyBlock) */
     public static boolean chatTabComplete() {
+        if (!update263()) return false;
         ModConfig.TabCompleteCategory c = ModConfig.INSTANCE.chatTab.tabComplete;
         return c != null && c.any();
     }
@@ -437,12 +477,14 @@ public final class FeatureGate {
 
     /** Chat (Teil 4) > Player Messages: die Zeilen der Spieler neu zusammensetzen oder den Rang verbergen - nur wenn einer der beiden Schalter an ist. Braucht den Ort (nur in SkyBlock) */
     public static boolean chatPlayerMessages() {
+        if (!update263()) return false;
         ModConfig.PlayerMessagesCategory c = ModConfig.INSTANCE.chatTab.playerMessages;
         return c != null && c.any();
     }
 
     /** Chat (Teil 4) > Translator: jede Spielerzeile bekommt den Klick zum Uebersetzen - nur wenn "Translate On Click" an ist. Braucht den Ort (nur in SkyBlock) */
     public static boolean chatTranslator() {
+        if (!update263()) return false;
         ModConfig.TranslatorCategory c = ModConfig.INSTANCE.chatTab.translator;
         return c != null && c.translateOnClick;
     }
@@ -491,16 +533,19 @@ public final class FeatureGate {
 
     /** Fishing > Hook display: Jeden Tick die Ruestungsstaender am eigenen Haken lesen - nur wenn es an ist. Braucht den Ort (nur in SkyBlock) */
     public static boolean hookDisplay() {
+        if (!update263()) return false;
         return ModConfig.INSTANCE.fishing.hookDisplay.enabled;
     }
 
     /** Fishing > Bait display: alle fuenf Ticks den Koeder in der Leiste lesen - nur wenn es an ist. Braucht den Ort (nur in SkyBlock) */
     public static boolean baitDisplay() {
+        if (!update263()) return false;
         return ModConfig.INSTANCE.fishing.baitDisplay.enabled;
     }
 
     /** Fishing > Cocoon settings: die Chatzeile "CAUGHT! You cocooned ..." auswerten - nur wenn Titel oder Teilen an ist. Braucht den Ort (nur in SkyBlock) */
     public static boolean seaCocoon() {
+        if (!update263()) return false;
         ModConfig.SeaCocoonCategory c = ModConfig.INSTANCE.fishing.cocoon;
         return c.warn || c.share;
     }

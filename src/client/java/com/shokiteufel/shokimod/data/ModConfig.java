@@ -221,6 +221,15 @@ public class ModConfig extends Config {
         if (c.uiVisuals.inputCalculator == null) c.uiVisuals.inputCalculator = new InputCalculatorCategory();
     }
 
+    /**
+     * 26.3-Schalter (seit 2.6.2): Eine Datei von vorher kennt ihn nicht - dann bleibt die Vorgabe (an) stehen; nur ein "null" aus der Hand wird durch sie ersetzt.
+     * Ein gespeichertes "aus" bleibt aus.
+     */
+    static void repairUpdate263(ModConfig c) {
+        if (c == null) return;
+        if (c.update263 == null) c.update263 = new Update263Category();
+    }
+
     /** Gemerkte Spielernamen (Chat > Tab Complete): nie null, nur gueltige Namen (bis 16 Buchstaben, Ziffern und Unterstriche), keine Doppelten, hoechstens 5000 */
     static java.util.List<String> cleanNames(java.util.List<String> names) {
         java.util.LinkedHashSet<String> out = new java.util.LinkedHashSet<>();
@@ -650,6 +659,7 @@ public class ModConfig extends Config {
         repairMisc(INSTANCE);
         repairUiVisuals(INSTANCE);
         repairChatTab(INSTANCE);
+        repairUpdate263(INSTANCE);
         if (INSTANCE.logs == null) INSTANCE.logs = new LogsCategory();
         if (INSTANCE.mining.cold == null) INSTANCE.mining.cold = new ColdAlertCategory();
         if (INSTANCE.mining.cold.bannerDesign == null) INSTANCE.mining.cold.bannerDesign = BannerDesign.ALERT_BAND;
@@ -1513,6 +1523,15 @@ public class ModConfig extends Config {
     @Expose
     @Category(name = "HUD", desc = "The panels on screen: where they sit, how big they are and how they look.")
     public HudCategory hud = new HudCategory();
+
+    /**
+     * Der 26.3-Schalter (seit 2.6.2): ein Schalter fuer alle Funktionen, die seit der Umstellung auf 26.3 (ab 2.4.10) dazukamen. Steht ganz unten, wie das HUD: Es ist
+     * keine Funktion, sondern die Frage, ob die Funktionen der anderen Reiter arbeiten duerfen. Die Einstellungen der Funktionen selbst bleiben in ihren Reitern.
+     */
+    @Expose
+    @Category(name = "26.3", desc = "One switch for everything that came with the move to 26.3 (versions 2.4.10 and later): mostly functions rebuilt from SkyHanni and Skyblocker while those had no 26.3 version. Turn it off and all of them rest; turn it on and they work again as you set them.")
+    public Update263Category update263 = new Update263Category();
+
     /**
      * Der Tageszaehler, wie ihn GanKura hatte.
      *
@@ -5972,6 +5991,31 @@ public class ModConfig extends Config {
         @Expose
         @Category(name = "Input Calculator", desc = "Calculate in the number signs (auction bid, bazaar price and amount). Off until you turn it on. Idea from Skyblocker.")
         public InputCalculatorCategory inputCalculator = new InputCalculatorCategory();
+    }
+
+    /**
+     * 26.3: ein Schalter fuer alle Funktionen, die seit der Umstellung auf 26.3 (ab 2.4.10) dazukamen - sie waren als Zwischenloesung gedacht, solange SkyHanni
+     * und Skyblocker keine Fassung fuer 26.3 hatten (Auftrag des Users, 27.11.).
+     *
+     * <p>Aus heisst: keine dieser Funktionen tut etwas (siehe {@link FeatureGate#update263()}, {@code SafariHud.Panel#from263()} und die wenigen Stellen, die ihren
+     * Schalter selbst lesen). Die Schalter in den Reitern werden dabei nicht angefasst: Wer den 26.3-Schalter wieder einschaltet, hat genau das zurueck, was an war.
+     * Von Haus aus an, denn die einzelnen Funktionen sind alle von Haus aus aus - ein Schalter, der von Haus aus aus waere, schaltete bei jedem, der schon etwas
+     * eingestellt hat, nach dem Update alles ab.
+     */
+    public static class Update263Category {
+
+        @ConfigOption(name = "26.3", desc = "One switch for everything that came with the move to 26.3 (versions 2.4.10 and later). These functions were meant as a stopgap while SkyHanni and Skyblocker had no version for 26.3. Their own settings stay in their tabs.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Enable 26.3 features", desc = "On: the 26.3 functions work as you set them in their own tabs. Off: none of them does anything. Your settings in the tabs are not touched, so turning this on again brings back exactly what was on. Useful once SkyHanni or Skyblocker run on 26.3 and would do the same thing twice. On from the start; every function in it is still off until you turn it on in its own tab.")
+        @ConfigEditorBoolean
+        public boolean enabled = true;
+
+        @ConfigOption(name = "What it covers", desc = "Fishing: Hook display, Bait display, Cocoon settings, Shorten Fishing Message, Compact Double Hook. Slayer: Cocoon title and sound, Spawn particles. Skill progress. Inventory: Auction house, Bazaar, Estimated Item Value. Misc: NPC Daily Limit Tracker, Legion/Bobbin Overlay, Shorten /warp, Replace /warp is, Fix item double clicks. Chat: everything in the Chat tab (Tab Complete and Hide Clickable Hints too). Garden: Visitor Shopping List, Visitor Reward Warning, Garden Plots Widget. UI & Visuals: Input Calculator. And the command aliases from /shoki shortcut. Not covered: everything that was in the mod before 2.4.10, HUD > Bold numbers, and the commands you type yourself (for example /shoki topslayer).")
+        @ConfigEditorInfoText
+        public transient String covers = "";
     }
 
     /** UI & Visuals > Input Calculator: Rechnen auf den Zahlenschildern - siehe {@code handler.SignCalculator} und {@code util.InputCalculator} */

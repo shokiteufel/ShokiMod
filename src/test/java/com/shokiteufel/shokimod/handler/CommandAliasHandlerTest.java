@@ -38,6 +38,25 @@ class CommandAliasHandlerTest {
     }
 
     @Test
+    void withThe263SwitchOffNothingIsReplacedAndTheListStays() {
+        ModConfig saved = ModConfig.INSTANCE;
+        try {
+            ModConfig.INSTANCE = new ModConfig();
+            ModConfig.INSTANCE.aliases.add(alias("/g", "/warp garden"));
+            assertEquals("warp garden", CommandAliasHandler.rewrite("g"));
+
+            ModConfig.INSTANCE.update263.enabled = false;
+            assertSame("g", CommandAliasHandler.rewrite("g"), "aus: der Befehl geht unveraendert raus");
+            assertEquals(1, ModConfig.INSTANCE.aliases.size(), "die Liste bleibt gespeichert");
+
+            ModConfig.INSTANCE.update263.enabled = true;
+            assertEquals("warp garden", CommandAliasHandler.rewrite("g"), "wieder an: der Alias greift wieder");
+        } finally {
+            ModConfig.INSTANCE = saved;
+        }
+    }
+
+    @Test
     void aMissingListBreaksNothing() {
         ModConfig saved = ModConfig.INSTANCE;
         try {

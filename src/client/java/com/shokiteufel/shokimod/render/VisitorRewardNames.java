@@ -1,6 +1,7 @@
 package com.shokiteufel.shokimod.render;
 
 import com.shokiteufel.shokimod.ShokiMod;
+import com.shokiteufel.shokimod.data.FeatureGate;
 import com.shokiteufel.shokimod.data.GameState;
 import com.shokiteufel.shokimod.data.ModConfig;
 import com.shokiteufel.shokimod.garden.PlotGrid;
@@ -65,7 +66,7 @@ public final class VisitorRewardNames {
     }
 
     private static void tick(Minecraft client) {
-        if (!ModConfig.INSTANCE.garden.rewardWarning.showOverName || client.player == null || client.level == null
+        if (!FeatureGate.update263() || !ModConfig.INSTANCE.garden.rewardWarning.showOverName || client.player == null || client.level == null
                 || !GameState.Server.isSkyblock() || !ShoppingListText.isGarden(GameState.Server.map)
                 || !PlotGrid.onBarnPlot(client.player.getX(), client.player.getZ())) {
             shown.clear();

@@ -154,6 +154,29 @@ class TabCompleteCommandsTest {
     }
 
     @Test
+    void withThe263SwitchOffNoSwitchCountsAndNothingIsSuggestedOrRun() throws Exception {
+        ModConfig.TabCompleteCategory c = ModConfig.INSTANCE.chatTab.tabComplete;
+        c.call = true;
+        c.warps = true;
+        c.party = true;
+        assertTrue(TabCompleteCommands.active("call"));
+        assertFalse(texts(suggestions("call el")).isEmpty());
+
+        ModConfig.INSTANCE.update263.enabled = false;
+        TabCompleteRules.Switches s = TabCompleteCommands.switches();
+        assertFalse(s.call());
+        assertFalse(s.warps());
+        assertFalse(s.party());
+        assertFalse(TabCompleteCommands.active("call"), "die Mod fuehrt den Befehl nicht aus: Fabric schickt ihn wie sonst an den Server");
+        assertFalse(TabCompleteCommands.active("warp"));
+        assertTrue(suggestions("call el").isEmpty(), "und schlaegt nichts vor");
+        assertTrue(c.call && c.warps && c.party, "die Schalter selbst bleiben, wie sie waren");
+
+        ModConfig.INSTANCE.update263.enabled = true;
+        assertTrue(TabCompleteCommands.active("call"), "wieder an: gleich wieder da");
+    }
+
+    @Test
     void everyCommandIsRegisteredWithItsRestOfTheLine() {
         CommandDispatcher<FabricClientCommandSource> d = dispatcher();
         for (String name : TabCompleteRules.COMMANDS) {

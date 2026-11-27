@@ -1,5 +1,6 @@
 package com.shokiteufel.shokimod.handler;
 
+import com.shokiteufel.shokimod.data.FeatureGate;
 import com.shokiteufel.shokimod.data.ModConfig;
 
 import net.minecraft.client.Minecraft;
@@ -31,7 +32,8 @@ public final class ChatPeek {
      */
     public static boolean peek() {
         int key = ModConfig.INSTANCE.chatTab.peekChat;
-        if (!isKey(key)) return false;
+        // Mit dem 26.3-Schalter aus zeigt die Taste nichts (die gewaehlte Taste bleibt gespeichert)
+        if (!isKey(key) || !FeatureGate.update263()) return false;
         Minecraft client = Minecraft.getInstance();
         boolean playerPresent = client != null && client.player != null;
         return peeking(key, playerPresent, playerPresent && screenAllows(client.gui.screen()), () -> ShortcutHandler.isDown(key));

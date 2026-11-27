@@ -1,5 +1,6 @@
 package com.shokiteufel.shokimod.handler;
 
+import com.shokiteufel.shokimod.data.ModConfig;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.atomic.AtomicInteger;
@@ -10,6 +11,20 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Chat (Teil 3) > Peek Chat: wann der Chat offen gezeigt wird. */
 class ChatPeekTest {
+
+    @Test
+    void withThe263SwitchOffAChosenKeyShowsNothing() {
+        ModConfig saved = ModConfig.INSTANCE;
+        try {
+            ModConfig.INSTANCE = new ModConfig();
+            ModConfig.INSTANCE.chatTab.peekChat = 90;
+            ModConfig.INSTANCE.update263.enabled = false;
+            assertFalse(ChatPeek.peek(), "aus: die Taste tut nichts (und das Spiel wird gar nicht erst gefragt)");
+            assertEquals(90, ModConfig.INSTANCE.chatTab.peekChat, "die gewaehlte Taste bleibt gespeichert");
+        } finally {
+            ModConfig.INSTANCE = saved;
+        }
+    }
 
     @Test
     void aKeyBelowThirtyTwoIsNoKey() {
