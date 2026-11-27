@@ -359,14 +359,6 @@ public final class FeatureGate {
     }
 
     /**
-     * UI & Visuals > Skyblock Inventory Screen > Show Equipment in Inventory: die Fenster /equipment lesen und die Plaetze neben dem Inventar zeichnen - nur wenn es an ist.
-     * Braucht den Ort (nur in SkyBlock): ohne den Eintrag in {@link #location()} bliebe der Ort ungelesen, und die Mod zeichnete (oder las) auf keinem Server.
-     */
-    public static boolean equipmentInInventory() {
-        return ModConfig.INSTANCE.uiVisuals.inventoryScreen.showEquipment;
-    }
-
-    /**
      * UI & Visuals > Input Calculator: auf Zahlenschildern rechnen und das Ergebnis zeigen - nur wenn es an ist. Braucht den Ort (nur in SkyBlock): ohne den Eintrag in
      * {@link #location()} bliebe der Ort ungelesen, und die Mod rechnete auf keinem Server.
      */
@@ -528,7 +520,7 @@ public final class FeatureGate {
                 || roomScan() || iHateDoors() || dungeonLog() || leapMenu() || hideOtherHooks() || mineshaftKeys()
                 || hookDisplay() || baitDisplay() || seaCocoon() || slayerCocoon() || slayerSpawnParticles() || skillProgress() || auctionUnderbid() || bazaarHelpers()
                 || auctionHighlights() || fishingLines()
-                || npcDayLimit() || legionBobbin() || warpCommands() || fixDoubleClicks() || estimatedItemValue() || equipmentInInventory() || inputCalculator()
+                || npcDayLimit() || legionBobbin() || warpCommands() || fixDoubleClicks() || estimatedItemValue() || inputCalculator()
                 // Chat (Teil 1): die Filter nach Ort (Dungeon, Garden, Bergbau, Foraging, Spider's Den, Crystal Hollows, Kuudra)
                 // Chat (Teil 2): alles, was umschreibt, und SkyBlock XP in Chat gelten nur in SkyBlock (chatFiltersLocation schliesst die umschreibenden ein)
                 || chatFiltersLocation() || skyblockXpInChat()

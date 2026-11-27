@@ -49,23 +49,21 @@ class ModConfigInputCalculatorTest {
     }
 
     @Test
-    void theChoiceSurvivesSavingAndLoadingAndIsIndependentOfTheEquipmentSwitch() {
+    void theChoiceSurvivesSavingAndLoading() {
         ModConfig c = new ModConfig();
         c.uiVisuals.inputCalculator.enabled = true;
         ModConfig again = ModConfig.GSON.fromJson(ModConfig.GSON.toJson(c), ModConfig.class);
         assertTrue(again.uiVisuals.inputCalculator.enabled);
-        assertFalse(again.uiVisuals.inventoryScreen.showEquipment, "der andere Schalter bleibt aus");
         ModConfig off = ModConfig.GSON.fromJson(ModConfig.GSON.toJson(new ModConfig()), ModConfig.class);
         assertFalse(off.uiVisuals.inputCalculator.enabled);
     }
 
     @Test
     void aFileFromBeforeHasNoSubCategoryAndGetsItFromTheRepair() {
-        // Eine Datei von 2.5.7 und frueher kennt nur Skyblock Inventory Screen
-        ModConfig loaded = ModConfig.GSON.fromJson("{\"uiVisuals\":{\"inventoryScreen\":{\"showEquipment\":true}}}", ModConfig.class);
+        // Eine Datei von 2.5.7 und frueher kennt nur Skyblock Inventory Screen - die Unterkategorie gibt es seit 2.5.14 nicht mehr: Gson ueberliest den Eintrag, nichts bricht
+        ModConfig loaded = assertDoesNotThrow(() -> ModConfig.GSON.fromJson("{\"uiVisuals\":{\"inventoryScreen\":{\"showEquipment\":true}}}", ModConfig.class));
         assertNotNull(loaded.uiVisuals.inputCalculator, "Gson laesst das Feld der Vorgabe");
         assertFalse(loaded.uiVisuals.inputCalculator.enabled);
-        assertTrue(loaded.uiVisuals.inventoryScreen.showEquipment, "ein eigenes Ja bleibt");
 
         ModConfig broken = ModConfig.GSON.fromJson("{\"uiVisuals\":{\"inputCalculator\":null}}", ModConfig.class);
         assertNull(broken.uiVisuals.inputCalculator, "Gson uebernimmt das null");

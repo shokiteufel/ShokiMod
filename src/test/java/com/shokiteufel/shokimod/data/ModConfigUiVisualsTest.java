@@ -4,7 +4,6 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 import io.github.notenoughupdates.moulconfig.annotations.Category;
-import io.github.notenoughupdates.moulconfig.annotations.ConfigOption;
 import io.github.notenoughupdates.moulconfig.processor.ConfigProcessorDriver;
 import io.github.notenoughupdates.moulconfig.processor.MoulConfigProcessor;
 import io.github.notenoughupdates.moulconfig.processor.ProcessedCategory;
@@ -17,72 +16,48 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * UI & Visuals > Skyblock Inventory Screen > Show Equipment in Inventory (nach Skyblocker): von Haus aus aus, speichern und laden, eine Datei von vorher, beschaedigte
- * Werte, das Tor in {@link FeatureGate} (mit dem Ort) - und wie der Editor die neue Kategorie liest: direkt nach Misc, vor ikohS, mit ihren Unterkategorien (seit 2.5.8 zwei: dazu Input Calculator).
+ * Der Reiter UI & Visuals (nach Skyblocker): Reparatur einer Datei von vorher, was in der Datei steht, wie der Editor ihn liest - direkt nach Misc, vor ikohS, mit seiner einen
+ * Unterkategorie (Input Calculator, dessen Schalter ModConfigInputCalculatorTest prueft).
+ *
+ * <p>Bis 2.5.13 stand hier auch "Skyblock Inventory Screen" mit "Show Equipment in Inventory" (2.5.7). Das ist auf Wunsch des Users entfernt (eine andere Mod macht es besser);
+ * die Pruefungen dazu sind mit entfallen, und {@link #showEquipmentInInventoryIsGoneForGood} haelt fest, dass nichts davon zurueckblieb.
  */
 class ModConfigUiVisualsTest {
-
-    private static void with(Consumer<ModConfig> change, Runnable then) {
-        ModConfig saved = ModConfig.INSTANCE;
-        try {
-            ModConfig.INSTANCE = new ModConfig();
-            change.accept(ModConfig.INSTANCE);
-            then.run();
-        } finally {
-            ModConfig.INSTANCE = saved;
-        }
-    }
 
     // ---- Einstellung ----
 
     @Test
-    void showEquipmentIsOffFromTheStart() {
+    void theCategoryHoldsTheCalculatorAndIsOffFromTheStart() {
         ModConfig c = new ModConfig();
         assertNotNull(c.uiVisuals);
-        assertNotNull(c.uiVisuals.inventoryScreen);
-        assertFalse(c.uiVisuals.inventoryScreen.showEquipment, "bei Skyblocker an, hier aus (Vorgabe des Users: alles Neue ist aus)");
-        with(x -> {
-        }, () -> assertFalse(FeatureGate.equipmentInInventory()));
+        assertNotNull(c.uiVisuals.inputCalculator);
+        assertFalse(c.uiVisuals.inputCalculator.enabled, "alles Neue ist aus");
     }
 
     @Test
-    void theSwitchOpensTheGateAndTheLocation() {
-        with(c -> c.uiVisuals.inventoryScreen.showEquipment = true, () -> {
-            assertTrue(FeatureGate.equipmentInInventory());
-            assertTrue(FeatureGate.location(), "die Plaetze gelten nur in SkyBlock: die Mod muss den Ort lesen");
-        });
+    void showEquipmentInInventoryIsGoneForGood() {
+        assertThrows(NoSuchFieldException.class, () -> ModConfig.UiVisualsCategory.class.getField("inventoryScreen"), "die Unterkategorie ist entfernt");
+        assertThrows(NoSuchMethodException.class, () -> FeatureGate.class.getMethod("equipmentInInventory"), "das Tor ist entfernt");
+        assertThrows(ClassNotFoundException.class, () -> Class.forName("com.shokiteufel.shokimod.equipment.EquipmentInventory"), "die Klassen sind entfernt");
+        assertThrows(ClassNotFoundException.class, () -> Class.forName("com.shokiteufel.shokimod.paket.mixin.InventoryEquipmentMixin"), "der Einsprung ist entfernt");
     }
 
     @Test
-    void theChoiceSurvivesSavingAndLoading() {
-        ModConfig c = new ModConfig();
-        c.uiVisuals.inventoryScreen.showEquipment = true;
-        ModConfig again = ModConfig.GSON.fromJson(ModConfig.GSON.toJson(c), ModConfig.class);
-        assertTrue(again.uiVisuals.inventoryScreen.showEquipment);
-        ModConfig off = ModConfig.GSON.fromJson(ModConfig.GSON.toJson(new ModConfig()), ModConfig.class);
-        assertFalse(off.uiVisuals.inventoryScreen.showEquipment);
-    }
-
-    @Test
-    void theFileHoldsOnlyTheSwitchAndNoInfoText() {
+    void theFileHoldsOnlyTheCalculatorAndNoInfoText() {
         JsonObject root = JsonParser.parseString(ModConfig.GSON.toJson(new ModConfig())).getAsJsonObject();
         JsonObject ui = root.getAsJsonObject("uiVisuals");
         assertNotNull(ui, "uiVisuals steht in der Datei");
-        // Seit 2.5.8 zwei Unterkategorien (dazu Input Calculator); die Pruefung "nur Unterkategorien, kein Infotext" und "nur der Schalter" gilt fuer beide
-        assertEquals(List.of("inventoryScreen", "inputCalculator"), new ArrayList<>(ui.keySet()), "nur die Unterkategorien, kein Infotext");
-        JsonObject screen = ui.getAsJsonObject("inventoryScreen");
-        assertEquals(List.of("showEquipment"), new ArrayList<>(screen.keySet()), "nur der Schalter");
-        assertFalse(screen.get("showEquipment").getAsBoolean());
+        assertEquals(List.of("inputCalculator"), new ArrayList<>(ui.keySet()), "nur die Unterkategorie, kein Infotext");
         JsonObject calculator = ui.getAsJsonObject("inputCalculator");
         assertEquals(List.of("enabled"), new ArrayList<>(calculator.keySet()), "nur der Schalter");
         assertFalse(calculator.get("enabled").getAsBoolean());
@@ -94,8 +69,21 @@ class ModConfigUiVisualsTest {
         ModConfig.repairUiVisuals(loaded);
         assertTrue(loaded.misc.shortenWarp, "was in der Datei stand, bleibt");
         assertNotNull(loaded.uiVisuals);
-        assertNotNull(loaded.uiVisuals.inventoryScreen);
-        assertFalse(loaded.uiVisuals.inventoryScreen.showEquipment);
+        assertNotNull(loaded.uiVisuals.inputCalculator);
+        assertFalse(loaded.uiVisuals.inputCalculator.enabled);
+    }
+
+    @Test
+    void aFileOfTheEquipmentTimeStillLoadsAndItsLeftoverIsIgnored() {
+        // Eine Datei von 2.5.7 bis 2.5.13 kennt noch "inventoryScreen": Gson ueberliest den Eintrag, der Rest der Datei bleibt, und der Schalter des Rechners wird nicht angefasst
+        ModConfig loaded = assertDoesNotThrow(() -> ModConfig.GSON.fromJson(
+                "{\"misc\":{\"shortenWarp\":true},\"uiVisuals\":{\"inventoryScreen\":{\"showEquipment\":true},\"inputCalculator\":{\"enabled\":true}}}", ModConfig.class));
+        ModConfig.repairUiVisuals(loaded);
+        assertTrue(loaded.misc.shortenWarp, "der Rest der Datei bleibt");
+        assertTrue(loaded.uiVisuals.inputCalculator.enabled, "ein eigenes Ja beim Rechner bleibt");
+        // Beim naechsten Speichern ist der alte Eintrag weg
+        JsonObject again = JsonParser.parseString(ModConfig.GSON.toJson(loaded)).getAsJsonObject().getAsJsonObject("uiVisuals");
+        assertFalse(again.has("inventoryScreen"), "der entfernte Eintrag wird nicht mehr geschrieben");
     }
 
     @Test
@@ -104,42 +92,33 @@ class ModConfigUiVisualsTest {
         assertNull(loaded.uiVisuals, "Gson uebernimmt das null: Der Editor bekaeme es, deshalb raeumt repairUiVisuals es weg");
         ModConfig.repairUiVisuals(loaded);
         assertNotNull(loaded.uiVisuals);
-        assertNotNull(loaded.uiVisuals.inventoryScreen);
-        assertFalse(loaded.uiVisuals.inventoryScreen.showEquipment);
+        assertNotNull(loaded.uiVisuals.inputCalculator);
+        assertFalse(loaded.uiVisuals.inputCalculator.enabled);
 
-        ModConfig second = ModConfig.GSON.fromJson("{\"uiVisuals\":{\"inventoryScreen\":null}}", ModConfig.class);
-        assertNull(second.uiVisuals.inventoryScreen);
+        ModConfig second = ModConfig.GSON.fromJson("{\"uiVisuals\":{\"inputCalculator\":null}}", ModConfig.class);
+        assertNull(second.uiVisuals.inputCalculator);
         ModConfig.repairUiVisuals(second);
-        assertNotNull(second.uiVisuals.inventoryScreen);
-        assertFalse(second.uiVisuals.inventoryScreen.showEquipment);
+        assertNotNull(second.uiVisuals.inputCalculator);
+        assertFalse(second.uiVisuals.inputCalculator.enabled);
     }
 
     @Test
     void repairingKeepsAChoiceAndToleratesNull() {
-        ModConfig loaded = ModConfig.GSON.fromJson("{\"uiVisuals\":{\"inventoryScreen\":{\"showEquipment\":true}}}", ModConfig.class);
+        ModConfig loaded = ModConfig.GSON.fromJson("{\"uiVisuals\":{\"inputCalculator\":{\"enabled\":true}}}", ModConfig.class);
         ModConfig.repairUiVisuals(loaded);
-        assertTrue(loaded.uiVisuals.inventoryScreen.showEquipment, "ein eigenes Ja bleibt");
+        assertTrue(loaded.uiVisuals.inputCalculator.enabled, "ein eigenes Ja bleibt");
         assertDoesNotThrow(() -> ModConfig.repairUiVisuals(null));
     }
 
     // ---- Namen und Beschreibung (so, wie sie im Editor stehen) ----
 
     @Test
-    void theNamesAndTheDescriptionAreTheOnesAskedFor() throws NoSuchFieldException {
+    void theNameAndTheDescriptionOfTheTabAreTheOnesAskedFor() throws NoSuchFieldException {
         Category top = ModConfig.class.getField("uiVisuals").getAnnotation(Category.class);
         assertNotNull(top);
         assertEquals("UI & Visuals", top.name());
         assertTrue(top.desc().contains("Idea from Skyblocker."), top.desc());
-
-        Category sub = ModConfig.UiVisualsCategory.class.getField("inventoryScreen").getAnnotation(Category.class);
-        assertNotNull(sub);
-        assertEquals("Skyblock Inventory Screen", sub.name());
-
-        ConfigOption option = ModConfig.SkyblockInventoryScreenCategory.class.getField("showEquipment").getAnnotation(ConfigOption.class);
-        assertNotNull(option);
-        assertEquals("Show Equipment in Inventory", option.name());
-        assertTrue(option.desc().contains("Idea from Skyblocker."), "der Satz steht in der Beschreibung des Schalters: " + option.desc());
-        assertTrue(option.desc().toLowerCase().contains("cache"), "und der Hinweis, dass die Anzeige nicht in Echtzeit ist");
+        assertFalse(top.desc().toLowerCase().contains("equipment"), "der Reiter wirbt nicht mit einer entfernten Funktion: " + top.desc());
     }
 
     // ---- wie der Editor die Reiter liest ----
@@ -193,7 +172,7 @@ class ModConfigUiVisualsTest {
     }
 
     @Test
-    void theEditorReadsTheNewCategoryWithoutWarnings() {
+    void theEditorReadsTheCategoryWithoutWarnings() {
         Ergebnis e = verarbeiten();
         assertFalse(e.fehlerausgabe.toLowerCase().contains("exception"), e.fehlerausgabe);
         assertFalse(e.fehlerausgabe.toLowerCase().contains("duplicate"), e.fehlerausgabe);
@@ -233,23 +212,21 @@ class ModConfigUiVisualsTest {
     }
 
     /**
-     * Seit 2.5.8 hat UI & Visuals zwei Unterkategorien (Skyblock Inventory Screen und Input Calculator); bis 2.5.7 genau eine. Die Zahl hier ist die der Anforderung von heute,
-     * kein Abschwaechen: Der Test heisst nicht mehr "genau eine", prueft aber weiter jede Unterkategorie einzeln (Infotext und ein Schalter, von Haus aus aus).
+     * Seit 2.5.14 hat UI & Visuals genau eine Unterkategorie, den Input Calculator (2.5.8 bis 2.5.13: zwei, dazu Skyblock Inventory Screen). Die Zahl ist die der Anforderung von
+     * heute: Die entfernte Unterkategorie darf nirgends im Editor stehen, die uebrige behaelt Infotext und einen Schalter, von Haus aus aus.
      */
     @Test
-    void uiAndVisualsHasTwoSubCategoriesEachWithExactlyOneSwitch() {
+    void uiAndVisualsHasOneSubCategoryWithExactlyOneSwitch() {
         Ergebnis e = verarbeiten();
         ProcessedCategory ui = nach(e, "ModConfig.uiVisuals");
-        ProcessedCategory sub = nach(e, "UiVisualsCategory.inventoryScreen");
         assertNotNull(ui, "der Reiter UI & Visuals");
-        assertNotNull(sub, "die Unterkategorie Skyblock Inventory Screen");
-        assertEquals(ui.getIdentifier(), sub.getParentCategoryId(), "haengt unter UI & Visuals");
+        assertNull(nach(e, "UiVisualsCategory.inventoryScreen"), "die Unterkategorie Skyblock Inventory Screen ist entfernt");
 
         int children = 0;
         for (ProcessedCategory category : e.kategorien.values()) {
             if (ui.getIdentifier().equals(category.getParentCategoryId())) children++;
         }
-        assertEquals(2, children, "zwei Unterkategorien");
+        assertEquals(1, children, "eine Unterkategorie");
 
         ProcessedCategory calculator = nach(e, "UiVisualsCategory.inputCalculator");
         assertNotNull(calculator, "die Unterkategorie Input Calculator");
@@ -261,10 +238,10 @@ class ModConfigUiVisualsTest {
         assertEquals(Boolean.FALSE, calculatorOption.get(), "von Haus aus aus");
 
         assertEquals(List.of("UI & Visuals"), optionNames(ui), "im Reiter selbst nur der Infotext");
-        List<String> names = optionNames(sub);
-        assertEquals(List.of("Skyblock Inventory Screen", "Show Equipment in Inventory"), names, "Infotext und ein Schalter");
-        ProcessedOption option = sub.getOptions().get(names.indexOf("Show Equipment in Inventory"));
-        assertEquals("GuiOptionEditorBoolean", option.getEditor().getClass().getSimpleName());
-        assertEquals(Boolean.FALSE, option.get(), "von Haus aus aus");
+        for (ProcessedCategory category : e.kategorien.values()) {
+            for (String name : optionNames(category)) {
+                assertFalse(name.contains("Show Equipment in Inventory"), "kein Schalter der entfernten Funktion: " + name);
+            }
+        }
     }
 }

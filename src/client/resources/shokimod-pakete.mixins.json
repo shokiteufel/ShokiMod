@@ -7,11 +7,9 @@
 		"ChatPeekHudMixin",
 		"ConnectionMixin",
 		"DoppelklickMixin",
-		"InventoryEquipmentMixin",
 		"ListenerAndPacketMixin",
 		"PacketProcessorMixin",
-		"SignCalculatorMixin",
-		"SlotXAccessor"
+		"SignCalculatorMixin"
 	],
 	"injectors": {
 		"defaultRequire": 0

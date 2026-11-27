@@ -218,7 +218,6 @@ public class ModConfig extends Config {
     static void repairUiVisuals(ModConfig c) {
         if (c == null) return;
         if (c.uiVisuals == null) c.uiVisuals = new UiVisualsCategory();
-        if (c.uiVisuals.inventoryScreen == null) c.uiVisuals.inventoryScreen = new SkyblockInventoryScreenCategory();
         if (c.uiVisuals.inputCalculator == null) c.uiVisuals.inputCalculator = new InputCalculatorCategory();
     }
 
@@ -1428,7 +1427,7 @@ public class ModConfig extends Config {
     public MiscCategory misc = new MiscCategory();
 
     @Expose
-    @Category(name = "UI & Visuals", desc = "How SkyBlock's own windows look. For now the Skyblock Inventory Screen: your equipment next to the inventory. Off until you turn it on. Idea from Skyblocker.")
+    @Category(name = "UI & Visuals", desc = "Helpers for SkyBlock's own windows. For now the Input Calculator: calculate in the number signs. Off until you turn it on. Idea from Skyblocker.")
     public UiVisualsCategory uiVisuals = new UiVisualsCategory();
 
     @Expose
@@ -5956,21 +5955,19 @@ public class ModConfig extends Config {
     }
 
     /**
-     * UI & Visuals: wie SkyBlocks eigene Fenster aussehen - nach Skyblocker (UI & Visuals). Bisher eine Unterkategorie: Skyblock Inventory Screen mit
-     * "Show Equipment in Inventory". Alles von Haus aus aus.
+     * UI & Visuals: Helfer fuer SkyBlocks eigene Fenster - nach Skyblocker (UI & Visuals). Bisher eine Unterkategorie: Input Calculator. Alles von Haus aus aus.
      *
-     * Herkunft der Idee: Skyblocker (LGPL-3.0, {@code UIAndVisualsConfig}, {@code UIAndVisualsCategory}). Von dort stammen der Name der Kategorie, der Unterkategorie
-     * und des Schalters; die Umsetzung ist eigene Arbeit: Java, die Einstellungen stehen in {@code uiVisuals.*}.
+     * <p>Bis 2.5.13 stand hier auch "Skyblock Inventory Screen" mit "Show Equipment in Inventory" (2.5.7); sie ist auf Wunsch des Users wieder entfernt, eine andere Mod
+     * macht es besser. Eine Datei von vorher, die den Eintrag {@code inventoryScreen} noch kennt, laedt ohne Fehler: Gson ueberliest, was es nicht mehr gibt.
+     *
+     * Herkunft der Idee: Skyblocker (LGPL-3.0, {@code UIAndVisualsConfig}, {@code UIAndVisualsCategory}). Von dort stammen der Name der Kategorie und der Unterkategorie;
+     * die Umsetzung ist eigene Arbeit: Java, die Einstellungen stehen in {@code uiVisuals.*}.
      */
     public static class UiVisualsCategory {
 
-        @ConfigOption(name = "UI & Visuals", desc = "How SkyBlock's own windows look. The Skyblock Inventory Screen lives in the sub tab on the left. Off until you turn it on. Idea from Skyblocker.")
+        @ConfigOption(name = "UI & Visuals", desc = "Helpers for SkyBlock's own windows. The Input Calculator lives in the sub tab on the left. Off until you turn it on. Idea from Skyblocker.")
         @ConfigEditorInfoText
         public transient String about = "";
-
-        @Expose
-        @Category(name = "Skyblock Inventory Screen", desc = "Your SkyBlock equipment in the inventory window. Off until you turn it on. Idea from Skyblocker.")
-        public SkyblockInventoryScreenCategory inventoryScreen = new SkyblockInventoryScreenCategory();
 
         @Expose
         @Category(name = "Input Calculator", desc = "Calculate in the number signs (auction bid, bazaar price and amount). Off until you turn it on. Idea from Skyblocker.")
@@ -5988,19 +5985,6 @@ public class ModConfig extends Config {
         @ConfigOption(name = "Calculate in Number Signs", desc = "While you type in a number sign, shows the result in green under \"Edit Sign Message\" (for example 45656445465 = 45,656,445,465, or 1.5m*2 = 3,000,000), and puts the result into the sign when you finish a calculation (amounts are rounded to whole numbers, prices to two decimals). Understands + - * / % ^, brackets, and k, m, b, t for thousand, million, billion, trillion. A plain number such as 1.5m stays as you typed it: SkyBlock reads that itself. Idea from Skyblocker.")
         @ConfigEditorBoolean
         public boolean enabled = false;
-    }
-
-    /** UI & Visuals > Skyblock Inventory Screen: die Equipment-Plaetze neben dem Inventarfenster (Taste E) - siehe {@code equipment.EquipmentInventory} */
-    public static class SkyblockInventoryScreenCategory {
-
-        @ConfigOption(name = "Skyblock Inventory Screen", desc = "Changes to the inventory window (key E) while you are on SkyBlock. Off until you turn it on. Idea from Skyblocker.")
-        @ConfigEditorInfoText
-        public transient String about = "";
-
-        @Expose
-        @ConfigOption(name = "Show Equipment in Inventory", desc = "Shows your four SkyBlock equipment pieces (necklace, cloak, belt, gloves or bracelet) inside the inventory window, to the right of your character, and opens /equipment when you click one. The off-hand slot and the recipe book button move a little to the right to make room. The slots take the look of the window, so they follow your resource pack (dark or light). The display is a cache: it is filled when you open /equipment (or the Equipment Sets window) and is not updated in real time, so open /equipment once after you change a piece. Kept per profile, with its own set for the Rift and the Safari, and remembered after a restart. Idea from Skyblocker.")
-        @ConfigEditorBoolean
-        public boolean showEquipment = false;
     }
 
     /**
