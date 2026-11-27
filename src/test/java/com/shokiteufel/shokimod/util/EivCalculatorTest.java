@@ -448,7 +448,8 @@ class EivCalculatorTest {
     }
 
     @Test
-    void anItemWithoutAPriceIsListedAsUnknownAndCountsNothing() {
+    void anItemWithoutAPriceIsListedWithZeroAndCountsNothing() {
+        // Bis 2.5.19 stand dort "Unknown price!"; seit dem Auftrag des Users (27.11.) steht eine 0 da, wie bei SkyHanni
         Fake env = new Fake();
         env.prices.put("DRILL", 1.0);
         ListTag boosters = new ListTag();
@@ -457,8 +458,53 @@ class EivCalculatorTest {
         tag.put("boosters", boosters);
         EivCalculator.Result r = new EivCalculator(env, options()).calculate(subject("DRILL", tag));
         assertEquals(1.0, r.total());
-        assertTrue(has(r, "MYSTERY_BOOSTER §cUnknown price!"));
+        assertTrue(has(r, "MYSTERY_BOOSTER §7(§60§7)"));
+        assertFalse(r.lines().stream().anyMatch(l -> l.contains("Unknown price")), "der Text ist weg");
         assertTrue(has(r, "§7Boosters: §60"));
+    }
+
+    private static int lineWith(EivCalculator.Result r, String part) {
+        for (int i = 0; i < r.lines().size(); i++) if (r.lines().get(i).contains(part)) return i;
+        return -1;
+    }
+
+    @Test
+    void itemsWithoutAPriceSitAtTheBottomBelowEveryPricedOne() {
+        Fake env = new Fake();
+        env.prices.put("DRILL", 1.0);
+        env.prices.put("CHEAP_BOOSTER", 1_000.0);
+        env.prices.put("RICH_BOOSTER", 5_000_000.0);
+        // Die ohne Preis stehen in der Eingabe vorn und in der Mitte - bis 2.5.19 rutschten sie nach oben
+        ListTag boosters = new ListTag();
+        for (String name : new String[] {"MYSTERY", "CHEAP", "ODD", "RICH"}) boosters.add(StringTag.valueOf(name));
+        CompoundTag tag = new CompoundTag();
+        tag.put("boosters", boosters);
+        EivCalculator.Result r = new EivCalculator(env, options()).calculate(subject("DRILL", tag));
+        int rich = lineWith(r, "RICH_BOOSTER");
+        int cheap = lineWith(r, "CHEAP_BOOSTER");
+        int mystery = lineWith(r, "MYSTERY_BOOSTER");
+        int odd = lineWith(r, "ODD_BOOSTER");
+        assertTrue(rich >= 0 && rich < cheap, "der teuerste zuerst: " + r.lines());
+        assertTrue(cheap < mystery && cheap < odd, "die ohne Preis nach jedem mit Preis: " + r.lines());
+        assertTrue(mystery < odd, "unter denen ohne Preis bleibt die Reihenfolge der Eingabe: " + r.lines());
+        assertEquals(1.0 + 5_001_000.0, r.total(), "die ohne Preis zaehlen nichts");
+        assertEquals(r.lines().size() - 1, odd, "die letzte Zeile ist einer ohne Preis: " + r.lines());
+    }
+
+    @Test
+    void anAmountWithoutAPriceStillShowsItsNumberAndZero() {
+        Fake env = new Fake();
+        env.prices.put("DRILL", 1.0);
+        env.prices.put("PRICED_BOOSTER", 100.0);
+        ListTag boosters = new ListTag();
+        for (int i = 0; i < 3; i++) boosters.add(StringTag.valueOf("MYSTERY"));
+        boosters.add(StringTag.valueOf("PRICED"));
+        CompoundTag tag = new CompoundTag();
+        tag.put("boosters", boosters);
+        EivCalculator.Result r = new EivCalculator(env, options()).calculate(subject("DRILL", tag));
+        assertTrue(has(r, "§83x §r§fMYSTERY_BOOSTER §7(§60§7)"), r.lines().toString());
+        assertTrue(lineWith(r, "PRICED_BOOSTER") < lineWith(r, "MYSTERY_BOOSTER"));
+        assertEquals(1.0 + 100.0, r.total());
     }
 
     @Test
@@ -635,5 +681,41 @@ class EivCalculatorTest {
         EivCalculator.Result r = new EivCalculator(env, options()).calculate(book);
         assertEquals(100_000.0, r.base());
         assertEquals(100_000.0, r.total(), "nicht doppelt: der Grundpreis geht nicht in die Summe");
+    }
+
+    /**
+     * Der Fall des Users (27.11.): Magnet VI und Frail VI fuehrt der Basar, aber ohne Kaufauftrag - bei "BZ Instant Sell" gibt es keinen Preis. Die Zeilen standen
+     * mit "Unknown price!" ganz oben; jetzt stehen sie mit 0 ganz unten.
+     */
+    @Test
+    void enchantsWithoutAPriceAreListedWithZeroAtTheBottom() {
+        Fake env = withEnchantRules();
+        env.prices.put("SOME_SWORD", 1.0);
+        // ENCHANTMENT_SHARPNESS_6 steht im Basar (withEnchantRules), hat aber keinen Preis
+        env.prices.put("ENCHANTMENT_COMPACT_1", 10_000.0);
+        env.prices.put("ENCHANTMENT_ULTIMATE_CHIMERA_1", 5_000_000.0);
+        CompoundTag enchants = new CompoundTag();
+        enchants.putInt("sharpness", 6);
+        enchants.putInt("compact", 3);
+        enchants.putInt("ultimate_chimera", 1);
+        CompoundTag tag = new CompoundTag();
+        tag.put("enchantments", enchants);
+
+        EivCalculator.Result all = new EivCalculator(env, options()).calculate(subject("SOME_SWORD", tag));
+        assertEquals(1.0 + 5_010_000.0, all.total(), "der ohne Preis zaehlt nichts");
+        int header = lineWith(all, "§7Enchantments: ");
+        assertTrue(header > 0, all.lines().toString());
+        assertTrue(all.lines().get(header + 1).contains("ENCHANTMENT_ULTIMATE_CHIMERA_1"), all.lines().toString());
+        assertTrue(all.lines().get(header + 2).contains("ENCHANTMENT_COMPACT_1"), all.lines().toString());
+        assertEquals(" §r§fENCHANTMENT_SHARPNESS_6 §7(§60§7)", all.lines().get(header + 3), "ganz unten, mit 0");
+        assertFalse(all.lines().stream().anyMatch(l -> l.contains("Unknown price")));
+
+        // Mit einer Obergrenze faellt der ohne Preis zuerst unter "more enchantments"
+        EivCalculator.Result capped = new EivCalculator(env, new EivCalculator.Options(EivPriceSource.INSTANT_SELL, 2, 3, false, false, false))
+                .calculate(subject("SOME_SWORD", tag));
+        int cappedHeader = lineWith(capped, "§7Enchantments: ");
+        assertTrue(capped.lines().get(cappedHeader + 1).contains("ENCHANTMENT_ULTIMATE_CHIMERA_1"));
+        assertTrue(capped.lines().get(cappedHeader + 2).contains("ENCHANTMENT_COMPACT_1"));
+        assertEquals(" §7§o1 more enchantments..", capped.lines().get(cappedHeader + 3));
     }
 }

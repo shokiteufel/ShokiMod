@@ -192,19 +192,20 @@ public final class EivCalculator {
     private record Named(double total, List<String> names) {
     }
 
-    /** Der Preis aller Posten und je Posten eine Zeile, die teuersten zuerst; ohne Preis steht der Posten ganz unten mit "Unknown price!" */
+    /**
+     * Der Preis aller Posten und je Posten eine Zeile, die teuersten zuerst. Ein Posten ohne Preis (der Basar hat auf der gewaehlten Seite keinen Auftrag, das
+     * Auktionshaus und der NPC kennen ihn nicht) steht mit 0 da und damit ganz unten; bis 2.5.19 stand dort "Unknown price!" mit dem Sortierwert
+     * {@link Double#MAX_VALUE}, was die Zeile an die Spitze setzte. Die Reihenfolge unter mehreren Posten ohne Preis bleibt die der Eingabe (die Sortierung ist stabil).
+     */
     private Named totalAndNames(Map<String, ? extends Number> items) {
         double total = 0.0;
         List<Map.Entry<String, Double>> rows = new ArrayList<>();
         for (Map.Entry<String, ? extends Number> item : items.entrySet()) {
             Double p = env.price(item.getKey(), options.source());
             double amount = item.getValue().doubleValue();
-            if (p != null) {
-                total += p * amount;
-                rows.add(Map.entry(priceName(item.getKey(), amount, p), p));
-            } else {
-                rows.add(Map.entry(" " + numbered(item.getKey(), amount) + " §cUnknown price!", Double.MAX_VALUE));
-            }
+            double each = p == null ? 0.0 : p;
+            total += each * amount;
+            rows.add(Map.entry(priceName(item.getKey(), amount, each), each));
         }
         rows.sort((a, b) -> Double.compare(b.getValue(), a.getValue()));
         List<String> names = new ArrayList<>(rows.size());
