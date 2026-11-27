@@ -33,6 +33,37 @@ class CopyChatTest {
         assertFalse(CopyChat.isCopyClick(click(0)));
     }
 
+    /** Die Nachricht vom Bild des Users (27.11.): So steht sie bei Hypixel, mit Farbcodes */
+    private static final String MONTHLY_REWARD = "§f §e§lMONTHLY §6MVP§6++§6§l REWARDS§f §eYou've been given §a500 SkyBlock Gems §efor having an active§f "
+            + "§6§6MVP§6++§6§e subscription this month!§f §eClick §6HERE";
+
+    @Test
+    void theWholeMessageIsCopiedWithoutColourCodes() {
+        assertEquals(" MONTHLY MVP++ REWARDS You've been given 500 SkyBlock Gems for having an active MVP++ subscription this month! Click HERE",
+                CopyChat.chooseText(MONTHLY_REWARD, "ignored", false));
+    }
+
+    @Test
+    void theLineWithCtrlIsCleanedToo() {
+        assertEquals("Click HERE", CopyChat.chooseText("whole", "§eClick §6HERE", true));
+    }
+
+    @Test
+    void noSectionSignIsLeftAfterTheCleaning() {
+        assertFalse(CopyChat.chooseText(MONTHLY_REWARD, "", false).contains("§"));
+        assertEquals("Text", CopyChat.withoutColourCodes("Text§"), "ein einzelnes § am Ende");
+        assertEquals("Text", CopyChat.withoutColourCodes("§x§1§2§3§4§5§6Text"), "ein Hex-Farbcode");
+        assertEquals("a b", CopyChat.withoutColourCodes("a§r §rb"));
+    }
+
+    @Test
+    void textWithoutCodesStaysAsItIsAndNullGivesEmpty() {
+        assertEquals("Level 6 f e l and 100%", CopyChat.withoutColourCodes("Level 6 f e l and 100%"), "Buchstaben und Ziffern ohne § bleiben");
+        assertEquals("", CopyChat.withoutColourCodes(""));
+        assertEquals("", CopyChat.withoutColourCodes(null));
+        assertEquals("Zeile 1\nZeile 2", CopyChat.withoutColourCodes("§eZeile 1\n§aZeile 2"), "Zeilenumbrueche bleiben");
+    }
+
     @Test
     void ctrlCopiesTheLineAndNothingTheWholeMessage() {
         assertEquals("the whole message that wraps", CopyChat.chooseText("the whole message that wraps", "the whole message", false));

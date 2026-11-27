@@ -96,9 +96,19 @@ public final class CopyChat {
         }
     }
 
-    /** Was kopiert wird: mit Strg die Zeile unter dem Zeiger, sonst die ganze Nachricht */
+    /** Was kopiert wird: mit Strg die Zeile unter dem Zeiger, sonst die ganze Nachricht - beides ohne Farbcodes */
     static String chooseText(String wholeMessage, String oneLine, boolean ctrl) {
-        return ctrl ? oneLine : wholeMessage;
+        return withoutColourCodes(ctrl ? oneLine : wholeMessage);
+    }
+
+    /**
+     * Der Text ohne die Farb- und Formatcodes des Servers ("§e", "§l", "§r", auch die Folge eines Hex-Farbcodes "§x§1§2§3§4§5§6"). Hypixel schickt den Text mit solchen
+     * Codes; {@code Component.getString()} gibt sie unveraendert zurueck, und was in der Zwischenablage liegt, behaelt sie. Beim Einfuegen in den Chat nimmt das Spiel
+     * das "§" heraus, und es bleiben die Buchstaben und Ziffern dahinter stehen ("f eMONTHLY 6MVP6++" statt "MONTHLY MVP++") - bis 2.6.0 kopierte die ganze Nachricht so.
+     * Die Zeile mit Strg war davon nie betroffen (ihre Zeichen kommen aus der Darstellung, in der die Codes schon ausgewertet sind).
+     */
+    static String withoutColourCodes(String text) {
+        return text == null ? "" : text.replaceAll("(?s)§.?", "");
     }
 
     /** Der Text einer Zeile des Chats, ohne Stile und Farbcodes */
