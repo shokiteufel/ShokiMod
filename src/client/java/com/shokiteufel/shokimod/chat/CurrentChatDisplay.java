@@ -1,8 +1,10 @@
 package com.shokiteufel.shokimod.chat;
 
+import com.shokiteufel.shokimod.ShokiMod;
 import com.shokiteufel.shokimod.data.FeatureGate;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.ChatScreen;
@@ -33,17 +35,40 @@ public final class CurrentChatDisplay {
     private CurrentChatDisplay() {
     }
 
+    /** So viele Zeilen, die nach einer Kanal-Meldung aussehen und doch nicht erkannt werden, schreibt die Mod je Start ins Log - mehr braucht die Diagnose nicht */
+    private static final int MAX_UNRECOGNISED_LOGGED = 20;
+    private static int unrecognisedLogged = 0;
+
     public static void register() {
         ClientTickEvents.END_CLIENT_TICK.register(CurrentChatDisplay::tick);
         // Die Verbindung endet: der naechste Wechsel, den Hypixel meldet, ist wieder der erste
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> reset());
         // Neu verbunden: bis Hypixel etwas anderes meldet, ist man im Chat "All"
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> TRACKER.assumeAllIfUnknown());
+        // Der eigene Befehl "/chat party": ein Vorgriff, den Hypixels Antwort bestaetigt oder zurechtrueckt (nur beobachtet, am Befehl aendert sich nichts)
+        ClientSendMessageEvents.COMMAND.register(CurrentChatDisplay::onOwnCommand);
     }
 
     /** Eine Chatzeile (Klartext): sagt sie, in welchem Chat man ist? */
     public static void onChatMessage(String plain) {
-        TRACKER.onLine(plain, System.currentTimeMillis());
+        ChatChannel before = TRACKER.channel();
+        boolean changed = TRACKER.onLine(plain, System.currentTimeMillis());
+        if (changed) {
+            ShokiMod.LOGGER.info("[Chat] Chat gelesen: {} (vorher {}) aus \"{}\"", TRACKER.channel(), before, plain);
+        } else if (unrecognisedLogged < MAX_UNRECOGNISED_LOGGED && plain != null && plain.contains(" channel") && plain.startsWith("You")) {
+            // Sieht nach einer Meldung ueber den Chat aus, wurde aber nicht gelesen: genau die Zeile, die man braucht, wenn der Kasten falsch steht
+            unrecognisedLogged++;
+            ShokiMod.LOGGER.info("[Chat] Zeile ueber einen Chat nicht erkannt: \"{}\"", plain);
+        }
+    }
+
+    /** Ein Befehl, den man selbst schickt (ohne Schraegstrich) */
+    static void onOwnCommand(String command) {
+        if (!FeatureGate.currentChatDisplay()) return;
+        ChatChannel before = TRACKER.channel();
+        if (TRACKER.onOwnCommand(command)) {
+            ShokiMod.LOGGER.info("[Chat] Befehl /{}: Chat jetzt {} (vorher {}, Hypixel bestaetigt gleich)", command, TRACKER.channel(), before);
+        }
     }
 
     /** Alles vergessen */

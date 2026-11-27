@@ -1,5 +1,6 @@
 package com.shokiteufel.shokimod.chat;
 
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -13,14 +14,18 @@ import java.util.regex.Pattern;
  * Umsetzung ist eigene Arbeit: Java; die Zeilen werden im Klartext gelesen. Anders als bei SkyHanni gilt eine unbekannte Chat-Art nicht als Fehler: Die Meldung
  * wird uebergangen.
  *
- * <p>Eigene Befehle ({@code /chat}, {@code /pc}) liest auch SkyHanni nicht: Hypixel bestaetigt jeden Wechsel mit einer Zeile, und diese Zeile zaehlt.
+ * <p>Eigene Befehle liest SkyHanni nicht: Hypixel bestaetigt jeden Wechsel mit einer Zeile, und diese Zeile zaehlt. Seit 2.5.12 liest die Mod zusaetzlich
+ * {@code /chat <Chat>} als Vorgriff ({@link #onOwnCommand}): Kommt die Bestaetigung nicht an oder in anderer Form, steht der Kasten trotzdem richtig; kommt sie, gilt sie
+ * (auch die Meldung "moved to the ALL channel", wenn der Wechsel nicht ging). Der Anlass war der Bericht "der Kasten steht die ganze Zeit auf Chat: All".
  */
 public final class ChatChannelTracker {
 
     /** Wie lange ein Gespraech unter vier Augen haelt, ohne dass jemand schreibt */
     public static final long PRIVATE_MILLIS = 5L * 60_000L;
 
-    private static final Pattern CHANGED = Pattern.compile("^You are now in the (?<chat>.+) channel$");
+    /** Leerraum jeder Art, auch das geschuetzte Leerzeichen, das ein Server statt eines gewoehnlichen schicken kann */
+    private static final Pattern WHITESPACE = Pattern.compile("[\\s\\u00a0\\u202f]+");
+    private static final Pattern CHANGED = Pattern.compile("^You are now in the (?<chat>.+?) channel\\.?$", Pattern.CASE_INSENSITIVE);
     private static final Pattern BACK_TO_ALL = Pattern.compile(
             "^You are not in a party and were moved to the ALL channel\\.$"
                     + "|^The conversation you were in expired and you have been moved back to the ALL channel\\.$");
@@ -71,7 +76,8 @@ public final class ChatChannelTracker {
      */
     public boolean onLine(String plain, long now) {
         if (plain == null) return false;
-        String line = plain.trim();
+        // Mehrfacher und geschuetzter Leerraum zaehlt wie ein Leerzeichen: Die Zeile soll an dem erkannt werden, was sie sagt, nicht an ihrer Schreibweise
+        String line = WHITESPACE.matcher(plain).replaceAll(" ").trim();
         if (line.isEmpty()) return false;
 
         Matcher changed = CHANGED.matcher(line);
@@ -99,6 +105,33 @@ public final class ChatChannelTracker {
             }
         }
         return false;
+    }
+
+    /**
+     * Ein Befehl, den man selbst schickt (ohne Schraegstrich, ein fuehrender wird verziehen): {@code chat party} und seine Kurzformen wechseln den Chat. Ein Vorgriff:
+     * Hypixel antwortet mit "You are now in the PARTY channel" (oder, ohne Party, mit "moved to the ALL channel"), und diese Zeile ueberschreibt ihn.
+     *
+     * <p>Nur die vier Chats, deren Kurznamen sicher sind (all/a, party/p, guild/g, officer/o). Alles andere - der Coop, ein Gespraech unter vier Augen, {@code /pc}
+     * ohne Wort - bleibt der Meldung von Hypixel ueberlassen.
+     *
+     * @return ob der Befehl einen Chat gewaehlt hat
+     */
+    public boolean onOwnCommand(String command) {
+        if (command == null) return false;
+        String text = WHITESPACE.matcher(command).replaceAll(" ").trim().toLowerCase(Locale.ROOT);
+        while (text.startsWith("/")) text = text.substring(1);
+        String[] words = text.split(" ");
+        if (words.length != 2 || !words[0].equals("chat")) return false;
+        ChatChannel next = switch (words[1]) {
+            case "a", "all" -> ChatChannel.ALL;
+            case "p", "party" -> ChatChannel.PARTY;
+            case "g", "guild" -> ChatChannel.GUILD;
+            case "o", "officer" -> ChatChannel.OFFICER;
+            default -> null;
+        };
+        if (next == null) return false;
+        set(next, null);
+        return true;
     }
 
     private void set(ChatChannel next, String player) {
