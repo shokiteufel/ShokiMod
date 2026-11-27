@@ -1,5 +1,8 @@
 package com.shokiteufel.shokimod.chat;
 
+import com.mojang.blaze3d.platform.InputConstants;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.input.MouseButtonInfo;
 import net.minecraft.network.chat.Style;
 import net.minecraft.util.FormattedCharSequence;
 import org.joml.Matrix3x2f;
@@ -11,6 +14,24 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Chat (Teil 3) > Copy Chat: was kopiert wird und welche Zeile unter dem Zeiger liegt. */
 class CopyChatTest {
+
+    private static MouseButtonEvent click(int button) {
+        return new MouseButtonEvent(10, 20, new MouseButtonInfo(button, 0));
+    }
+
+    @Test
+    void onlyTheRightMouseButtonCopies() {
+        assertTrue(CopyChat.isCopyClick(click(InputConstants.MOUSE_BUTTON_RIGHT)));
+        assertFalse(CopyChat.isCopyClick(click(InputConstants.MOUSE_BUTTON_LEFT)), "der Linksklick kopiert nicht (bis 2.5.18 tat er es: dort war die Taste 1 die linke)");
+        assertFalse(CopyChat.isCopyClick(click(InputConstants.MOUSE_BUTTON_MIDDLE)));
+    }
+
+    @Test
+    void theRightClickIsButtonThreeOnThisGameVersion() {
+        assertTrue(CopyChat.isCopyClick(click(3)));
+        assertFalse(CopyChat.isCopyClick(click(1)));
+        assertFalse(CopyChat.isCopyClick(click(0)));
+    }
 
     @Test
     void ctrlCopiesTheLineAndNothingTheWholeMessage() {

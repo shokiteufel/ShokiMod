@@ -2,6 +2,7 @@ package com.shokiteufel.shokimod.chat;
 
 import com.shokiteufel.shokimod.ShokiMod;
 import com.shokiteufel.shokimod.data.FeatureGate;
+import com.shokiteufel.shokimod.handler.MouseButtons;
 
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents;
@@ -55,7 +56,7 @@ public final class CopyChat {
 
     private static boolean onClick(Screen screen, MouseButtonEvent click) {
         // Der Klick geht immer weiter: kopiert wird nebenbei
-        if (click.button() != 1 || !FeatureGate.copyChat()) return true;
+        if (!isCopyClick(click) || !FeatureGate.copyChat()) return true;
         try {
             copy(click.x(), click.y(), click.hasControlDown());
         } catch (ReflectiveOperationException | RuntimeException e) {
@@ -65,6 +66,14 @@ public final class CopyChat {
             }
         }
         return true;
+    }
+
+    /**
+     * Kopiert nur der Rechtsklick. Auf 26.3 ist das nicht die Taste 1 (die zaehlt dort nach SDL: links = 1, rechts = 3) - bis 2.5.18 stand hier eine 1, und es kopierte
+     * der Linksklick, der Rechtsklick nie. Die Taste kommt jetzt aus {@link MouseButtons}.
+     */
+    static boolean isCopyClick(MouseButtonEvent click) {
+        return MouseButtons.isRight(click.button());
     }
 
     private static void copy(double mouseX, double mouseY, boolean oneLine) throws ReflectiveOperationException {

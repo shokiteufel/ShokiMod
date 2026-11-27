@@ -3,6 +3,7 @@ package com.shokiteufel.shokimod.gui;
 import com.shokiteufel.shokimod.ShokiMod;
 import com.shokiteufel.shokimod.data.BannerDesign;
 import com.shokiteufel.shokimod.data.ModConfig;
+import com.shokiteufel.shokimod.handler.MouseButtons;
 import com.shokiteufel.shokimod.render.DropBanner;
 import com.shokiteufel.shokimod.render.hud.HudPanel;
 import com.shokiteufel.shokimod.render.hud.SafariHud;
@@ -414,8 +415,8 @@ public class HudEditorScreen extends Screen {
         }
         for (SafariHud.Panel panel : SafariHud.Panel.values()) {
             if (!isOver(panel, event.x(), event.y())) continue;
-            // Rechtsklick fragt, wann und wo der Kasten erscheinen soll
-            if (event.button() == 1) {
+            // Rechtsklick fragt, wann und wo der Kasten erscheinen soll (auf 26.3 ist rechts die Taste 3, nicht 1: MouseButtons fragt das Spiel)
+            if (MouseButtons.isRight(event.button())) {
                 selectedPanel = panel;
                 refreshAreasButton();
                 opacity.sync();

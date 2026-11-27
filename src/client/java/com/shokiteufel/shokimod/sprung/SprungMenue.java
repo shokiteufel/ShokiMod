@@ -8,6 +8,7 @@ import com.shokiteufel.shokimod.data.ModConfig.LeapMenuCategory;
 import com.shokiteufel.shokimod.data.ModConfig.LeapRender;
 import com.shokiteufel.shokimod.dungeonkarte.FunnyKarte;
 import com.shokiteufel.shokimod.handler.DungeonLauf;
+import com.shokiteufel.shokimod.handler.MouseButtons;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -234,7 +235,7 @@ public final class SprungMenue {
      */
     public static boolean klick(AbstractContainerScreen<?> screen, int taste, double x, double y) {
         if (!uebernimmt(screen)) return false;
-        if (taste != 0 && cfg().leftClickOnly) return true;
+        if (!MouseButtons.isLeft(taste) && cfg().leftClickOnly) return true;
         Minecraft client = Minecraft.getInstance();
         Integer index = darstellung().index(client.getWindow().getGuiScaledWidth(), client.getWindow().getGuiScaledHeight(), x, y);
         if (index != null) springen(index);
