@@ -76,11 +76,82 @@ public final class ShortcutHandler {
     /** Der Name einer Taste, wie ihn das Spiel in der Steuerung schreibt */
     public static String keyName(int key) {
         if (key == 0) return "None";
+        String fromGame = null;
         try {
-            return InputConstants.Type.KEYBOARD.getOrCreate(key).getDisplayName().getString();
+            fromGame = InputConstants.Type.KEYBOARD.getOrCreate(key).getDisplayName().getString();
         } catch (RuntimeException e) {
-            return "Key " + key;
+            // dann gilt die eigene Tabelle
         }
+        return readableKeyName(key, fromGame);
+    }
+
+    /**
+     * Rein: der Name einer Taste, wie er angezeigt wird. Das Spiel nennt eine Taste manchmal nur mit ihrem Rohschluessel ("key.keyboard.341", wenn die Sprachdatei den
+     * Namen nicht kennt - so stand es im Satz "Bypass by holding key.keyboard.341" der gesperrten Besucher-Knoepfe); dann gilt der eigene Name ("Left Control").
+     *
+     * @param fromGame was das Spiel als Namen lieferte, oder null
+     */
+    static String readableKeyName(int key, String fromGame) {
+        if (fromGame != null && !fromGame.isBlank() && !fromGame.startsWith("key.")) return fromGame;
+        return fallbackKeyName(key);
+    }
+
+    /** Der eigene Name einer Taste (GLFW-Code): Buchstaben, Ziffern, Pfeile, F-Tasten, Umschalt/Strg/Alt, Ziffernblock; sonst "Key 123" */
+    static String fallbackKeyName(int key) {
+        if (key >= 65 && key <= 90) return String.valueOf((char) key);
+        if (key >= 48 && key <= 57) return String.valueOf((char) key);
+        if (key >= 290 && key <= 314) return "F" + (key - 289);
+        if (key >= 320 && key <= 329) return "Keypad " + (key - 320);
+        return switch (key) {
+            case 32 -> "Space";
+            case 39 -> "'";
+            case 44 -> ",";
+            case 45 -> "-";
+            case 46 -> ".";
+            case 47 -> "/";
+            case 59 -> ";";
+            case 61 -> "=";
+            case 91 -> "[";
+            case 92 -> "\\";
+            case 93 -> "]";
+            case 96 -> "`";
+            case 256 -> "Escape";
+            case 257 -> "Enter";
+            case 258 -> "Tab";
+            case 259 -> "Backspace";
+            case 260 -> "Insert";
+            case 261 -> "Delete";
+            case 262 -> "Right Arrow";
+            case 263 -> "Left Arrow";
+            case 264 -> "Down Arrow";
+            case 265 -> "Up Arrow";
+            case 266 -> "Page Up";
+            case 267 -> "Page Down";
+            case 268 -> "Home";
+            case 269 -> "End";
+            case 280 -> "Caps Lock";
+            case 281 -> "Scroll Lock";
+            case 282 -> "Num Lock";
+            case 283 -> "Print Screen";
+            case 284 -> "Pause";
+            case 330 -> "Keypad .";
+            case 331 -> "Keypad /";
+            case 332 -> "Keypad *";
+            case 333 -> "Keypad -";
+            case 334 -> "Keypad +";
+            case 335 -> "Keypad Enter";
+            case 336 -> "Keypad =";
+            case 340 -> "Left Shift";
+            case 341 -> "Left Control";
+            case 342 -> "Left Alt";
+            case 343 -> "Left Super";
+            case 344 -> "Right Shift";
+            case 345 -> "Right Control";
+            case 346 -> "Right Alt";
+            case 347 -> "Right Super";
+            case 348 -> "Menu";
+            default -> "Key " + key;
+        };
     }
 
     private static void tick(Minecraft client) {

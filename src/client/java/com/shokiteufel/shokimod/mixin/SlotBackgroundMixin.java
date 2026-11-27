@@ -1,6 +1,7 @@
 package com.shokiteufel.shokimod.mixin;
 
 import com.shokiteufel.shokimod.handler.TrashBooks;
+import com.shokiteufel.shokimod.handler.VisitorWindow;
 import com.shokiteufel.shokimod.handler.WindowHighlights;
 
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -28,5 +29,15 @@ public abstract class SlotBackgroundMixin {
         TrashBooks.onSlot(graphics, slot);
         // Inventory > Bazaar: Purchase helper und Order helper markieren Plaetze des Behaelters
         WindowHighlights.onSlot(graphics, slot);
+    }
+
+    /**
+     * Nach dem Stueck, noch vor der Beschreibung: Der gesperrte Knopf im Fenster eines Besuchers wird abgedunkelt, der bessere bekommt einen Rand. Das liegt hier und nicht
+     * nach dem ganzen Fenster, weil die Beschreibung (Tooltip) am Ende des Fensters gezeichnet wird - was danach kaeme, laege ueber ihrem Text (bis 2.5.15 ein graues
+     * Quadrat auf "Accept Offer"). Dieselbe Methode wie oben, dieselbe Signatur (in 26.1, 26.2 und 26.3 am Bytecode nachgesehen); RETURN gibt es in jeder Methode.
+     */
+    @Inject(method = "extractSlot(Lnet/minecraft/client/gui/GuiGraphicsExtractor;Lnet/minecraft/world/inventory/Slot;II)V", at = @At("RETURN"))
+    private void shokimod$afterSlot(GuiGraphicsExtractor graphics, Slot slot, int x, int y, CallbackInfo ci) {
+        VisitorWindow.onSlotDrawn(graphics, slot);
     }
 }

@@ -48,8 +48,9 @@ import java.util.List;
  * geschluckt, solange die Umgehungstaste nicht gehalten wird; der gesperrte Knopf ist abgedunkelt, der bessere hat einen gruenen oder roten Rand, und die Beschreibung
  * des gesperrten nennt den Grund. Die Umsetzung ist eigene Arbeit: Java, die Entscheidung ist rein ({@link VisitorDecision}), das Lesen des Fensters alle fuenf Ticks
  * statt bei einem Ereignis, der Klick kommt aus dem Ereignis der Fabric-API ({@code ScreenMouseEvents.allowMouseClick}) und die Tasten fuer Hotbar, Werfen und Tauschen
- * aus {@code ScreenKeyboardEvents.allowKeyPress} (es gibt kein Mixin ausser dem Zugriff auf Lage und Platz unter dem Zeiger); gezeichnet wird nach dem Fenster
- * ({@code ScreenEvents.afterExtract}). Welcher Besucher gemeint ist, sagt der Name auf dem Schild, nicht die Entitaet, die man angeklickt hat.
+ * aus {@code ScreenKeyboardEvents.allowKeyPress} (Mixins: der Zugriff auf Lage und Platz unter dem Zeiger und, seit 2.5.16, der Einsprung nach dem Zeichnen eines Platzes in
+ * {@code SlotBackgroundMixin}); gezeichnet wird beim Platz, nach dem Stueck und vor der Beschreibung ({@link #onSlotDrawn}) - bis 2.5.15 nach dem ganzen Fenster, und dann
+ * lag das graue Quadrat des gesperrten Knopfes ueber dem Text seiner Beschreibung. Welcher Besucher gemeint ist, sagt der Name auf dem Schild, nicht die Entitaet, die man angeklickt hat.
  */
 public final class VisitorWindow {
 
@@ -88,7 +89,7 @@ public final class VisitorWindow {
         if (!(screen instanceof AbstractContainerScreen<?>)) return;
         ScreenMouseEvents.allowMouseClick(screen).register(VisitorWindow::allowClick);
         ScreenKeyboardEvents.allowKeyPress(screen).register(VisitorWindow::allowKey);
-        ScreenEvents.afterExtract(screen).register(VisitorWindow::afterExtract);
+        // Gezeichnet wird nicht mehr nach dem Fenster (dort laege es ueber der Beschreibung), sondern beim Platz: siehe onSlotDrawn und SlotBackgroundMixin
     }
 
     // ------------------------------------------------------------------ Tab-Liste
@@ -309,29 +310,46 @@ public final class VisitorWindow {
         return true;
     }
 
-    /** Nach dem Fenster: den gesperrten Knopf abdunkeln und den besseren umranden */
-    private static void afterExtract(Screen screen, GuiGraphicsExtractor graphics, int mouseX, int mouseY, float tickDelta) {
-        if (!FeatureGate.visitorBlocking()) return;
+    /** Was auf einem Platz gezeichnet wird: nichts, das Abdunkeln des gesperrten Knopfes oder der Rand um den besseren */
+    enum Paint {
+        NONE, DIM, OUTLINE
+    }
+
+    /**
+     * Rein: Was bekommt der Platz mit dieser Nummer? Der gesperrte Knopf wird abgedunkelt - ausser die Umgehungstaste ist gehalten (dann soll er wie ein gewoehnlicher
+     * aussehen) -, der andere bekommt den Rand, wenn die Einstellung ihn will (er bleibt auch bei gehaltener Umgehungstaste).
+     */
+    static Paint paintFor(VisitorDecision.BlockReason reason, int slotNumber, boolean bypassHeld, boolean outlineOption) {
+        if (reason == null) return Paint.NONE;
+        if (slotNumber == VisitorDecision.blockedSlot(reason)) return bypassHeld ? Paint.NONE : Paint.DIM;
+        if (slotNumber == VisitorDecision.bestSlot(reason)) return outlineOption ? Paint.OUTLINE : Paint.NONE;
+        return Paint.NONE;
+    }
+
+    /**
+     * Ein Platz ist gezeichnet (vom Einsprung in {@code extractSlot}, nach dem Stueck): Im Fenster eines Besuchers wird der gesperrte Knopf abgedunkelt und der bessere
+     * umrandet. Gezeichnet wird hier und nicht nach dem ganzen Fenster, damit es unter der Beschreibung des Knopfes liegt und nicht auf ihrem Text.
+     * Ausserhalb eines Besucher-Fensters kostet der Aufruf je Platz einen Vergleich.
+     */
+    public static void onSlotDrawn(GuiGraphicsExtractor graphics, Slot slot) {
+        if (openName == null || slot == null || slot.container instanceof Inventory || !FeatureGate.visitorBlocking()) return;
         try {
+            Screen screen = Minecraft.getInstance().gui.screen();
             VisitorBook.Entry entry = current(screen);
             if (entry == null || entry.block() == null || !(screen instanceof AbstractContainerScreen<?> container)) return;
-            ModConfig.GardenRewardWarningCategory c = cfg();
             List<Slot> slots = container.getMenu().slots;
-            AbstractContainerScreenAccessor accessor = (AbstractContainerScreenAccessor) screen;
-            int left = accessor.shokimod$leftPos();
-            int top = accessor.shokimod$topPos();
-            int blocked = VisitorDecision.blockedSlot(entry.block());
-            int best = VisitorDecision.bestSlot(entry.block());
-            if (!bypassHeld() && blocked >= 0 && blocked < slots.size()) {
-                Slot slot = slots.get(blocked);
-                int x = left + slot.x;
-                int y = top + slot.y;
-                graphics.fill(x, y, x + 16, y + 16, (c.transparency << 24) | DARK_GREY);
-            }
-            if (c.optionOutline && best >= 0 && best < slots.size()) {
-                Slot slot = slots.get(best);
-                int colour = (OUTLINE_ALPHA << 24) | (entry.block().blockRefusing() ? GREEN : RED);
-                border(graphics, left + slot.x, top + slot.y, colour);
+            // Bei den Plaetzen des Behaelters ist die Nummer im Fenster die im Behaelter; nur wenn das nicht stimmt, wird gesucht
+            int number = slot.index;
+            if (number < 0 || number >= slots.size() || slots.get(number) != slot) number = slots.indexOf(slot);
+            if (number < 0) return;
+            ModConfig.GardenRewardWarningCategory c = cfg();
+            // Die Umgehungstaste wird nur gefragt, wenn dieser Platz der gesperrte ist
+            boolean isBlockedSlot = number == VisitorDecision.blockedSlot(entry.block());
+            switch (paintFor(entry.block(), number, isBlockedSlot && bypassHeld(), c.optionOutline)) {
+                case DIM -> graphics.fill(slot.x, slot.y, slot.x + 16, slot.y + 16, (c.transparency << 24) | DARK_GREY);
+                case OUTLINE -> border(graphics, slot.x, slot.y, (OUTLINE_ALPHA << 24) | (entry.block().blockRefusing() ? GREEN : RED));
+                default -> {
+                }
             }
         } catch (RuntimeException e) {
             warnOnce(e);
