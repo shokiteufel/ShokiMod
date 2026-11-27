@@ -26,7 +26,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Chat > Tab Complete: schlaegt beim Tippen eines Befehls Namen vor ("/call el" gibt "elizabeth") - ohne Mixin.
+ * Chat > Tab Complete: schlaegt beim Tippen eines Befehls Namen vor ("/call eli" gibt "elizabeth") - ohne Mixin.
  *
  * Herkunft der Idee: SkyHanni (LGPL-2.1, {@code TabComplete} und die Klassen dazu; die Regeln stehen in {@link TabCompleteRules}). SkyHanni haengt sich dazu in die
  * Vorschlagsliste von Brigadier ein (ein Mixin). Hier meldet die Mod stattdessen je Befehl einen eigenen <b>Client-Befehl</b> an (Fabric

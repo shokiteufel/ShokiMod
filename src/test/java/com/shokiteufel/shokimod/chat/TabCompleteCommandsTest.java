@@ -66,9 +66,11 @@ class TabCompleteCommandsTest {
     void callElCompletesToElizabethTheExampleOfTheUser() throws Exception {
         ModConfig.INSTANCE.chatTab.tabComplete.call = true;
         Suggestions s = suggestions("call el");
-        assertEquals(List.of("elizabeth"), texts(s));
+        // Seit 2.5.10 kennt die Liste alle Kontakte: "el" trifft Elizabeth und Elle
+        assertEquals(List.of("elizabeth", "elle"), texts(s));
         assertEquals(5, s.getRange().getStart(), "der Vorschlag ersetzt 'el', nicht 'call el'");
         assertEquals(7, s.getRange().getEnd());
+        assertEquals(List.of("elizabeth"), texts(suggestions("call eli")), "mit einem Buchstaben mehr nur noch Elizabeth");
     }
 
     @Test

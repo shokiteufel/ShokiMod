@@ -66,9 +66,11 @@ class TabCompleteRulesTest {
         Switches s = only(false, false, false, false, false, false, false, false, false, true, false);
         Result r = TabCompleteRules.suggest("call", "el", s, new Fake());
         assertEquals(0, r.wordStart());
-        assertEquals(List.of("elizabeth"), r.candidates());
+        // Seit 2.5.10 kennt die Liste alle Kontakte: "el" trifft Elizabeth und Elle, "eli" nur Elizabeth
+        assertEquals(List.of("elizabeth", "elle"), r.candidates());
+        assertEquals(List.of("elizabeth"), candidates(TabCompleteRules.suggest("call", "eli", s, new Fake())));
         assertEquals(AbiphoneContacts.NAMES.size(), candidates(TabCompleteRules.suggest("call", "", s, new Fake())).size());
-        assertEquals(List.of("elizabeth"), candidates(TabCompleteRules.suggest("CALL", "EL", s, new Fake())), "Gross und Klein egal");
+        assertEquals(List.of("elizabeth", "elle"), candidates(TabCompleteRules.suggest("CALL", "EL", s, new Fake())), "Gross und Klein egal");
     }
 
     @Test

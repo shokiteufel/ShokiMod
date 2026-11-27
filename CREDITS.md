@@ -419,9 +419,12 @@ Beschreibungen, eigene Tests. Es steht nichts Geschriebenes aus SkyHanni in dies
   ausführen darf, lehnt mit „unbekannter Befehl“ ab und geht seinen gewohnten Weg), der Baum der Unterbefehle ist durchlässig für Gruppen mit Bedingung (bei SkyHanni findet
   „/p kick Na“ deshalb nie die Mitglieder), die Zeile unter dem Zeiger bei Copy Chat wird über die Matrix des Chats zurückgerechnet, die Mitglieder der Freundesliste werden
   nur auf einer Seite von „/friend list“ gelesen (nicht in jeder Zeile, die „Friends“ sagt), eigener Wortlaut. **Nicht übernommen:** „Carry Customers“ und „VIP Visits“ (die
-  Daten fehlen), SkyHannis Wort-Ersetzungen („Shwords“) bei Umschalt in Copy Chat, die Menü-Taste in Copy Chat, die vollständige Liste der Abiphone-Kontakte (SkyHanni lädt sie
-  aus seinem Verzeichnis im Netz; hier stehen nur die sieben Namen, die in den Quelltexten vorkommen), die Beschränkung von /gfs auf Gegenstände, die in einen Sack passen,
+  Daten fehlen), SkyHannis Wort-Ersetzungen („Shwords“) bei Umschalt in Copy Chat, die Menü-Taste in Copy Chat, das Nachladen der Abiphone-Kontakte aus dem Netz (SkyHanni lädt sie; hier
+  steht eine feste Liste, siehe unten), die Beschränkung von /gfs auf Gegenstände, die in einen Sack passen,
   die Ersetzung von Unterstrichen in /gfs, die Vorschläge für die Menge hinter /gfs, und das Merken des Chats in der Datei des Spielers.
+  **Die Liste der /call-Namen** (`AbiphoneContacts`, seit 2.5.10 alle 85 Kontakte mit 143 einwortigen Namen) stammt aus der Kontakt-Tabelle des Community-Wikis
+  hypixelskyblock.minecraft.wiki (Seite „Abiphones“, Stand 27.11.2026; das offizielle Hypixel-Wiki ist seit Juli 2026 geschlossen). Übernommen sind nur die Anrufnamen
+  (Tatsachen, kein Wikitext); neue Kontakte des Spiels stehen erst nach einer Änderung der Liste darin.
 - **Chat (Teil 4)** (`PlayerChatParser`, `PlayerChatFormatter`, `PlayerChatBlacklist`, `TabPlayers`, `TranslatableLanguage`, `GoogleTranslate`, `Translator`,
   `TranslateOnClick`, `TranslateLines`; die Einstellungen `PlayerMessagesCategory` und `TranslatorCategory`): „Player Messages“ und „Translator“ aus SkyHannis „Chat“
   (`PlayerMessagesConfig`, `PlayerChatManager`, `PlayerNameFormatter`, `PlayerChatModifier`, `PlayerChatFilter`, `MultiFilter`, `TranslatorConfig`, `TranslatorCommand`,

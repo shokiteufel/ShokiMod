@@ -6225,7 +6225,7 @@ public class ModConfig extends Config {
         public TranslatorCategory translator = new TranslatorCategory();
 
         @Expose
-        @Category(name = "Tab Complete", desc = "Type the start of a name behind a command and the chat suggests it: /call el gives elizabeth, /warp, /p, /f, /g, /msg and more. Only in SkyBlock. Everything is off until you turn it on. Idea from SkyHanni.")
+        @Category(name = "Tab Complete", desc = "Type the start of a name behind a command and the chat suggests it: /call eli gives elizabeth, /warp, /p, /f, /g, /msg and more. Only in SkyBlock. Everything is off until you turn it on. Idea from SkyHanni.")
         public TabCompleteCategory tabComplete = new TabCompleteCategory();
 
         /** Ist einer der elf Schalter der Dungeon Filters an? */
@@ -6576,7 +6576,7 @@ public class ModConfig extends Config {
     }
 
     /**
-     * Chat > Tab Complete: Namen hinter einem Befehl vorschlagen ("/call el" gibt "elizabeth"). Alles von Haus aus aus - bei SkyHanni stehen die meisten an.
+     * Chat > Tab Complete: Namen hinter einem Befehl vorschlagen ("/call eli" gibt "elizabeth"). Alles von Haus aus aus - bei SkyHanni stehen die meisten an.
      *
      * Herkunft der Idee: SkyHanni (LGPL-2.1, {@code TabCompleteConfig}, {@code StashConfig.tabCompleteStashCommand}). Von dort stammen die Schalter, ihre Namen und
      * ihre Reihenfolge. Die Umsetzung ist eigene Arbeit: Java; die Regeln stehen in {@code chat.TabCompleteRules}, der Weg ins Spiel in {@code
@@ -6636,7 +6636,7 @@ public class ModConfig extends Config {
         public boolean showItem = false;
 
         @Expose
-        @ConfigOption(name = "Call", desc = "Tab-complete /call with contact names. The mod knows only a few contacts by name (Anita, Elizabeth, Jotraeline, Kysha, Odger, Phillip, Trevor); type any other one out.")
+        @ConfigOption(name = "Call", desc = "Tab-complete /call with contact names: all 85 Abiphone contacts with every name the game accepts for them (/call alc, /call alch and /call alchemist all reach the Alchemist). The list is a fixed one from the community wiki (27 Nov 2026); a contact added later is missing until the mod learns its name - type it out, /call knows it.")
         @ConfigEditorBoolean
         public boolean call = false;
 
