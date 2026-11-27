@@ -81,6 +81,20 @@ public final class SlayerKillStats {
             sum += millis;
         }
 
+        /**
+         * Eine Quest in die Sitzung aufnehmen - nur, wenn sie hoechstens {@link SlayerKillStats#SESSION_MAX_MILLIS} (zwei Minuten) dauerte: eine laengere ist "nicht
+         * gewertet" und verfaelscht den Durchschnitt nicht.
+         *
+         * @return ob die Quest gewertet wurde
+         */
+        public boolean addQuest(long millis) {
+            if (!countsForSession(millis)) {
+                return false;
+            }
+            add(millis);
+            return true;
+        }
+
         public int count() {
             return count;
         }
@@ -127,7 +141,31 @@ public final class SlayerKillStats {
 
     /** Die Zeile zur Questzeit mit dem Durchschnitt der Sitzung dahinter, ohne Farben */
     public static String questLine(long millis, long average, Locale locale) {
+        return questLine(millis, average, true, locale);
+    }
+
+    /** Eine Quest, die laenger als zwei Minuten dauert, geht nicht in den Durchschnitt der Sitzung ein: Sie ist "nicht gewertet" (Wunsch des Users, 27.11.) */
+    public static final long SESSION_MAX_MILLIS = 2L * 60_000L;
+
+    /** Wertet die Sitzung diese Quest? Hoechstens zwei Minuten zaehlen; genau zwei Minuten noch */
+    public static boolean countsForSession(long questMillis) {
+        return questMillis <= SESSION_MAX_MILLIS;
+    }
+
+    /** Der Zusatz hinter einer Questzeit, die nicht in den Durchschnitt eingeht */
+    public static final String NOT_COUNTED_TEXT = "not counted - over 2 min";
+
+    /**
+     * Die Zeile zur Questzeit ohne Farben.
+     *
+     * @param average der Durchschnitt der Sitzung (ohne diese Quest, wenn sie nicht gewertet wird), oder -1, wenn es noch keinen gibt
+     * @param counted ob die Quest in den Durchschnitt einging; sonst steht "(not counted - over 2 min)" dabei
+     */
+    public static String questLine(long millis, long average, boolean counted, Locale locale) {
         StringBuilder out = new StringBuilder("Quest Kill time: ").append(format(millis, locale));
+        if (!counted) {
+            out.append("  (").append(NOT_COUNTED_TEXT).append(')');
+        }
         if (average >= 0L) {
             out.append("  (Avg. Time this Session: ").append(format(average, locale)).append(')');
         }

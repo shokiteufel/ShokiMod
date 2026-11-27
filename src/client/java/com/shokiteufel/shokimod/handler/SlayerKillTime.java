@@ -64,6 +64,8 @@ public final class SlayerKillTime {
     static final Pattern BOSS_COCOON = Pattern.compile("^YOU COCOONED YOUR SLAYER BOSS");
     /** Die endgueltige Todesmeldung: 1 bis 2 s nach dem Tod, nach "COCOONED" 5 bis 7 s; "SLAIN" kam in keinem Kampf */
     static final Pattern BOSS_FINAL = Pattern.compile("^(?:NICE! SLAYER BOSS SLAIN!|SLAYER QUEST COMPLETE!)");
+    /** Das Ende der Quest, wie bei SkyHanni ({@code SlayerApi.questCompletePattern}): nur diese Zeile, nicht "SLAYER BOSS SLAIN!" */
+    static final Pattern QUEST_COMPLETE = Pattern.compile("^SLAYER QUEST COMPLETE!");
     static final Pattern QUEST_FAILED = Pattern.compile("^(?:SLAYER QUEST FAILED!|Your Slayer Quest has been cancelled!)");
     /** "SLAYER BOSS! The ☠ Packmaster Soul spawned!" - das Zeichen davor gibt es nicht bei jedem Boss */
     static final Pattern BOSS_SPAWN = Pattern.compile("^SLAYER BOSS!\\s+The\\s+(?:\\S{1,2}\\s+)?(.+?)\\s+spawned!");
@@ -154,6 +156,10 @@ public final class SlayerKillTime {
         }
         if (BOSS_FINAL.matcher(line).find()) {
             finish(CLOCK.deathMessage(now, true), true);
+            // Die Quest ist zu Ende: ihre Zeit laeuft bis zu dieser Zeile (wie bei SkyHanni), nach dem Boss - erst dort steht fest, welcher es war
+            if (QUEST_COMPLETE.matcher(line).find()) {
+                finishQuest(CLOCK.questCompleted(now));
+            }
             // Der Kasten ist da: die wartenden Zeilen folgen dreiviertel Sekunde danach
             if (!OUTBOX.isEmpty()) {
                 outboxDelay = OUTPUT_DELAY_TICKS;
@@ -198,7 +204,8 @@ public final class SlayerKillTime {
             return;
         }
         long bossMillis = kill.bossNanos() / 1_000_000L;
-        long questMillis = kill.questNanos() < 0L ? -1L : kill.questNanos() / 1_000_000L;
+        // Die Zeit von der Annahme bis zum Tod - nur fuers Log; gezeigt wird die bis zur Abschlussmeldung (finishQuest)
+        long questToDeathMillis = kill.questNanos() < 0L ? -1L : kill.questNanos() / 1_000_000L;
         if (!SlayerKillStats.plausible(bossMillis)) {
             ShokiMod.LOGGER.info("[Slayer] kill time {} ms of '{}' is out of range - ignored", bossMillis, kill.key());
             return;
@@ -209,8 +216,8 @@ public final class SlayerKillTime {
         List<Long> times = records().computeIfAbsent(kill.key(), k -> new ArrayList<>());
         SlayerKillStats.Standing standing = SlayerKillStats.record(times, bossMillis);
         ModConfig.INSTANCE.saveNow();
-        ShokiMod.LOGGER.info("[Slayer] {}: {} (end: {})", kill.key(), SlayerKillStats.bossLine(bossMillis, standing, locale),
-                kill.byKillLine() ? "'Your Slayer Kill' line" : "first death message");
+        ShokiMod.LOGGER.info("[Slayer] {}: {} (end: {}; quest accepted to death: {} ms)", kill.key(), SlayerKillStats.bossLine(bossMillis, standing, locale),
+                kill.byKillLine() ? "'Your Slayer Kill' line" : "first death message", questToDeathMillis);
 
         if (cfg.bossKillTime) {
             OUTBOX.add(prefix().append(Component.literal("Boss Kill time: ").withStyle(ChatFormatting.AQUA))
@@ -220,18 +227,38 @@ public final class SlayerKillTime {
                             : Component.empty())
                     .append(Component.literal("  (" + SlayerKillStats.rankText(standing) + ")").withStyle(ChatFormatting.GRAY)));
         }
-        if (questMillis >= 0L) {
-            SlayerKillStats.Session session = SESSION.computeIfAbsent(kill.key(), k -> new SlayerKillStats.Session());
-            session.add(questMillis);
-            if (cfg.questKillTime) {
-                String average = SlayerKillStats.format(session.average(), locale);
-                OUTBOX.add(prefix().append(Component.literal("Quest Kill time: ").withStyle(ChatFormatting.AQUA))
-                        .append(Component.literal(SlayerKillStats.format(questMillis, locale)).withStyle(ChatFormatting.GREEN))
-                        .append(Component.literal("  (Avg. Time this Session: " + average + ")").withStyle(ChatFormatting.GRAY)));
-                ShokiMod.LOGGER.info("[Slayer] {}", SlayerKillStats.questLine(questMillis, session.average(), locale));
-            }
-        }
         outboxDelay = boxSeen ? OUTPUT_DELAY_TICKS : WAIT_FOR_BOX_TICKS;
+    }
+
+    /**
+     * Die Zeit der ganzen Quest: von der Annahme bis zur Zeile "SLAYER QUEST COMPLETE!" (wie bei SkyHanni), mit dem Durchschnitt der Sitzung dahinter.
+     * Dauerte die Quest laenger als zwei Minuten, steht sie als "not counted" da und geht nicht in den Durchschnitt ein.
+     *
+     * @param done die Quest, oder null (kein Beginn bekannt)
+     */
+    private static void finishQuest(SlayerKillClock.QuestDone done) {
+        if (done == null) {
+            return;
+        }
+        long questMillis = done.nanos() / 1_000_000L;
+        Locale locale = Locale.getDefault(Locale.Category.FORMAT);
+        SlayerKillStats.Session session = SESSION.computeIfAbsent(done.key(), k -> new SlayerKillStats.Session());
+        // Eine Quest ueber zwei Minuten ist "nicht gewertet": Sie steht im Chat, geht aber nicht in den Durchschnitt ein
+        boolean counted = session.addQuest(questMillis);
+        long average = session.average();
+        ShokiMod.LOGGER.info("[Slayer] {}: {}", done.key(), SlayerKillStats.questLine(questMillis, average, counted, locale));
+        if (!ModConfig.INSTANCE.slayer.questKillTime) {
+            return;
+        }
+        MutableComponent line = prefix().append(Component.literal("Quest Kill time: ").withStyle(ChatFormatting.AQUA))
+                .append(Component.literal(SlayerKillStats.format(questMillis, locale)).withStyle(ChatFormatting.GREEN));
+        if (!counted) {
+            line.append(Component.literal("  (" + SlayerKillStats.NOT_COUNTED_TEXT + ")").withStyle(ChatFormatting.RED));
+        }
+        if (average >= 0L) {
+            line.append(Component.literal("  (Avg. Time this Session: " + SlayerKillStats.format(average, locale) + ")").withStyle(ChatFormatting.GRAY));
+        }
+        OUTBOX.add(line);
     }
 
     private static MutableComponent prefix() {

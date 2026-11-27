@@ -25,8 +25,11 @@ package com.shokiteufel.shokimod.handler;
  * Ticks gelesen = 0,25 s) hatte die Zeiten in 2.4.5 auf ,00 ,25 ,99 gerastert. Sie dient nur dem Beginn und dem Verwerfen: "SLAYER QUEST FAILED!"
  * ({@link #failed}) oder eine Zeile, die zu lange fehlt ({@link #timeout}), verwirft den Kampf.
  *
- * <p><b>Quest</b>: "SLAYER QUEST STARTED!" ({@link #questStarted}) setzt den Beginn der Quest; sie laeuft bis zum Tod des Bosses. Fehlt der
- * Beginn (die Funktion wurde mitten in der Quest eingeschaltet), gibt es keine Questzeit, nur die Bosszeit.
+ * <p><b>Quest</b>: "SLAYER QUEST STARTED!" ({@link #questStarted}) setzt den Beginn der Quest. Zwei Zeiten laufen davon aus: bis zum Tod des Bosses
+ * ({@code Kill.questNanos}, nur noch fuers Log) und - die, die gezeigt wird - bis zur Zeile "SLAYER QUEST COMPLETE!" ({@link #questCompleted}), wie bei SkyHanni
+ * ("Slayer quest took 9s to complete": von {@code SlayerApi.questStartTime} bis zum Ereignis der Abschlussmeldung). Seit 2.5.17 gilt die zweite, weil beide Mods sonst
+ * fuer dieselbe Quest verschiedene Werte nennen (Tod und Abschlussmeldung liegen 1 bis 2 s, nach "COCOONED" 5 bis 7 s auseinander). Fehlt der Beginn (die Funktion wurde
+ * mitten in der Quest eingeschaltet), gibt es keine Questzeit, nur die Bosszeit.
  */
 public final class SlayerKillClock {
 
@@ -37,6 +40,10 @@ public final class SlayerKillClock {
     public record Kill(String key, long bossNanos, long questNanos, boolean byKillLine) {
     }
 
+    /** Die Quest ist zu Ende ("SLAYER QUEST COMPLETE!"): Name des Bosses (mit Stufe) und die Zeit seit der Annahme bis zu dieser Zeile */
+    public record QuestDone(String key, long nanos) {
+    }
+
     /** So lange wartet eine Todesmeldung auf die Zeile "Slayer Kill" oder die Abschlussmeldung; fehlt eine Zeile so lange, ist der Kampf aus anderem Grund zu Ende */
     static final long GIVE_UP_NANOS = 15_000_000_000L;
 
@@ -44,6 +51,14 @@ public final class SlayerKillClock {
     private String key = null;
     private boolean keyFromSidebar = false;
     private long questStart = -1L;
+    /**
+     * Der Beginn der Quest fuer die Gesamtzeit der Quest - wie bei SkyHanni (SlayerApi.questStartTime bis zum Ereignis der Abschlussmeldung): Sie laeuft bis zur Zeile
+     * "SLAYER QUEST COMPLETE!", nicht bis zum Tod des Bosses. Der Tod liegt davor, meist 1 bis 2 s, nach "COCOONED" 5 bis 7 s. Getrennt von {@link #questStart}, der
+     * mit dem Kampf endet: Die Bosszeit und die Zeit bis zum Tod aendern sich dadurch nicht.
+     */
+    private long completeStart = -1L;
+    /** Name (mit Stufe) des Bosses der letzten Quest, oder null, solange kein Kampf gezaehlt wurde */
+    private String lastKey = null;
     /** Seit wann die Zeile "Slay the boss!" fehlt, oder -1 */
     private long lostAt = -1L;
     /** Wann die Zeile "Your Slayer Kill gave you ..." kam, oder -1 */
@@ -85,7 +100,27 @@ public final class SlayerKillClock {
     /** "SLAYER QUEST STARTED!": die Quest beginnt. Ein noch laufender Kampf der vorigen Quest war dann keiner mehr */
     public void questStarted(long now) {
         questStart = now;
+        completeStart = now;
+        lastKey = null;
         cancelBoss();
+    }
+
+    /**
+     * "SLAYER QUEST COMPLETE!": die Quest ist zu Ende. Die Zeit laeuft - wie bei SkyHanni ("Slayer quest took 9s to complete") - von der Annahme bis zu dieser Zeile,
+     * also etwas laenger als bis zum Tod des Bosses. Aufruf nach {@link #finished}/{@link #deathMessage}: Erst dort steht fest, welcher Boss es war.
+     *
+     * @return die Zeit und der Name des Bosses, oder null, wenn kein Beginn bekannt ist (die Funktion wurde mitten in der Quest eingeschaltet) oder die Zeit nicht
+     *         zaehlt (die Zeile kam vor dem Beginn); danach ist die Quest abgehakt - ein zweiter Aufruf gibt null
+     */
+    public QuestDone questCompleted(long now) {
+        long start = completeStart;
+        String key = lastKey == null || lastKey.isEmpty() ? "Slayer boss" : lastKey;
+        completeStart = -1L;
+        lastKey = null;
+        if (start < 0L || now <= start) {
+            return null;
+        }
+        return new QuestDone(key, now - start);
     }
 
     /**
@@ -153,6 +188,8 @@ public final class SlayerKillClock {
     public void failed() {
         cancelBoss();
         questStart = -1L;
+        completeStart = -1L;
+        lastKey = null;
     }
 
     /** Neue Lobby: der Boss gehoert zur alten, die Quest laeuft weiter (ihre Zeit zaehlt, die Sitzung nicht) */
@@ -216,7 +253,10 @@ public final class SlayerKillClock {
             return null;
         }
         long questNanos = quest >= 0L && end > quest ? end - quest : -1L;
-        return new Kill(name == null || name.isEmpty() ? "Slayer boss" : name, end - start, questNanos, byKillLine);
+        String shownName = name == null || name.isEmpty() ? "Slayer boss" : name;
+        // Fuer die Gesamtzeit der Quest: welcher Boss es war (die Zeit selbst laeuft bis zur Abschlussmeldung weiter)
+        lastKey = shownName;
+        return new Kill(shownName, end - start, questNanos, byKillLine);
     }
 
     /** Beendet den Kampf (Tod, Misserfolg, neue Quest, neue Lobby): die Zeile muss erst fehlen, bevor ein neuer beginnt */
