@@ -41,4 +41,23 @@ class NearbyOverlayClickableTest {
         assertTrue(NearbyOverlay.anyClickable(true, false, false, false, false, false, false, true));
         assertFalse(NearbyOverlay.anyClickable(true, false, false, false, false, false, false, false), "ohne Kasten nichts");
     }
+
+    // ---- seit 2.6.4: Klicks nimmt nur an, wo die Kaesten auch gezeichnet werden
+
+    @Test
+    void theBoxesAreDrawnOverContainerWindowsAndTheChat() {
+        assertTrue(NearbyOverlay.panelsDrawnOver(net.minecraft.client.gui.screens.inventory.InventoryScreen.class), "eigenes Inventar");
+        assertTrue(NearbyOverlay.panelsDrawnOver(net.minecraft.client.gui.screens.inventory.AbstractContainerScreen.class), "jeder Behaelter (Besucher, Basar ...)");
+        assertTrue(NearbyOverlay.panelsDrawnOver(net.minecraft.client.gui.screens.ChatScreen.class), "Chat");
+    }
+
+    @Test
+    void noBoxIsDrawnOverTheWindowsOfTheModOrAnyOtherScreen() {
+        // Das Einstellungsfenster (/shoki): Die Einkaufsliste der Besucher stand dort unsichtbar und schluckte Klicks auf die Reiter
+        assertFalse(NearbyOverlay.panelsDrawnOver(io.github.notenoughupdates.moulconfig.platform.MoulConfigScreenComponent.class), "Einstellungsfenster");
+        assertFalse(NearbyOverlay.panelsDrawnOver(com.shokiteufel.shokimod.gui.HudEditorScreen.class), "HUD-Editor zeichnet selbst");
+        assertFalse(NearbyOverlay.panelsDrawnOver(com.shokiteufel.shokimod.gui.EffectsScreen.class), "ein weiteres Fenster der Mod");
+        assertFalse(NearbyOverlay.panelsDrawnOver(net.minecraft.client.gui.screens.Screen.class), "jedes andere Fenster");
+        assertFalse(NearbyOverlay.panelsDrawnOver((Class<?>) null), "kein Fenster: es gibt keinen Klick");
+    }
 }

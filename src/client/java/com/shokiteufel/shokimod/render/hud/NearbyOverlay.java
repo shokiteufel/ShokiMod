@@ -61,9 +61,7 @@ public final class NearbyOverlay {
         // (dort zaehlt jedes offene Fenster), und hier kam er bisher auch nicht durch,
         // weil er kein Behaelter-Fenster ist. So fielen die Kaesten zwischen beiden
         // Wegen hindurch und verschwanden, sobald jemand etwas tippen wollte
-        if (offen != null
-                && !(offen instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?>)
-                && !(offen instanceof net.minecraft.client.gui.screens.ChatScreen)) {
+        if (offen != null && !panelsDrawnOver(offen)) {
             return;
         }
         // Dieselbe Auswahl wie beim Spielen - was eingeschaltet ist und hierher gehoert. Bei offenem Chat hat sie schon der Einsprung am Anfang
@@ -76,6 +74,21 @@ public final class NearbyOverlay {
             com.shokiteufel.shokimod.dungeonkarte.FunnyKarteHud.render(graphics);
         }
         drawNegativeTooltip(graphics);
+    }
+
+    /**
+     * Zeichnen die Kaesten ueber dieses Fenster? Nur ueber Behaelter-Fenster (Inventar, Kisten, Basar ...) und den Chat. Was nicht gezeichnet wird, darf auch keinen Klick
+     * schlucken: Die Einkaufsliste der Besucher stand unsichtbar ueber dem Einstellungsfenster (/shoki) und nahm dort Klicks auf ihre Zeilen weg (seit 2.6.4 nicht mehr).
+     */
+    static boolean panelsDrawnOver(net.minecraft.client.gui.screens.Screen screen) {
+        return screen != null && panelsDrawnOver(screen.getClass());
+    }
+
+    /** Wie {@link #panelsDrawnOver(net.minecraft.client.gui.screens.Screen)}, nach der Klasse des Fensters - so ohne Spiel pruefbar */
+    static boolean panelsDrawnOver(Class<?> screen) {
+        return screen != null
+                && (net.minecraft.client.gui.screens.inventory.AbstractContainerScreen.class.isAssignableFrom(screen)
+                || net.minecraft.client.gui.screens.ChatScreen.class.isAssignableFrom(screen));
     }
 
     /** Hat der Einsprung am Anfang des Chat-Fensters in diesem Bild die Kaesten schon gezeichnet? Wird in {@link #draw} zurueckgesetzt */
@@ -176,7 +189,8 @@ public final class NearbyOverlay {
         boolean own = interactive();
         boolean hunting = HuntingBoxOverlay.shown();
         // Die Einkaufsliste der Besucher steht auch vor dem Chat, dem Fenster eines Besuchers und dem Basar (siehe VisitorWindow.screenAllowsList)
-        boolean visitors = SafariHud.Panel.VISITOR_LIST.visible();
+        // ... aber nur, wo sie auch gezeichnet wird: nicht ueber dem Einstellungsfenster, dem HUD-Editor und anderen Fenstern der Mod
+        boolean visitors = SafariHud.Panel.VISITOR_LIST.visible() && panelsDrawnOver(Minecraft.getInstance().gui.screen());
         if (!own) return anyClickable(false, hunting, false, false, false, false, visitors, false);
         return anyClickable(true, hunting, shown(), SafariHud.Panel.PROFIT.visible(), SafariHud.Panel.SEATRACKER.visible(),
                 SafariHud.Panel.SKILL_XP.visible(), visitors, SafariHud.Panel.GARDEN_PLOTS.visible());
@@ -202,7 +216,10 @@ public final class NearbyOverlay {
 
         // Alles Weitere gehoert dem eigenen Inventar - bis auf die Einkaufsliste der Besucher: Sie steht auch vor dem Chat, dem Fenster eines Besuchers und dem
         // Basar. Ihr Klick auf einen Gegenstand sucht ihn im Basar; liegt der Klick auf keiner Zeile mit Besucher oder Gegenstand, bleibt er beim Fenster
-        if (!interactive()) return SafariHud.Panel.VISITOR_LIST.visible() && VisitorShoppingHud.handleClick(mouseX, mouseY);
+        if (!interactive()) {
+            return panelsDrawnOver(Minecraft.getInstance().gui.screen())
+                    && SafariHud.Panel.VISITOR_LIST.visible() && VisitorShoppingHud.handleClick(mouseX, mouseY);
+        }
 
         if (shown()) {
             SafariHud.Panel panel = SafariHud.Panel.NEARBY;
