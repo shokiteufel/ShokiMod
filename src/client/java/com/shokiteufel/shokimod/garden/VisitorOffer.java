@@ -66,9 +66,31 @@ public final class VisitorOffer {
     /** Eine Zeile ohne Farbcodes und Rand, ohne das Herz hinter den Belohnungen eines "charmed" Besuchers */
     static String clean(String raw) {
         if (raw == null) return "";
-        String text = raw.replaceAll("§.", "").trim();
-        if (text.endsWith("❤")) text = text.substring(0, text.length() - 1).trim();
-        return text;
+        return stripMarker(raw.replaceAll("§.", "").trim());
+    }
+
+    /**
+     * Nimmt das Zeichen weg, das Hypixel hinter eine Belohnung setzt: ein Herz ("Visitors' Gratitude ♥"). Bis 2.5.14 hiess das nur {@code ❤} (U+2764, SkyHannis
+     * Zeichen); Hypixel kann ebenso {@code ♥} (U+2665) oder ein Herz mit Varianten-Zeichen (U+FE0F) schreiben, und dann passte der Name keiner Belohnung mehr - sie
+     * blieb unerkannt und nichts wurde gesperrt. Darum faellt jetzt jedes Zeichen der Art "Symbol" am Ende weg, samt Leerraum und Varianten-Zeichen davor.
+     * Buchstaben, Ziffern und Satzzeichen ("Click to give!", "Rewards:", "Dedication IV") bleiben.
+     */
+    static String stripMarker(String text) {
+        if (text == null) return "";
+        int end = text.length();
+        while (end > 0) {
+            int codePoint = text.codePointBefore(end);
+            if (!isMarker(codePoint)) break;
+            end -= Character.charCount(codePoint);
+        }
+        return text.substring(0, end).trim();
+    }
+
+    private static boolean isMarker(int codePoint) {
+        // Leerraum (auch das geschuetzte Leerzeichen), Varianten-Zeichen und der Verbinder, die ein Herz begleiten koennen
+        if (Character.isWhitespace(codePoint) || codePoint == 0x00A0 || codePoint == 0x202F) return true;
+        if (codePoint == 0xFE0E || codePoint == 0xFE0F || codePoint == 0x200D) return true;
+        return Character.getType(codePoint) == Character.OTHER_SYMBOL;
     }
 
     private static long number(String text) {

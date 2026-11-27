@@ -157,7 +157,13 @@ public final class VisitorBook {
          */
         public List<VisitorReward> applyOffer(List<String> lore, VisitorOffer.Parsed offer, ToDoubleFunction<String> unitPrice, double copperValue,
                                               ModConfig.GardenRewardWarningCategory chosen) {
-            if (lore != null && lore.equals(lastLore)) return List.of();
+            if (lore != null && lore.equals(lastLore)) {
+                // Dasselbe Angebot - aber die Auswahl der Belohnungen kann sich seit der letzten Lesung geaendert haben: Wer eine Belohnung erst einschaltet, nachdem
+                // der Besucher gelesen wurde, wartete bisher, bis sich der Text aenderte (oft bis der Besucher ging), und nichts wurde gesperrt. Der Abgleich der
+                // gemerkten Namen mit der Auswahl kostet eine Handvoll Vergleiche; neu gemeldet wird dabei nichts
+                warned = List.copyOf(VisitorDecision.warnedRewards(rewardNames, chosen));
+                return List.of();
+            }
             lastLore = lore == null ? List.of() : List.copyOf(lore);
 
             required.clear();

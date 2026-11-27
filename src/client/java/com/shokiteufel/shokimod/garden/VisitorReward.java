@@ -118,11 +118,11 @@ public enum VisitorReward {
         return displayName;
     }
 
-    /** Ein Name, wie er verglichen wird: ohne Farbcodes und ein Herz am Ende, kleingeschrieben, mit geraden Hochkommas */
+    /** Ein Name, wie er verglichen wird: ohne Farbcodes und ein Herz (oder ein anderes Symbol) am Ende, kleingeschrieben, mit geraden Hochkommas */
     static String normalize(String name) {
         if (name == null) return "";
-        String text = name.replaceAll("§.", "").trim();
-        if (text.endsWith("\u2764")) text = text.substring(0, text.length() - 1).trim();
+        // Ein Herz hinten (in jeder Schreibweise, siehe VisitorOffer.stripMarker) gehoert nicht zum Namen
+        String text = VisitorOffer.stripMarker(name.replaceAll("§.", "").trim());
         return text.replace('\u2019', '\'').toLowerCase(Locale.ROOT);
     }
 

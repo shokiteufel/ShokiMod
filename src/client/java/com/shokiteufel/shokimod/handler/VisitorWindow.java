@@ -187,8 +187,14 @@ public final class VisitorWindow {
         VisitorBook.Entry entry = VisitorBook.INSTANCE.getOrCreate(name);
         entry.offersAccepted(VisitorOffer.offersAccepted(infoLore));
         List<String> offerLore = SkyBlockItems.loreOf(accept);
+        List<String> namesBefore = entry.rewardNames();
         List<VisitorReward> fresh = entry.applyOffer(offerLore, VisitorOffer.parse(offerLore), VisitorPrices::buyPrice, VisitorPrices.copperValue(), c);
         entry.decide(VisitorDecision.rulesOf(c));
+        // Einmal je Angebot ins Log: was als Belohnung gelesen wurde und welche davon gewaehlt sind. Steht dort "Visitors' Gratitude" und bei gewarnt nichts, passt der
+        // Name nicht zur Auswahl (oder der Schalter ist aus) - die Zeile, die man braucht, wenn eine Belohnung nicht sperrt
+        if (!entry.rewardNames().equals(namesBefore)) {
+            ShokiMod.LOGGER.info("[Visitors] {}: rewards read {} - warned {}, block {}", name, entry.rewardNames(), entry.warned(), entry.block());
+        }
         openName = name;
         if (c.notifyInChat && !fresh.isEmpty()) announce(client, fresh);
     }
