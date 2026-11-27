@@ -391,6 +391,11 @@ public class ShokiMod implements ClientModInitializer {
                             com.shokiteufel.shokimod.handler.ShortcutHandler.requestOpen();
                             return 1;
                         }))
+                        // /shoki topslayer -> die drei schnellsten Boss-Zeiten je Slayer (und Stufe) im Chat
+                        .then(ClientCommands.literal("topslayer").executes(context -> {
+                            com.shokiteufel.shokimod.handler.SlayerKillTime.showTop();
+                            return 1;
+                        }))
                         // /shoki effects -> die gemerkten Traenke: Kasten und Alarm je Effekt
                         .then(ClientCommands.literal("effects").executes(context -> {
                             openEffectsNextTick = true;

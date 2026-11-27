@@ -174,6 +174,34 @@ public final class SlayerKillTime {
         ShokiMod.LOGGER.info("[Slayer] new lobby - the kill time session starts over");
     }
 
+    /**
+     * {@code /shoki topslayer}: die drei schnellsten Boss-Zeiten je Slayer (und Stufe) im Chat. Gelesen werden die gespeicherten Zeiten der Funktion "Boss Kill time" - der
+     * Befehl geht auch, wenn ihr Schalter inzwischen aus ist; ohne gespeicherte Zeit sagt er, woher sie kommen.
+     */
+    public static void showTop() {
+        Minecraft client = Minecraft.getInstance();
+        if (client == null || client.player == null) {
+            return;
+        }
+        List<SlayerKillStats.Top> top = SlayerKillStats.top(records(), SlayerKillStats.TOP_COUNT);
+        if (top.isEmpty()) {
+            client.player.sendSystemMessage(prefix().append(Component.literal(
+                    "No slayer kill times yet. Turn on Slayer > Boss Kill time and kill a boss - every boss gets its own list.").withStyle(ChatFormatting.GRAY)));
+            return;
+        }
+        Locale locale = Locale.getDefault(Locale.Category.FORMAT);
+        client.player.sendSystemMessage(prefix().append(Component.literal("Top " + SlayerKillStats.TOP_COUNT + " slayer kill times").withStyle(ChatFormatting.AQUA)));
+        for (SlayerKillStats.Top entry : top) {
+            MutableComponent line = Component.literal("  " + entry.key() + ": ").withStyle(ChatFormatting.WHITE);
+            for (int i = 0; i < entry.best().size(); i++) {
+                line.append(Component.literal(i == 0 ? "" : "  ").withStyle(ChatFormatting.GRAY));
+                line.append(Component.literal("#" + (i + 1) + " ").withStyle(i == 0 ? ChatFormatting.GOLD : ChatFormatting.GRAY));
+                line.append(Component.literal(SlayerKillStats.format(entry.best().get(i), locale)).withStyle(ChatFormatting.GREEN));
+            }
+            client.player.sendSystemMessage(line);
+        }
+    }
+
     /** Der Reset-Knopf: erst fragen, dann alle persoenlichen Zeiten loeschen */
     public static void askReset() {
         com.shokiteufel.shokimod.gui.ResetConfirm.ask("Slayer kill times",

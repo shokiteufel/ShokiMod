@@ -226,6 +226,7 @@ die Spielversion beim Start — die falsche Datei laedt der Loader gar nicht ers
 | `/shoki craftprofit` | Gewinn je Handwerks- und Forge-Rezept |
 | `/shoki petprofit` | Gewinn je Pet; die Liste fuehrt je Pet das beste Angebot und das beste auf Stufe 1 |
 | `/shoki corpseprofitcheck` | Gewinn je Leiche im Glacite Mineshaft (Lapis, Umber, Tungsten, Vanguard) mit und ohne RNG Meter, im Chat |
+| `/shoki topslayer` | Die drei schnellsten Boss-Zeiten je Slayer (und Stufe) im Chat, aus den gespeicherten Zeiten von Slayer > Boss Kill time |
 | `/shoki profit` | Liste des Profit-Trackers: welche Funde zaehlen und wie sie verkauft werden |
 | `/shoki dayprofit` | Was die vergangenen Tage gebracht haben, wahlweise je SkyBlock-Jahr oder Buergermeister; ein Klick zeigt die Waren |
 | `/shoki profitlog [migrate]` | Wo das Tages-Log liegt und wie viele Tage drinstehen; `migrate` schreibt Tage aus der Config ins Log |

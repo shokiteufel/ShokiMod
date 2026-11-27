@@ -1,8 +1,11 @@
 package com.shokiteufel.shokimod.handler;
 
 import java.text.DecimalFormatSymbols;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * Die Zahlen hinter den Kill-Zeiten: persoenlicher Rang und Bestzeit, der Durchschnitt der Sitzung und die Schreibweise. Keine
@@ -137,6 +140,94 @@ public final class SlayerKillStats {
             out.append("  ").append(BEST_TEXT);
         }
         return out.append("  (").append(rankText(standing)).append(')').toString();
+    }
+
+    // ------------------------------------------------------------------ Die schnellsten Zeiten (/shoki topslayer)
+
+    /** Die schnellsten Zeiten eines Bosses (mit Stufe), die schnellste zuerst */
+    public record Top(String key, List<Long> best) {
+    }
+
+    /** Die Slayer in der Reihenfolge des Spiels; was hier nicht steht, kommt dahinter, alphabetisch */
+    private static final List<String> SLAYER_ORDER = List.of("Revenant Horror", "Tarantula Broodfather", "Sven Packmaster", "Voidgloom Seraph", "Inferno Demonlord",
+            "Riftstalker Bloodfiend");
+
+    /** Wie viele Zeiten {@code /shoki topslayer} je Boss zeigt */
+    public static final int TOP_COUNT = 3;
+
+    /** Die Stufe am Ende des Namens ("Tarantula Broodfather V" = 5), oder 0, wenn dort keine roemische Zahl steht */
+    static int tierOf(String key) {
+        if (key == null) {
+            return 0;
+        }
+        String word = key.trim();
+        int space = word.lastIndexOf(' ');
+        if (space >= 0) {
+            word = word.substring(space + 1);
+        }
+        return switch (word) {
+            case "I" -> 1;
+            case "II" -> 2;
+            case "III" -> 3;
+            case "IV" -> 4;
+            case "V" -> 5;
+            case "VI" -> 6;
+            case "VII" -> 7;
+            case "VIII" -> 8;
+            case "IX" -> 9;
+            case "X" -> 10;
+            default -> 0;
+        };
+    }
+
+    private static int slayerIndex(String key) {
+        for (int i = 0; i < SLAYER_ORDER.size(); i++) {
+            if (key.startsWith(SLAYER_ORDER.get(i))) {
+                return i;
+            }
+        }
+        return SLAYER_ORDER.size();
+    }
+
+    /**
+     * Die {@code count} schnellsten Zeiten je Boss und Stufe, sortiert: die Slayer in der Reihenfolge des Spiels (Revenant, Tarantula, Sven, Voidgloom, Inferno,
+     * Riftstalker), dann nach Stufe aufsteigend. Die Zeiten verschiedener Stufen werden nicht vermischt - eine Stufe 3 und eine Stufe 5 lassen sich nicht vergleichen.
+     * Ein Boss ohne Zeiten steht nicht darin.
+     *
+     * @param records die gespeicherten Zeiten je Boss (aufsteigend); null ist erlaubt
+     */
+    public static List<Top> top(Map<String, List<Long>> records, int count) {
+        List<Top> out = new ArrayList<>();
+        if (records == null || count <= 0) {
+            return out;
+        }
+        for (Map.Entry<String, List<Long>> entry : records.entrySet()) {
+            if (entry.getKey() == null || entry.getKey().isBlank() || entry.getValue() == null) {
+                continue;
+            }
+            List<Long> sorted = new ArrayList<>();
+            for (Long time : entry.getValue()) {
+                if (time != null && time > 0L) {
+                    sorted.add(time);
+                }
+            }
+            if (sorted.isEmpty()) {
+                continue;
+            }
+            java.util.Collections.sort(sorted);
+            out.add(new Top(entry.getKey(), List.copyOf(sorted.subList(0, Math.min(count, sorted.size())))));
+        }
+        out.sort(Comparator.comparingInt((Top t) -> slayerIndex(t.key())).thenComparingInt(t -> tierOf(t.key())).thenComparing(Top::key));
+        return out;
+    }
+
+    /** Eine Zeile zu einem Boss, ohne Farben: "Revenant Horror V: #1 1,03Sec  #2 1,10Sec  #3 1,12Sec" */
+    public static String topLine(Top top, Locale locale) {
+        StringBuilder out = new StringBuilder(top.key()).append(':');
+        for (int i = 0; i < top.best().size(); i++) {
+            out.append(i == 0 ? " " : "  ").append('#').append(i + 1).append(' ').append(format(top.best().get(i), locale));
+        }
+        return out.toString();
     }
 
     /** Die Zeile zur Questzeit mit dem Durchschnitt der Sitzung dahinter, ohne Farben */
