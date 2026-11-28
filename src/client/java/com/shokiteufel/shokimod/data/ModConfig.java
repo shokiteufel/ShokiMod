@@ -2416,11 +2416,6 @@ public class ModConfig extends Config {
         public float quietOthersBy = 50f;
 
         @Expose
-        @ConfigOption(name = "Also during the Blazing Aura", desc = "With the full Frozen Blaze armor on, quiets the other sounds also for as long as the Blazing Aura is active - the 30 seconds after your last move that the Aura timer counts - even between casts and without a hook out. It uses the amount above: set it to 100 to switch the other sounds off completely. The bite sound and the sounds the mod makes itself stay. Only with Quiet other sounds on. Off until you turn it on.")
-        @ConfigEditorBoolean
-        public boolean quietWhileAura = false;
-
-        @Expose
         @ConfigOption(name = "Hide armor stand", desc = "Hides Hypixel's own text over the hook while the display on your screen is shown, so the number is not there twice.")
         @ConfigEditorBoolean
         public boolean hideArmorStand = true;
@@ -2571,6 +2566,16 @@ public class ModConfig extends Config {
         @ConfigOption(name = "Aura timer", desc = "A panel with the seconds the Frozen Blazing Aura keeps working while you stand still. The aura goes off after 30 seconds in which you moved neither your body nor your view - both have to keep moving - and it comes back with the next move. The panel says when it is off, and shows only while you wear the full Frozen Blaze armor (always in the HUD editor, /shoki hud, where you move and resize it). The idea is from Riccio Fishing Utils; the rule is taken from there and has not been checked on Hypixel here.")
         @ConfigEditorBoolean
         public boolean auraTimer = false;
+
+        @Expose
+        @ConfigOption(name = "Quiet other sounds", desc = "While the Blazing Aura is active - the 30 seconds after your last move that the Aura timer counts - and you wear the full Frozen Blaze armor, plays every other sound quieter: the sea creatures around you die by the second, and every one of them makes a sound. It works all the time the aura is on, also between casts and without a hook out, and it does not depend on Quiet other sounds in Hook display. The sounds the mod makes itself and Hypixel's bite sound (the pling) stay as they are. Off until you turn it on.")
+        @ConfigEditorBoolean
+        public boolean quietSounds = false;
+
+        @Expose
+        @ConfigOption(name = "Quieter by (%)", desc = "How much quieter the other sounds get while the Blazing Aura is active: 50 halves them, 100 switches them off. Only with Quiet other sounds on. Has its own value, separate from the one in Hook display; when both apply, the stronger one counts.")
+        @ConfigEditorSlider(minValue = 50f, maxValue = 100f, minStep = 5f)
+        public float quietSoundsBy = 100f;
 
         // Lage des Kastens, gesetzt ueber /shoki hud
         @Expose

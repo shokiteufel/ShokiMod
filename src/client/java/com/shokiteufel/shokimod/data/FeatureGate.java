@@ -542,12 +542,15 @@ public final class FeatureGate {
     /** Fishing > Frozen Blaze: Das Set wird nur erkannt, solange eine der Funktionen daraus an ist */
     public static boolean frozenBlaze() {
         ModConfig.FrozenBlazeCategory c = ModConfig.INSTANCE.fishing.frozenBlaze;
-        return c.hidePlayers || c.hideLootshare || c.hideTribeMember || c.hideDamage || c.auraTimer || hookSoundsAura();
+        return c.hidePlayers || c.hideLootshare || c.hideTribeMember || c.hideDamage || c.auraTimer || c.quietSounds;
     }
 
-    /** Fishing > Hook display > Quiet other sounds > Also during the Blazing Aura: braucht das Set und die Aura-Uhr (FrozenBlaze), nur wenn an */
-    public static boolean hookSoundsAura() {
-        return hookSounds() && ModConfig.INSTANCE.fishing.hookDisplay.quietWhileAura;
+    /**
+     * Fishing > Frozen Blaze > Quiet other sounds: jeder Ton fragt nach, ob er leiser soll, solange die Blazing Aura wirkt - nur wenn es an ist. Braucht den Ort (nur in SkyBlock)
+     * und das Set samt Aura-Uhr (FrozenBlaze, siehe {@link #frozenBlaze()}). Unabhaengig von {@link #hookSounds()}, und - wie die ganze Kategorie - nicht im 26.3-Schalter.
+     */
+    public static boolean auraSounds() {
+        return ModConfig.INSTANCE.fishing.frozenBlaze.quietSounds;
     }
 
     /** Fishing > Hooks: Die fremden Haken ausblenden - nur wenn an. Braucht den Ort (nur in SkyBlock, nicht dort, wo niemand angelt) */
@@ -587,7 +590,7 @@ public final class FeatureGate {
                 || slayerSpawn() || slayerKillTime() || darkAuction() || darkAuctionTimer() || hidePlayersDungeon() || nearbyRare() || ModConfig.INSTANCE.effects.enabled || mineshaftAnnounce()
                 // Die Dungeon-Funktionen fragen die Tab-Liste und die Seitenleiste (DungeonLauf, Funny Map): ohne diese Zeile stuende sie nur, solange eine der Funktionen oben an ist
                 || roomScan() || iHateDoors() || dungeonLog() || leapMenu() || hideOtherHooks() || mineshaftKeys()
-                || hookDisplay() || hookSounds() || fishingLog() || baitDisplay() || seaCocoon() || slayerCocoon() || slayerSpawnParticles() || skillProgress() || auctionUnderbid() || bazaarHelpers()
+                || hookDisplay() || hookSounds() || auraSounds() || fishingLog() || baitDisplay() || seaCocoon() || slayerCocoon() || slayerSpawnParticles() || skillProgress() || auctionUnderbid() || bazaarHelpers()
                 || auctionHighlights() || fishingLines()
                 || npcDayLimit() || legionBobbin() || warpCommands() || fixDoubleClicks() || estimatedItemValue() || inputCalculator()
                 // Chat (Teil 1): die Filter nach Ort (Dungeon, Garden, Bergbau, Foraging, Spider's Den, Crystal Hollows, Kuudra)

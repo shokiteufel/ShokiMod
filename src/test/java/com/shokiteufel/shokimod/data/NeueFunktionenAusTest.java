@@ -56,7 +56,8 @@ class NeueFunktionenAusTest {
         assertFalse(c.fishing.hookDisplay.enabled, "Fishing: Hook display");
         assertFalse(c.fishing.hookDisplay.soundAlert, "Fishing: Alert from the bite sound");
         assertFalse(c.fishing.hookDisplay.quietOthers, "Fishing: Quiet other sounds");
-        assertFalse(c.fishing.hookDisplay.quietWhileAura, "Fishing: Quiet other sounds > Also during the Blazing Aura");
+        assertFalse(c.fishing.frozenBlaze.quietSounds, "Fishing: Frozen Blaze > Quiet other sounds");
+        assertFalse(FeatureGate.auraSounds(), "die Anfrage bei jedem Ton fuer die Lautstaerke waehrend der Blazing Aura");
         assertFalse(FeatureGate.hookSounds(), "die Anfrage bei jedem Ton fuer die Lautstaerke beim Angeln");
         assertFalse(c.fishing.baitDisplay.enabled, "Fishing: Bait display");
         assertFalse(c.fishing.cocoon.warn, "Fishing: Cocoon title");

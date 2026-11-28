@@ -51,18 +51,36 @@ class HookSoundsTest {
     }
 
     @Test
-    void theHookAloneIsAQuietTimeAsBefore() {
-        assertTrue(HookSounds.quietTime(true, false, false), "Haken draussen, ohne die Aura-Einstellung");
-        assertTrue(HookSounds.quietTime(true, true, false), "Haken draussen, Aura gerade nicht aktiv");
-        assertFalse(HookSounds.quietTime(false, false, false), "nichts");
+    void theHookAloneQuietsWithItsOwnAmount() {
+        assertEquals(50f, HookSounds.percentFor(true, 50f, false, 100f), 1e-6f, "Haken draussen, Aura gerade nicht aktiv: nur der Anteil der Hook display");
+        assertEquals(70f, HookSounds.percentFor(true, 70f, false, 100f), 1e-6f);
     }
 
     @Test
-    void theBlazingAuraIsAQuietTimeOnlyWithTheOptionAndWithoutAHook() {
-        // Wunsch des Users (28.11.): bei Frozen Blaze aus, solange die Blazing Aura wirkt
-        assertTrue(HookSounds.quietTime(false, true, true), "kein Haken (zwischen den Wuerfen), Option an, Aura wirkt");
-        assertFalse(HookSounds.quietTime(false, true, false), "Option an, aber die Aura ist aus");
-        assertFalse(HookSounds.quietTime(false, false, true), "Aura wirkt, aber die Option ist aus");
+    void theAuraAloneQuietsWithItsOwnAmountAndWithoutAHook() {
+        // Wunsch des Users (28.11.): in der Frozen-Blaze-Kategorie, unabhaengig von der anderen - zwischen den Wuerfen gibt es keinen Haken
+        assertEquals(100f, HookSounds.percentFor(false, 50f, true, 100f), 1e-6f, "kein Haken, die Aura wirkt: nur der Anteil von Frozen Blaze");
+        assertEquals(60f, HookSounds.percentFor(false, 50f, true, 60f), 1e-6f);
+    }
+
+    @Test
+    void whenBothApplyTheStrongerAmountCounts() {
+        assertEquals(100f, HookSounds.percentFor(true, 50f, true, 100f), 1e-6f);
+        assertEquals(80f, HookSounds.percentFor(true, 80f, true, 60f), 1e-6f);
+    }
+
+    @Test
+    void withNeitherTheSoundStaysAsItIs() {
+        assertTrue(HookSounds.percentFor(false, 50f, false, 100f) < 0f, "weder Haken noch Aura");
+        assertFalse(HookSounds.shouldQuiet(true, false, HookSounds.percentFor(false, 50f, false, 100f) >= 0f, false, false));
+    }
+
+    @Test
+    void anAmountThatIsNonsenseIsLeftOutOrTrimmed() {
+        assertTrue(HookSounds.percentFor(true, Float.NaN, false, 100f) < 0f, "Unsinn: nichts");
+        assertEquals(60f, HookSounds.percentFor(true, Float.NaN, true, 60f), 1e-6f, "der andere gilt trotzdem");
+        assertEquals(100f, HookSounds.percentFor(true, 250f, false, 0f), 1e-6f, "ueber 100: auf 100");
+        assertEquals(0f, HookSounds.percentFor(true, -5f, false, 0f), 1e-6f, "unter 0: auf 0 (aendert nichts)");
     }
 
     @Test
@@ -74,12 +92,29 @@ class HookSoundsTest {
     }
 
     @Test
-    void theAuraOptionIsOffFromTheStartAndNeedsQuietOthers() {
-        assertFalse(ModConfig.INSTANCE.fishing.hookDisplay.quietWhileAura);
-        assertFalse(FeatureGate.hookSoundsAura());
-        ModConfig.INSTANCE.fishing.hookDisplay.quietWhileAura = true;
-        assertFalse(FeatureGate.hookSoundsAura(), "ohne Quiet other sounds ist es ein Unterpunkt ohne Wirkung");
-        assertFalse(FeatureGate.frozenBlaze(), "und die Set-Erkennung bleibt aus");
+    void theFrozenBlazeOptionIsOffFromTheStartAndFullAtOneHundred() {
+        ModConfig.FrozenBlazeCategory c = ModConfig.INSTANCE.fishing.frozenBlaze;
+        assertFalse(c.quietSounds);
+        assertEquals(100f, c.quietSoundsBy, 1e-6f, "Vorgabe: ganz aus ('dass sie aus sind')");
+        assertFalse(FeatureGate.auraSounds());
+        assertFalse(FeatureGate.frozenBlaze(), "ohne Einstellung wird das Set nicht gesucht");
+    }
+
+    @Test
+    void theFrozenBlazeOptionIsIndependentOfTheHookDisplayOne() {
+        ModConfig.INSTANCE.fishing.frozenBlaze.quietSounds = true;
+        // Die Hook display bleibt aus: die Aura-Einstellung wirkt trotzdem, und sie schaltet die andere nicht ein
+        assertTrue(FeatureGate.auraSounds());
+        assertFalse(FeatureGate.hookSounds(), "Quiet other sounds bei der Hook display bleibt aus");
+        assertTrue(FeatureGate.frozenBlaze(), "die Set-Erkennung und die Aura-Uhr laufen jetzt");
+        assertFalse(ModConfig.INSTANCE.fishing.hookDisplay.quietOthers);
+    }
+
+    @Test
+    void theHookDisplayOptionNeedsNothingFromFrozenBlaze() {
+        ModConfig.INSTANCE.fishing.hookDisplay.quietOthers = true;
+        assertFalse(FeatureGate.auraSounds());
+        assertFalse(ModConfig.INSTANCE.fishing.frozenBlaze.quietSounds);
     }
 
     @Test

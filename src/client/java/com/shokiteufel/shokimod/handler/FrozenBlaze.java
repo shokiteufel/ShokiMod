@@ -53,8 +53,8 @@ public final class FrozenBlaze {
             ticks = 0;
             wearing = client.player != null && fullSet(client.player);
         }
-        // Die Aura-Uhr laeuft auch, wenn nur die Lautstaerke sie braucht (Quiet other sounds > Also during the Blazing Aura)
-        if (ModConfig.INSTANCE.fishing.frozenBlaze.auraTimer || FeatureGate.hookSoundsAura()) {
+        // Die Aura-Uhr laeuft auch, wenn nur die Lautstaerke sie braucht (Frozen Blaze > Quiet other sounds)
+        if (ModConfig.INSTANCE.fishing.frozenBlaze.auraTimer || FeatureGate.auraSounds()) {
             Player player = client.player;
             if (player == null) {
                 seen = false;
