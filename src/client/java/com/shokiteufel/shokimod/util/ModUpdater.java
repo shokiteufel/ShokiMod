@@ -40,7 +40,16 @@ import java.util.Locale;
  */
 public final class ModUpdater {
 
-    private static final String RELEASES = "https://api.github.com/repos/shokiteufel/ShokiMod/releases?per_page=30";
+    /** So viele Releases hat eine Seite der Liste, mehr gibt GitHub nicht her */
+    static final int PAGE_SIZE = 100;
+    /**
+     * So viele Seiten werden hoechstens gelesen (1000 Releases). Das ist eine Grenze gegen
+     * Endlosschleifen, nicht das, was gebraucht wird: Die Suche endet an der ersten Seite,
+     * auf der eine Datei fuer den eigenen Zweig steht.
+     */
+    static final int MAX_PAGES = 10;
+    private static final String RELEASES = "https://api.github.com/repos/shokiteufel/ShokiMod/releases?per_page="
+            + PAGE_SIZE + "&page=";
     /** Die heruntergeladene Datei, bis sie beim Beenden eingesetzt wird */
     private static final String PENDING = "shokimod-update.jar.part";
     /** Der Name des Helfer-Skripts, ohne Endung */
@@ -102,8 +111,8 @@ public final class ModUpdater {
      * Die neueste Fassung fuer diesen Zweig aus den Releases.
      *
      * Gesucht wird nicht "das neueste Release", sondern die neueste Datei mit der
-     * passenden Endung: Es gibt zwei Zweige, und das oberste Release kann das des
-     * anderen sein.
+     * passenden Endung: Es gibt mehrere Zweige (26.1.x, 26.2, 26.3), und das oberste
+     * Release kann das eines anderen sein.
      */
     static Release pick(JsonArray releases, String branch) {
         Release best = null;
@@ -127,6 +136,79 @@ public final class ModUpdater {
             }
         }
         return best;
+    }
+
+    /** Woher die Seiten der Release-Liste kommen - im Spiel GitHub, im Test eine Liste */
+    @FunctionalInterface
+    interface Pages {
+        /** Seite {@code number} (ab 1); leer oder null, wenn es keine mehr gibt */
+        JsonArray page(int number) throws IOException, InterruptedException;
+    }
+
+    /**
+     * Was die Suche fand: die neueste Datei fuer den eigenen Zweig und die neueste
+     * ueberhaupt, gleich welcher Minecraft-Fassung (meist die fuer 26.3).
+     */
+    record Found(Release mine, Release overall) {
+
+        /** Gibt es etwas Neueres, aber nur fuer andere Minecraft-Fassungen? */
+        boolean newerOnlyElsewhere(String current) {
+            return overall != null && newer(overall.version(), current)
+                    && (mine == null || !newer(mine.version(), current));
+        }
+    }
+
+    /**
+     * Die Seiten der Liste lesen, bis eine Datei fuer den Zweig auftaucht.
+     *
+     * Bis 2.6.4 stand hier nur die erste Seite mit 30 Eintraegen. Seit 2.4.10 gibt es aber
+     * nur noch Dateien fuer 26.3 - die letzten fuer 26.2 und 26.1.x (2.4.9) rutschten aus
+     * diesen 30 heraus, und wer dort "/shoki update" gab, bekam "No file found" statt der
+     * neuesten Fassung seiner Minecraft-Version. Die Liste ist nach Veroeffentlichung
+     * sortiert, neueste zuerst; die erste Seite mit einem Treffer hat also auch die neueste
+     * Datei des Zweigs, aeltere Seiten muessen nicht mehr gelesen werden.
+     */
+    static Found scan(Pages pages, String branch) throws IOException, InterruptedException {
+        Release overall = null;
+        for (int number = 1; number <= MAX_PAGES; number++) {
+            JsonArray page = pages.page(number);
+            if (page == null || page.isEmpty()) break;
+
+            // Die erste Seite hat das Neueste ueberhaupt; spaetere Seiten sind aelter
+            if (number == 1) overall = pick(page, "");
+            Release mine = pick(page, branch);
+            if (mine != null) return new Found(mine, overall);
+            if (page.size() < PAGE_SIZE) break;
+        }
+        return new Found(null, overall);
+    }
+
+    /** GitHub hat nicht geantwortet, wie es sollte; der Text ist fuer den Spieler gedacht */
+    private static final class GitHubException extends IOException {
+        GitHubException(String message) {
+            super(message);
+        }
+    }
+
+    /** Eine Seite der Release-Liste holen */
+    private static JsonArray fetchPage(HttpClient client, String current, int number)
+            throws IOException, InterruptedException {
+        HttpRequest request = HttpRequest.newBuilder(URI.create(RELEASES + number))
+                .header("Accept", "application/vnd.github+json")
+                .header("User-Agent", "ShokiMod/" + current)
+                .timeout(TIMEOUT)
+                .build();
+        HttpResponse<InputStream> response = client.send(request, HttpResponse.BodyHandlers.ofInputStream());
+        try (InputStream in = response.body()) {
+            if (response.statusCode() != 200) {
+                throw new GitHubException("GitHub answered " + response.statusCode() + " - try again later.");
+            }
+            JsonElement json = JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8));
+            if (!json.isJsonArray()) {
+                throw new GitHubException("GitHub sent something unexpected.");
+            }
+            return json.getAsJsonArray();
+        }
     }
 
     /** Der Befehl: nachsehen, holen, Bescheid sagen */
@@ -155,33 +237,21 @@ public final class ModUpdater {
                     .followRedirects(HttpClient.Redirect.NORMAL)
                     .build();
 
-            HttpRequest request = HttpRequest.newBuilder(URI.create(RELEASES))
-                    .header("Accept", "application/vnd.github+json")
-                    .header("User-Agent", "ShokiMod/" + current)
-                    .timeout(TIMEOUT)
-                    .build();
-            HttpResponse<InputStream> response = client.send(request, HttpResponse.BodyHandlers.ofInputStream());
-            if (response.statusCode() != 200) {
-                say("GitHub answered " + response.statusCode() + " - try again later.", ChatFormatting.RED);
-                return;
-            }
-
-            JsonElement json;
-            try (InputStream in = response.body()) {
-                json = JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8));
-            }
-            if (!json.isJsonArray()) {
-                say("GitHub sent something unexpected.", ChatFormatting.RED);
-                return;
-            }
-
-            Release newest = pick(json.getAsJsonArray(), branch);
+            Found found = scan(number -> fetchPage(client, current, number), branch);
+            Release newest = found.mine();
             if (newest == null) {
                 say("No file found for this Minecraft version (" + branch + ").", ChatFormatting.RED);
                 return;
             }
             if (!newer(newest.version(), current)) {
-                say("You are on the newest version (" + current + ").", ChatFormatting.GREEN);
+                say("You are on the newest version for this Minecraft version (" + current + ").",
+                        ChatFormatting.GREEN);
+                // Sonst steht da nur "newest", und wer auf 26.2 spielt, wundert sich,
+                // warum es woanders schon weiter ist
+                if (found.newerOnlyElsewhere(current)) {
+                    say("Newer versions exist only for other Minecraft versions (newest: "
+                            + found.overall().version() + ").", ChatFormatting.GRAY);
+                }
                 return;
             }
 
@@ -215,6 +285,8 @@ public final class ModUpdater {
             ShokiMod.LOGGER.info("[Update] {} downloaded to {}", newest.fileName(), pending);
             say("Version " + newest.version() + " is ready. It replaces the old one when you close the game.",
                     ChatFormatting.GREEN);
+        } catch (GitHubException e) {
+            say(e.getMessage(), ChatFormatting.RED);
         } catch (IOException | InterruptedException | RuntimeException e) {
             ShokiMod.LOGGER.warn("[Update] failed: {}", e.toString());
             say("Update failed: " + e.getClass().getSimpleName() + " - nothing was changed.", ChatFormatting.RED);
