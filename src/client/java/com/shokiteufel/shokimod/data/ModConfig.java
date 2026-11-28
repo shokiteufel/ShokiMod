@@ -7967,6 +7967,11 @@ public class ModConfig extends Config {
         @ConfigEditorBoolean
         public boolean deployableLog = false;
 
+        @Expose
+        @ConfigOption(name = "Fishing log", desc = "For when the time above the fishing hook is missing on the screen although the hook still shows it: writes into logs/shokimod-fishing.log, next to latest.log, what stands around your hook (every named armor stand within six blocks, with its text and colour codes, its distance and whether the mod reads it and why not), when the Hook display shows something and when it goes empty, why it does nothing (switched off, no hook, not holding a rod), and every sound while a hook is out - with its id, pitch, volume and how long after the cast it came. Lines marked GAP are the ones that matter. Off from the start: switch it on, fish for a few minutes, then hand the file over.")
+        @ConfigEditorBoolean
+        public boolean fishingLog = false;
+
         @ConfigOption(name = "Rare loot diagnostics", desc = "Writes what the mod saw and decided into logs/shokimod-diagnostics.txt and opens that folder. Send that file together with latest.log when something did not fire.")
         @ConfigEditorButton(buttonText = "Open")
         public transient Runnable openDiagnostics = () -> {

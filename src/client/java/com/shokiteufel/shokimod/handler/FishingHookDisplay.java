@@ -3,16 +3,21 @@ package com.shokiteufel.shokimod.handler;
 import com.shokiteufel.shokimod.data.FeatureGate;
 import com.shokiteufel.shokimod.data.GameState;
 import com.shokiteufel.shokimod.data.ModConfig;
+import com.shokiteufel.shokimod.util.FishingLog;
 import com.shokiteufel.shokimod.util.ScoreboardUtils;
+import com.shokiteufel.shokimod.util.SkyBlockItems;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.entity.projectile.FishingHook;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -30,7 +35,7 @@ import java.util.regex.Pattern;
 public final class FishingHookDisplay {
 
     /** Wie weit um den Haken nach dem Ruestungsstaender gesucht wird - Hypixel setzt ihn unmittelbar darueber */
-    private static final double SEARCH_RANGE = 2.0;
+    static final double SEARCH_RANGE = 2.0;
     /** Gelb und fett eine Zahl: der Name, wie Hypixel ihn schreibt, in Farbcodes (Farbe vor Formatierung) */
     private static final Pattern TIME = Pattern.compile("^(?:§r)?§e§l(\\d+(?:\\.\\d+)?)$");
     private static final Pattern ALERT = Pattern.compile("^(?:§.)*!!!$");
@@ -91,21 +96,69 @@ public final class FishingHookDisplay {
         shownText = null;
     }
 
+    /**
+     * Ein Ton ist gestartet (vom Mixin an {@code SoundManager.play}, jeder Ton laeuft hier vorbei): fuer das Fishing log. Ohne das Protokoll nur ein Vergleich.
+     */
+    public static void onSound(SoundInstance sound) {
+        if (sound == null || !FishingLog.enabled()) return;
+        // Ein Werkzeug zum Fehlersuchen darf das Spiel nie selbst zum Absturz bringen
+        try {
+            FishingHookProbe.sound(sound);
+        } catch (RuntimeException | LinkageError e) {
+            // Dann fehlt eben die Zeile
+        }
+    }
+
+    /** Wie die Angel in der Hand heisst, fuers Fishing log: die SkyBlock-Kennung, sonst der Name */
+    private static String describeItem(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) return "nothing";
+        String id = SkyBlockItems.idOf(stack);
+        return id != null ? id : stack.getHoverName().getString();
+    }
+
     private static void tick(Minecraft client) {
         tickClock++;
+        boolean log = FishingLog.enabled();
+        if (log) {
+            // Das Protokoll schreibt auch bei ausgeschalteter Hook display mit: es merkt sich den Haken und die Zeit fuer die Toene
+            FishingHookProbe.watch(client);
+        } else {
+            FishingLog.forget();
+        }
         if (!FeatureGate.hookDisplay()) {
             clear();
+            if (log) {
+                FishingHookProbe.state("off", "Hook display is off (its own switch: " + ModConfig.INSTANCE.fishing.hookDisplay.enabled
+                        + ", the 26.3 switch: " + FeatureGate.update263() + ") - nothing is read");
+            }
             return;
         }
         LocalPlayer player = client.player;
         if (player == null || client.level == null || !GameState.Server.isSkyblock()) {
             clear();
+            if (log) FishingHookProbe.state("not-skyblock", "no player, no world or not in SkyBlock (map: " + GameState.Server.map + ")");
             return;
         }
         FishingHook hook = player.fishing;
-        if (hook == null || hook.isRemoved() || !player.getMainHandItem().is(Items.FISHING_ROD)) {
+        if (hook == null || hook.isRemoved()) {
             clear();
+            if (log) FishingHookProbe.state(hook == null ? "no-hook" : "hook-removed", hook == null ? "no hook out (player.fishing is null)" : "the hook is removed");
             return;
+        }
+        if (!player.getMainHandItem().is(Items.FISHING_ROD)) {
+            clear();
+            if (log) {
+                String held = describeItem(player.getMainHandItem());
+                FishingHookProbe.state("no-rod:" + held, "a hook is out (id=" + hook.getId() + ") but the main hand is not a fishing rod: " + held
+                        + " (off hand: " + describeItem(player.getOffhandItem()) + ") - the display is cleared");
+            }
+            return;
+        }
+        if (log) {
+            String medium = hook.isInLava() ? "in lava" : hook.isInWater() ? "in water" : "in the air";
+            String held = describeItem(player.getMainHandItem());
+            FishingHookProbe.state("tracking:" + hook.getId() + ":" + medium + ":" + held, String.format(Locale.ROOT,
+                    "tracking hook id=%d, %s, holding %s, the hook is %d ticks old", hook.getId(), medium, held, hook.tickCount));
         }
 
         ArmorStand best = null;
@@ -125,11 +178,13 @@ public final class FishingHookDisplay {
         }
         if (best == null) {
             clear();
+            if (log) FishingHookProbe.scene(client, hook, null, null, null);
             return;
         }
         ModConfig.HookDisplayCategory cfg = ModConfig.INSTANCE.fishing.hookDisplay;
         shownId = best.getId();
         shownText = textFor(bestReading, cfg.customReelInTime, cfg.customAlertText);
+        if (log) FishingHookProbe.scene(client, hook, best, bestReading, shownText);
     }
 
     /** Der Text, der gerade auf dem Bildschirm stehen soll - oder null, wenn der Haken nichts zu sagen hat */

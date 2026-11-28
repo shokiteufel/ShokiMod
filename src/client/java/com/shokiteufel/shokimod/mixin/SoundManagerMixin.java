@@ -1,5 +1,6 @@
 package com.shokiteufel.shokimod.mixin;
 
+import com.shokiteufel.shokimod.handler.FishingHookDisplay;
 import com.shokiteufel.shokimod.handler.SoundTracer;
 
 import net.minecraft.client.resources.sounds.SoundInstance;
@@ -24,5 +25,7 @@ public class SoundManagerMixin {
             at = @At("HEAD"), require = 0)
     private void shokimod$trace(SoundInstance sound, CallbackInfoReturnable<?> cir) {
         SoundTracer.onPlay(sound);
+        // Das Fishing log schreibt mit, welche Toene beim Angeln erklingen (nur wenn es an ist)
+        FishingHookDisplay.onSound(sound);
     }
 }
