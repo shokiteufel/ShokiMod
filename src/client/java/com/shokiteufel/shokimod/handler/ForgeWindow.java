@@ -2,6 +2,7 @@ package com.shokiteufel.shokimod.handler;
 
 import com.shokiteufel.shokimod.ShokiMod;
 import com.shokiteufel.shokimod.data.FeatureGate;
+import com.shokiteufel.shokimod.util.SkyBlockItems;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
@@ -21,12 +22,12 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 /**
- * Schreibt auf, was im Forge-Fenster steht - nur ins Log, die Forge selbst liest noch aus der Tab-Liste.
+ * Liest das Forge-Fenster ("The Forge", {@link ForgeWindowParser}) und schreibt auf, was in Fenstern mit "Forge" im Titel steht.
  *
- * Wunsch (25.11.): Die Zeit soll aus dem Forge-Fenster kommen statt aus der Tab-Liste, denn dort steht sie auf die Sekunde. Wie das Fenster
- * seine Plaetze beschreibt (Titel, Name und Zeilen eines laufenden, eines fertigen und eines leeren Platzes), kennt keine offene Mod und kein
- * Wiki: Die Mod raet es nicht, sondern schreibt es einmal auf. Je Fenstertitel mit "Forge" werden die ersten Oeffnungen festgehalten
- * ("[Forge] window ..."), eine Sekunde nach dem Oeffnen, wenn der Server die Plaetze geliefert hat.
+ * Wunsch (25.11.): Die Zeit soll aus dem Forge-Fenster kommen statt aus der Tab-Liste, denn dort steht sie auf die Sekunde. Seit 2.7.3 tut sie das: Das Fenster wird
+ * zehn Ticks nach dem Oeffnen und dann alle zehn Ticks gelesen ({@link #readSlots}), und {@link ForgeTracker#processWindow} legt das Ende auf die Sekunde fest. Der
+ * Wortlaut stammt aus SkyOcean/SkyblockAPI (siehe {@link ForgeWindowParser}); wie ein FERTIGER Platz aussieht, ist nicht belegt - dafuer bleibt das Log: Je
+ * Fenstertitel mit "Forge" werden die ersten Oeffnungen festgehalten ("[Forge] window ..."), eine Sekunde nach dem Oeffnen, wenn der Server die Plaetze geliefert hat.
  *
  * Laeuft nur mit eingeschalteter Forge (Mining > Forge > Enabled, von Haus aus aus) und kostet ausserhalb solcher Fenster einen Vergleich je Tick.
  */
@@ -52,17 +53,29 @@ public final class ForgeWindow {
         ClientTickEvents.END_CLIENT_TICK.register(ForgeWindow::tick);
     }
 
+    /** Erstes Lesen der Plaetze nach dem Oeffnen, dann alle so viele Ticks: Der Server liefert die Plaetze kurz nach dem Fenster, und die Zeit dort laeuft weiter */
+    static final int READ_FIRST_TICKS = 10;
+    static final int READ_EVERY_TICKS = 10;
+
+    private static boolean reading = false;
+    private static int readTicks = 0;
+
     private static void tick(Minecraft client) {
         if (!FeatureGate.forge() || client == null || client.player == null
                 || !(client.gui.screen() instanceof AbstractContainerScreen<?> screen)) {
             openTitle = null;
+            closeReading();
             return;
         }
         String title = clean(screen.getTitle().getString());
         if (!title.toLowerCase(Locale.ROOT).contains("forge")) {
             openTitle = null;
+            closeReading();
             return;
         }
+        // Die Zeit der Plaetze kommt aus diesem Fenster (genau, auf die Sekunde) - wo auch immer man es oeffnet
+        if (ForgeWindowParser.isForgeTitle(title)) readSlots(client, screen);
+        else closeReading();
         if (!title.equals(openTitle)) {
             openTitle = title;
             ticksOpen = 0;
@@ -88,6 +101,38 @@ public final class ForgeWindow {
         }
         ShokiMod.LOGGER.info("[Forge] window '{}' with {} item(s):", title, lines.size());
         for (String line : lines) ShokiMod.LOGGER.info("[Forge] window slot {}", line);
+    }
+
+    /** Das Fenster ist zu (oder kein Forge-Fenster mehr): Beim naechsten Oeffnen gilt das erste Lesen wieder als frisch */
+    private static void closeReading() {
+        if (!reading) return;
+        reading = false;
+        readTicks = 0;
+        ForgeTracker.windowClosed();
+    }
+
+    /** Die sieben Plaetze des Fensters lesen und dem Merker geben ({@link ForgeTracker#processWindow}) */
+    private static void readSlots(Minecraft client, AbstractContainerScreen<?> screen) {
+        if (!reading) {
+            reading = true;
+            readTicks = 0;
+        }
+        if (readTicks++ < READ_FIRST_TICKS || (readTicks - READ_FIRST_TICKS) % READ_EVERY_TICKS != 0) return;
+
+        int filled = 0;
+        List<ForgeWindowParser.Entry> entries = new ArrayList<>();
+        for (Slot slot : screen.getMenu().slots) {
+            // Der eigene Rucksack unten im Fenster gehoert nicht zur Forge
+            if (slot.container == client.player.getInventory()) continue;
+            ItemStack stack = slot.getItem();
+            if (!stack.isEmpty()) filled++;
+            if (ForgeWindowParser.numberOf(slot.index) == 0) continue;
+            boolean hasId = SkyBlockItems.idOf(stack) != null;
+            ForgeWindowParser.Entry entry = ForgeWindowParser.read(slot.index, hasId, stack.isEmpty() ? "" : clean(stack.getHoverName().getString()),
+                    stack.isEmpty() ? List.of() : SkyBlockItems.loreOf(stack));
+            if (entry != null) entries.add(entry);
+        }
+        ForgeTracker.processWindow(entries, ForgeWindowParser.populated(filled), System.currentTimeMillis());
     }
 
     /** Darf dieses Fenster noch ins Log? Je Titel hoechstens {@link #MAX_OPENINGS_PER_TITLE} Mal, und hoechstens {@link #MAX_TITLES} Titel */
@@ -124,5 +169,7 @@ public final class ForgeWindow {
         openings.clear();
         openTitle = null;
         ticksOpen = 0;
+        reading = false;
+        readTicks = 0;
     }
 }

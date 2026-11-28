@@ -268,7 +268,8 @@ public final class ForgeTracker {
                     }
                     yield moved;
                 }
-                case RUNNING -> laeuft(slot, read, now);
+                // Hat das Forge-Fenster dieses Stueck schon auf die Sekunde festgelegt, aendert die Tab-Liste das Ende nicht mehr
+                case RUNNING -> tabRunning(slot, read, now);
                 case UNKNOWN -> {
                     // Hoechstens fuenfzig verschiedene Zeilen merken: Aendert sich eine unverstandene Zeile laufend, wird es sonst unendlich
                     if (reported.size() < 50 && reported.add(read.raw())) {
@@ -313,6 +314,137 @@ public final class ForgeTracker {
         return false;
     }
 
+    // ------------------------------------------------------------------ Das Fenster "The Forge" (genaue Zeit)
+
+    /** Liegt das Ende aus dem Fenster so nah am neuen, bleibt es (die Beschreibung wird laufend neu geschrieben, die Sekunden wackeln) */
+    private static final long WINDOW_SAME_MS = 1_500L;
+    /** Nennt der Tab ein Stueck, das um mehr als das laenger dauert als das genaue Ende aus dem Fenster, ist es ein neues Stueck - das Fenster gilt dann nicht mehr */
+    private static final long EXACT_TOLERANCE_MS = 5 * 60_000L;
+
+    /** Was das Fenster zuletzt als Restzeit eines Platzes nannte (-1: nichts): Nennt es beim naechsten Lesen dieselbe, ist die Beschreibung nicht neu geschrieben worden */
+    private static final long[] fensterRest = newMinusEins();
+
+    /**
+     * Das Forge-Fenster ist gelesen worden (Titel "The Forge", {@link ForgeWindow}). Die Zeit dort steht auf die Sekunde; das Ende ist {@code jetzt + Restzeit} und bleibt
+     * dann so: Die Tab-Liste rundet auf und springt beim Farmen minutenweise, sie aendert ein vom Fenster festgelegtes Ende nicht mehr ({@link #exactHolds}). Ghost-Kills
+     * werden dabei nicht mitgerechnet (Wunsch des Users, 25.11.). Das Fenster gilt ueberall, wo es aufgeht - auch ausserhalb der Dwarven Mines, auch ueber "/call fred".
+     *
+     * Ein leerer Platz im Fenster macht einen belegten zum leeren (abgeholt) - aber nur, wenn das Fenster schon gefuellt ist ({@code populated}), sonst waere jeder Platz im
+     * Augenblick des Oeffnens leer. Ob ein leerer Platz auch gesperrt ist, sagt das Fenster hier nicht; ein nie gesehener oder gesperrter Platz bleibt, wie er ist.
+     *
+     * @return ob etwas zu speichern ist
+     */
+    static boolean processWindow(List<ForgeWindowParser.Entry> entries, boolean populated, long now) {
+        if (!populated || entries == null) return false;
+        List<ForgeSlot> stored = data();
+        boolean changed = false;
+        for (ForgeWindowParser.Entry e : entries) {
+            int index = e.number() - 1;
+            if (index < 0 || index >= stored.size()) continue;
+            ForgeSlot slot = stored.get(index);
+            changed |= switch (e.kind()) {
+                case RUNNING -> anchorFromWindow(slot, e, now);
+                case READY -> readyFromWindow(slot, e, now);
+                case NONE -> goneFromWindow(slot, e);
+                case UNKNOWN -> {
+                    if (reported.size() < 50 && reported.add("window " + e.raw())) {
+                        ShokiMod.LOGGER.warn("[Forge] window slot {} not understood: '{}' {} - please send logs/latest.log", e.number(), e.item(), e.raw());
+                    }
+                    yield false;
+                }
+            };
+        }
+        if (changed) speichern.run();
+        return changed;
+    }
+
+    /** Das Fenster wurde geschlossen: Beim naechsten Oeffnen gilt das erste Lesen wieder als frisch */
+    static void windowClosed() {
+        java.util.Arrays.fill(fensterRest, -1L);
+    }
+
+    /** Ein laufender Platz aus dem Fenster: das genaue Ende {@code jetzt + Restzeit} */
+    private static boolean anchorFromWindow(ForgeSlot slot, ForgeWindowParser.Entry e, long now) {
+        int index = e.number() - 1;
+        // Dieselbe Restzeit wie beim letzten Lesen: die Beschreibung ist nicht neu geschrieben worden. Das Ende neu zu rechnen liesse es mit jedem Lesen weiterwandern
+        if (fensterRest[index] == e.remainingMs() && BUSY.equals(slot.state) && slot.exact) return false;
+        fensterRest[index] = e.remainingMs();
+        laeufe[index] = null;
+        sichtbar[index] = -1L;
+
+        long finishAt = now + e.remainingMs();
+        boolean same = BUSY.equals(slot.state) && ForgeWindowParser.sameItem(slot.item, e.item());
+        // Der Name aus der Tab-Liste bleibt, wenn es dasselbe Stueck ist: Beide Quellen schreiben ihn vielleicht anders
+        String name = same ? slot.item : e.item();
+        if (same && slot.exact && Math.abs(finishAt - slot.finishAt) <= WINDOW_SAME_MS) return false;
+        boolean wasExact = slot.exact;
+        boolean changed = set(slot, e.number(), BUSY, name, finishAt);
+        slot.exact = true;
+        if (!wasExact) {
+            ShokiMod.LOGGER.info("[Forge] window slot {}: {} ready at {} (exact, from the Forge window)", e.number(), name, java.time.Instant.ofEpochMilli(finishAt));
+        }
+        return changed || !wasExact;
+    }
+
+    /** Ein fertiger Platz aus dem Fenster: Wer davor steht, sieht es - keine Meldung dazu */
+    private static boolean readyFromWindow(ForgeSlot slot, ForgeWindowParser.Entry e, long now) {
+        int index = e.number() - 1;
+        fensterRest[index] = -1L;
+        laeufe[index] = null;
+        sichtbar[index] = -1L;
+        boolean same = BUSY.equals(slot.state) && ForgeWindowParser.sameItem(slot.item, e.item());
+        String name = same ? slot.item : e.item();
+        long finishAt = same && slot.finishAt > 0L ? Math.min(slot.finishAt, now) : now;
+        boolean changed = set(slot, e.number(), BUSY, name, finishAt);
+        if (!slot.announced || !slot.warned) {
+            slot.announced = true;
+            slot.warned = true;
+            changed = true;
+        }
+        boolean wasExact = slot.exact;
+        slot.exact = true;
+        return changed || !wasExact;
+    }
+
+    /** Ein Platz ohne Gegenstand im Fenster: War etwas darin, ist es abgeholt. Sonst bleibt der Platz, wie er ist (leer und gesperrt unterscheidet das Fenster nicht) */
+    private static boolean goneFromWindow(ForgeSlot slot, ForgeWindowParser.Entry e) {
+        if (!BUSY.equals(slot.state)) return false;
+        int index = e.number() - 1;
+        fensterRest[index] = -1L;
+        laeufe[index] = null;
+        sichtbar[index] = -1L;
+        return set(slot, e.number(), EMPTY, "", 0L);
+    }
+
+    /**
+     * Hat das Fenster dieses Stueck schon auf die Sekunde festgelegt, und passt das, was der Tab jetzt nennt? Dann bleibt das Ende. Es passt nicht, wenn der Tab ein anderes
+     * Stueck nennt oder eine Zeit, die um mehr als fuenf Minuten ueber dem genauen Rest liegt (ein neues Stueck, das nicht ueber das Fenster ging). Eine KUERZERE Zeit im Tab
+     * (das Farmen von Ghosts verkuerzt die Anzeige) aendert nichts - Wunsch des Users.
+     */
+    private static boolean exactHolds(ForgeSlot slot, ForgeTab.Slot read, long now) {
+        if (!slot.exact || !BUSY.equals(slot.state) || !ForgeWindowParser.sameItem(slot.item, read.item())) return false;
+        long rest = slot.finishAt - now;
+        return ForgeTab.spanne(read.shownMs())[0] <= rest + EXACT_TOLERANCE_MS;
+    }
+
+    /**
+     * Ein laufender Platz aus dem Tab: Gilt ein genaues Ende aus dem Fenster noch, bleibt es; sonst rechnet {@link #laeuft} aus der Tab-Zeit, und das Ende ist wieder eine
+     * Schaetzung (nicht mehr "exact").
+     */
+    private static boolean tabRunning(ForgeSlot slot, ForgeTab.Slot read, long now) {
+        if (exactHolds(slot, read, now)) return holdExact(read.number());
+        boolean wasExact = slot.exact;
+        slot.exact = false;
+        return laeuft(slot, read, now) || wasExact;
+    }
+
+    /** Der Tab wird fuer dieses Stueck nicht ausgewertet: kein Lauf, keine Gleitrechnung - das genaue Ende laeuft in Echtzeit */
+    private static boolean holdExact(int number) {
+        laeufe[number - 1] = null;
+        sichtbar[number - 1] = -1L;
+        return false;
+    }
+
     /** Einen Platz setzen. Gibt zurueck, ob sich etwas geaendert hat - ein Ende, das nur um eine Sekunde abweicht, zaehlt nicht */
     private static boolean set(ForgeSlot slot, int number, String state, String item, long finishAt) {
         boolean same = state.equals(slot.state) && item.equals(slot.item) && Math.abs(finishAt - slot.finishAt) <= 1000L;
@@ -325,6 +457,8 @@ public final class ForgeTracker {
             slot.announced = false;
         }
         boolean neu = !state.equals(slot.state) || !item.equals(slot.item);
+        // Ein anderes Stueck oder ein leerer Platz: das genaue Ende aus dem Fenster gilt dafuer nicht mehr
+        if (neu || !BUSY.equals(state)) slot.exact = false;
         slot.state = state;
         slot.item = item;
         slot.finishAt = finishAt;
@@ -437,11 +571,13 @@ public final class ForgeTracker {
             slot.finishAt = 0L;
             slot.warned = false;
             slot.announced = false;
+            slot.exact = false;
         }
         reported.clear();
         sampleLogged = false;
         java.util.Arrays.fill(laeufe, null);
         java.util.Arrays.fill(sichtbar, -1L);
+        java.util.Arrays.fill(fensterRest, -1L);
         tempo = 1.0;
         tempoGemessen = false;
         gesehen = false;

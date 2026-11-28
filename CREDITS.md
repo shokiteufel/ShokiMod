@@ -916,6 +916,18 @@ drinsteckt.
   Skyblockers Widget, das nur zeigt, was gerade in der Liste steht, merkt sich die Mod das Ende und zeigt es auf jeder Map.
   Auf Hypixel selbst ist das Format hier noch nicht gesehen (`ForgeTracker` schreibt unverstandene Zeilen ins Log).
 
+- **SkyOcean** (Quelltext `.java`/`.kt` unter MIT, "SkyOcean License v1", `meowdding/SkyOcean`) und die Bibliothek
+  **SkyblockAPI** (MIT, `SkyblockAPI/SkyblockAPI`) — das Forge-Fenster als Quelle der Zeit (seit 2.7.3, am 28.11.2026
+  gelesen: SkyOceans `features/mining/ForgeReminder.kt` und `CooldownHelper.kt`, SkyblockAPIs
+  `api/profile/items/forge/ForgeAPI.kt`, `ForgeSlot.kt`, `api/data/stored/ForgeStorage.kt`). Von dort stammen die Regeln: Das
+  Fenster heißt "The Forge"; die sieben Plätze liegen auf den Plätzen 10 bis 16 des Fensters; ein belegter Platz trägt den
+  geschmiedeten Gegenstand (mit SkyBlock-Kennung), und seine Beschreibung enthält die Zeile `Time Remaining: <Dauer>`; das Ende
+  wird als "jetzt + Restzeit" gespeichert und in Echtzeit verglichen; ein Platz ohne Gegenstand im Fenster gilt als abgeholt.
+  Die Umsetzung ist eigene Arbeit (Java, `ForgeWindowParser`, `ForgeWindow`, `ForgeTracker.processWindow`): kein Code
+  übernommen. Anders als dort bleibt das Ende, das das Fenster auf die Sekunde festgelegt hat, von der Tab-Liste unberührt
+  (sie rundet auf und springt beim Farmen), Ghost-Kills werden nicht mitgerechnet, und der Tab füllt nur, was das Fenster nicht
+  sagt. Die Dauer "Time Remaining: 2h 20m 24s" steht auch im eigenen Mitschnitt vom 09.11.2026.
+
 ## Daten von außen
 
 - **Spawn-Runde in den Glacite Tunnels** — die 25 Punkte in

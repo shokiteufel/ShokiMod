@@ -4790,6 +4790,12 @@ public class ModConfig extends Config {
         /** Fuer dieses Stueck kam schon die Meldung "fertig" */
         @Expose
         public boolean announced = false;
+        /**
+         * Das Ende stammt aus dem Forge-Fenster ("Time Remaining:", auf die Sekunde) und nicht aus der Tab-Liste (aufgerundet, springt beim Farmen). Dann bleibt es,
+         * wie es ist: Die Tab-Liste aendert es nicht mehr, solange sie dasselbe Stueck nennt.
+         */
+        @Expose
+        public boolean exact = false;
     }
 
     /**
@@ -5320,12 +5326,12 @@ public class ModConfig extends Config {
         public static final int MIN_ALERT_SECONDS = 10;
         public static final int MAX_ALERT_SECONDS = 600;
 
-        @ConfigOption(name = "Forge", desc = "Open the Dwarven Mines once: the Forges list in the tab list there says what is in each slot and how long it takes. The mod remembers it, so the panel counts down on the maps you choose. Move it with /shoki hud. It needs the Forges widget in your tab list (the default in the Dwarven Mines; /widget turns it on). Everything here is off until you turn it on.")
+        @ConfigOption(name = "Forge", desc = "Open the Forge window once (the Forge in the Dwarven Mines, or /call fred): it says what is in each slot and how long it takes, to the second - the mod remembers the end, so the panel and the alert count down exactly, on every map you choose. The Forges list of the tab list in the Dwarven Mines (the default there; /widget turns it on) fills in what the window did not say: it rounds up and jumps by a minute while you farm, so it never changes a time the window has set. Move the panel with /shoki hud. Everything here is off until you turn it on.")
         @ConfigEditorInfoText
         public transient String about = "";
 
         @Expose
-        @ConfigOption(name = "Enabled", desc = "Read the Forges list of the tab list and remember the slots. Off from the start: nothing in this section does anything until it is on.")
+        @ConfigOption(name = "Enabled", desc = "Read the Forge window and the Forges list of the tab list and remember the slots. Off from the start: nothing in this section does anything until it is on.")
         @ConfigEditorBoolean
         public boolean enabled = false;
 
