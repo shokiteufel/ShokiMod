@@ -1,9 +1,8 @@
 package com.shokiteufel.shokimod.handler;
 
+import com.shokiteufel.shokimod.mixin.AbstractSoundInstanceAccessor;
 import com.shokiteufel.shokimod.util.FishingLog;
 import com.shokiteufel.shokimod.util.ScoreboardUtils;
-
-import com.shokiteufel.shokimod.mixin.AbstractSoundInstanceAccessor;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.AbstractSoundInstance;
@@ -20,6 +19,8 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.regex.Pattern;
 
 /**
@@ -27,6 +28,11 @@ import java.util.regex.Pattern;
  *
  * Gelesen wird nur, wenn das Protokoll an ist (die {@link FishingHookDisplay} fragt vorher). Alles, was sich ohne Spiel pruefen laesst - die Zeilen, die Unterschrift
  * einer Szene, die Frage, ob eine Luecke vorliegt, der Grund, warum ein Name nicht gelesen wird - ist rein und hat einen Test.
+ *
+ * <p>Seit 2.6.16 knapp gehalten: Die erste Fassung schrieb jeden Mob-Namen, jede Schadenszahl und jeden Ton einzeln und erreichte die 1-MB-Grenze der Datei nach rund
+ * 30 Sekunden - dann fiel die aeltere Haelfte weg, und gerade der Anfang der Sitzung fehlte. Jetzt stehen in einer Szene nur die Dinge, die ein Zeitgeber sein
+ * koennten; Mob-Namen und Schadenszahlen zaehlen nur als Anzahl. Toene stehen einzeln nur, wenn es Notenblock-Toene sind (der Pling beim Anbeissen); alle anderen
+ * kommen je Wurf als eine Zeile "SOUNDS" mit Anzahl, Tonhoehe und Lautstaerke.
  */
 final class FishingHookProbe {
 
@@ -34,8 +40,12 @@ final class FishingHookProbe {
     static final double LOG_RANGE = 6.0;
     /** Hoechstens so viele Dinge je Zeile, die naechsten zuerst */
     private static final int MAX_SEEN = 12;
+    /** Hoechstens so viele Tonarten je Zeile "SOUNDS" */
+    private static final int MAX_SOUND_KINDS = 25;
 
     private static final Pattern PLAIN_NUMBER = Pattern.compile("\\d+(?:[.,]\\d+)?");
+    /** Eine Schadenszahl: Ziffern, Kommas und die Sterne der Kritischen, sonst nichts */
+    private static final Pattern DAMAGE_NUMBER = Pattern.compile("[\\d,✧✦\\s]+");
     private static final Pattern COLOUR_CODES = Pattern.compile("(?i)§[0-9A-FK-OR]");
 
     /** So lange nach dem letzten Tick mit Haken werden noch Toene aufgeschrieben (das Einholen klingt, wenn der Haken schon weg ist) */
@@ -47,6 +57,8 @@ final class FishingHookProbe {
     private static long hookSince = 0L;
     private static long hookSeenAt = 0L;
     private static double hookX, hookY, hookZ;
+    /** Die Toene dieses Wurfs, die nicht einzeln aufgeschrieben werden */
+    private static final Map<String, SoundStat> SOUNDS = new TreeMap<>();
 
     private FishingHookProbe() {
     }
@@ -54,6 +66,52 @@ final class FishingHookProbe {
     /** Ein benanntes Ding in der Naehe des Hakens */
     record Seen(int id, String type, String legacy, double distance, double up, boolean inSearch, boolean chosen, boolean invisible, boolean nameVisible,
                 FishingHookDisplay.Reading reading) {
+    }
+
+    /** Wie oft eine Tonart in einem Wurf erklang, und in welchen Spannen von Tonhoehe und Lautstaerke */
+    static final class SoundStat {
+        private final String id;
+        private int count = 0;
+        private float minPitch = Float.MAX_VALUE, maxPitch = -Float.MAX_VALUE, minVolume = Float.MAX_VALUE, maxVolume = -Float.MAX_VALUE;
+
+        SoundStat(String id) {
+            this.id = id;
+        }
+
+        void add(float pitch, float volume) {
+            count++;
+            if (!Float.isNaN(pitch)) {
+                minPitch = Math.min(minPitch, pitch);
+                maxPitch = Math.max(maxPitch, pitch);
+            }
+            if (!Float.isNaN(volume)) {
+                minVolume = Math.min(minVolume, volume);
+                maxVolume = Math.max(maxVolume, volume);
+            }
+        }
+
+        int count() {
+            return count;
+        }
+
+        /** "entity.generic.swim x7 (pitch 0.86-1.03, vol 0.03-0.07)" - ohne Spanne, wenn alle gleich waren */
+        String describe() {
+            boolean hasPitch = minPitch <= maxPitch;
+            boolean hasVolume = minVolume <= maxVolume;
+            StringBuilder out = new StringBuilder(id).append(" x").append(count);
+            if (hasPitch || hasVolume) {
+                out.append(" (");
+                if (hasPitch) out.append("pitch ").append(span(minPitch, maxPitch));
+                if (hasPitch && hasVolume) out.append(", ");
+                if (hasVolume) out.append("vol ").append(span(minVolume, maxVolume));
+                out.append(')');
+            }
+            return out.toString();
+        }
+
+        private static String span(float min, float max) {
+            return min == max ? String.format(Locale.ROOT, "%.2f", min) : String.format(Locale.ROOT, "%.2f-%.2f", min, max);
+        }
     }
 
     // ------------------------------------------------------------------ rein
@@ -80,10 +138,23 @@ final class FishingHookProbe {
         return "other text";
     }
 
-    /** Sieht der Name nach einem Zeitgeber des Hakens aus (eine Zahl oder drei Ausrufezeichen), ob die Mod ihn nun liest oder nicht? */
+    /**
+     * Sieht der Name nach einem Zeitgeber des Hakens aus, ob die Mod ihn nun liest oder nicht? Der Zeitgeber ist eine Zahl MIT Dezimalpunkt ("2.4") oder "!!!";
+     * eine ganze Zahl ist eine Schadenszahl (bis 2.6.15 zaehlten auch die, und jeder Treffer auf einen Mob war eine falsche Luecke).
+     */
     static boolean looksLikeTimer(String legacy) {
         String why = whyNotRead(legacy);
-        return !why.equals("other text") && !why.equals("empty text") && !why.equals("no name");
+        if (why.equals("read")) return true;
+        if (why.startsWith("a number")) return plain(legacy).contains(".");
+        return why.startsWith("has !!!");
+    }
+
+    /** Ist das nur Beiwerk, das nie ein Zeitgeber ist: der Name eines Mobs mit Leben ("... 20,625/25,000❤") oder eine Schadenszahl? Dann steht es nur als Anzahl im Protokoll */
+    static boolean isNoise(Seen s) {
+        if (s.reading() != null || !s.type().equals("armor_stand")) return false;
+        String p = plain(s.legacy()).trim();
+        if (p.isEmpty() || p.contains("❤")) return true;
+        return DAMAGE_NUMBER.matcher(p).matches();
     }
 
     /** Eine Zeile je Ding: Kennung, Art, Text mit Farbcodes, was die Mod daraus liest, Abstand, Suchbereich */
@@ -128,17 +199,22 @@ final class FishingHookProbe {
         return false;
     }
 
-    /** Der Text einer Szene: alle Dinge, das Naechste zuerst */
-    static String sceneText(List<Seen> seen, String overlayKind, String overlayText) {
+    /**
+     * Der Text einer Szene: alle Dinge, die ein Zeitgeber sein koennten, das Naechste zuerst.
+     *
+     * @param hidden wie viele Mob-Namen und Schadenszahlen ausgelassen wurden (nur gezaehlt)
+     */
+    static String sceneText(List<Seen> seen, int hidden, String overlayKind, String overlayText) {
         StringBuilder out = new StringBuilder();
         out.append("overlay ").append(overlayKind == null ? "EMPTY" : "shows " + overlayKind + " \"" + overlayText + "\"");
-        out.append(" | ").append(seen.size()).append(" named things within ").append((int) LOG_RANGE).append(" blocks");
-        for (Seen s : seen) out.append("\n  ").append(describe(s));
-        return out.toString().replace("\n  ", " || ");
+        out.append(" | ").append(seen.size()).append(" candidates within ").append((int) LOG_RANGE).append(" blocks");
+        if (hidden > 0) out.append(" (+").append(hidden).append(" mob names and damage numbers left out)");
+        for (Seen s : seen) out.append(" || ").append(describe(s));
+        return out.toString();
     }
 
     /**
-     * Die Zeile zu einem Ton.
+     * Die Zeile zu einem einzeln aufgeschriebenen Ton.
      *
      * @param id        die Kennung mit Namensraum ("minecraft:block.note_block.pling")
      * @param values    Tonhoehe und Lautstaerke, wie sie der Erzeuger eingestellt hat
@@ -153,14 +229,42 @@ final class FishingHookProbe {
                 + (overlayMs < 0 ? "" : " for " + overlayMs + " ms");
     }
 
+    /** Steht dieser Ton einzeln im Protokoll? Nur Notenblock-Toene (der Pling beim Anbeissen und was ihm ausser der Reihe gleicht); alles andere wird je Wurf gezaehlt */
+    static boolean soundIsDetailed(String id) {
+        return id != null && id.contains("note_block");
+    }
+
+    /** Die Zeile "SOUNDS" fuer einen Wurf: die haeufigsten Tonarten zuerst; null, wenn nichts erklang */
+    static String soundSummary(Map<String, SoundStat> sounds, long hookMs) {
+        if (sounds.isEmpty()) return null;
+        List<SoundStat> sorted = new ArrayList<>(sounds.values());
+        sorted.sort(Comparator.<SoundStat>comparingInt(SoundStat::count).reversed().thenComparing(s -> s.id));
+        StringBuilder out = new StringBuilder("while the hook was out (").append(hookMs).append(" ms): ");
+        int shown = 0;
+        for (SoundStat s : sorted) {
+            if (shown > 0) out.append(", ");
+            if (shown == MAX_SOUND_KINDS) {
+                out.append("+").append(sorted.size() - shown).append(" more kinds");
+                break;
+            }
+            out.append(s.describe());
+            shown++;
+        }
+        return out.toString();
+    }
+
     // ------------------------------------------------------------------ Spiel
 
-    /** Jeden Tick, solange das Protokoll an ist: merkt sich den Haken, damit die Toene wissen, wie lange er draussen ist */
+    /** Jeden Tick, solange das Protokoll an ist: merkt sich den Haken, damit die Toene wissen, wie lange er draussen ist, und schliesst die Zeile der Toene eines Wurfs ab */
     static void watch(Minecraft client) {
         FishingHook hook = client.player == null ? null : client.player.fishing;
-        if (hook == null || hook.isRemoved()) return;
         long now = System.currentTimeMillis();
+        if (hook == null || hook.isRemoved()) {
+            if (hookSeenAt != 0L && now - hookSeenAt > SOUND_GRACE_MS) flushSounds();
+            return;
+        }
         if (hook.getId() != hookId || now - hookSeenAt > SOUND_GRACE_MS) {
+            flushSounds();
             hookId = hook.getId();
             hookSince = now;
         }
@@ -170,21 +274,36 @@ final class FishingHookProbe {
         hookZ = hook.getZ();
     }
 
-    /** Ein Ton ist gestartet (vom Mixin an {@code SoundManager.play}): aufschreiben, solange ein Haken draussen ist oder eben war */
+    /** Die gezaehlten Toene des letzten Wurfs als eine Zeile schreiben und von vorn beginnen */
+    private static void flushSounds() {
+        if (SOUNDS.isEmpty()) return;
+        String line = soundSummary(SOUNDS, hookSeenAt - hookSince);
+        SOUNDS.clear();
+        if (line != null) FishingLog.line("SOUNDS", line);
+    }
+
+    /** Ein Ton ist gestartet (vom Mixin an {@code SoundManager.play}): aufschreiben oder zaehlen, solange ein Haken draussen ist oder eben war */
     static void sound(SoundInstance sound) {
         long now = System.currentTimeMillis();
         if (hookSeenAt == 0L || now - hookSeenAt > SOUND_GRACE_MS) return;
         Minecraft client = Minecraft.getInstance();
         boolean out = client.player != null && client.player.fishing != null && !client.player.fishing.isRemoved();
 
-        String values = "pitch=? vol=?";
+        float pitch = Float.NaN, volume = Float.NaN;
         if (sound instanceof AbstractSoundInstance && sound instanceof AbstractSoundInstanceAccessor accessor) {
             try {
-                values = String.format(Locale.ROOT, "pitch=%.2f vol=%.2f", accessor.shokimod$pitch(), accessor.shokimod$volume());
+                pitch = accessor.shokimod$pitch();
+                volume = accessor.shokimod$volume();
             } catch (RuntimeException | LinkageError e) {
                 // Dann eben ohne die Werte
             }
         }
+        String id = String.valueOf(sound.getIdentifier());
+        if (!soundIsDetailed(id)) {
+            SOUNDS.computeIfAbsent(id, SoundStat::new).add(pitch, volume);
+            return;
+        }
+        String values = Float.isNaN(pitch) ? "pitch=? vol=?" : String.format(Locale.ROOT, "pitch=%.2f vol=%.2f", pitch, volume);
         String where;
         if (sound.isRelative()) {
             where = "relative (not at a place)";
@@ -192,7 +311,7 @@ final class FishingHookProbe {
             double dx = sound.getX() - hookX, dy = sound.getY() - hookY, dz = sound.getZ() - hookZ;
             where = String.format(Locale.ROOT, "%.1f blocks from the hook", Math.sqrt(dx * dx + dy * dy + dz * dz));
         }
-        FishingLog.line("SOUND", soundText(String.valueOf(sound.getIdentifier()), values, where, (out ? now : hookSeenAt) - hookSince, out, lastOverlay,
+        FishingLog.line("SOUND", soundText(id, values, where, (out ? now : hookSeenAt) - hookSince, out, lastOverlay,
                 overlaySince == 0L ? -1L : now - overlaySince));
     }
 
@@ -211,6 +330,7 @@ final class FishingHookProbe {
     static void scene(Minecraft client, FishingHook hook, ArmorStand chosen, FishingHookDisplay.Reading reading, String shown) {
         AABB search = hook.getBoundingBox().inflate(FishingHookDisplay.SEARCH_RANGE);
         List<Seen> seen = new ArrayList<>();
+        int hidden = 0;
         for (Entity e : client.level.getEntitiesOfClass(Entity.class, hook.getBoundingBox().inflate(LOG_RANGE))) {
             if (e == hook || e == client.player || e instanceof Player) continue;
             Component name = e.getCustomName();
@@ -219,8 +339,13 @@ final class FishingHookProbe {
             String legacy = ScoreboardUtils.toLegacyString(name);
             String type = BuiltInRegistries.ENTITY_TYPE.getKey(e.getType()).getPath();
             FishingHookDisplay.Reading read = stand ? FishingHookDisplay.read(legacy) : null;
-            seen.add(new Seen(e.getId(), type, legacy, Math.sqrt(e.distanceToSqr(hook)), e.getY() - hook.getY(),
-                    e.getBoundingBox().intersects(search), chosen != null && e.getId() == chosen.getId(), e.isInvisible(), e.isCustomNameVisible(), read));
+            Seen one = new Seen(e.getId(), type, legacy, Math.sqrt(e.distanceToSqr(hook)), e.getY() - hook.getY(),
+                    e.getBoundingBox().intersects(search), chosen != null && e.getId() == chosen.getId(), e.isInvisible(), e.isCustomNameVisible(), read);
+            if (isNoise(one)) {
+                hidden++;
+            } else {
+                seen.add(one);
+            }
         }
         seen.sort(Comparator.comparingDouble(Seen::distance));
         if (seen.size() > MAX_SEEN) seen = new ArrayList<>(seen.subList(0, MAX_SEEN));
@@ -228,7 +353,7 @@ final class FishingHookProbe {
         String kind = shown == null ? null : kindOf(reading);
         overlay(kind, shown, chosen == null ? -1 : chosen.getId());
         boolean gap = isGap(seen, kind);
-        FishingLog.lineIfChanged("scene", signatureOf(seen, kind), gap ? "GAP" : "SCENE", sceneText(seen, kind, shown));
+        FishingLog.lineIfChanged("scene", signatureOf(seen, kind), gap ? "GAP" : "SCENE", sceneText(seen, hidden, kind, shown));
     }
 
     /** Das Overlay erscheint oder verschwindet: eine Zeile mit der Dauer des vorigen Zustands */

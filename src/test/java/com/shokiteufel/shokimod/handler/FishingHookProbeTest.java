@@ -39,8 +39,7 @@ class FishingHookProbeTest {
     @Test
     void whatLooksLikeATimerIsFoundEvenIfTheModDoesNotReadIt() {
         assertTrue(FishingHookProbe.looksLikeTimer("§e§l2.4"), "gelesen");
-        assertTrue(FishingHookProbe.looksLikeTimer("§a§l2.4"), "nicht gelesen, sieht aber so aus");
-        assertTrue(FishingHookProbe.looksLikeTimer("§c§l!!! §7(2)"));
+        assertTrue(FishingHookProbe.looksLikeTimer("§a§l2.4"), "nicht gelesen, sieht aber so aus");        assertTrue(FishingHookProbe.looksLikeTimer("§c§l!!! §7(2)"));
         assertFalse(FishingHookProbe.looksLikeTimer("§c§lYeti"));
         assertFalse(FishingHookProbe.looksLikeTimer(""));
     }
@@ -102,13 +101,75 @@ class FishingHookProbeTest {
     }
 
     @Test
-    void sceneTextListsEverythingOnOneLine() {
-        String text = FishingHookProbe.sceneText(List.of(stand(12, "§a§l2.4", true, false), stand(13, "§c§lYeti", false, false)), null, null);
+    void sceneTextListsTheCandidatesOnOneLineAndCountsTheRest() {
+        String text = FishingHookProbe.sceneText(List.of(stand(12, "§a§l2.4", true, false), stand(13, "§c§lYeti", false, false)), 5, null, null);
         assertFalse(text.contains("\n"), "eine Zeile");
-        assertTrue(text.startsWith("overlay EMPTY | 2 named things within 6 blocks"), text);
+        assertTrue(text.startsWith("overlay EMPTY | 2 candidates within 6 blocks (+5 mob names and damage numbers left out)"), text);
         assertTrue(text.contains("id=12") && text.contains("id=13"), text);
 
-        assertTrue(FishingHookProbe.sceneText(List.of(stand(12, "§e§l2.4", true, true)), "time", "§e§l2.4").startsWith("overlay shows time \"§e§l2.4\""));
+        String plain = FishingHookProbe.sceneText(List.of(stand(12, "§e§l2.4", true, true)), 0, "time", "§e§l2.4");
+        assertTrue(plain.startsWith("overlay shows time \"§e§l2.4\" | 1 candidates"), plain);
+        assertFalse(plain.contains("left out"), "nichts ausgelassen, nichts gesagt: " + plain);
+    }
+
+    @Test
+    void mobNamesAndDamageNumbersAreNoiseButTimersAreNot() {
+        // Aus dem Log vom 28.11.: so sahen die Dinge um den Haken aus
+        assertTrue(FishingHookProbe.isNoise(stand(1, "§8[§7Lv60§8] §2§9 §cEnt §a20,625§f/§a25,000§c❤", false, false)), "Mob mit Leben");
+        assertTrue(FishingHookProbe.isNoise(stand(2, "§6540", true, false)), "Schadenszahl");
+        assertTrue(FishingHookProbe.isNoise(stand(3, "§719", true, false)), "Schadenszahl in grau");
+        assertTrue(FishingHookProbe.isNoise(stand(4, "§f✧§f3§e1§6,§c8§c3§f8§f✧", false, false)), "kritischer Treffer mit Sternen");
+        assertTrue(FishingHookProbe.isNoise(stand(5, "§r", false, false)), "leer");
+        assertFalse(FishingHookProbe.isNoise(stand(6, "§e§l1.4", true, true)), "der Zeitgeber");
+        assertFalse(FishingHookProbe.isNoise(stand(7, "§a§l2.4", true, false)), "ein Zeitgeber in anderer Farbe darf nicht verschwinden");
+        assertFalse(FishingHookProbe.isNoise(stand(8, "§c§l!!!", true, true)), "der Alarm");
+        assertFalse(FishingHookProbe.isNoise(stand(9, "§c§lALARM!", true, false)), "unbekannter Text bleibt sichtbar");
+        FishingHookProbe.Seen other = new FishingHookProbe.Seen(10, "text_display", "§6540", 1.0, 1.0, true, false, false, true, null);
+        assertFalse(FishingHookProbe.isNoise(other), "nur bei Ruestungsstaendern");
+    }
+
+    @Test
+    void aWholeNumberIsADamageNumberNotATimer() {
+        // Bis 2.6.15 zaehlte jede Zahl: Jeder Treffer auf einen Mob war eine falsche Luecke
+        assertFalse(FishingHookProbe.looksLikeTimer("§719"));
+        assertFalse(FishingHookProbe.looksLikeTimer("§6540"));
+        assertTrue(FishingHookProbe.looksLikeTimer("§a2.4"), "mit Dezimalpunkt");
+        assertFalse(FishingHookProbe.isGap(List.of(stand(1, "§719", true, false)), null), "keine Luecke");
+    }
+
+    @Test
+    void onlyNoteBlockSoundsAreWrittenOneByOne() {
+        assertTrue(FishingHookProbe.soundIsDetailed("minecraft:block.note_block.pling"));
+        assertTrue(FishingHookProbe.soundIsDetailed("minecraft:block.note_block.bell"));
+        assertFalse(FishingHookProbe.soundIsDetailed("minecraft:entity.generic.swim"));
+        assertFalse(FishingHookProbe.soundIsDetailed("rfu:rod_timer"));
+        assertFalse(FishingHookProbe.soundIsDetailed(null));
+    }
+
+    @Test
+    void theSoundsOfACastAreCountedWithTheirSpans() {
+        java.util.Map<String, FishingHookProbe.SoundStat> sounds = new java.util.TreeMap<>();
+        for (float pitch : new float[] {1.3f, 1.4f, 2.0f}) sounds.computeIfAbsent("rfu:rod_timer", FishingHookProbe.SoundStat::new).add(pitch, 1.0f);
+        sounds.computeIfAbsent("minecraft:entity.generic.swim", FishingHookProbe.SoundStat::new).add(0.86f, 0.03f);
+        sounds.computeIfAbsent("minecraft:entity.generic.swim", FishingHookProbe.SoundStat::new).add(1.03f, 0.07f);
+        sounds.computeIfAbsent("minecraft:entity.generic.swim", FishingHookProbe.SoundStat::new).add(0.90f, 0.05f);
+        sounds.computeIfAbsent("minecraft:entity.generic.swim", FishingHookProbe.SoundStat::new).add(0.95f, 0.06f);
+        sounds.computeIfAbsent("minecraft:entity.arrow.shoot", FishingHookProbe.SoundStat::new).add(1.0f, 1.0f);
+
+        assertEquals("while the hook was out (2650 ms): minecraft:entity.generic.swim x4 (pitch 0.86-1.03, vol 0.03-0.07), rfu:rod_timer x3 (pitch 1.30-2.00, vol 1.00),"
+                + " minecraft:entity.arrow.shoot x1 (pitch 1.00, vol 1.00)", FishingHookProbe.soundSummary(sounds, 2650L));
+    }
+
+    @Test
+    void noSoundsNoSummary() {
+        assertEquals(null, FishingHookProbe.soundSummary(new java.util.TreeMap<>(), 1000L));
+    }
+
+    @Test
+    void aSoundWithoutKnownValuesIsStillCounted() {
+        FishingHookProbe.SoundStat stat = new FishingHookProbe.SoundStat("minecraft:x");
+        stat.add(Float.NaN, Float.NaN);
+        assertEquals("minecraft:x x1", stat.describe());
     }
 
     @Test
