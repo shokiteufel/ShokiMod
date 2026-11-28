@@ -61,7 +61,9 @@ public final class CommandSequence {
             queue.clear();
             return;
         }
-        step(System.currentTimeMillis(), client.getConnection()::sendCommand);
+        var connection = client.getConnection();
+        // Die Befehle dieser Folge sind die der Mod (/gfs OIL_BARREL 5): Tab Complete darf ihre Unterstriche nicht anfassen
+        step(System.currentTimeMillis(), command -> com.shokiteufel.shokimod.chat.GfsUnderscores.asOwn(() -> connection.sendCommand(command)));
     }
 
     /** Ein Schritt der Folge: sendet den naechsten Befehl, wenn der Abstand vorbei ist. Getrennt vom Tick, damit es sich ohne Spiel pruefen laesst */

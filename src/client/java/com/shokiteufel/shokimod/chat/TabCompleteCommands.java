@@ -45,6 +45,8 @@ public final class TabCompleteCommands {
     /** Beim Start: die gemerkten Listen (Freunde, Gilde) laden. Mehr braucht der Weg ueber das Mixin nicht */
     public static void register() {
         TabCompleteRosters.load();
+        // Beim Senden von /gfs werden Unterstriche in Sack-Namen zu Leerzeichen (wie bei SkyHanni)
+        GfsUnderscores.register();
     }
 
     /** Alle Schalter aus: so sieht die Funktion aus, solange der 26.3-Schalter aus ist */
@@ -167,6 +169,11 @@ public final class TabCompleteCommands {
         @Override
         public List<String> itemIds() {
             return new ArrayList<>(ItemNames.allIds());
+        }
+
+        @Override
+        public List<String> sackNames() {
+            return SackItems.suggestionNames();
         }
     }
 }

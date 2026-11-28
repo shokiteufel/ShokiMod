@@ -422,8 +422,11 @@ Beschreibungen, eigene Tests. Es steht nichts Geschriebenes aus SkyHanni in dies
   „/p kick Na“ deshalb nie die Mitglieder), die Zeile unter dem Zeiger bei Copy Chat wird über die Matrix des Chats zurückgerechnet, die Mitglieder der Freundesliste werden
   nur auf einer Seite von „/friend list“ gelesen (nicht in jeder Zeile, die „Friends“ sagt), eigener Wortlaut. **Nicht übernommen:** „Carry Customers“ und „VIP Visits“ (die
   Daten fehlen), SkyHannis Wort-Ersetzungen („Shwords“) bei Umschalt in Copy Chat, die Menü-Taste in Copy Chat, das Nachladen der Abiphone-Kontakte aus dem Netz (SkyHanni lädt sie; hier
-  steht eine feste Liste, siehe unten), die Beschränkung von /gfs auf Gegenstände, die in einen Sack passen,
-  die Ersetzung von Unterstrichen in /gfs, die Vorschläge für die Menge hinter /gfs, und das Merken des Chats in der Datei des Spielers.
+  steht eine feste Liste, siehe unten), die Vorschläge für die Menge hinter /gfs, und das Merken des Chats in der Datei des Spielers.
+  **/gfs seit 2.6.7 wie bei SkyHanni** (`SackItems`, `GfsUnderscores`): Vorschläge nur aus den Gegenständen, die in einen Sack passen (Anzeigenamen in Großbuchstaben mit
+  Unterstrichen), an jeder Wortstelle, und beim Senden werden Unterstriche in bekannten Sack-Namen zu Leerzeichen. Die Liste der Sack-Gegenstände (681 in 34 Sacks, Stand 28.11.2026,
+  `assets/shokimod/sack-items.txt`) stammt aus `constants/sacks.json` des NotEnoughUpdates-REPO (Tatsachen aus dem Spiel, keine Texte) und wird einmal am Tag aus dem Netz
+  aufgefrischt. Eigene Zutat: Befehle, die die Mod selbst schickt (`/gfs OIL_BARREL 5`, `/gfs UMBER_KEY 2`), werden nie umgeschrieben (bei SkyHanni `senderIsSkyhanni`).
   **Die Liste der /call-Namen** (`AbiphoneContacts`, seit 2.5.10 alle 85 Kontakte mit 143 einwortigen Namen) stammt aus der Kontakt-Tabelle des Community-Wikis
   hypixelskyblock.minecraft.wiki (Seite „Abiphones“, Stand 27.11.2026; das offizielle Hypixel-Wiki ist seit Juli 2026 geschlossen). Übernommen sind nur die Anrufnamen
   (Tatsachen, kein Wikitext); neue Kontakte des Spiels stehen erst nach einer Änderung der Liste darin.

@@ -6661,7 +6661,7 @@ public class ModConfig extends Config {
         public boolean guild = false;
 
         @Expose
-        @ConfigOption(name = "/gfs Sack", desc = "Tab-complete /gfs item names. Unlike SkyHanni the mod does not know which items fit in a sack: it suggests every item Hypixel knows.")
+        @ConfigOption(name = "/gfs Sack", desc = "Tab-complete /gfs with the items that fit in a sack, written like ENCHANTED_COAL; any part of a name counts (coal finds COAL, ENCHANTED_COAL and COAL_BLOCK). When you send the command, underscores in a known sack item name become spaces (ENCHANTED_COAL 64 goes out as ENCHANTED COAL 64), as SkyHanni does; commands the mod sends itself, like the keys and the drill fuel, are left as they are. The list comes from the NotEnoughUpdates sacks (a copy of 28 Nov 2026 inside the mod, refreshed from the internet once a day).")
         @ConfigEditorBoolean
         public boolean gfsSack = false;
 

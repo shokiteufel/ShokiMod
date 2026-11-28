@@ -26,8 +26,8 @@ import static com.shokiteufel.shokimod.chat.CommandSuggestionTree.parent;
  * Umsetzung ist eigene Arbeit: Java.
  *
  * <p>Abweichungen von SkyHanni: Die Spieler-Befehle bekommen ihre Woerter ({@code accept}, {@code kick}, {@code list} ...) nur, solange mindestens eine der vier
- * Spieler-Quellen (Island Players, Friends, Party, Guild) an ist - bei SkyHanni haben sie immer welche. {@code /gfs} schlaegt nur das erste Wort vor (den
- * Namen, nicht die Menge). Wer in einer ausgeschlossenen Quelle steht (die Party bei {@code /p invite}), fehlt in der Liste auch dann, wenn er in einer anderen
+ * Spieler-Quellen (Island Players, Friends, Party, Guild) an ist - bei SkyHanni haben sie immer welche. {@code /gfs} schlaegt (seit 2.6.7 wie bei SkyHanni) die
+ * Namen der Gegenstaende vor, die in einen Sack passen ({@link SackItems}), mit Unterstrichen, an jeder Wortstelle. Wer in einer ausgeschlossenen Quelle steht (die Party bei {@code /p invite}), fehlt in der Liste auch dann, wenn er in einer anderen
  * steht. Nicht gebaut sind "Carry Customers" und "VIP Visits": Beide brauchen Daten, die diese Mod nicht hat (die Kunden von SkyHannis
  * Carry Tracker, SkyHannis Liste der Spieler mit Kuchenseelen).
  */
@@ -74,8 +74,11 @@ public final class TabCompleteRules {
         /** Die Kennungen der Gegenstaende, die ein Rezept haben ({@code /viewrecipe ...}) */
         List<String> craftableIds();
 
-        /** Die Kennungen aller Gegenstaende ({@code /gfs ...}) */
+        /** Die Kennungen aller Gegenstaende (der Ersatz, solange die Rezepte hinter {@code /viewrecipe} nicht geladen sind) */
         List<String> itemIds();
+
+        /** Die Namen der Gegenstaende, die in einen Sack passen, mit Unterstrichen ("ENCHANTED_COAL") - die Vorschlaege hinter {@code /gfs} */
+        List<String> sackNames();
     }
 
     /**
@@ -106,8 +109,8 @@ public final class TabCompleteRules {
     /** Die Plaetze, die {@code /show} kennt */
     static final List<String> SHOW_SLOTS = List.of("item", "helmet", "chestplate", "leggings", "boots", "necklace", "cloak", "belt", "bracelet", "gloves", "pet");
 
-    /** Hoechstens so viele Vorschlaege: {@code /gfs} mit einem Buchstaben trifft sonst tausende */
-    static final int MAX_SUGGESTIONS = 300;
+    /** Hoechstens so viele Vorschlaege. Die Sack-Liste hat rund 700 Namen und soll ganz erscheinen; alles darueber (Rezepte hinter {@code /viewrecipe}) wird gekappt */
+    static final int MAX_SUGGESTIONS = 1000;
 
     private TabCompleteRules() {
     }
@@ -144,6 +147,9 @@ public final class TabCompleteRules {
         List<String> out;
         if (PLAYER_COMMANDS.contains(cmd)) {
             out = CommandSuggestionTree.suggest(playerTree(s, src), cmd + " " + typed);
+        } else if (cmd.equals("gfs") || cmd.equals("getfromsacks")) {
+            // Wie bei SkyHanni an jeder Wortstelle: wer den Namen mit Leerzeichen tippt, bekommt zum zweiten Wort auch Vorschlaege
+            out = containing(src.sackNames(), last);
         } else if (!firstWord) {
             out = List.of();
         } else {
@@ -153,7 +159,6 @@ public final class TabCompleteRules {
                 case "viewstash" -> startingWith(List.of("item", "material"), last);
                 case "show", "showitem", "showoff" -> startingWith(SHOW_SLOTS, last);
                 case "viewrecipe" -> startingWith(src.craftableIds(), last);
-                case "gfs", "getfromsacks" -> containing(src.itemIds(), last);
                 default -> List.of();
             };
         }

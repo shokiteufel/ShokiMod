@@ -28,6 +28,7 @@ class TabCompleteRulesTest {
         List<String> warps = List.of();
         List<String> recipes = List.of();
         List<String> items = List.of();
+        List<String> sacks = List.of();
 
         @Override public List<String> islandPlayers() { return island; }
         @Override public String self() { return self; }
@@ -39,6 +40,7 @@ class TabCompleteRulesTest {
         @Override public List<String> abiphoneContacts() { return AbiphoneContacts.NAMES; }
         @Override public List<String> craftableIds() { return recipes; }
         @Override public List<String> itemIds() { return items; }
+        @Override public List<String> sackNames() { return sacks; }
     }
 
     private static Switches none() {
@@ -109,7 +111,7 @@ class TabCompleteRulesTest {
     @Test
     void gfsContainsTheTextAndPutsTheOnesThatStartWithItFirst() {
         Fake f = new Fake();
-        f.items = List.of("COAL", "ENCHANTED_COAL", "COAL_BLOCK", "OIL_BARREL");
+        f.sacks = List.of("COAL", "ENCHANTED_COAL", "COAL_BLOCK", "OIL_BARREL");
         Switches s = only(false, false, false, false, false, false, true, false, false, false, false);
         assertEquals(List.of("COAL", "COAL_BLOCK", "ENCHANTED_COAL"), candidates(TabCompleteRules.suggest("gfs", "coal", s, f)));
         assertEquals(List.of("OIL_BARREL"), candidates(TabCompleteRules.suggest("getfromsacks", "barrel", s, f)));
@@ -117,11 +119,42 @@ class TabCompleteRulesTest {
     }
 
     @Test
-    void gfsStopsAtThreeHundredSuggestions() {
+    void gfsTakesTheSackNamesNotEveryItemTheGameKnows() {
+        Fake f = new Fake();
+        f.items = List.of("BEAR_BENCH", "CARPENTRY_BENCH", "ENCHANTED_COAL");
+        f.sacks = List.of("ENCHANTED_COAL");
+        Switches s = only(false, false, false, false, false, false, true, false, false, false, false);
+        // Bis 2.6.6 traf "ench" auch BEAR_BENCH und CARPENTRY_BENCH: alle Gegenstaende wurden durchsucht, nicht die der Sacks
+        assertEquals(List.of("ENCHANTED_COAL"), candidates(TabCompleteRules.suggest("gfs", "ench", s, f)));
+    }
+
+    @Test
+    void gfsSuggestsAtEveryWordLikeSkyHanni() {
+        Fake f = new Fake();
+        f.sacks = List.of("COAL", "ENCHANTED_COAL");
+        Switches s = only(false, false, false, false, false, false, true, false, false, false, false);
+        Result second = TabCompleteRules.suggest("gfs", "ENCHANTED coal", s, f);
+        assertEquals(10, second.wordStart(), "das zweite Wort beginnt hinter 'ENCHANTED '");
+        assertEquals(List.of("COAL", "ENCHANTED_COAL"), second.candidates());
+        assertEquals(List.of("COAL", "ENCHANTED_COAL"), candidates(TabCompleteRules.suggest("gfs", "ENCHANTED_COAL co", s, f)), "auch hinter dem Namen, wie bei SkyHanni");
+    }
+
+    @Test
+    void gfsOffersTheWholeListWhenNothingIsTypedYet() {
+        Fake f = new Fake();
+        List<String> sacks = new ArrayList<>();
+        for (int i = 0; i < 700; i++) sacks.add("ITEM_" + i);
+        f.sacks = sacks;
+        Switches s = only(false, false, false, false, false, false, true, false, false, false, false);
+        assertEquals(700, candidates(TabCompleteRules.suggest("gfs", "", s, f)).size(), "rund 700 Sack-Namen sollen ganz erscheinen");
+    }
+
+    @Test
+    void gfsStopsAtTheLimit() {
         Fake f = new Fake();
         List<String> many = new ArrayList<>();
-        for (int i = 0; i < 1000; i++) many.add("ITEM_" + i);
-        f.items = many;
+        for (int i = 0; i < TabCompleteRules.MAX_SUGGESTIONS + 500; i++) many.add("ITEM_" + i);
+        f.sacks = many;
         Switches s = only(false, false, false, false, false, false, true, false, false, false, false);
         assertEquals(TabCompleteRules.MAX_SUGGESTIONS, candidates(TabCompleteRules.suggest("gfs", "item", s, f)).size());
     }
