@@ -53,7 +53,8 @@ public final class FrozenBlaze {
             ticks = 0;
             wearing = client.player != null && fullSet(client.player);
         }
-        if (ModConfig.INSTANCE.fishing.frozenBlaze.auraTimer) {
+        // Die Aura-Uhr laeuft auch, wenn nur die Lautstaerke sie braucht (Quiet other sounds > Also during the Blazing Aura)
+        if (ModConfig.INSTANCE.fishing.frozenBlaze.auraTimer || FeatureGate.hookSoundsAura()) {
             Player player = client.player;
             if (player == null) {
                 seen = false;
@@ -128,6 +129,16 @@ public final class FrozenBlaze {
     /** Die Sekunden, die die Aura jetzt noch wirkt (0 = aus) */
     public static int auraSecondsLeft() {
         return auraSeconds(auraLeftMillis(nowMillis(), lookedAt, movedAt));
+    }
+
+    /** Wirkt die Blazing Aura gerade? Nur mit dem ganzen Set und solange noch Zeit auf der Uhr ist. Rein - das Set und die Restzeit kommen herein */
+    static boolean auraActive(boolean wearingSet, long leftMillis) {
+        return wearingSet && leftMillis > 0L;
+    }
+
+    /** Wirkt die Blazing Aura gerade (Set an, Zeit auf der Uhr)? Fuer die Lautstaerke beim Angeln */
+    public static boolean auraActive() {
+        return auraActive(wearing, auraLeftMillis(nowMillis(), lookedAt, movedAt));
     }
 
     /** Nur fuer Tests: Beobachtung und Uhren zuruecksetzen */

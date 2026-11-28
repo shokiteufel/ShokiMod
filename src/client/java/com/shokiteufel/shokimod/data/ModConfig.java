@@ -2416,6 +2416,11 @@ public class ModConfig extends Config {
         public float quietOthersBy = 50f;
 
         @Expose
+        @ConfigOption(name = "Also during the Blazing Aura", desc = "With the full Frozen Blaze armor on, quiets the other sounds also for as long as the Blazing Aura is active - the 30 seconds after your last move that the Aura timer counts - even between casts and without a hook out. It uses the amount above: set it to 100 to switch the other sounds off completely. The bite sound and the sounds the mod makes itself stay. Only with Quiet other sounds on. Off until you turn it on.")
+        @ConfigEditorBoolean
+        public boolean quietWhileAura = false;
+
+        @Expose
         @ConfigOption(name = "Hide armor stand", desc = "Hides Hypixel's own text over the hook while the display on your screen is shown, so the number is not there twice.")
         @ConfigEditorBoolean
         public boolean hideArmorStand = true;

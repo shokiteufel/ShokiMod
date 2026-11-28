@@ -16,6 +16,9 @@ import net.minecraft.world.item.Items;
 
 /**
  * Fishing > Hook display > Quiet other sounds: Solange der eigene Haken draussen ist, werden alle Toene leiser gestellt - bis auf den Biss-Ton, damit er heraussticht.
+ * Mit "Also during the Blazing Aura" (Wunsch des Users, 28.11.: "bei Frozen Blaze mit rein, dass sie aus sind, solange der Blazing-Aura-Effekt aktiv ist") gilt das auch
+ * dann, wenn man das ganze Frozen-Blaze-Set traegt und die Aura wirkt ({@link FrozenBlaze#auraActive()}) - ohne Haken, durchgehend; der eingestellte Anteil
+ * ist derselbe, 100 schaltet die anderen Toene ganz aus.
  *
  * Wunsch des Users (28.11.): "genau diesen Sound lauter machen um 100 % und alles andere um 50-100 % leiser". Minecraft begrenzt die Lautstaerke eines Tons auf 100 %;
  * der Biss-Ton kommt schon mit 1.00 (Fishing log), also bleibt er, wie er ist, und alles andere wird um den eingestellten Anteil leiser. Das Ergebnis ist dasselbe:
@@ -43,6 +46,18 @@ public final class HookSounds {
      */
     static boolean shouldQuiet(boolean featureOn, boolean own, boolean hookOut, boolean bite, boolean wouldCancel) {
         return featureOn && hookOut && !own && !bite && !wouldCancel;
+    }
+
+    /**
+     * Ist jetzt die Zeit, in der leiser gestellt wird? Solange der eigene Haken draussen ist, und - mit "Also during the Blazing Aura" - auch solange die Blazing Aura
+     * wirkt (Frozen Blaze, die 30 Sekunden nach der letzten Bewegung), selbst zwischen den Wuerfen und ohne Haken.
+     *
+     * @param hookOut    ob der eigene Haken draussen ist (Angel in der Haupthand)
+     * @param auraOption ob "Also during the Blazing Aura" an ist
+     * @param auraActive ob die Blazing Aura gerade wirkt
+     */
+    static boolean quietTime(boolean hookOut, boolean auraOption, boolean auraActive) {
+        return hookOut || (auraOption && auraActive);
     }
 
     /**
@@ -76,7 +91,8 @@ public final class HookSounds {
             float pitch = accessor.shokimod$pitch();
             boolean bite = id != null && FishingHookDisplay.isBiteSound(id.getNamespace(), id.getPath(), pitch, volume);
             boolean mute = SoundMute.wouldCancel(id, volume);
-            if (!shouldQuiet(true, false, hookOut, bite, mute)) return;
+            boolean auraOption = ModConfig.INSTANCE.fishing.hookDisplay.quietWhileAura;
+            if (!shouldQuiet(true, false, quietTime(hookOut, auraOption, auraOption && FrozenBlaze.auraActive()), bite, mute)) return;
             accessor.shokimod$setVolume(quieter(volume, ModConfig.INSTANCE.fishing.hookDisplay.quietOthersBy));
         } catch (RuntimeException | LinkageError e) {
             // Dann bleibt der Ton, wie er ist

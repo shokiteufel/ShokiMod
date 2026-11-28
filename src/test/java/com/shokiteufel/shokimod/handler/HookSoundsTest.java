@@ -51,6 +51,38 @@ class HookSoundsTest {
     }
 
     @Test
+    void theHookAloneIsAQuietTimeAsBefore() {
+        assertTrue(HookSounds.quietTime(true, false, false), "Haken draussen, ohne die Aura-Einstellung");
+        assertTrue(HookSounds.quietTime(true, true, false), "Haken draussen, Aura gerade nicht aktiv");
+        assertFalse(HookSounds.quietTime(false, false, false), "nichts");
+    }
+
+    @Test
+    void theBlazingAuraIsAQuietTimeOnlyWithTheOptionAndWithoutAHook() {
+        // Wunsch des Users (28.11.): bei Frozen Blaze aus, solange die Blazing Aura wirkt
+        assertTrue(HookSounds.quietTime(false, true, true), "kein Haken (zwischen den Wuerfen), Option an, Aura wirkt");
+        assertFalse(HookSounds.quietTime(false, true, false), "Option an, aber die Aura ist aus");
+        assertFalse(HookSounds.quietTime(false, false, true), "Aura wirkt, aber die Option ist aus");
+    }
+
+    @Test
+    void theAuraActsOnlyWithTheFullSetAndTimeOnTheClock() {
+        assertTrue(FrozenBlaze.auraActive(true, 12_000L));
+        assertTrue(FrozenBlaze.auraActive(true, 1L), "bis zur letzten Millisekunde");
+        assertFalse(FrozenBlaze.auraActive(true, 0L), "Zeit abgelaufen");
+        assertFalse(FrozenBlaze.auraActive(false, 12_000L), "ohne das ganze Set gibt es keine Aura");
+    }
+
+    @Test
+    void theAuraOptionIsOffFromTheStartAndNeedsQuietOthers() {
+        assertFalse(ModConfig.INSTANCE.fishing.hookDisplay.quietWhileAura);
+        assertFalse(FeatureGate.hookSoundsAura());
+        ModConfig.INSTANCE.fishing.hookDisplay.quietWhileAura = true;
+        assertFalse(FeatureGate.hookSoundsAura(), "ohne Quiet other sounds ist es ein Unterpunkt ohne Wirkung");
+        assertFalse(FeatureGate.frozenBlaze(), "und die Set-Erkennung bleibt aus");
+    }
+
+    @Test
     void quieterTakesThePercentOff() {
         assertEquals(0.5f, HookSounds.quieter(1.0f, 50f), 1e-6f);
         assertEquals(0.25f, HookSounds.quieter(0.5f, 50f), 1e-6f);

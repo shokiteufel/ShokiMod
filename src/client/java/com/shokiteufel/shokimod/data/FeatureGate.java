@@ -542,7 +542,12 @@ public final class FeatureGate {
     /** Fishing > Frozen Blaze: Das Set wird nur erkannt, solange eine der Funktionen daraus an ist */
     public static boolean frozenBlaze() {
         ModConfig.FrozenBlazeCategory c = ModConfig.INSTANCE.fishing.frozenBlaze;
-        return c.hidePlayers || c.hideLootshare || c.hideTribeMember || c.hideDamage || c.auraTimer;
+        return c.hidePlayers || c.hideLootshare || c.hideTribeMember || c.hideDamage || c.auraTimer || hookSoundsAura();
+    }
+
+    /** Fishing > Hook display > Quiet other sounds > Also during the Blazing Aura: braucht das Set und die Aura-Uhr (FrozenBlaze), nur wenn an */
+    public static boolean hookSoundsAura() {
+        return hookSounds() && ModConfig.INSTANCE.fishing.hookDisplay.quietWhileAura;
     }
 
     /** Fishing > Hooks: Die fremden Haken ausblenden - nur wenn an. Braucht den Ort (nur in SkyBlock, nicht dort, wo niemand angelt) */
