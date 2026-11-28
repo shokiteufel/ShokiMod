@@ -114,7 +114,7 @@ public final class ColdAlert {
             CustomSoundPlayer.play(file.trim(), AlertVolume.factor(), ColdAlert.class);
             return;
         }
-        client.player.playSound(SoundEvents.PLAYER_HURT_FREEZE, AlertVolume.factor(), 1.0f);
+        com.shokiteufel.shokimod.util.ModSound.play(client.player, SoundEvents.PLAYER_HURT_FREEZE, AlertVolume.factor(), 1.0f);
     }
 
     /** Der Knopf in den Einstellungen: einmal vorfuehren, auch wenn die Warnung aus ist */

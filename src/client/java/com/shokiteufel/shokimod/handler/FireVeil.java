@@ -64,7 +64,7 @@ public final class FireVeil {
         }
         if (client.player == null || !ModConfig.INSTANCE.iq.fireVeilSound) return;
         if (consumeReadySound(System.currentTimeMillis())) {
-            client.player.playSound(SoundEvents.NOTE_BLOCK_PLING.value(), 2.0f, 1.6f);
+            com.shokiteufel.shokimod.util.ModSound.play(client.player, SoundEvents.NOTE_BLOCK_PLING.value(), 2.0f, 1.6f);
         }
     }
 

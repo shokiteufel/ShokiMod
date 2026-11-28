@@ -146,7 +146,7 @@ public final class CakeReminder {
     private static void remind(Minecraft client, String text, List<String> outdated) {
         client.player.sendSystemMessage(message(text, outdated));
         if (cfg().cakeSound) {
-            client.player.playSound(SoundEvents.NOTE_BLOCK_PLING.value(), AlertVolume.factor(), 1.2f);
+            com.shokiteufel.shokimod.util.ModSound.play(client.player, SoundEvents.NOTE_BLOCK_PLING.value(), AlertVolume.factor(), 1.2f);
         }
     }
 

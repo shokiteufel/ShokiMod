@@ -54,7 +54,6 @@ public final class AlertVolume {
         }
 
         Minecraft client = Minecraft.getInstance();
-        client.getSoundManager().play(
-                SimpleSoundInstance.forUI(SoundEvents.NOTE_BLOCK_PLING.value(), 1.0f, factor()));
+        ModSound.playUi(SoundEvents.NOTE_BLOCK_PLING.value(), 1.0f, factor());
     }
 }

@@ -60,7 +60,7 @@ public final class ChatSoundResponse {
             Minecraft client = Minecraft.getInstance();
             if (client == null) return;
             SoundEvent event = SoundEvent.createVariableRangeEvent(Identifier.withDefaultNamespace(type.soundId()));
-            client.getSoundManager().play(SimpleSoundInstance.forUI(event, 1.0f, volume));
+            com.shokiteufel.shokimod.util.ModSound.playUi(event, 1.0f, volume);
         } catch (RuntimeException e) {
             // Ein Laut, der sich nicht spielen laesst, darf den Chat nie stoeren
             ShokiMod.LOGGER.warn("[Chat] could not play the sound {}: {}", type.soundId(), e.toString());

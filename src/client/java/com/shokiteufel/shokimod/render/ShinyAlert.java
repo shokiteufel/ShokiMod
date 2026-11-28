@@ -124,7 +124,6 @@ public final class ShinyAlert {
             return;
         }
 
-        Minecraft.getInstance().getSoundManager().play(
-                SimpleSoundInstance.forUI(SoundEvents.NOTE_BLOCK_PLING.value(), 0.8f, AlertVolume.factor()));
+        com.shokiteufel.shokimod.util.ModSound.playUi(SoundEvents.NOTE_BLOCK_PLING.value(), 0.8f, AlertVolume.factor());
     }
 }

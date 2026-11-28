@@ -3,15 +3,19 @@ package com.shokiteufel.shokimod.handler;
 import com.shokiteufel.shokimod.data.FeatureGate;
 import com.shokiteufel.shokimod.data.GameState;
 import com.shokiteufel.shokimod.data.ModConfig;
+import com.shokiteufel.shokimod.mixin.AbstractSoundInstanceAccessor;
 import com.shokiteufel.shokimod.util.FishingLog;
+import com.shokiteufel.shokimod.util.ModSound;
 import com.shokiteufel.shokimod.util.ScoreboardUtils;
 import com.shokiteufel.shokimod.util.SkyBlockItems;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.resources.sounds.AbstractSoundInstance;
 import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.entity.projectile.FishingHook;
 import net.minecraft.world.item.ItemStack;
@@ -44,6 +48,14 @@ public final class FishingHookDisplay {
     record Reading(boolean alert, double seconds, String legacy) {
     }
 
+    /** Hypixels Biss-Ton: das Pling eines Notenblocks (belegt im Fishing log vom 28.11.: Tonhoehe 1.00, Lautstaerke 1.00, rund 30 ms vor dem "!!!") */
+    static final String BITE_NAMESPACE = "minecraft";
+    static final String BITE_PATH = "block.note_block.pling";
+    /** So alt muss der Haken sein, bevor ein Pling als Biss gilt (der Wurf selbst klingt auch) */
+    private static final int BITE_MIN_AGE_TICKS = 10;
+
+    /** Der Haken, bei dem der Biss-Ton gehoert wurde, oder -1 */
+    private static int soundAlertHook = -1;
     private static int shownId = -1;
     private static String shownText = null;
     /** Zaehlt mit jedem Tick, damit der Kasten ebenso oft neu gebaut wird und der Alarm nicht eine Viertelsekunde zu spaet kommt */
@@ -100,13 +112,55 @@ public final class FishingHookDisplay {
      * Ein Ton ist gestartet (vom Mixin an {@code SoundManager.play}, jeder Ton laeuft hier vorbei): fuer das Fishing log. Ohne das Protokoll nur ein Vergleich.
      */
     public static void onSound(SoundInstance sound) {
-        if (sound == null || !FishingLog.enabled()) return;
-        // Ein Werkzeug zum Fehlersuchen darf das Spiel nie selbst zum Absturz bringen
+        if (sound == null) return;
+        boolean log = FishingLog.enabled();
+        boolean alert = ModConfig.INSTANCE.fishing.hookDisplay.soundAlert && FeatureGate.hookDisplay();
+        if (!log && !alert) return;
+        // Ein Werkzeug darf das Spiel nie selbst zum Absturz bringen
         try {
-            FishingHookProbe.sound(sound);
+            // Ein Ton, den die Mod selbst spielt (ModSound), zaehlt nie als Biss - auch wenn er ein Pling mit denselben Werten ist
+            boolean own = ModSound.active();
+            if (alert && !own) heardBite(sound, log);
+            if (log) FishingHookProbe.sound(sound, own);
         } catch (RuntimeException | LinkageError e) {
-            // Dann fehlt eben die Zeile
+            // Dann fehlt eben der Alarm oder die Zeile
         }
+    }
+
+    /** Ist das Hypixels Biss-Ton? Das Pling eines Notenblocks mit Tonhoehe 1.00 und Lautstaerke 1.00; eine Tonfolge mit anderen Werten ist etwas anderes */
+    static boolean isBiteSound(String namespace, String path, float pitch, float volume) {
+        return BITE_NAMESPACE.equals(namespace) && BITE_PATH.equals(path) && Math.abs(pitch - 1.0f) < 0.01f && Math.abs(volume - 1.0f) < 0.01f;
+    }
+
+    /**
+     * Was im Overlay steht, wenn der Biss-Ton gehoert wurde: der Alarm, auch wenn der Ruestungsstaender keinen (oder noch die Zeit) zeigt. Ohne Ton bleibt
+     * es, wie es ist.
+     */
+    static Reading withSoundAlert(Reading reading, boolean heard) {
+        if (!heard) return reading;
+        if (reading != null && reading.alert()) return reading;
+        return new Reading(true, 0.0, "§c§l!!!");
+    }
+
+    /** Der Ton ist gestartet: Ist es der Biss-Ton bei meinem eigenen Haken, merkt sich der naechste Tick den Alarm */
+    private static void heardBite(SoundInstance sound, boolean log) {
+        Identifier id = sound.getIdentifier();
+        // Zuerst das Billige: Der Pfad. Jeder Ton im Spiel laeuft hier vorbei
+        if (id == null || !BITE_PATH.equals(id.getPath())) return;
+        if (!(sound instanceof AbstractSoundInstance) || !(sound instanceof AbstractSoundInstanceAccessor accessor)) return;
+        float pitch = accessor.shokimod$pitch();
+        float volume = accessor.shokimod$volume();
+        if (!isBiteSound(id.getNamespace(), id.getPath(), pitch, volume)) return;
+
+        Minecraft client = Minecraft.getInstance();
+        LocalPlayer player = client.player;
+        if (player == null || !GameState.Server.isSkyblock()) return;
+        FishingHook hook = player.fishing;
+        if (hook == null || hook.isRemoved() || !player.getMainHandItem().is(Items.FISHING_ROD)) return;
+        // Der Wurf selbst klingt auch - ein Biss kommt erst nach einer Weile
+        if (hook.tickCount < BITE_MIN_AGE_TICKS) return;
+        soundAlertHook = hook.getId();
+        if (log) FishingLog.line("BITE", "bite sound heard for hook id=" + hook.getId() + " (" + hook.tickCount + " ticks old) - the alert is shown from now on");
     }
 
     /** Wie die Angel in der Hand heisst, fuers Fishing log: die SkyBlock-Kennung, sonst der Name */
@@ -176,15 +230,17 @@ public final class FishingHookDisplay {
                 bestDistance = distance;
             }
         }
-        if (best == null) {
+        ModConfig.HookDisplayCategory cfg = ModConfig.INSTANCE.fishing.hookDisplay;
+        // Der Biss-Ton bei diesem Haken macht den Alarm, auch wenn der Ruestungsstaender nichts Lesbares zeigt
+        Reading effective = withSoundAlert(bestReading, cfg.soundAlert && soundAlertHook == hook.getId());
+        if (effective == null) {
             clear();
             if (log) FishingHookProbe.scene(client, hook, null, null, null);
             return;
         }
-        ModConfig.HookDisplayCategory cfg = ModConfig.INSTANCE.fishing.hookDisplay;
-        shownId = best.getId();
-        shownText = textFor(bestReading, cfg.customReelInTime, cfg.customAlertText);
-        if (log) FishingHookProbe.scene(client, hook, best, bestReading, shownText);
+        shownId = best == null ? -1 : best.getId();
+        shownText = textFor(effective, cfg.customReelInTime, cfg.customAlertText);
+        if (log) FishingHookProbe.scene(client, hook, best, effective, shownText);
     }
 
     /** Der Text, der gerade auf dem Bildschirm stehen soll - oder null, wenn der Haken nichts zu sagen hat */

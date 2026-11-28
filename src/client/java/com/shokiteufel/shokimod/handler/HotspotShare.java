@@ -352,7 +352,7 @@ public final class HotspotShare {
         String all = shareMessage(found.x(), found.y(), found.z(), found.perk(), zone, true);
         for (Component line : offer(found.perk(), party, all, live)) client.player.sendSystemMessage(line);
         if (ModConfig.INSTANCE.fishing.hotspot.shareSound) {
-            client.player.playSound(SoundEvents.EXPERIENCE_ORB_PICKUP, AlertVolume.factor(), 1.0f);
+            com.shokiteufel.shokimod.util.ModSound.play(client.player, SoundEvents.EXPERIENCE_ORB_PICKUP, AlertVolume.factor(), 1.0f);
         }
         ShokiMod.LOGGER.info("[HotspotShare] offered {}", party);
     }

@@ -632,7 +632,7 @@ public final class SkillProgress {
         client.player.sendSystemMessage(Component.literal("§3§l---------------------------------------------"));
         client.player.sendSystemMessage(Component.literal("  §b§lSKILL LEVEL UP §3" + skill.displayName() + " §8" + oldLevel + "➜§3" + newLevel));
         client.player.sendSystemMessage(Component.literal("§3§l---------------------------------------------"));
-        client.player.playSound(SoundEvents.PLAYER_LEVELUP, 1.0f, 1.0f);
+        com.shokiteufel.shokimod.util.ModSound.play(client.player, SoundEvents.PLAYER_LEVELUP, 1.0f, 1.0f);
         ShokiMod.LOGGER.info("[SkillProgress] {} overflow level {} -> {}", skill.displayName(), oldLevel, newLevel);
     }
 }

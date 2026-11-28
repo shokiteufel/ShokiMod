@@ -939,10 +939,8 @@ public class ModConfig extends Config {
         INSTANCE.chat.petMax.test = () -> Minecraft.getInstance().execute(
                 com.shokiteufel.shokimod.handler.PetMaxAlert::test);
         INSTANCE.bugHunt.testSound = () -> Minecraft.getInstance().execute(() ->
-                Minecraft.getInstance().getSoundManager().play(
-                        net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
-                                net.minecraft.sounds.SoundEvents.NOTE_BLOCK_PLING.value(), 1.0f,
-                                com.shokiteufel.shokimod.util.AlertVolume.factor())));
+                com.shokiteufel.shokimod.util.ModSound.playUi(net.minecraft.sounds.SoundEvents.NOTE_BLOCK_PLING.value(), 1.0f,
+                        com.shokiteufel.shokimod.util.AlertVolume.factor()));
         INSTANCE.bugHunt.soundSummary = () -> Minecraft.getInstance().execute(
                 com.shokiteufel.shokimod.handler.SoundTracer::summary);
         INSTANCE.logs.particleSummary = () -> Minecraft.getInstance().execute(
@@ -2401,6 +2399,11 @@ public class ModConfig extends Config {
         @ConfigOption(name = "Custom reel in time", desc = "Shows your custom alert as soon as the time to reel in is this many seconds or less, a little before Hypixel's !!!. 0 waits for the number to reach 0.")
         @ConfigEditorSlider(minValue = 0f, maxValue = 1f, minStep = 0.1f)
         public float customReelInTime = 0f;
+
+        @Expose
+        @ConfigOption(name = "Alert from the bite sound", desc = "Also shows the alert when Hypixel plays its bite sound while your hook is out - a note block pling at normal pitch and full volume, which comes at the same moment as Hypixel's !!!. Works even when the text over the hook cannot be read. Sounds the mod makes itself never count. Off until you turn it on.")
+        @ConfigEditorBoolean
+        public boolean soundAlert = false;
 
         @Expose
         @ConfigOption(name = "Hide armor stand", desc = "Hides Hypixel's own text over the hook while the display on your screen is shown, so the number is not there twice.")

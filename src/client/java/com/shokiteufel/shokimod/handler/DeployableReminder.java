@@ -421,7 +421,7 @@ public final class DeployableReminder {
             CustomSoundPlayer.play(file.trim(), AlertVolume.factor(), DeployableReminder.class);
             return;
         }
-        client.player.playSound(SoundEvents.NOTE_BLOCK_PLING.value(), AlertVolume.factor(), 0.8f);
+        com.shokiteufel.shokimod.util.ModSound.play(client.player, SoundEvents.NOTE_BLOCK_PLING.value(), AlertVolume.factor(), 0.8f);
     }
 
     /** Knopf in den Einstellungen: einmal vorfuehren, mit einem Plasmaflux Power Orb */

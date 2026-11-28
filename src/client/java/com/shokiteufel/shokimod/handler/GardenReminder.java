@@ -305,7 +305,7 @@ abstract class GardenReminder {
             CustomSoundPlayer.play(file.trim(), AlertVolume.factor(), getClass());
             return;
         }
-        client.player.playSound(SoundEvents.NOTE_BLOCK_PLING.value(), AlertVolume.factor(), 0.8f);
+        com.shokiteufel.shokimod.util.ModSound.play(client.player, SoundEvents.NOTE_BLOCK_PLING.value(), AlertVolume.factor(), 0.8f);
     }
 
     /** Auch fuer die anderen Erinnerungen: Gibt es die gewaehlte Tondatei noch? */

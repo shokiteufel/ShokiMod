@@ -508,7 +508,7 @@ public final class SeaCreatureHp {
             return;
         }
         // Wie bei Feesh, wenn nichts gewaehlt ist: der Erfahrungskugel-Ton
-        client.player.playSound(SoundEvents.EXPERIENCE_ORB_PICKUP, AlertVolume.factor(), 1.0f);
+        com.shokiteufel.shokimod.util.ModSound.play(client.player, SoundEvents.EXPERIENCE_ORB_PICKUP, AlertVolume.factor(), 1.0f);
     }
 
     /** Zwei Beispielzeilen fuer den HUD-Editor, wenn gerade nichts in der Naehe steht */

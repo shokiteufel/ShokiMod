@@ -211,7 +211,7 @@ public final class HotspotTracker {
         DropBanner.show(ModConfig.INSTANCE.chat.banner.designOrDefault(cfg.warningDesign),
                 "Hotspot despawned!", hotspot.type.label, "Fishing", 0xFF5555, new ItemStack(Items.FISHING_ROD));
         if (cfg.warningSound) {
-            client.player.playSound(SoundEvents.NOTE_BLOCK_BASS.value(), AlertVolume.factor(), 0.8f);
+            com.shokiteufel.shokimod.util.ModSound.play(client.player, SoundEvents.NOTE_BLOCK_BASS.value(), AlertVolume.factor(), 0.8f);
         }
     }
 

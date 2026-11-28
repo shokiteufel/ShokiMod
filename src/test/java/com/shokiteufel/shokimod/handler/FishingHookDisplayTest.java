@@ -79,4 +79,51 @@ class FishingHookDisplayTest {
     void noReadingNoText() {
         assertNull(FishingHookDisplay.textFor(null, 0f, "&c&l!!!"));
     }
+
+    // ------------------------------------------------------------------ Alarm aus dem Biss-Ton (Fishing log vom 28.11.)
+
+    @Test
+    void theBiteSoundIsTheNoteBlockPlingAtNormalPitchAndFullVolume() {
+        // Vier von vier Bissen im Log: minecraft:block.note_block.pling, pitch 1.00, vol 1.00
+        assertTrue(FishingHookDisplay.isBiteSound("minecraft", "block.note_block.pling", 1.00f, 1.00f));
+        assertTrue(FishingHookDisplay.isBiteSound("minecraft", "block.note_block.pling", 1.004f, 0.996f), "Rundung");
+    }
+
+    @Test
+    void otherPlingsAreNotTheBite() {
+        // Die Tonfolge nach dem Einholen im Log: dasselbe Pling, aber pitch 0.59 bis 1.17 und vol 0.4 / 0.8
+        assertFalse(FishingHookDisplay.isBiteSound("minecraft", "block.note_block.pling", 0.59f, 0.80f));
+        assertFalse(FishingHookDisplay.isBiteSound("minecraft", "block.note_block.pling", 1.17f, 0.40f));
+        assertFalse(FishingHookDisplay.isBiteSound("minecraft", "block.note_block.pling", 1.00f, 0.80f), "richtige Tonhoehe, falsche Lautstaerke");
+        assertFalse(FishingHookDisplay.isBiteSound("minecraft", "block.note_block.bell", 1.00f, 1.00f));
+        assertFalse(FishingHookDisplay.isBiteSound("rfu", "block.note_block.pling", 1.00f, 1.00f), "ein anderer Namensraum");
+        assertFalse(FishingHookDisplay.isBiteSound("minecraft", "entity.fishing_bobber.splash", 1.00f, 1.00f));
+        assertFalse(FishingHookDisplay.isBiteSound(null, null, 1.00f, 1.00f));
+    }
+
+    @Test
+    void theHeardBiteMakesTheAlertEvenIfTheStandShowsNothingOrStillTheTime() {
+        FishingHookDisplay.Reading time = FishingHookDisplay.read("§e§l0.1");
+        FishingHookDisplay.Reading alert = FishingHookDisplay.withSoundAlert(null, true);
+        assertNotNull(alert);
+        assertTrue(alert.alert(), "kein lesbarer Staender: trotzdem der Alarm");
+        assertTrue(FishingHookDisplay.withSoundAlert(time, true).alert(), "der Staender zeigt noch die Zeit: der Alarm gewinnt");
+        assertEquals("§c§l!!!", FishingHookDisplay.textFor(alert, 0f, ""), "ohne eigenen Text das rote !!!");
+        assertEquals("§a§lNOW", FishingHookDisplay.textFor(alert, 0f, "&a&lNOW"), "der eigene Alarmtext der Einstellung");
+    }
+
+    @Test
+    void withoutTheBiteNothingChanges() {
+        FishingHookDisplay.Reading time = FishingHookDisplay.read("§e§l1.4");
+        assertEquals(time, FishingHookDisplay.withSoundAlert(time, false));
+        assertNull(FishingHookDisplay.withSoundAlert(null, false), "kein Staender, kein Ton: das Overlay bleibt leer");
+        FishingHookDisplay.Reading alert = FishingHookDisplay.read("§c§l!!!");
+        assertEquals(alert, FishingHookDisplay.withSoundAlert(alert, true), "der Staender zeigt den Alarm schon: unveraendert");
+    }
+
+    @Test
+    void theSoundAlertIsOffFromTheStart() {
+        com.shokiteufel.shokimod.data.ModConfig.INSTANCE = new com.shokiteufel.shokimod.data.ModConfig();
+        assertFalse(com.shokiteufel.shokimod.data.ModConfig.INSTANCE.fishing.hookDisplay.soundAlert);
+    }
 }

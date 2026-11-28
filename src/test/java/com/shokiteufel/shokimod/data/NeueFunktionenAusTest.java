@@ -54,6 +54,7 @@ class NeueFunktionenAusTest {
         assertFalse(FeatureGate.mineshaftKeys(), "die Schluessel-Zeile (und das Lesen der Leichen dafuer)");
         assertFalse(c.fishing.frozenBlaze.auraTimer, "Frozen Blaze: Aura timer");
         assertFalse(c.fishing.hookDisplay.enabled, "Fishing: Hook display");
+        assertFalse(c.fishing.hookDisplay.soundAlert, "Fishing: Alert from the bite sound");
         assertFalse(c.fishing.baitDisplay.enabled, "Fishing: Bait display");
         assertFalse(c.fishing.cocoon.warn, "Fishing: Cocoon title");
         assertFalse(c.fishing.cocoon.share, "Fishing: Cocoon share");

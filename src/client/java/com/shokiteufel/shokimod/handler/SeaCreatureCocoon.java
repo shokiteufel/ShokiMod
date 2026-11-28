@@ -131,7 +131,7 @@ public final class SeaCreatureCocoon {
             return;
         }
         pingsLeft--;
-        client.player.playSound(SoundEvents.NOTE_BLOCK_PLING.value(), AlertVolume.factor(), 1.0f);
+        com.shokiteufel.shokimod.util.ModSound.play(client.player, SoundEvents.NOTE_BLOCK_PLING.value(), AlertVolume.factor(), 1.0f);
     }
 
     /** Der Knopf in den Einstellungen: einmal vorfuehren, auch wenn der Titel aus ist */

@@ -301,7 +301,7 @@ public final class SprungMenue {
                     .append(Component.literal(e.spieler().name + " is dead!").withStyle(ChatFormatting.RED)));
             return;
         }
-        client.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK.value(), 1.0f, 0.25f));
+        com.shokiteufel.shokimod.util.ModSound.playUi(SoundEvents.UI_BUTTON_CLICK.value(), 1.0f, 0.25f);
         client.gameMode.handleContainerInput(client.player.containerMenu.containerId, e.slot(), 0, ContainerInput.PICKUP, client.player);
         geklickt = true;
     }

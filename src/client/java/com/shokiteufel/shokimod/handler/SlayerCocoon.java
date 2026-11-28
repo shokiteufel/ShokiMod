@@ -83,7 +83,7 @@ public final class SlayerCocoon {
         if (pingWait-- > 0) return;
         pingWait = TICKS_BETWEEN_PINGS - 1;
         pingsLeft--;
-        client.player.playSound(SoundEvents.NOTE_BLOCK_PLING.value(), AlertVolume.factor(), 1.0f);
+        com.shokiteufel.shokimod.util.ModSound.play(client.player, SoundEvents.NOTE_BLOCK_PLING.value(), AlertVolume.factor(), 1.0f);
     }
 
     /** Der Knopf in den Einstellungen: Titel und Ton einmal, auch wenn beide aus sind */

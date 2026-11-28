@@ -283,7 +283,7 @@ final class FishingHookProbe {
     }
 
     /** Ein Ton ist gestartet (vom Mixin an {@code SoundManager.play}): aufschreiben oder zaehlen, solange ein Haken draussen ist oder eben war */
-    static void sound(SoundInstance sound) {
+    static void sound(SoundInstance sound, boolean own) {
         long now = System.currentTimeMillis();
         if (hookSeenAt == 0L || now - hookSeenAt > SOUND_GRACE_MS) return;
         Minecraft client = Minecraft.getInstance();
@@ -300,7 +300,8 @@ final class FishingHookProbe {
         }
         String id = String.valueOf(sound.getIdentifier());
         if (!soundIsDetailed(id)) {
-            SOUNDS.computeIfAbsent(id, SoundStat::new).add(pitch, volume);
+            // Toene der Mod selbst (ModSound) stehen getrennt, damit man sie nicht fuer die des Servers haelt
+            SOUNDS.computeIfAbsent(own ? "(ShokiMod) " + id : id, SoundStat::new).add(pitch, volume);
             return;
         }
         String values = Float.isNaN(pitch) ? "pitch=? vol=?" : String.format(Locale.ROOT, "pitch=%.2f vol=%.2f", pitch, volume);
@@ -312,7 +313,7 @@ final class FishingHookProbe {
             where = String.format(Locale.ROOT, "%.1f blocks from the hook", Math.sqrt(dx * dx + dy * dy + dz * dz));
         }
         FishingLog.line("SOUND", soundText(id, values, where, (out ? now : hookSeenAt) - hookSince, out, lastOverlay,
-                overlaySince == 0L ? -1L : now - overlaySince));
+                overlaySince == 0L ? -1L : now - overlaySince) + (own ? " | ShokiMod's own sound" : ""));
     }
 
     /** Was die Hook display gerade tut, oder warum nicht - eine Zeile, wenn sich der Grund aendert */

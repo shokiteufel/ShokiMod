@@ -91,7 +91,7 @@ public final class ChatRuleHandler {
 
         if (!rule.soundId.isBlank() && client.player != null) {
             SoundEvent sound = soundOf(rule.soundId);
-            if (sound != null) client.player.playSound(sound, AlertVolume.scale(rule.volume), 1.0f);
+            if (sound != null) com.shokiteufel.shokimod.util.ModSound.play(client.player, sound, AlertVolume.scale(rule.volume), 1.0f);
         }
 
         if (!rule.soundFile.isBlank()) {

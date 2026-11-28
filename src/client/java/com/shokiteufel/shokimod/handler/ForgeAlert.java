@@ -113,7 +113,7 @@ public final class ForgeAlert {
             CustomSoundPlayer.play(file.trim(), AlertVolume.factor(), ForgeAlert.class);
             return;
         }
-        client.player.playSound(SoundEvents.NOTE_BLOCK_PLING.value(), AlertVolume.factor(), 0.8f);
+        com.shokiteufel.shokimod.util.ModSound.play(client.player, SoundEvents.NOTE_BLOCK_PLING.value(), AlertVolume.factor(), 0.8f);
     }
 
     /** Der Testknopf: die Warnung einmal, so wie sie kurz vor dem Ende kaeme - auch bei ausgeschalteter Warnung */

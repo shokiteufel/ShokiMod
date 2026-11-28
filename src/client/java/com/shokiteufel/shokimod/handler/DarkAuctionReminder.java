@@ -118,7 +118,7 @@ public final class DarkAuctionReminder {
             CustomSoundPlayer.play(file.trim(), AlertVolume.factor(), DarkAuctionReminder.class);
             return;
         }
-        client.player.playSound(SoundEvents.NOTE_BLOCK_PLING.value(), AlertVolume.factor(), 0.8f);
+        com.shokiteufel.shokimod.util.ModSound.play(client.player, SoundEvents.NOTE_BLOCK_PLING.value(), AlertVolume.factor(), 0.8f);
     }
 
     /** Der Testknopf: die Warnung einmal, mit der eingestellten Vorwarnzeit */
