@@ -231,6 +231,12 @@ public final class FeatureGate {
         return ModConfig.INSTANCE.logs.dungeonLog;
     }
 
+    /** Fishing > Hook display > Quiet other sounds: jeder Ton fragt nach, ob er leiser soll - nur wenn es an ist. Braucht den Ort (nur in SkyBlock) */
+    public static boolean hookSounds() {
+        if (!update263()) return false;
+        return ModConfig.INSTANCE.fishing.hookDisplay.quietOthers;
+    }
+
     /** Das Fishing log liest den Haken und die Ruestungsstaender um ihn - nur wenn es an ist. Braucht den Ort (nur in SkyBlock), auch bei ausgeschalteter Hook display */
     public static boolean fishingLog() {
         return ModConfig.INSTANCE.logs.fishingLog;
@@ -576,7 +582,7 @@ public final class FeatureGate {
                 || slayerSpawn() || slayerKillTime() || darkAuction() || darkAuctionTimer() || hidePlayersDungeon() || nearbyRare() || ModConfig.INSTANCE.effects.enabled || mineshaftAnnounce()
                 // Die Dungeon-Funktionen fragen die Tab-Liste und die Seitenleiste (DungeonLauf, Funny Map): ohne diese Zeile stuende sie nur, solange eine der Funktionen oben an ist
                 || roomScan() || iHateDoors() || dungeonLog() || leapMenu() || hideOtherHooks() || mineshaftKeys()
-                || hookDisplay() || fishingLog() || baitDisplay() || seaCocoon() || slayerCocoon() || slayerSpawnParticles() || skillProgress() || auctionUnderbid() || bazaarHelpers()
+                || hookDisplay() || hookSounds() || fishingLog() || baitDisplay() || seaCocoon() || slayerCocoon() || slayerSpawnParticles() || skillProgress() || auctionUnderbid() || bazaarHelpers()
                 || auctionHighlights() || fishingLines()
                 || npcDayLimit() || legionBobbin() || warpCommands() || fixDoubleClicks() || estimatedItemValue() || inputCalculator()
                 // Chat (Teil 1): die Filter nach Ort (Dungeon, Garden, Bergbau, Foraging, Spider's Den, Crystal Hollows, Kuudra)

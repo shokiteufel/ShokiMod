@@ -20,4 +20,8 @@ public interface AbstractSoundInstanceAccessor {
 
     @Accessor("volume")
     float shokimod$volume();
+
+    /** Die Lautstaerke aendern - vor dem Abspielen (Fishing > Hook display > Quiet other sounds) */
+    @Accessor("volume")
+    void shokimod$setVolume(float volume);
 }

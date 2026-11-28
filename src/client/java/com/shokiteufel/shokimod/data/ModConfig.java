@@ -2406,6 +2406,16 @@ public class ModConfig extends Config {
         public boolean soundAlert = false;
 
         @Expose
+        @ConfigOption(name = "Quiet other sounds", desc = "While your own hook is out and you hold a fishing rod, plays every other sound quieter, so Hypixel's bite sound (the pling) stands out. The bite sound itself is never touched - Minecraft cannot go above 100 %, and it already comes at full volume - and neither are the sounds the mod makes itself. Off until you turn it on.")
+        @ConfigEditorBoolean
+        public boolean quietOthers = false;
+
+        @Expose
+        @ConfigOption(name = "Quieter by (%)", desc = "How much quieter the other sounds get while you fish: 50 halves them, 100 mutes them. Only with Quiet other sounds on.")
+        @ConfigEditorSlider(minValue = 50f, maxValue = 100f, minStep = 5f)
+        public float quietOthersBy = 50f;
+
+        @Expose
         @ConfigOption(name = "Hide armor stand", desc = "Hides Hypixel's own text over the hook while the display on your screen is shown, so the number is not there twice.")
         @ConfigEditorBoolean
         public boolean hideArmorStand = true;

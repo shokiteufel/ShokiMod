@@ -126,16 +126,24 @@ public final class SoundMute {
      * @param volume die Lautstaerke, die der Erzeuger eingestellt hat
      */
     public static boolean shouldCancel(Identifier id, float volume) {
+        boolean cancel = wouldCancel(id, volume);
+        if (cancel) muted++;
+        return cancel;
+    }
+
+    /**
+     * Wuerde dieser Ton verschluckt? Wie {@link #shouldCancel}, nur ohne mitzuzaehlen - fuer die, die nur wissen wollen, ob er noch kommt (die Lautstaerke beim
+     * Angeln fasst einen Ton nicht an, den die Stummschaltung ohnehin verschluckt: sie erkennt das Geschenk an der unveraenderten Lautstaerke 0,5).
+     */
+    public static boolean wouldCancel(Identifier id, float volume) {
         MuteCategory c = cfg();
         if (!c.jadeDragon && !c.reindrakeGifts) return false;
         if (id == null || !"minecraft".equals(id.getNamespace())) return false;
 
         String path = id.getPath();
-        boolean cancel = (c.jadeDragon && inDragonCave && path.startsWith(JADE_DRAGON_PREFIX))
+        return (c.jadeDragon && inDragonCave && path.startsWith(JADE_DRAGON_PREFIX))
                 || (c.reindrakeGifts && volume == REINDRAKE_VOLUME && REINDRAKE_SOUND.equals(path)
                 && inJerrysWorkshop());
-        if (cancel) muted++;
-        return cancel;
     }
 
     private static boolean inJerrysWorkshop() {

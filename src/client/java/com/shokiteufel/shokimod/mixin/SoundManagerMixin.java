@@ -1,6 +1,7 @@
 package com.shokiteufel.shokimod.mixin;
 
 import com.shokiteufel.shokimod.handler.FishingHookDisplay;
+import com.shokiteufel.shokimod.handler.HookSounds;
 import com.shokiteufel.shokimod.handler.SoundTracer;
 
 import net.minecraft.client.resources.sounds.SoundInstance;
@@ -27,5 +28,7 @@ public class SoundManagerMixin {
         SoundTracer.onPlay(sound);
         // Das Fishing log schreibt mit, welche Toene beim Angeln erklingen (nur wenn es an ist)
         FishingHookDisplay.onSound(sound);
+        // Fishing > Hook display > Quiet other sounds: erst nach dem Log und dem Alarm, die sehen den Ton, wie er ankam
+        HookSounds.onPlay(sound);
     }
 }
