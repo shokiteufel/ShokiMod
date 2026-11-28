@@ -15,6 +15,18 @@ class ShopValuesTest {
     }
 
     @Test
+    void theHoverSlotIsKeptUntilItIsReset() {
+        try {
+            ShopValues.setHoverSlot(17);
+            assertEquals(17, ShopValues.hoverSlot());
+            ShopValues.setHoverSlot(-1);
+            assertEquals(-1, ShopValues.hoverSlot());
+        } finally {
+            ShopValues.setHoverSlot(-1);
+        }
+    }
+
+    @Test
     void theRarityColoursBecomeTheirColourCodes() {
         assertEquals("§f", ShopValues.legacyColour(0xFFFFFFFF));
         assertEquals("§a", ShopValues.legacyColour(0xFF55FF55));

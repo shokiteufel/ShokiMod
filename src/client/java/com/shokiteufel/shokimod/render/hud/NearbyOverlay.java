@@ -70,6 +70,8 @@ public final class NearbyOverlay {
         panelsUnderChat = false;
         if (!(offen instanceof net.minecraft.client.gui.screens.ChatScreen && schonUnterDemChat)) {
             SafariHud.render(graphics);
+            // NPC Shop Values: auf welches Stueck des Fensters zeigt die Zeile unter dem Zeiger? Im naechsten Bild leuchtet es auf
+            ShopValueHud.updateHover();
             // Die Funny Map nach den Kaesten, wie im Spiel (HudRenderer): bei offenem Inventar oder Behaelter bleibt sie sichtbar
             com.shokiteufel.shokimod.dungeonkarte.FunnyKarteHud.render(graphics);
         }

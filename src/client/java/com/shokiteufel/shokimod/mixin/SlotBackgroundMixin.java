@@ -1,5 +1,6 @@
 package com.shokiteufel.shokimod.mixin;
 
+import com.shokiteufel.shokimod.handler.ShopValues;
 import com.shokiteufel.shokimod.handler.TrashBooks;
 import com.shokiteufel.shokimod.handler.VisitorWindow;
 import com.shokiteufel.shokimod.handler.WindowHighlights;
@@ -29,6 +30,8 @@ public abstract class SlotBackgroundMixin {
         TrashBooks.onSlot(graphics, slot);
         // Inventory > Bazaar: Purchase helper und Order helper markieren Plaetze des Behaelters
         WindowHighlights.onSlot(graphics, slot);
+        // Inventory > NPC Shop Values: das Stueck, auf dessen Zeile in der Liste der Zeiger liegt, leuchtet auf
+        ShopValues.onSlot(graphics, slot);
     }
 
     /**

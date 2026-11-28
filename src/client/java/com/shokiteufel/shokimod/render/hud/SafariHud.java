@@ -658,7 +658,8 @@ public final class SafariHud {
     public static void draw(GuiGraphicsExtractor graphics, Font font, Panel panel, HudPanel content) {
         if (content.isEmpty()) return;
 
-        float scale = panel.scale();
+        // NPC Shop Values neben dem Fenster: so klein wie noetig, damit er nicht auf das Fenster ragt
+        float scale = panel == Panel.SHOP_VALUE ? ShopValueHud.effectiveScale(panel) : panel.scale();
         graphics.pose().pushMatrix();
         graphics.pose().translate(originX(panel), originY(panel));
         graphics.pose().scale(scale, scale);

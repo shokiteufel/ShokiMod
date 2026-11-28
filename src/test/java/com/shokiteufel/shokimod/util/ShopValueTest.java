@@ -281,9 +281,35 @@ class ShopValueTest {
     }
 
     @Test
-    void aLineShowsRankNameCostAndRatio() {
+    void aLineShowsRankNameCostTotalAndTheRatioInBrackets() {
+        // 1500 Copper zu je 420 Coins: im Ganzen 630k
         Row row = new Row("Mutant Nether Wart", "§9", 1, 1_500, 420.0);
-        assertEquals("§71. §9Mutant Nether Wart §7(§c1,500§7)§f: §6420", ShopValue.line(Currency.COPPER, row, 1, false));
+        assertEquals("§71. §9Mutant Nether Wart §7(§c1,500§7)§f: §6630k §7(§6420§7)", ShopValue.line(Currency.COPPER, row, 1, false));
+    }
+
+    @Test
+    void theTotalIsTheRatioTimesTheCost() {
+        // das Beispiel des Users: Torrhus Ring, 30 Coupons zu je 53k - im Ganzen 1,6m (53k)
+        Row ring = new Row("Torrhus Ring", "§a", 1, 30, 53_000.0);
+        assertEquals(1_590_000.0, ring.total(), 1e-6);
+        assertTrue(ShopValue.line(Currency.MIRIA_COUPON, ring, 1, false).endsWith("§6" + "1.6m §7(§653k§7)"));
+    }
+
+    @Test
+    void theSlotTravelsFromTheOfferToTheRow() {
+        Offer o = new Offer("Seeds", "§f", 1, List.of("SEEDS"), List.of(new Cost("Copper", 10)), 23);
+        List<Row> rows = ShopValue.rank(Currency.COPPER, List.of(o), PRICES, true, 10);
+        assertEquals(23, rows.get(0).slot());
+        // ohne Platz: -1
+        assertEquals(-1, offer("Seeds", 1, "SEEDS", new Cost("Copper", 10)).slot());
+    }
+
+    @Test
+    void theTotalAfterMaterialsMatchesTheRatio() {
+        // 10000 - 24 * 160 = 6160 netto bei 100 Coupons: 61,6 je Coupon, im Ganzen 6160
+        Offer o = offer("Trap", 1, "TRAP", new Cost("Agatha's Coupon", 100), new Cost("Enchanted Fig Log", 24));
+        Row row = ShopValue.rank(Currency.AGATHA_COUPON, List.of(o), PRICES, true, 10).get(0);
+        assertEquals(6_160.0, row.total(), 1e-6);
     }
 
     @Test
@@ -295,9 +321,10 @@ class ShopValueTest {
     }
 
     @Test
-    void theRatioCanBeBold() {
+    void theTotalCanBeBold() {
+        // 10 Pests zu je 1234 Coins: im Ganzen 12,3k (1,2k)
         Row row = new Row("Wart", "§f", 1, 10, 1_234.0);
-        assertTrue(ShopValue.line(Currency.PESTS, row, 1, true).endsWith("§6§l1.2k"));
-        assertTrue(ShopValue.line(Currency.PESTS, row, 1, false).endsWith("§61.2k"));
+        assertTrue(ShopValue.line(Currency.PESTS, row, 1, true).endsWith("§6§l12.3k §7(§61.2k§7)"));
+        assertTrue(ShopValue.line(Currency.PESTS, row, 1, false).endsWith("§612.3k §7(§61.2k§7)"));
     }
 }

@@ -22,9 +22,14 @@ import java.util.List;
  */
 public final class ShopValueHud {
 
-    /** Der Abstand zum Fenster */
-    private static final int GAP = 4;
+    /**
+     * Der Abstand zum Fenster: Am linken Rand eines Fensters sitzen oft Knoepfe anderer Mods (Schnellzugriffe, 32 Punkte breit, ein paar Punkte vom Fenster entfernt); bei
+     * einem Abstand von vier Punkten lagen sie ueber dem Ende der Zeilen und schnitten Zahlen ab (Bild des Users, Fear Mongerer, 28.11.).
+     */
+    private static final int GAP = 42;
     private static final int MARGIN = 2;
+    /** Kleiner als das macht man den Kasten nicht, um ihn neben das Fenster zu bekommen */
+    private static final float MIN_FIT = 0.35f;
 
     private ShopValueHud() {
     }
@@ -45,32 +50,85 @@ public final class ShopValueHud {
                 ShopValue.line(copper, new ShopValue.Row("Compost", "§a", 1, 120, 95), 3, bold));
     }
 
-    /** Die Zeilen zu den Listen des offenen Fensters: je Waehrung eine Ueberschrift und die Stuecke, dazwischen eine Leerzeile */
-    static List<String> lines(List<ShopValue.Section> sections, boolean bold) {
+    /** Die Zeilen des Kastens und, gleich lang, der Platz im Fenster zu jeder (-1: Ueberschrift, Leerzeile, Hinweis) */
+    record Built(List<String> lines, List<Integer> slots) {
+    }
+
+    /** Die Zeilen zu den Listen des offenen Fensters: je Waehrung eine Ueberschrift und die Stuecke, dazwischen eine Leerzeile - mit dem Platz jedes Stuecks im Fenster */
+    static Built built(List<ShopValue.Section> sections, boolean bold) {
         List<String> out = new ArrayList<>();
+        List<Integer> slots = new ArrayList<>();
         for (ShopValue.Section section : sections) {
-            if (!out.isEmpty()) out.add("");
+            if (!out.isEmpty()) {
+                out.add("");
+                slots.add(-1);
+            }
             out.add(ShopValue.heading(section.currency()));
+            slots.add(-1);
             if (section.rows().isEmpty()) {
                 out.add(ShopValue.NOTHING);
+                slots.add(-1);
                 continue;
             }
             int rank = 1;
-            for (ShopValue.Row row : section.rows()) out.add(ShopValue.line(section.currency(), row, rank++, bold));
+            for (ShopValue.Row row : section.rows()) {
+                out.add(ShopValue.line(section.currency(), row, rank++, bold));
+                slots.add(row.slot());
+            }
         }
-        return out;
+        return new Built(out, slots);
     }
+
+    static List<String> lines(List<ShopValue.Section> sections, boolean bold) {
+        return built(sections, bold).lines();
+    }
+
+    /** Die Plaetze zu den Zeilen des Kastens, wie er zuletzt gebaut wurde - ueber sie findet der Zeiger sein Stueck */
+    private static volatile List<Integer> slotAt = List.of();
 
     public static HudPanel build() {
         boolean bold = HudNumbers.bold();
         List<ShopValue.Section> sections = ShopValues.sections();
-        List<String> lines = !sections.isEmpty() ? lines(sections, bold) : HudEditorScreen.isOpen() ? sample(bold) : List.of();
+        List<String> lines;
+        if (!sections.isEmpty()) {
+            Built built = built(sections, bold);
+            lines = built.lines();
+            slotAt = built.slots();
+        } else {
+            lines = HudEditorScreen.isOpen() ? sample(bold) : List.of();
+            slotAt = List.of();
+        }
         HudPanel panel = new HudPanel();
         for (String line : lines) {
             if (line.isEmpty()) panel.blank();
             else panel.line(line, HudColours.WHITE);
         }
         return panel;
+    }
+
+    // ------------------------------------------------------------------ Zeiger
+
+    /**
+     * In jedem Bild gerufen (nach dem Zeichnen der Kaesten): Liegt der Zeiger auf der Zeile eines Stuecks, merkt sich {@link ShopValues}, welches Platz es hat; im naechsten
+     * Bild leuchtet es im Fenster auf. Ein Bild Verzug sieht man nicht. Ohne Fenster eines Haendlers kostet der Aufruf eine Abfrage.
+     */
+    public static void updateHover() {
+        if (!ShopValues.active()) {
+            ShopValues.setHoverSlot(-1);
+            return;
+        }
+        Minecraft client = Minecraft.getInstance();
+        SafariHud.Panel panel = SafariHud.Panel.SHOP_VALUE;
+        if (client.gui.screen() == null || client.getWindow() == null || !panel.visible() || !panel.showsHere() || !panel.showsNow()) {
+            ShopValues.setHoverSlot(-1);
+            return;
+        }
+        double mouseX = client.mouseHandler.xpos() * client.getWindow().getGuiScaledWidth() / client.getWindow().getScreenWidth();
+        double mouseY = client.mouseHandler.ypos() * client.getWindow().getGuiScaledHeight() / client.getWindow().getScreenHeight();
+        HudPanel content = panel.build();
+        int row = content.rowAt(client.font, SafariHud.originX(panel), SafariHud.originY(panel), effectiveScale(panel), mouseX, mouseY);
+        List<Integer> slots = slotAt;
+        ShopValues.setHoverSlot(row >= 0 && row < slots.size() ? slots.get(row) : -1);
     }
 
     // ------------------------------------------------------------------ Lage
@@ -82,11 +140,34 @@ public final class ShopValueHud {
         return screen instanceof AbstractContainerScreen<?> container && ShopValues.active() ? container : null;
     }
 
+    /**
+     * Rein: Die Groesse des Kastens bei {@code natural} Punkten Breite (mit der gewaehlten Groesse) und {@code room} Punkten Platz links vom Fenster. Passt er, bleibt es die
+     * gewaehlte Groesse; sonst wird er so viel kleiner, dass er passt - aber nicht unter {@link #MIN_FIT} (und nie groesser als gewaehlt).
+     */
+    static float fitted(float chosen, int natural, int room) {
+        if (natural <= 0 || natural <= room) return chosen;
+        float fit = chosen * Math.max(room, 0) / natural;
+        return Math.max(Math.min(chosen, MIN_FIT), fit);
+    }
+
+    /**
+     * Die Groesse, in der der Kasten gezeichnet wird: die gewaehlte; steht er neben dem Fenster und ist zu breit fuer den Platz links davon (mit den laengeren Zeilen und
+     * einer grossen GUI geschieht das), kleiner - so liegt er nie auf dem Fenster.
+     */
+    public static float effectiveScale(SafariHud.Panel panel) {
+        float chosen = panel.scale();
+        AbstractContainerScreen<?> window = windowToAnchor();
+        if (window == null) return chosen;
+        int natural = Math.round(panel.build().width(Minecraft.getInstance().font) * chosen);
+        int room = ((AbstractContainerScreenAccessor) window).shokimod$leftPos() - GAP - MARGIN;
+        return fitted(chosen, natural, room);
+    }
+
     /** Die linke Kante des Kastens neben dem Fenster, oder null, wenn der gesetzte Platz gilt */
     public static Integer anchoredX(SafariHud.Panel panel) {
         AbstractContainerScreen<?> window = windowToAnchor();
         if (window == null) return null;
-        int width = SafariHud.scaledWidth(panel, panel.build(), Minecraft.getInstance().font);
+        int width = Math.round(panel.build().width(Minecraft.getInstance().font) * effectiveScale(panel));
         return Math.max(MARGIN, ((AbstractContainerScreenAccessor) window).shokimod$leftPos() - width - GAP);
     }
 

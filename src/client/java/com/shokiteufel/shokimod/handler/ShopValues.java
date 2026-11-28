@@ -12,6 +12,7 @@ import com.shokiteufel.shokimod.util.SkyBlockItems;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
@@ -109,12 +110,41 @@ public final class ShopValues {
     }
 
     private static void leave() {
+        hoverSlot = -1;
         if (openScreen == null && shop == null) return;
         openScreen = null;
         openTitle = null;
         shop = null;
         sections = List.of();
         sawItems = false;
+    }
+
+    // ------------------------------------------------------------------ Aufleuchten
+
+    /** Die Farbe, in der das Stueck aufleuchtet, auf das man in der Liste zeigt: dasselbe Gruen wie beim Order helper, das Feld gleichmaessig gefuellt */
+    private static final int HIGHLIGHT = 0xFF55FF55;
+
+    /** Der Platz im Fenster, auf dessen Zeile in der Liste der Zeiger gerade liegt, oder -1 */
+    private static volatile int hoverSlot = -1;
+
+    /** Vom Kasten gesetzt, in jedem Bild: auf welches Stueck die Zeile unter dem Zeiger zeigt (-1: auf keines) */
+    public static void setHoverSlot(int slot) {
+        hoverSlot = slot;
+    }
+
+    public static int hoverSlot() {
+        return hoverSlot;
+    }
+
+    /**
+     * Vom Einsprung in {@code extractSlot} gerufen, kurz bevor das Stueck im Platz gezeichnet wird ({@code SlotBackgroundMixin}): Das Stueck, auf dessen Zeile man in der
+     * Liste zeigt, bekommt ein gleichmaessig gefuelltes Feld dahinter. Ohne Zeiger auf einer Zeile kostet der Aufruf je Platz einen Zahlenvergleich. Nur Plaetze des Fensters
+     * des Haendlers, nicht die des eigenen Inventars.
+     */
+    public static void onSlot(GuiGraphicsExtractor graphics, Slot slot) {
+        int wanted = hoverSlot;
+        if (wanted < 0 || slot.index != wanted || slot.container instanceof Inventory || shop == null) return;
+        graphics.fill(slot.x, slot.y, slot.x + 16, slot.y + 16, HIGHLIGHT);
     }
 
     // ------------------------------------------------------------------ Lesen
@@ -127,7 +157,7 @@ public final class ShopValues {
             ItemStack stack = slot.getItem();
             if (stack.isEmpty()) continue;
             items++;
-            ShopValue.Offer offer = offerOf(stack);
+            ShopValue.Offer offer = offerOf(stack, slot.index);
             if (offer != null) offers.add(offer);
         }
         // Die Plaetze fuellen sich erst nach dem Oeffnen: noch nichts da, nichts zu rechnen
@@ -154,8 +184,8 @@ public final class ShopValues {
 
     // ------------------------------------------------------------------ Stueck -> Angebot
 
-    /** Das Angebot hinter einem Stueck im Fenster, oder null, wenn es keine Kostenzeile hat (Glasscheiben, Knoepfe, Seitenpfeile) */
-    static ShopValue.Offer offerOf(ItemStack stack) {
+    /** Das Angebot hinter einem Stueck im Fenster (auf dem Platz mit dieser Nummer), oder null, wenn es keine Kostenzeile hat (Glasscheiben, Knoepfe, Seitenpfeile) */
+    static ShopValue.Offer offerOf(ItemStack stack, int slotIndex) {
         List<ShopValue.Cost> costs = ShopValue.readCosts(SkyBlockItems.loreOf(stack));
         if (costs.isEmpty()) return null;
 
@@ -177,7 +207,7 @@ public final class ShopValues {
         String id = SkyBlockItems.idOf(stack);
         if (id != null) ids.addAll(SkyBlockItems.priceCandidates(id));
         ids.addAll(BazaarIds.candidates(name));
-        return new ShopValue.Offer(name, legacyColour(SkyBlockItems.nameColour(stack)), amount, List.copyOf(ids), costs);
+        return new ShopValue.Offer(name, legacyColour(SkyBlockItems.nameColour(stack)), amount, List.copyOf(ids), costs, slotIndex);
     }
 
     /** Die sechzehn Farben der Farbcodes 0 bis f, in dieser Reihenfolge */

@@ -497,7 +497,10 @@ Beschreibungen, eigene Tests. Es steht nichts Geschriebenes aus SkyHanni in dies
   der NPC-Preis); ein Stück ohne Preis, mit einem Rohstoff ohne Preis oder mit einer zweiten Währung steht nicht in der Liste. Fünf Händler: SkyMart (Copper), Pesthunter's Wares
   (Pests), Fear Mongerer (Green Candy und Purple Candy, zwei Listen), Agatha's Shop (Agatha's Coupon), Miria's Shop (Miria's Coupon); die Seitenzahl im Titel („(1/2) …“) zählt nicht.
   **Abweichungen:** eine Liste je Währung mit den besten zehn (einstellbar, 3 bis 20) statt einer Tabelle mit allen Stücken, der Kasten steht dicht links neben dem Fenster
-  (Einstellung „Position“, sonst Platz aus `/shoki hud`), von Haus aus aus.
+  (Einstellung „Position“, sonst Platz aus `/shoki hud`), von Haus aus aus. Seit 2.6.12 steht in jeder Zeile der ganze Wert des Stücks und in Klammern der Wert je Einheit
+  der Währung (sortiert wird nach dem zweiten), und das Stück, auf dessen Zeile der Zeiger liegt, leuchtet im Fenster auf (ein gleichmäßig gefülltes Feld hinter dem Stück, wie beim
+  Order helper; SkyHanni kennt das als „highlightsOnHoverSlots“). Der Zeiger wird im Kasten in jedem Bild gelesen (`NearbyOverlay`), gezeichnet wird in `extractSlot`
+  (`SlotBackgroundMixin`).
 
 ---
 

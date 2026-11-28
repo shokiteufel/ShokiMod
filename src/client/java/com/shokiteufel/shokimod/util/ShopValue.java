@@ -62,12 +62,27 @@ public final class ShopValue {
     public record Cost(String name, long amount) {
     }
 
-    /** Ein Stueck im Fenster: Name, Menge, Kennungen zum Suchen des Preises und die Kosten aus der Beschreibung */
-    public record Offer(String name, String nameColour, int amount, List<String> priceIds, List<Cost> costs) {
+    /** Ein Stueck im Fenster: Name, Menge, Kennungen zum Suchen des Preises, die Kosten aus der Beschreibung und der Platz im Fenster (-1: unbekannt) */
+    public record Offer(String name, String nameColour, int amount, List<String> priceIds, List<Cost> costs, int slot) {
+
+        /** Ohne Platz */
+        public Offer(String name, String nameColour, int amount, List<String> priceIds, List<Cost> costs) {
+            this(name, nameColour, amount, priceIds, costs, -1);
+        }
     }
 
-    /** Eine Zeile der Liste */
-    public record Row(String name, String nameColour, int amount, long cost, double ratio) {
+    /** Eine Zeile der Liste; {@code slot} ist der Platz des Stuecks im Fenster (-1: unbekannt) - ueber ihn leuchtet es auf, wenn man die Zeile anfasst */
+    public record Row(String name, String nameColour, int amount, long cost, double ratio, int slot) {
+
+        /** Ohne Platz */
+        public Row(String name, String nameColour, int amount, long cost, double ratio) {
+            this(name, nameColour, amount, cost, ratio, -1);
+        }
+
+        /** Der ganze Wert des Stuecks nach Abzug der Rohstoffe: Coins je Waehrung mal die Kosten - ohne Rohstoffe der Verkaufswert des Stuecks */
+        public double total() {
+            return ratio * cost;
+        }
     }
 
     /** Eine Liste je Waehrung */
@@ -238,7 +253,7 @@ public final class ShopValue {
         }
         double ratio = value / spent;
         if (ratio <= 0) return null;
-        return new Row(offer.name(), offer.nameColour(), Math.max(1, offer.amount()), spent, ratio);
+        return new Row(offer.name(), offer.nameColour(), Math.max(1, offer.amount()), spent, ratio, offer.slot());
     }
 
     // ------------------------------------------------------------------ Anzeige
@@ -248,12 +263,15 @@ public final class ShopValue {
         return "§eCoins per " + currency.label() + "§f:";
     }
 
-    /** Eine Zeile der Liste: Rang, Name (mit Menge ab 2), die Kosten in Klammern, dann die Coins je Waehrung - mit {@code bold} die Zahl fett */
+    /**
+     * Eine Zeile der Liste: Rang, Name (mit Menge ab 2), die Kosten in Klammern, dann der ganze Wert des Stuecks und in Klammern, was eine Einheit der Waehrung bringt
+     * ("1. Torrhus Ring (30): 1.6m (53k)") - mit {@code bold} der ganze Wert fett. Sortiert wird nach dem Wert je Einheit.
+     */
     public static String line(Currency currency, Row row, int rank, boolean bold) {
         String amount = row.amount() > 1 ? " §8x" + row.amount() : "";
-        String number = ItemValue.format(row.ratio());
         return "§7" + rank + ". " + row.nameColour() + row.name() + amount
-                + " §7(" + currency.colour() + String.format(Locale.US, "%,d", row.cost()) + "§7)§f: §6" + (bold ? "§l" : "") + number;
+                + " §7(" + currency.colour() + String.format(Locale.US, "%,d", row.cost()) + "§7)§f: §6" + (bold ? "§l" : "") + ItemValue.format(row.total())
+                + " §7(§6" + ItemValue.format(row.ratio()) + "§7)";
     }
 
     /** Der Hinweis, wenn zu einer Waehrung nichts zu rechnen war */

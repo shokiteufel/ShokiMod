@@ -58,6 +58,47 @@ class ShopValueHudTest {
     }
 
     @Test
+    void everyRowKnowsItsSlotAndTheOtherLinesKnowNone() {
+        ShopValue.Row wart = new ShopValue.Row("Wart", "§f", 1, 10, 5, 12);
+        ShopValue.Row seeds = new ShopValue.Row("Seeds", "§f", 1, 20, 3, 31);
+        ShopValueHud.Built built = ShopValueHud.built(List.of(
+                new Section(Currency.GREEN_CANDY, List.of(wart)),
+                new Section(Currency.PURPLE_CANDY, List.of(seeds))), false);
+        // Ueberschrift, Wart, Leerzeile, Ueberschrift, Seeds
+        assertEquals(List.of(-1, 12, -1, -1, 31), built.slots());
+        assertEquals(built.lines().size(), built.slots().size());
+    }
+
+    @Test
+    void theHintLineHasNoSlot() {
+        ShopValueHud.Built built = ShopValueHud.built(List.of(new Section(Currency.PESTS, List.of())), false);
+        assertEquals(List.of(-1, -1), built.slots());
+    }
+
+    @Test
+    void aBoxThatFitsKeepsItsChosenSize() {
+        assertEquals(1.0f, ShopValueHud.fitted(1.0f, 300, 400));
+        assertEquals(1.0f, ShopValueHud.fitted(1.0f, 400, 400));
+        assertEquals(1.5f, ShopValueHud.fitted(1.5f, 0, 100));
+    }
+
+    @Test
+    void aBoxThatIsTooWideIsShrunkToTheRoomItHas() {
+        // 400 Punkte breit, 200 Platz: halb so gross
+        assertEquals(0.5f, ShopValueHud.fitted(1.0f, 400, 200), 1e-6);
+        // mit der Groesse 1,5 (600 breit) und 300 Platz: 0,75
+        assertEquals(0.75f, ShopValueHud.fitted(1.5f, 600, 300), 1e-6);
+    }
+
+    @Test
+    void aBoxIsNeverShrunkBelowTheMinimumNorMadeBiggerThanChosen() {
+        assertEquals(0.35f, ShopValueHud.fitted(1.0f, 1000, 10), 1e-6);
+        assertEquals(0.35f, ShopValueHud.fitted(1.0f, 1000, -50), 1e-6);
+        // wer ohnehin kleiner gewaehlt hat, bekommt nicht mehr
+        assertEquals(0.3f, ShopValueHud.fitted(0.3f, 1000, 10), 1e-6);
+    }
+
+    @Test
     void noListsGiveNoLines() {
         assertTrue(ShopValueHud.lines(List.of(), false).isEmpty());
     }
