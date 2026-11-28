@@ -250,7 +250,8 @@ class Update263SwitchTest {
     @Test
     void aNewPanelIsNotCountedAs263WithoutSayingSo() {
         // Wacht darueber, dass ein neuer Kasten bewusst eingeordnet wird: Die Liste der Kaesten ist bekannt, jeder hier zaehlt zu einer Seite
-        int known = 29;
+        // 30: NPC Shop Values (SHOP_VALUE) kam dazu - eine eigene Funktion, keine seit 2.4.10, also bewusst nicht in from263()
+        int known = 30;
         assertEquals(known, SafariHud.Panel.values().length,
                 "ein neuer Kasten: gehoert er zu einer Funktion seit 2.4.10? Dann in SafariHud.Panel#from263() eintragen und hier die Zahl und den Test oben nachfuehren");
     }

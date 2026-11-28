@@ -195,6 +195,11 @@ public class ModConfig extends Config {
         if (c.inventory.flips == null) c.inventory.flips = new BazaarCategory();
         if (c.inventory.flips.tax == null) c.inventory.flips.tax = SellTax.PLAIN;
         if (c.inventory.itemValue == null) c.inventory.itemValue = new EstimatedItemValueCategory();
+        // NPC Shop Values: fehlt der Block oder ein Wert (alte oder von Hand bearbeitete Datei), gilt die Vorgabe; die Zahl der Eintraege bleibt zwischen 3 und 20
+        if (c.inventory.shopValue == null) c.inventory.shopValue = new ShopValueCategory();
+        if (c.inventory.shopValue.source == null) c.inventory.shopValue.source = ShopValueSource.INSTANT_SELL;
+        if (c.inventory.shopValue.position == null) c.inventory.shopValue.position = ShopValuePosition.LEFT_OF_WINDOW;
+        c.inventory.shopValue.entries = Math.clamp(c.inventory.shopValue.entries, 3, 20);
         EstimatedItemValueCategory v = c.inventory.itemValue;
         if (v.priceSource == null) v.priceSource = EivPriceSource.INSTANT_SELL;
         v.hoverDelay = Math.max(0, Math.min(2000, v.hoverDelay));
@@ -5627,6 +5632,92 @@ public class ModConfig extends Config {
         @Expose
         @Category(name = "Estimated Item Value", desc = "What the item under your mouse is worth, with everything built into it: reforge, stars, enchantments, gemstones and more. Idea from SkyHanni.")
         public EstimatedItemValueCategory itemValue = new EstimatedItemValueCategory();
+
+        // Eigene Funktion, keine der 26.3-Umstellung: steht nicht in Update263Scope und ruht nie mit dem 26.3-Schalter
+        @Expose
+        @Category(name = "NPC Shop Values", desc = "In the shops of SkyMart, Pesthunter, Fear Mongerer, Agatha and Miria: a list next to the window with the best items, in coins per Copper, Pest, Candy or Coupon.")
+        public ShopValueCategory shopValue = new ShopValueCategory();
+    }
+
+    /** Wo der Kasten von NPC Shop Values steht */
+    public enum ShopValuePosition {
+        LEFT_OF_WINDOW("Left of the window"),
+        HUD_EDITOR("Where I put it (/shoki hud)");
+
+        private final String label;
+
+        ShopValuePosition(String label) {
+            this.label = label;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
+    }
+
+    /** Welcher Basarpreis fuer den Wert eines Stuecks zaehlt */
+    public enum ShopValueSource {
+        INSTANT_SELL("BZ Instant Sell"),
+        SELL_OFFER("BZ Sell Offer");
+
+        private final String label;
+
+        ShopValueSource(String label) {
+            this.label = label;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
+    }
+
+    /**
+     * Inventory > NPC Shop Values: eine Liste neben dem Fenster eines Haendlers, die Stuecke nach Coins je Waehrung (Copper, Pest, Candy, Coupon), das beste oben.
+     *
+     * Eigene Funktion ({@link com.shokiteufel.shokimod.util.ShopValue}); die Idee kennt SkyHanni ("SkyMart Copper Price", "Pesthunter Profit"). Von Haus aus aus.
+     */
+    public static class ShopValueCategory {
+
+        @ConfigOption(name = "NPC Shop Values", desc = "Opens next to the window of a shop that sells for something other than coins: SkyMart (Copper), Pesthunter's Wares (Pests), Fear Mongerer (Green Candy and Purple Candy), Agatha's Shop (Agatha's Coupon) and Miria's Shop (Miria's Coupon). It lists the items on the page you are looking at, the best first, with what one Copper, Pest, Candy or Coupon is worth in coins: the value of the item (Bazaar, or the lowest BIN) minus any other materials it costs, divided by the amount of the currency. Items without a Bazaar or auction price are left out. The costs are read from the item descriptions, so a price change of the shop needs no update. Off until you turn it on. This is a function of its own: the 26.3 switch does not touch it.")
+        @ConfigEditorInfoText
+        public transient String about = "";
+
+        @Expose
+        @ConfigOption(name = "Enabled", desc = "Show the list next to the shop windows.")
+        @ConfigEditorBoolean
+        public boolean enabled = false;
+
+        @Expose
+        @ConfigOption(name = "Entries", desc = "How many items each list shows, the best first.")
+        @ConfigEditorSlider(minValue = 3f, maxValue = 20f, minStep = 1f)
+        public int entries = 10;
+
+        @Expose
+        @ConfigOption(name = "Price source", desc = "Which Bazaar price counts for the value of an item: what Instant Sell pays right now, or what a sell offer brings. Items that are not in the Bazaar use the lowest BIN.")
+        @ConfigEditorDropdown
+        public ShopValueSource source = ShopValueSource.INSTANT_SELL;
+
+        @Expose
+        @ConfigOption(name = "Subtract materials", desc = "Some items cost materials besides the currency (for example Enchanted Fig Log). On: their value is taken off, so the number is what you really gain per Copper, Pest, Candy or Coupon. Off: the full item value counts. An item with a material that has no price is left out while this is on.")
+        @ConfigEditorBoolean
+        public boolean subtractMaterials = true;
+
+        @Expose
+        @ConfigOption(name = "Position", desc = "Left of the window: the list always sits right next to the shop window, whatever your GUI scale. Where I put it: the place you set in /shoki hud (the box 'Shop value').")
+        @ConfigEditorDropdown
+        public ShopValuePosition position = ShopValuePosition.LEFT_OF_WINDOW;
+
+        // Lage des Kastens, gesetzt ueber /shoki hud (gilt bei "Where I put it", und im HUD-Editor immer)
+        @Expose
+        public float hudX = 0.02f;
+        @Expose
+        public float hudY = 0.20f;
+        @Expose
+        public float hudScale = 1.0f;
+        @Expose
+        public float hudAlpha = 1.0f;
     }
 
     /**

@@ -131,6 +131,8 @@ public class ShokiMod implements ClientModInitializer {
         // Garden: das Fenster der Besucher (Einkaufsliste, Belohnungswarnung) und der Text ueber ihrem Namen
         com.shokiteufel.shokimod.handler.VisitorWindow.register();
         com.shokiteufel.shokimod.render.VisitorRewardNames.register();
+        // NPC Shop Values (eigene Funktion, keine der 26.3-Umstellung): die Liste neben dem Fenster von SkyMart, Pesthunter, Fear Mongerer, Agatha und Miria
+        com.shokiteufel.shokimod.handler.ShopValues.register();
         com.shokiteufel.shokimod.handler.DeployableReminder.register();
         com.shokiteufel.shokimod.handler.SeaCreatureHp.register();
         com.shokiteufel.shokimod.handler.TrashBooks.register();

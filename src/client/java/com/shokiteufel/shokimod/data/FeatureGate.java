@@ -360,6 +360,14 @@ public final class FeatureGate {
         return c.purchaseHelper || c.orderHelper || c.orderIcons || c.bestSellMethod || c.cancelledBuyOrderClipboard || c.orderPrices;
     }
 
+    /**
+     * Inventory > NPC Shop Values: die Liste neben dem Fenster eines Haendlers - nur wenn sie an ist. Eigene Funktion, keine der 26.3-Umstellung: Der 26.3-Schalter
+     * wird hier bewusst nicht gefragt. Braucht keinen Ort, nur "in SkyBlock" (GameState.Server.isSkyblock).
+     */
+    public static boolean shopValue() {
+        return ModConfig.INSTANCE.inventory.shopValue.enabled;
+    }
+
     /** Misc > NPC Daily Limit Tracker: die Verkaufszeilen im Chat zaehlen - nur wenn er an ist. Braucht den Ort (nur in SkyBlock) */
     public static boolean npcDayLimit() {
         if (!update263()) return false;

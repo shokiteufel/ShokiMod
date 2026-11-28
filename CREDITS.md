@@ -489,6 +489,15 @@ Beschreibungen, eigene Tests. Es steht nichts Geschriebenes aus SkyHanni in dies
   Show over Name, Block Refusing Reward und Block Refusing New Visitors an); ein Bingo-Profil erkennt die Mod nicht, „Block Refusing New Visitors“ gilt dort auch; was aus der Summe
   genommen wurde, gilt nur bis zum Neustart. **Nicht übernommen:** Show Sack Count, Show Super Craft und Item Preview (die Mod kennt weder die Mengen im Sack noch Rezepte noch
   das Verzeichnis der Besucher mit ihren Wünschen), die Menge in ein Schild einsetzen, die Zeilen im Tooltip („Visitor Inventory“), Accept Hotkey, das Einfärben der Besucher.
+- **Inventory > NPC Shop Values** (`ShopValue`, `ShopPrices`, `ShopValues`, `ShopValueHud`; die Einstellungen in `ShopValueCategory`; seit 2.6.11): **eigene Funktion, keine der
+  26.3-Umstellung** (steht nicht in `Update263Scope`, ruht nie mit dem 26.3-Schalter). Die Idee, in einem Händlerfenster zu zeigen, was ein Copper oder ein Pest in Coins wert
+  ist, kennt SkyHanni (`SkyMartCopperPrice`, `PesthunterProfit`, LGPL-2.1); von dort stammt auch die Rechnung: Wert des Stücks abzüglich der übrigen Kosten, geteilt durch die
+  Menge der Währung. Die Umsetzung ist eigene Arbeit: reines Java ohne Spielklassen (`ShopValue`), die Kosten stehen in der Beschreibung des Stücks (Zeile „Cost“ und darunter,
+  eine je Zeile, „250 Copper“, „10x Green Candy“, „Enchanted Fig Log x24“), die Preise sind die der Mod (Basar nach Wahl Sofortverkauf oder Verkaufsorder, sonst niedrigste BIN, nie
+  der NPC-Preis); ein Stück ohne Preis, mit einem Rohstoff ohne Preis oder mit einer zweiten Währung steht nicht in der Liste. Fünf Händler: SkyMart (Copper), Pesthunter's Wares
+  (Pests), Fear Mongerer (Green Candy und Purple Candy, zwei Listen), Agatha's Shop (Agatha's Coupon), Miria's Shop (Miria's Coupon); die Seitenzahl im Titel („(1/2) …“) zählt nicht.
+  **Abweichungen:** eine Liste je Währung mit den besten zehn (einstellbar, 3 bis 20) statt einer Tabelle mit allen Stücken, der Kasten steht dicht links neben dem Fenster
+  (Einstellung „Position“, sonst Platz aus `/shoki hud`), von Haus aus aus.
 
 ---
 

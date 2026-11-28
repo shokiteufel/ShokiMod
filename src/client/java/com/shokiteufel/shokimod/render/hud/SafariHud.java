@@ -20,7 +20,7 @@ public final class SafariHud {
 
     /** Ein Kasten auf dem Bildschirm. Traegt seine eigene Lage und Groesse in der Config */
     public enum Panel {
-        PROGRESS, MISSING, CONTEST, NEARBY, GUILD, PROFIT, MINING, PET, PERFORMANCE, SEATRACKER, EFFECTS, SEAHP, DARK_AUCTION, FIRE_VEIL, DEPLOYABLES, FORGE, SKILL_XP, FROZEN_BLAZE, FISHING_HOOK, FISHING_BAIT, SKILL_PROGRESS, SKILL_BAR, BAZAAR_SELL, NPC_LIMIT, ITEM_VALUE, CURRENT_CHAT, VISITOR_LIST, GARDEN_PLOTS, LEGION_BOBBIN;
+        PROGRESS, MISSING, CONTEST, NEARBY, GUILD, PROFIT, MINING, PET, PERFORMANCE, SEATRACKER, EFFECTS, SEAHP, DARK_AUCTION, FIRE_VEIL, DEPLOYABLES, FORGE, SKILL_XP, FROZEN_BLAZE, FISHING_HOOK, FISHING_BAIT, SKILL_PROGRESS, SKILL_BAR, BAZAAR_SELL, NPC_LIMIT, ITEM_VALUE, CURRENT_CHAT, VISITOR_LIST, GARDEN_PLOTS, LEGION_BOBBIN, SHOP_VALUE;
 
         /**
          * Gehoert der Kasten zu einer Funktion, die seit der Umstellung auf 26.3 (ab 2.4.10) dazukam? Mit dem 26.3-Schalter aus ruht er ({@link #visible()}); die
@@ -90,6 +90,8 @@ public final class SafariHud {
                 case GARDEN_PLOTS -> GardenPlotsHud.shownNow();
                 // In SkyBlock, solange eine Zeile etwas zu sagen hat (Legion oder Bobbin' an der Ruestung); im HUD-Editor immer
                 case LEGION_BOBBIN -> LegionBobbinHud.shownNow();
+                // Im Fenster eines Haendlers mit einer Liste (SkyMart, Pesthunter, Fear Mongerer, Agatha, Miria); im HUD-Editor immer. Keine 26.3-Funktion: ruht nie mit dem 26.3-Schalter
+                case SHOP_VALUE -> ShopValueHud.shownNow();
             };
         }
 
@@ -137,6 +139,7 @@ public final class SafariHud {
                 case VISITOR_LIST -> "Visitor Shopping List";
                 case GARDEN_PLOTS -> "Garden Plots Widget";
                 case LEGION_BOBBIN -> "Legion/Bobbin Overlay";
+                case SHOP_VALUE -> "NPC Shop Values";
             };
         }
 
@@ -199,6 +202,7 @@ public final class SafariHud {
                 case CURRENT_CHAT -> CurrentChatHud.x();
                 case VISITOR_LIST -> ModConfig.INSTANCE.garden.shoppingList.hudX;
                 case GARDEN_PLOTS -> ModConfig.INSTANCE.garden.plots.hudX;
+                case SHOP_VALUE -> ModConfig.INSTANCE.inventory.shopValue.hudX;
             };
         }
 
@@ -234,6 +238,7 @@ public final class SafariHud {
                 case CURRENT_CHAT -> CurrentChatHud.y();
                 case VISITOR_LIST -> ModConfig.INSTANCE.garden.shoppingList.hudY;
                 case GARDEN_PLOTS -> ModConfig.INSTANCE.garden.plots.hudY;
+                case SHOP_VALUE -> ModConfig.INSTANCE.inventory.shopValue.hudY;
             };
         }
 
@@ -269,6 +274,7 @@ public final class SafariHud {
                 case CURRENT_CHAT -> ModConfig.INSTANCE.chatTab.currentChatHudScale;
                 case VISITOR_LIST -> ModConfig.INSTANCE.garden.shoppingList.hudScale;
                 case GARDEN_PLOTS -> ModConfig.INSTANCE.garden.plots.hudScale;
+                case SHOP_VALUE -> ModConfig.INSTANCE.inventory.shopValue.hudScale;
             };
         }
 
@@ -391,6 +397,10 @@ public final class SafariHud {
                     ModConfig.INSTANCE.misc.legionBobbin.hudX = x;
                     ModConfig.INSTANCE.misc.legionBobbin.hudY = y;
                 }
+                case SHOP_VALUE -> {
+                    ModConfig.INSTANCE.inventory.shopValue.hudX = x;
+                    ModConfig.INSTANCE.inventory.shopValue.hudY = y;
+                }
             }
         }
 
@@ -427,6 +437,7 @@ public final class SafariHud {
                 case CURRENT_CHAT -> ModConfig.INSTANCE.chatTab.currentChatHudAlpha;
                 case VISITOR_LIST -> ModConfig.INSTANCE.garden.shoppingList.hudAlpha;
                 case GARDEN_PLOTS -> ModConfig.INSTANCE.garden.plots.hudAlpha;
+                case SHOP_VALUE -> ModConfig.INSTANCE.inventory.shopValue.hudAlpha;
             };
         }
 
@@ -465,6 +476,7 @@ public final class SafariHud {
                 case CURRENT_CHAT -> ModConfig.INSTANCE.chatTab.currentChatHudAlpha = clamped;
                 case VISITOR_LIST -> ModConfig.INSTANCE.garden.shoppingList.hudAlpha = clamped;
                 case GARDEN_PLOTS -> ModConfig.INSTANCE.garden.plots.hudAlpha = clamped;
+                case SHOP_VALUE -> ModConfig.INSTANCE.inventory.shopValue.hudAlpha = clamped;
             }
         }
 
@@ -501,6 +513,7 @@ public final class SafariHud {
                 case CURRENT_CHAT -> ModConfig.INSTANCE.chatTab.currentChatHudScale = clamped;
                 case VISITOR_LIST -> ModConfig.INSTANCE.garden.shoppingList.hudScale = clamped;
                 case GARDEN_PLOTS -> ModConfig.INSTANCE.garden.plots.hudScale = clamped;
+                case SHOP_VALUE -> ModConfig.INSTANCE.inventory.shopValue.hudScale = clamped;
             }
         }
 
@@ -579,6 +592,7 @@ public final class SafariHud {
                 case VISITOR_LIST -> VisitorShoppingHud.build();
                 case GARDEN_PLOTS -> GardenPlotsHud.build();
                 case LEGION_BOBBIN -> LegionBobbinHud.build();
+                case SHOP_VALUE -> ShopValueHud.build();
             };
         }
     }
@@ -660,10 +674,19 @@ public final class SafariHud {
     }
 
     public static int originX(Panel panel) {
+        // NPC Shop Values steht je nach Einstellung dicht links neben dem Fenster des Haendlers
+        if (panel == Panel.SHOP_VALUE) {
+            Integer anchored = ShopValueHud.anchoredX(panel);
+            if (anchored != null) return anchored;
+        }
         return Math.round(panel.x() * Minecraft.getInstance().getWindow().getGuiScaledWidth());
     }
 
     public static int originY(Panel panel) {
+        if (panel == Panel.SHOP_VALUE) {
+            Integer anchored = ShopValueHud.anchoredY();
+            if (anchored != null) return anchored;
+        }
         return Math.round(panel.y() * Minecraft.getInstance().getWindow().getGuiScaledHeight());
     }
 
