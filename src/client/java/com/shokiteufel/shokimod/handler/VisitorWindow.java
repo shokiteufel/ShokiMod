@@ -100,6 +100,26 @@ public final class VisitorWindow {
         VisitorTab.Result read = VisitorTab.read(lines);
         if (!read.found()) return;
         VisitorBook.INSTANCE.sync(read.names(), read.complete());
+        logIncomplete(read);
+    }
+
+    /** Die zuletzt gemeldete unvollstaendige Lesung - die Liste aendert sich oft, gemeldet wird nur, was neu ist */
+    private static String lastIncomplete = null;
+
+    /**
+     * Sagt die Kopfzeile mehr, als Namen darunter stehen, kommt das einmal je Stand ins Log: Zahl, gelesene Namen und die Zeile, die das Lesen beendet hat. Daran sieht
+     * man, was Hypixel dort wirklich schreibt, wenn ein Besucher fehlt oder einer zu viel ist.
+     */
+    private static void logIncomplete(VisitorTab.Result read) {
+        if (read.complete()) {
+            lastIncomplete = null;
+            return;
+        }
+        String now = read.count() + "|" + read.names() + "|" + read.stop();
+        if (now.equals(lastIncomplete)) return;
+        lastIncomplete = now;
+        ShokiMod.LOGGER.info("[Visitors] The tab widget says {} but {} names were read {}; reading ended at \"{}\"",
+                read.count(), read.names().size(), read.names(), read.stop() == null ? "(end of the list)" : read.stop());
     }
 
     // ------------------------------------------------------------------ Tick

@@ -70,6 +70,8 @@ public class TabListScanner {
                 .thenComparing(info -> info.getProfile().name(), String.CASE_INSENSITIVE_ORDER));
         List<String> unformattedLines = new ArrayList<>();
         List<String> formattedLines = new ArrayList<>();
+        // Wie unformattedLines, nur dass Eintraege ohne Anzeigenamen (sie zeigen ihren rohen Profilnamen) leer sind: fuer die Namen der Besucher (2.6.14)
+        List<String> visitorLines = new ArrayList<>();
 
         for (PlayerInfo entry : entries) {
             // 26.1.2 における修正ポイント2:
@@ -83,7 +85,9 @@ public class TabListScanner {
 
             String legacyStr = toLegacyString(decoratedText);
             formattedLines.add(legacyStr);
-            unformattedLines.add(COLOUR_CODE.matcher(legacyStr).replaceAll("").trim());
+            String plain = COLOUR_CODE.matcher(legacyStr).replaceAll("").trim();
+            unformattedLines.add(plain);
+            visitorLines.add(TabText.isBareProfileName(displayName != null, plain, profileName) ? "" : plain);
         }
 
         if (previousUnformattedLines != null && previousFormattedLines != null &&
@@ -109,7 +113,7 @@ public class TabListScanner {
         // Und die Besucher des Gartens - dasselbe Spiel, andere Zeilen
         if (FeatureGate.gardenVisitors()) GardenVisitors.processTabList(unformattedLines);
         // Die Namen der Besucher fuer die Einkaufsliste und die Belohnungswarnung, die befallenen Plots fuer die Karte der Plots (beides nur im Garden)
-        if (FeatureGate.visitorBook()) com.shokiteufel.shokimod.handler.VisitorWindow.onTabList(unformattedLines);
+        if (FeatureGate.visitorBook()) com.shokiteufel.shokimod.handler.VisitorWindow.onTabList(visitorLines);
         if (FeatureGate.gardenPlots() && com.shokiteufel.shokimod.garden.ShoppingListText.isGarden(com.shokiteufel.shokimod.data.GameState.Server.map)) {
             com.shokiteufel.shokimod.garden.PlotsState.onTabList(unformattedLines);
         }

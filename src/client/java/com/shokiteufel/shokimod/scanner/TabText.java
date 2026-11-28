@@ -27,6 +27,21 @@ public final class TabText {
     }
 
     /**
+     * Zeigt dieser Eintrag der Tab-Liste nur seinen rohen Profilnamen ("mmo7fa864z")?
+     *
+     * Hypixel fuellt die Liste mit Eintraegen auf, die keinen Anzeigenamen haben; die Mod zeigt fuer sie den Profilnamen, und er sah aus wie ein Name in der Liste
+     * (2.6.14: sie kamen als "Besucher" in die Einkaufsliste). Ein echter Eintrag hat einen Anzeigenamen, oder der Text weicht vom Profilnamen ab.
+     *
+     * @param hasDisplayName ob der Eintrag einen Anzeigenamen hat
+     * @param shown          der Text, den die Mod daraus gemacht hat (samt dem, was das Team davor und dahinter setzt)
+     * @param profileName    der Profilname des Eintrags
+     */
+    public static boolean isBareProfileName(boolean hasDisplayName, String shown, String profileName) {
+        if (hasDisplayName || shown == null || profileName == null || profileName.isEmpty()) return false;
+        return tidy(shown).equals(profileName);
+    }
+
+    /**
      * Die Zeile mit Zeichencodes fuers Log: gewoehnliche Zeichen bleiben stehen, alle anderen
      * kommen als \\uXXXX. So sieht man, was Hypixel wirklich geschickt hat.
      */
