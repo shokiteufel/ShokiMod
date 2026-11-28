@@ -1,0 +1,11 @@
+{
+	"required": false,
+	"package": "com.shokiteufel.shokimod.mixin",
+	"compatibilityLevel": "JAVA_25",
+	"client": [
+		"CommandDispatcherMixin"
+	],
+	"injectors": {
+		"defaultRequire": 0
+	}
+}

@@ -1,8 +1,5 @@
 package com.shokiteufel.shokimod.chat;
 
-import com.mojang.brigadier.arguments.StringArgumentType;
-import com.mojang.brigadier.builder.LiteralArgumentBuilder;
-import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import com.shokiteufel.shokimod.ShokiMod;
@@ -13,34 +10,29 @@ import com.shokiteufel.shokimod.handler.WarpCommands;
 import com.shokiteufel.shokimod.util.CraftProfitData;
 import com.shokiteufel.shokimod.util.ItemNames;
 
-import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
-import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
-import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.player.AbstractClientPlayer;
-import net.minecraft.network.protocol.game.ServerboundChatCommandPacket;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 
 /**
- * Chat > Tab Complete: schlaegt beim Tippen eines Befehls Namen vor ("/call eli" gibt "elizabeth") - ohne Mixin.
+ * Chat > Tab Complete: schlaegt beim Tippen eines Befehls Namen vor ("/call eli" gibt "elizabeth").
  *
- * Herkunft der Idee: SkyHanni (LGPL-2.1, {@code TabComplete} und die Klassen dazu; die Regeln stehen in {@link TabCompleteRules}). SkyHanni haengt sich dazu in die
- * Vorschlagsliste von Brigadier ein (ein Mixin). Hier meldet die Mod stattdessen je Befehl einen eigenen <b>Client-Befehl</b> an (Fabric
- * {@code ClientCommandRegistrationCallback}): ein Wort ({@code call}) mit einem Rest-Argument, dessen Vorschlaege {@link TabCompleteRules} liefert - die Chat-Eingabe
- * zeigt sie wie die jedes anderen Befehls an. Das Ausfuehren geht den umgekehrten Weg: Fabric fragt Client-Befehle vor jedem gesendeten Befehl, und dieser hier
- * schickt den Befehl, wie getippt, als Paket an den Server ({@code ServerboundChatCommandPacket}, ohne die Schleife, die {@code sendCommand} ergaebe).
+ * Herkunft der Idee: SkyHanni (LGPL-2.1, {@code TabComplete} und die Klassen dazu; die Regeln stehen in {@link TabCompleteRules}). Auch der Weg ins Spiel ist
+ * der von SkyHanni: Ein Mixin ({@code CommandDispatcherMixin}) fragt vor jeder Vorschlagsliste von Brigadier {@link #complete(String, int)}; hat die Mod dazu
+ * etwas, ersetzt ihre Liste die des Servers, sonst bleibt alles, wie es ist. Das Mixin liegt in einer eigenen, nicht zwingenden Konfiguration: Passt Brigadier in
+ * einer Fassung nicht, fehlt nur diese Funktion.
  *
- * <p><b>Wenn nichts davon an ist, aendert sich nichts:</b> Ist der Schalter zum Befehl aus (oder man nicht in SkyBlock), lehnt der Befehl ab, indem er den
- * Fehler "unbekannter Befehl" wirft - den behandelt Fabric als "kein Client-Befehl" und laesst den Befehl seinen gewohnten Weg zum Server gehen, mit allen Ereignissen
- * (andere Mods, "Shorten /warp"). Die Befehle sind darum von Anfang an angemeldet; ein Schalter wirkt sofort. Ein Befehl, den die Mod ausfuehrt, geht ohne diese
- * Ereignisse ({@code ClientSendMessageEvents}) zum Server - bis auf {@code /warp is}, das {@link WarpCommands#rewrite} vorher umschreibt.
+ * <p><b>Warum nicht mehr ueber Client-Befehle (bis 2.6.5):</b> Bis dahin meldete die Mod je Befehl einen eigenen Fabric-Client-Befehl an, dessen Vorschlaege die Chat-Eingabe
+ * zeigen sollte. Fabric mischt diese Befehle aber in die Liste, die der Server schickt - und hat der Server zu {@code call}, {@code gfs} oder {@code warp} schon
+ * einen Eintrag, bleibt der der Mod draussen: im Entwicklungs-Client an einer Befehlsliste nachgestellt, in der {@code call} schon ein Rest-Argument hat, kamen zu
+ * sechs Eingaben ({@code /call el}, {@code /warp ho}, {@code /gfs ench} ...) null Vorschlaege. Darum klappte fast nichts. Wer den Befehl dann abschickt, geht jetzt
+ * ganz normal an den Server, mit allen Ereignissen anderer Mods ({@code /warp is} wird wie sonst von {@code WarpCommands} umgeschrieben).
  *
- * <p>Ungeprueft im Spiel: Ob Hypixels eigene Befehlsliste an denselben Stellen Eintraege hat, die die der Mod uebertoenen (dann erscheinen die Vorschlaege nicht).
+ * <p><b>Wenn nichts davon an ist, aendert sich nichts:</b> Ist kein Schalter zum Befehl an (oder man nicht in SkyBlock, oder der 26.3-Schalter aus), gibt {@link
+ * #complete(String, int)} nichts zurueck, und die Liste des Servers erscheint unveraendert.
  */
 public final class TabCompleteCommands {
 
@@ -50,20 +42,9 @@ public final class TabCompleteCommands {
     private TabCompleteCommands() {
     }
 
+    /** Beim Start: die gemerkten Listen (Freunde, Gilde) laden. Mehr braucht der Weg ueber das Mixin nicht */
     public static void register() {
         TabCompleteRosters.load();
-        ClientCommandRegistrationCallback.EVENT.register((dispatcher, buildContext) -> {
-            for (String name : TabCompleteRules.COMMANDS) dispatcher.register(command(name));
-        });
-    }
-
-    /** Ein Befehl: {@code name} allein und {@code name <Rest>}; beide gehen an den Server, wenn die Funktion an ist */
-    static LiteralArgumentBuilder<FabricClientCommandSource> command(String name) {
-        return ClientCommands.literal(name)
-                .executes(context -> run(name, ""))
-                .then(ClientCommands.argument("text", StringArgumentType.greedyString())
-                        .suggests((context, builder) -> suggest(name, builder))
-                        .executes(context -> run(name, StringArgumentType.getString(context, "text"))));
     }
 
     /** Alle Schalter aus: so sieht die Funktion aus, solange der 26.3-Schalter aus ist */
@@ -77,53 +58,48 @@ public final class TabCompleteCommands {
                 c.call, c.stashCommand);
     }
 
-    /** Fuehrt die Mod diesen Befehl jetzt selbst aus? Nur in SkyBlock und nur, wenn ein Schalter dazu an ist */
+    /** Fuehrt die Mod bei diesem Befehl Vorschlaege? Nur in SkyBlock und nur, wenn ein Schalter dazu an ist */
     static boolean active(String name) {
         return GameState.Server.isSkyblock() && TabCompleteRules.handles(name, switches());
     }
 
-    private static int run(String name, String typed) throws CommandSyntaxException {
-        // Erst der Schalter, dann das Spiel: Ist die Funktion aus, wird nichts weiter angefasst
-        if (!active(name)) throw decline();
-        Minecraft client = Minecraft.getInstance();
-        ClientPacketListener connection = client == null ? null : client.getConnection();
-        if (connection == null) throw decline();
-        forward(connection, typed.isEmpty() ? name : name + " " + typed);
-        return 1;
-    }
-
-    /** "Das ist kein Client-Befehl": Fabric schickt den Befehl dann wie sonst an den Server */
-    private static CommandSyntaxException decline() {
-        return CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownCommand().create();
-    }
-
-    /** Den Befehl an den Server schicken, ohne ihn noch einmal durch die Client-Befehle zu schicken (sonst riefe er sich selbst) */
-    private static void forward(ClientPacketListener connection, String command) {
-        // "/warp is" wird bei eingeschaltetem "Replace /warp is" zu "/is": dieselbe Regel, die sonst beim Senden greift; "is" ist keiner unserer Befehle
-        String rewritten = WarpCommands.rewrite(command);
-        if (rewritten != null) {
-            connection.sendCommand(rewritten);
-            return;
-        }
-        connection.send(new ServerboundChatCommandPacket(command));
-    }
-
-    private static CompletableFuture<Suggestions> suggest(String name, SuggestionsBuilder builder) {
+    /**
+     * Die Vorschlaege der Mod fuer das, was in der Chat-Eingabe steht - oder null, wenn sie nichts hat und die Liste des Servers gelten soll.
+     *
+     * @param fullInput die ganze Eingabe, mit dem Schraegstrich ("/call el"); so liegt sie im Parse von Brigadier
+     * @param cursor    wo der Cursor steht; nur was davor steht, zaehlt
+     */
+    public static Suggestions complete(String fullInput, int cursor) {
         try {
-            if (!GameState.Server.isSkyblock()) return builder.buildFuture();
-            TabCompleteRules.Result result = TabCompleteRules.suggest(name, builder.getRemaining(), switches(), SOURCES);
-            if (result == null || result.candidates().isEmpty()) return builder.buildFuture();
-            // Der Vorschlag ersetzt nur das letzte Wort, nicht das ganze Rest-Argument
-            SuggestionsBuilder word = builder.createOffset(builder.getStart() + result.wordStart());
-            for (String candidate : result.candidates()) word.suggest(candidate);
-            return word.buildFuture();
+            if (!GameState.Server.isSkyblock()) return null;
+            return complete(fullInput, cursor, switches(), SOURCES);
         } catch (RuntimeException e) {
+            // Ein Fehler hier darf die Chat-Eingabe nie stoeren: Die Liste des Servers gilt dann wie sonst
             if (!warned) {
                 warned = true;
-                ShokiMod.LOGGER.warn("[Chat] Tab Complete could not build suggestions for /{}", name, e);
+                ShokiMod.LOGGER.warn("[Chat] Tab Complete could not build suggestions for \"{}\"", fullInput, e);
             }
-            return builder.buildFuture();
+            return null;
         }
+    }
+
+    /** Wie {@link #complete(String, int)}, mit Schaltern und Quellen von aussen (fuer die Pruefungen) */
+    static Suggestions complete(String fullInput, int cursor, TabCompleteRules.Switches s, TabCompleteRules.Sources src) {
+        if (fullInput == null || cursor <= 0) return null;
+        String before = fullInput.substring(0, Math.min(cursor, fullInput.length()));
+        // Nur Befehle ("/..."), und erst hinter dem ersten Leerzeichen: das Befehlswort selbst bleibt dem Spiel
+        if (!before.startsWith("/")) return null;
+        int space = before.indexOf(' ');
+        if (space < 0) return null;
+
+        TabCompleteRules.Result result = TabCompleteRules.suggest(before.substring(1, space), before.substring(space + 1), s, src);
+        if (result == null || result.candidates().isEmpty()) return null;
+
+        // Der Vorschlag ersetzt nur das letzte Wort, nicht die ganze Eingabe hinter dem Befehl
+        SuggestionsBuilder builder = new SuggestionsBuilder(before, space + 1 + result.wordStart());
+        for (String candidate : result.candidates()) builder.suggest(candidate);
+        Suggestions suggestions = builder.build();
+        return suggestions.isEmpty() ? null : suggestions;
     }
 
     /** Die Namen aus dem laufenden Spiel */

@@ -13,8 +13,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Chat (Teil 3) > Tab Complete: Der Weg ueber die Client-Befehle fragt {@code WarpCommands.rewrite}, damit {@code /warp is} an "Replace /warp is" nicht vorbeigeht;
- * und {@code warps()} liefert die Vorschlaege hinter {@code /warp}.
+ * Chat (Teil 3) > Tab Complete: {@code WarpCommands.rewrite} schreibt {@code /warp is} bei "Replace /warp is" um (seit 2.6.6 geht jeder Befehl wieder den normalen Weg
+ * zum Server, auch der, den Tab Complete vorgeschlagen hat); und {@code warps()} liefert die Vorschlaege hinter {@code /warp}.
  */
 class WarpCommandsRewriteTest {
 

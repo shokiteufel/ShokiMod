@@ -6619,8 +6619,8 @@ public class ModConfig extends Config {
      * Chat > Tab Complete: Namen hinter einem Befehl vorschlagen ("/call eli" gibt "elizabeth"). Alles von Haus aus aus - bei SkyHanni stehen die meisten an.
      *
      * Herkunft der Idee: SkyHanni (LGPL-2.1, {@code TabCompleteConfig}, {@code StashConfig.tabCompleteStashCommand}). Von dort stammen die Schalter, ihre Namen und
-     * ihre Reihenfolge. Die Umsetzung ist eigene Arbeit: Java; die Regeln stehen in {@code chat.TabCompleteRules}, der Weg ins Spiel in {@code
-     * chat.TabCompleteCommands}. Nicht gebaut: "Carry Customers" und "VIP Visits" (beide brauchen Daten, die diese Mod nicht hat).
+     * ihre Reihenfolge. Die Umsetzung ist eigene Arbeit: Java; die Regeln stehen in {@code chat.TabCompleteRules}, der Weg ins Spiel (ein Mixin in Brigadiers
+     * Vorschlagsliste, wie bei SkyHanni) in {@code chat.TabCompleteCommands} und {@code mixin.CommandDispatcherMixin}. Nicht gebaut: "Carry Customers" und "VIP Visits" (beide brauchen Daten, die diese Mod nicht hat).
      *
      * <p>Die drei Listen am Ende sind keine Einstellungen: Die Mod merkt sich dort, wen sie aus {@code /friend list} und {@code /guild list} gelesen hat.
      */

@@ -415,8 +415,10 @@ Beschreibungen, eigene Tests. Es steht nichts Geschriebenes aus SkyHanni in dies
   Wörtern (als Muster, ganze Wörter, Groß und Klein egal); die Befehle und Unterbefehle von /p, /f, /g, /msg, /visit, /invite, /ah, /pv, /trade, die Quellen der Namen (Insel,
   Freunde, beste Freunde, Party, Gilde), /warp, /call, /gfs (enthält statt beginnt), /show (die Plätze), /viewrecipe (nur mit Rezept) und /viewstash (item, material); Party,
   Gilde und Freunde aus den Meldungen von Hypixel (Beitritt, Austritt, Übergabe, /party list, /guild list, /friend list). Die Beispielzeilen der Tests sind SkyHannis
-  „REGEX-TEST“-Zeilen ohne Farbcodes. Eigene Zutaten: die Vorschläge kommen über Client-Befehle von Fabric statt über ein Mixin in Brigadier (ein Befehl, den die Mod nicht
-  ausführen darf, lehnt mit „unbekannter Befehl“ ab und geht seinen gewohnten Weg), der Baum der Unterbefehle ist durchlässig für Gruppen mit Bedingung (bei SkyHanni findet
+  „REGEX-TEST“-Zeilen ohne Farbcodes. Der Weg ins Spiel ist seit 2.6.6 der von SkyHanni (`MixinCommandDispatcher`): ein Mixin in Brigadiers
+  `getCompletionSuggestions` (`CommandDispatcherMixin`), das die Liste des Servers durch die der Mod ersetzt, wenn diese etwas hat. Bis 2.6.5 waren es Client-Befehle von Fabric;
+  die verloren gegen Befehle, die der Server schon kennt, und lieferten deshalb fast nie etwas. Eigene Zutaten: das Mixin braucht kein MixinExtras und keine Variablen aus dem
+  Inneren der Methode (nur die beiden Parameter) und steht in einer eigenen, nicht zwingenden Konfiguration, der Baum der Unterbefehle ist durchlässig für Gruppen mit Bedingung (bei SkyHanni findet
   „/p kick Na“ deshalb nie die Mitglieder), die Zeile unter dem Zeiger bei Copy Chat wird über die Matrix des Chats zurückgerechnet, die Mitglieder der Freundesliste werden
   nur auf einer Seite von „/friend list“ gelesen (nicht in jeder Zeile, die „Friends“ sagt), eigener Wortlaut. **Nicht übernommen:** „Carry Customers“ und „VIP Visits“ (die
   Daten fehlen), SkyHannis Wort-Ersetzungen („Shwords“) bei Umschalt in Copy Chat, die Menü-Taste in Copy Chat, das Nachladen der Abiphone-Kontakte aus dem Netz (SkyHanni lädt sie; hier
