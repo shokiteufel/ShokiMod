@@ -159,7 +159,7 @@ public final class HotspotTracker {
         for (Hotspot hotspot : gone) onDespawn(client, hotspot);
 
         // Angelt man gerade in einem? Dann zaehlt der als "meiner"
-        FishingHook hook = client.player.fishing;
+        FishingHook hook = OwnHook.of(client.player);
         if (hook != null) {
             Hotspot mine = nearest(hook.position(), 3.0);
             if (mine != null) {

@@ -176,7 +176,7 @@ public final class SeaCreatureTracker {
     /** Jeden Tick: liegt die eigene Angel gerade in Wasser oder Lava? Dann wird das gemerkt */
     public static void tick(net.minecraft.client.Minecraft client) {
         if (client == null || client.player == null) return;
-        net.minecraft.world.entity.projectile.FishingHook hook = client.player.fishing;
+        net.minecraft.world.entity.projectile.FishingHook hook = OwnHook.of(client.player);
         if (hook != null && (hook.isInWater() || hook.isInLava())) lastHookAt = System.currentTimeMillis();
     }
 

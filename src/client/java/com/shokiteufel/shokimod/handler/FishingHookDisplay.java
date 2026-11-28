@@ -155,7 +155,7 @@ public final class FishingHookDisplay {
         Minecraft client = Minecraft.getInstance();
         LocalPlayer player = client.player;
         if (player == null || !GameState.Server.isSkyblock()) return;
-        FishingHook hook = player.fishing;
+        FishingHook hook = OwnHook.of(player);
         if (hook == null || hook.isRemoved() || !player.getMainHandItem().is(Items.FISHING_ROD)) return;
         // Der Wurf selbst klingt auch - ein Biss kommt erst nach einer Weile
         if (hook.tickCount < BITE_MIN_AGE_TICKS) return;
@@ -193,10 +193,12 @@ public final class FishingHookDisplay {
             if (log) FishingHookProbe.state("not-skyblock", "no player, no world or not in SkyBlock (map: " + GameState.Server.map + ")");
             return;
         }
-        FishingHook hook = player.fishing;
+        // Das Feld player.fishing allein genuegt nicht: Wirft man gleich nach dem Einholen aus, loescht das Entfernen des alten Hakens den Zeiger auf den neuen
+        // (Fishing log vom 28.11.). OwnHook sucht dann den eigenen Haken in der Welt
+        FishingHook hook = OwnHook.of(player);
         if (hook == null || hook.isRemoved()) {
             clear();
-            if (log) FishingHookProbe.state(hook == null ? "no-hook" : "hook-removed", hook == null ? "no hook out (player.fishing is null)" : "the hook is removed");
+            if (log) FishingHookProbe.state("no-hook", "no hook out (player.fishing is null and no hook of mine is in the world)");
             return;
         }
         if (!player.getMainHandItem().is(Items.FISHING_ROD)) {
@@ -211,8 +213,11 @@ public final class FishingHookDisplay {
         if (log) {
             String medium = hook.isInLava() ? "in lava" : hook.isInWater() ? "in water" : "in the air";
             String held = describeItem(player.getMainHandItem());
-            FishingHookProbe.state("tracking:" + hook.getId() + ":" + medium + ":" + held, String.format(Locale.ROOT,
-                    "tracking hook id=%d, %s, holding %s, the hook is %d ticks old", hook.getId(), medium, held, hook.tickCount));
+            // Vom Feld nicht genannt, nur durch die Suche gefunden: das waere bis 2.6.18 ein nicht erkannter Haken gewesen
+            boolean bySearch = OwnHook.foundBySearch(player, hook);
+            FishingHookProbe.state("tracking:" + hook.getId() + ":" + medium + ":" + held + (bySearch ? ":search" : ""), String.format(Locale.ROOT,
+                    "tracking hook id=%d, %s, holding %s, the hook is %d ticks old%s", hook.getId(), medium, held, hook.tickCount,
+                    bySearch ? " - FOUND BY SEARCH, player.fishing does not name it" : ""));
         }
 
         ArmorStand best = null;

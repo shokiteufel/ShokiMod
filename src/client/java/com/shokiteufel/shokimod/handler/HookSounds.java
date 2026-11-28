@@ -67,7 +67,8 @@ public final class HookSounds {
             Minecraft client = Minecraft.getInstance();
             LocalPlayer player = client.player;
             if (player == null || !GameState.Server.isSkyblock()) return;
-            FishingHook hook = player.fishing;
+            // OwnHook: auch ein Haken, den player.fishing nach schnellem Wiederauswerfen nicht mehr nennt
+            FishingHook hook = OwnHook.of(player);
             boolean hookOut = hook != null && !hook.isRemoved() && player.getMainHandItem().is(Items.FISHING_ROD);
 
             Identifier id = sound.getIdentifier();

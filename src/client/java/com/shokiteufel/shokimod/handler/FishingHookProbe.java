@@ -257,7 +257,7 @@ final class FishingHookProbe {
 
     /** Jeden Tick, solange das Protokoll an ist: merkt sich den Haken, damit die Toene wissen, wie lange er draussen ist, und schliesst die Zeile der Toene eines Wurfs ab */
     static void watch(Minecraft client) {
-        FishingHook hook = client.player == null ? null : client.player.fishing;
+        FishingHook hook = OwnHook.of(client.player);
         long now = System.currentTimeMillis();
         if (hook == null || hook.isRemoved()) {
             if (hookSeenAt != 0L && now - hookSeenAt > SOUND_GRACE_MS) flushSounds();
@@ -287,7 +287,8 @@ final class FishingHookProbe {
         long now = System.currentTimeMillis();
         if (hookSeenAt == 0L || now - hookSeenAt > SOUND_GRACE_MS) return;
         Minecraft client = Minecraft.getInstance();
-        boolean out = client.player != null && client.player.fishing != null && !client.player.fishing.isRemoved();
+        FishingHook ownHook = OwnHook.of(client.player);
+        boolean out = ownHook != null && !ownHook.isRemoved();
 
         float pitch = Float.NaN, volume = Float.NaN;
         if (sound instanceof AbstractSoundInstance && sound instanceof AbstractSoundInstanceAccessor accessor) {
