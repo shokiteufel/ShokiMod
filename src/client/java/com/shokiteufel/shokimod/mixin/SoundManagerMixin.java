@@ -1,7 +1,5 @@
 package com.shokiteufel.shokimod.mixin;
 
-import com.shokiteufel.shokimod.handler.FishingHookDisplay;
-import com.shokiteufel.shokimod.handler.HookSounds;
 import com.shokiteufel.shokimod.handler.SoundTracer;
 
 import net.minecraft.client.resources.sounds.SoundInstance;
@@ -26,9 +24,7 @@ public class SoundManagerMixin {
             at = @At("HEAD"), require = 0)
     private void shokimod$trace(SoundInstance sound, CallbackInfoReturnable<?> cir) {
         SoundTracer.onPlay(sound);
-        // Das Fishing log schreibt mit, welche Toene beim Angeln erklingen (nur wenn es an ist)
-        FishingHookDisplay.onSound(sound);
-        // Fishing > Hook display > Quiet other sounds: erst nach dem Log und dem Alarm, die sehen den Ton, wie er ankam
-        HookSounds.onPlay(sound);
+        // Das Fishing log, der Alarm aus dem Biss-Ton und die Lautstaerke beim Angeln sitzen seit 2.6.20 in SoundEngine.play (HookSoundMixin): Toene, die
+        // weiter als zehn Bloecke weg sind, laufen ueber SoundManager.playDelayed und kamen hier nie vorbei
     }
 }

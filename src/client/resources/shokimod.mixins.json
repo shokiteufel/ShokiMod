@@ -23,6 +23,7 @@
 		"TextFieldFitMixin",
 		"SlotBackgroundMixin",
 		"SoundMuteMixin",
+		"HookSoundMixin",
 		"SoundManagerMixin",
 		"AbstractSoundInstanceAccessor",
 		"AbstractContainerScreenAccessor",
