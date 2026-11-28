@@ -35,7 +35,7 @@ public final class TabCompleteRules {
 
     /** Die Schalter des Reiters, so wie sie jetzt stehen */
     public record Switches(boolean warps, boolean islandPlayers, boolean friends, boolean onlyBestFriends, boolean party, boolean guild,
-                           boolean gfsSack, boolean viewRecipe, boolean showItem, boolean call, boolean stashCommand) {
+                           boolean gfsSack, boolean viewRecipe, boolean showItem, boolean call, boolean stashCommand, boolean vipVisits) {
 
         /** Ist eine der vier Quellen fuer Spielernamen an? */
         public boolean anyPlayerSource() {
@@ -44,7 +44,7 @@ public final class TabCompleteRules {
 
         /** Ist irgendein Schalter an? */
         public boolean any() {
-            return warps || anyPlayerSource() || gfsSack || viewRecipe || showItem || call || stashCommand;
+            return warps || anyPlayerSource() || gfsSack || viewRecipe || showItem || call || stashCommand || vipVisits;
         }
     }
 
@@ -79,6 +79,9 @@ public final class TabCompleteRules {
 
         /** Die Namen der Gegenstaende, die in einen Sack passen, mit Unterstrichen ("ENCHANTED_COAL") - die Vorschlaege hinter {@code /gfs} */
         List<String> sackNames();
+
+        /** Die Spieler mit Kuchenseelen, deren Insel man besucht ({@code /visit ...}) */
+        List<String> vipVisits();
     }
 
     /**
@@ -125,7 +128,9 @@ public final class TabCompleteRules {
             case "gfs", "getfromsacks" -> s.gfsSack();
             case "viewrecipe" -> s.viewRecipe();
             case "show", "showitem", "showoff" -> s.showItem();
-            case "p", "party", "f", "friend", "g", "guild", "w", "msg", "tell", "boop", "boo", "visit", "invite", "ah", "pv", "trade" -> s.anyPlayerSource();
+            case "p", "party", "f", "friend", "g", "guild", "w", "msg", "tell", "boop", "boo", "invite", "ah", "pv", "trade" -> s.anyPlayerSource();
+            // /visit hat zwei Quellen: die Spieler und die VIP-Namen
+            case "visit" -> s.anyPlayerSource() || s.vipVisits();
             default -> false;
         };
     }
@@ -150,11 +155,14 @@ public final class TabCompleteRules {
         } else if (cmd.equals("gfs") || cmd.equals("getfromsacks")) {
             // Wie bei SkyHanni an jeder Wortstelle: wer den Namen mit Leerzeichen tippt, bekommt zum zweiten Wort auch Vorschlaege
             out = containing(src.sackNames(), last);
+        } else if (cmd.equals("call")) {
+            // Der ganze Text hinter dem Befehl, nicht nur das letzte Wort: Es gibt Namen mit Leerzeichen ("clerk seraphine"), und "/call clerk s" soll sie finden.
+            // Bei einem Wort ist es dasselbe wie bisher. SkyHanni vergleicht nur das letzte Wort und fand "clerk seraphine" so nie
+            return new Result(0, limit(startingWith(src.abiphoneContacts(), typed)));
         } else if (!firstWord) {
             out = List.of();
         } else {
             out = switch (cmd) {
-                case "call" -> startingWith(src.abiphoneContacts(), last);
                 case "warp" -> startingWith(src.warps(), last);
                 case "viewstash" -> startingWith(List.of("item", "material"), last);
                 case "show", "showitem", "showoff" -> startingWith(SHOW_SLOTS, last);
@@ -231,7 +239,8 @@ public final class TabCompleteRules {
                 lazy(() -> players(s, src, noParty)));
 
         Entry whisper = parent(List.of("w", "msg", "tell", "boop", "boo"), lazy(() -> players(s, src, none)));
-        Entry visit = parent(List.of("visit"), lazy(() -> players(s, src, none)));
+        // Wie bei SkyHanni: die Spieler, und - mit "VIP Visits" an - dazu die Namen mit Kuchenseelen
+        Entry visit = parent(List.of("visit"), lazy(() -> players(s, src, none)), conditional(s::vipVisits, lazy(src::vipVisits)));
         Entry invite = parent(List.of("invite"), lazy(() -> players(s, src, none)));
         Entry auction = parent(List.of("ah"), lazy(() -> players(s, src, none)));
         Entry profile = parent(List.of("pv"), lazy(() -> players(s, src, none)), lazy(() -> src.self() == null ? List.of() : List.of(src.self())));

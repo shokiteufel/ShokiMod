@@ -12,7 +12,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Die Liste der Anrufnamen: vollstaendig (85 Kontakte), sauber geschrieben, und jeder Kontakt ist ueber mindestens einen Namen erreichbar. */
+/**
+ * Die Liste der Anrufnamen: vollstaendig (85 Kontakte des Wikis plus die Namen von NotEnoughUpdates, damit alles darin ist, was SkyHanni vorschlaegt), sauber
+ * geschrieben, und jeder Kontakt ist ueber mindestens einen Namen erreichbar.
+ */
 class AbiphoneContactsTest {
 
     /** Ein Kontakt je Zeile, mit allen einwortigen Namen, die das Wiki dafuer nennt (Stand 27.11.2026) */
@@ -32,6 +35,13 @@ class AbiphoneContactsTest {
             {"weaver", "wool", "woolweaver"}, {"zog"}
     };
 
+    /** Die Namen mit Leerzeichen, die das Wiki nennt */
+    private static final List<String> WIKI_WITH_SPACES = List.of("feast baker scott", "feast chef ted", "professor wind", "professor wynd");
+
+    /** Was NotEnoughUpdates (die Quelle von SkyHanni, Stand 28.11.2026) mehr nennt als die Tabelle des Wikis */
+    private static final List<String> FROM_NEU = List.of("alixer", "bingo", "thaumaturgist", "clerk seraphine", "mad redstone engineer", "spider tamer", "wool weaver",
+            "professor wynd");
+
     @Test
     void allEightyFiveContactsAreThere() {
         assertEquals(85, CONTACTS.length, "das Wiki nennt 85 Kontakte");
@@ -45,14 +55,25 @@ class AbiphoneContactsTest {
     }
 
     @Test
-    void everyNameTheWikiGivesIsThere() {
+    void everyNameOfBothSourcesIsThereAndNothingElse() {
         Set<String> expected = new HashSet<>();
         for (String[] contact : CONTACTS) expected.addAll(List.of(contact));
-        assertEquals(143, expected.size(), "die Namen der Tabelle");
+        assertEquals(143, expected.size(), "die einwortigen Namen der Tabelle");
+        expected.addAll(WIKI_WITH_SPACES);
+        expected.addAll(FROM_NEU);
+        assertEquals(154, expected.size(), "143 einwortige Namen, 3 weitere von NEU und 8 Namen mit Leerzeichen (professor wynd steht in beiden Quellen)");
         for (String name : expected) {
             assertTrue(AbiphoneContacts.NAMES.contains(name), "fehlt: " + name);
         }
-        assertEquals(expected.size(), AbiphoneContacts.NAMES.size(), "nichts in der Liste, was das Wiki nicht nennt");
+        assertEquals(expected.size(), AbiphoneContacts.NAMES.size(), "nichts in der Liste, was keine der beiden Quellen nennt");
+    }
+
+    @Test
+    void theEightThatSkyHanniOfferedAndWeLackedAreThere() {
+        // Bis 2.6.7 fehlten diese acht gegenueber SkyHanni
+        for (String name : List.of("alixer", "bingo", "clerk seraphine", "mad redstone engineer", "professor wynd", "spider tamer", "thaumaturgist", "wool weaver")) {
+            assertTrue(AbiphoneContacts.NAMES.contains(name), name);
+        }
     }
 
     @Test
@@ -64,7 +85,7 @@ class AbiphoneContactsTest {
         assertEquals(sorted, names, "alphabetisch");
         for (String name : names) {
             assertEquals(name.toLowerCase(Locale.ROOT), name, "kleingeschrieben: " + name);
-            assertFalse(name.isBlank() || name.contains(" "), "ein Wort ohne Leerzeichen: '" + name + "'");
+            assertFalse(name.isBlank() || name.startsWith(" ") || name.endsWith(" ") || name.contains("  "), "keine losen Leerzeichen: '" + name + "'");
         }
     }
 

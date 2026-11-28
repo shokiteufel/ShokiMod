@@ -420,16 +420,20 @@ Beschreibungen, eigene Tests. Es steht nichts Geschriebenes aus SkyHanni in dies
   die verloren gegen Befehle, die der Server schon kennt, und lieferten deshalb fast nie etwas. Eigene Zutaten: das Mixin braucht kein MixinExtras und keine Variablen aus dem
   Inneren der Methode (nur die beiden Parameter) und steht in einer eigenen, nicht zwingenden Konfiguration, der Baum der Unterbefehle ist durchlässig für Gruppen mit Bedingung (bei SkyHanni findet
   „/p kick Na“ deshalb nie die Mitglieder), die Zeile unter dem Zeiger bei Copy Chat wird über die Matrix des Chats zurückgerechnet, die Mitglieder der Freundesliste werden
-  nur auf einer Seite von „/friend list“ gelesen (nicht in jeder Zeile, die „Friends“ sagt), eigener Wortlaut. **Nicht übernommen:** „Carry Customers“ und „VIP Visits“ (die
-  Daten fehlen), SkyHannis Wort-Ersetzungen („Shwords“) bei Umschalt in Copy Chat, die Menü-Taste in Copy Chat, das Nachladen der Abiphone-Kontakte aus dem Netz (SkyHanni lädt sie; hier
+  nur auf einer Seite von „/friend list“ gelesen (nicht in jeder Zeile, die „Friends“ sagt), eigener Wortlaut. **Nicht übernommen:** „Carry Customers“ (braucht SkyHannis Carry Tracker),
+  SkyHannis Wort-Ersetzungen („Shwords“) bei Umschalt in Copy Chat, die Menü-Taste in Copy Chat, das Nachladen der Abiphone-Kontakte aus dem Netz (SkyHanni lädt sie; hier
   steht eine feste Liste, siehe unten), die Vorschläge für die Menge hinter /gfs, und das Merken des Chats in der Datei des Spielers.
   **/gfs seit 2.6.7 wie bei SkyHanni** (`SackItems`, `GfsUnderscores`): Vorschläge nur aus den Gegenständen, die in einen Sack passen (Anzeigenamen in Großbuchstaben mit
   Unterstrichen), an jeder Wortstelle, und beim Senden werden Unterstriche in bekannten Sack-Namen zu Leerzeichen. Die Liste der Sack-Gegenstände (681 in 34 Sacks, Stand 28.11.2026,
   `assets/shokimod/sack-items.txt`) stammt aus `constants/sacks.json` des NotEnoughUpdates-REPO (Tatsachen aus dem Spiel, keine Texte) und wird einmal am Tag aus dem Netz
   aufgefrischt. Eigene Zutat: Befehle, die die Mod selbst schickt (`/gfs OIL_BARREL 5`, `/gfs UMBER_KEY 2`), werden nie umgeschrieben (bei SkyHanni `senderIsSkyhanni`).
-  **Die Liste der /call-Namen** (`AbiphoneContacts`, seit 2.5.10 alle 85 Kontakte mit 143 einwortigen Namen) stammt aus der Kontakt-Tabelle des Community-Wikis
-  hypixelskyblock.minecraft.wiki (Seite „Abiphones“, Stand 27.11.2026; das offizielle Hypixel-Wiki ist seit Juli 2026 geschlossen). Übernommen sind nur die Anrufnamen
-  (Tatsachen, kein Wikitext); neue Kontakte des Spiels stehen erst nach einer Änderung der Liste darin.
+  **VIP Visits seit 2.6.8** (`VipVisits`): hinter `/visit` die sechs Namen aus `constants/VipVisits.json` des SkyHanni-REPO (Stand 28.11.2026), einmal am Tag aus dem Netz
+  aufgefrischt, hinter dem Schalter „VIP Visits“ (aus). **Die Liste der /call-Namen** (`AbiphoneContacts`, seit 2.6.8 154 Namen) stammt aus der Kontakt-Tabelle des
+  Community-Wikis hypixelskyblock.minecraft.wiki (Seite „Abiphones“, Stand 27.11.2026; das offizielle Hypixel-Wiki ist seit Juli 2026 geschlossen: alle 85 Kontakte mit allen
+  Anrufnamen, auch denen mit Leerzeichen) und aus `constants/abiphone.json` des NotEnoughUpdates-REPO (`alixer`, `bingo`, `thaumaturgist`, `clerk seraphine`,
+  `mad redstone engineer`, `spider tamer`, `wool weaver`; damit steht alles darin, was SkyHanni vorschlägt). Übernommen sind nur die Anrufnamen (Tatsachen, kein Wikitext);
+  neue Kontakte des Spiels stehen erst nach einer Änderung der Liste darin. Eigene Zutat: bei `/call` zählt der ganze Text hinter dem Befehl, nicht nur das letzte Wort,
+  damit „/call clerk s“ „clerk seraphine“ findet.
 - **Chat (Teil 4)** (`PlayerChatParser`, `PlayerChatFormatter`, `PlayerChatBlacklist`, `TabPlayers`, `TranslatableLanguage`, `GoogleTranslate`, `Translator`,
   `TranslateOnClick`, `TranslateLines`; die Einstellungen `PlayerMessagesCategory` und `TranslatorCategory`): „Player Messages“ und „Translator“ aus SkyHannis „Chat“
   (`PlayerMessagesConfig`, `PlayerChatManager`, `PlayerNameFormatter`, `PlayerChatModifier`, `PlayerChatFilter`, `MultiFilter`, `TranslatorConfig`, `TranslatorCommand`,

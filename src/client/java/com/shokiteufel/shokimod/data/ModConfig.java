@@ -6620,7 +6620,7 @@ public class ModConfig extends Config {
      *
      * Herkunft der Idee: SkyHanni (LGPL-2.1, {@code TabCompleteConfig}, {@code StashConfig.tabCompleteStashCommand}). Von dort stammen die Schalter, ihre Namen und
      * ihre Reihenfolge. Die Umsetzung ist eigene Arbeit: Java; die Regeln stehen in {@code chat.TabCompleteRules}, der Weg ins Spiel (ein Mixin in Brigadiers
-     * Vorschlagsliste, wie bei SkyHanni) in {@code chat.TabCompleteCommands} und {@code mixin.CommandDispatcherMixin}. Nicht gebaut: "Carry Customers" und "VIP Visits" (beide brauchen Daten, die diese Mod nicht hat).
+     * Vorschlagsliste, wie bei SkyHanni) in {@code chat.TabCompleteCommands} und {@code mixin.CommandDispatcherMixin}. Nicht gebaut: "Carry Customers" (braucht die Kunden von SkyHannis Carry Tracker, den es hier nicht gibt).
      *
      * <p>Die drei Listen am Ende sind keine Einstellungen: Die Mod merkt sich dort, wen sie aus {@code /friend list} und {@code /guild list} gelesen hat.
      */
@@ -6661,6 +6661,11 @@ public class ModConfig extends Config {
         public boolean guild = false;
 
         @Expose
+        @ConfigOption(name = "VIP Visits", desc = "Tab-complete /visit with the players whose islands hold cake souls (prtlhub, PortalHub, cake_hub, Hubportal, MelonKingDe, Minikloon). The names are copied from SkyHanni's data (28 Nov 2026) and refreshed from the internet once a day.")
+        @ConfigEditorBoolean
+        public boolean vipVisits = false;
+
+        @Expose
         @ConfigOption(name = "/gfs Sack", desc = "Tab-complete /gfs with the items that fit in a sack, written like ENCHANTED_COAL; any part of a name counts (coal finds COAL, ENCHANTED_COAL and COAL_BLOCK). When you send the command, underscores in a known sack item name become spaces (ENCHANTED_COAL 64 goes out as ENCHANTED COAL 64), as SkyHanni does; commands the mod sends itself, like the keys and the drill fuel, are left as they are. The list comes from the NotEnoughUpdates sacks (a copy of 28 Nov 2026 inside the mod, refreshed from the internet once a day).")
         @ConfigEditorBoolean
         public boolean gfsSack = false;
@@ -6676,7 +6681,7 @@ public class ModConfig extends Config {
         public boolean showItem = false;
 
         @Expose
-        @ConfigOption(name = "Call", desc = "Tab-complete /call with contact names: all 85 Abiphone contacts with every name the game accepts for them (/call alc, /call alch and /call alchemist all reach the Alchemist). The list is a fixed one from the community wiki (27 Nov 2026); a contact added later is missing until the mod learns its name - type it out, /call knows it.")
+        @ConfigOption(name = "Call", desc = "Tab-complete /call with contact names: all Abiphone contacts with every name the game accepts for them (/call alc, /call alch and /call alchemist all reach the Alchemist), also the names with spaces (/call clerk s finds clerk seraphine). The list is a fixed one from the community wiki and NotEnoughUpdates (28 Nov 2026, 154 names, everything SkyHanni offers and more); a contact added later is missing until the mod learns its name - type it out, /call knows it.")
         @ConfigEditorBoolean
         public boolean call = false;
 
@@ -6697,7 +6702,7 @@ public class ModConfig extends Config {
 
         /** Ist irgendein Schalter an? ("Only Best Friends" allein tut nichts) */
         public boolean any() {
-            return warps || islandPlayers || friends || party || guild || gfsSack || viewRecipe || showItem || call || stashCommand;
+            return warps || islandPlayers || friends || party || guild || vipVisits || gfsSack || viewRecipe || showItem || call || stashCommand;
         }
     }
 

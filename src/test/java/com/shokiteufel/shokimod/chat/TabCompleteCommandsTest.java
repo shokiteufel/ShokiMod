@@ -75,6 +75,28 @@ class TabCompleteCommandsTest {
     }
 
     @Test
+    void callFindsANameWithSpacesAsAWholeAndReplacesTheWholeText() {
+        ModConfig.INSTANCE.chatTab.tabComplete.call = true;
+        Suggestions s = complete("/call clerk s");
+        assertEquals(List.of("clerk seraphine"), texts(s));
+        assertEquals(6, s.getRange().getStart(), "ab dem Ende von '/call ': der ganze Text 'clerk s' wird ersetzt");
+        assertEquals(13, s.getRange().getEnd());
+        assertEquals(List.of("alixer"), texts(complete("/call alix")), "ein Name, den bis 2.6.7 nur SkyHanni kannte");
+    }
+
+    @Test
+    void visitWithOnlyTheVipSwitchOnOffersTheVipNames() {
+        ModConfig.INSTANCE.chatTab.tabComplete.vipVisits = true;
+        Suggestions s = complete("/visit p");
+        // Brigadier sortiert die Vorschlaege (Gross und Klein egal); nachgeladene Namen koennen dazukommen, darum nur "enthaelt"
+        assertTrue(texts(s).containsAll(List.of("prtlhub", "PortalHub")), texts(s).toString());
+        assertFalse(texts(s).contains("Minikloon"), "beginnt nicht mit p");
+        assertEquals(7, s.getRange().getStart());
+        assertTrue(TabCompleteCommands.active("visit"));
+        assertFalse(TabCompleteCommands.active("p"), "VIP Visits schaltet nur /visit ein");
+    }
+
+    @Test
     void anotherWordOfTheSameCommandSuggestsNothing() {
         ModConfig.INSTANCE.chatTab.tabComplete.call = true;
         assertNull(complete("/call elizabeth "), "nichts zu sagen: die Liste des Servers gilt");
@@ -260,6 +282,7 @@ class TabCompleteCommandsTest {
         c.viewRecipe = true;
         c.showItem = true;
         c.stashCommand = true;
+        c.vipVisits = true;
         c.party = true;
         c.guild = true;
         c.friends = true;

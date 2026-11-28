@@ -57,7 +57,7 @@ class ModConfigChatTab3Test {
         assertFalse(c.chatTab.currentChatDisplay);
         assertFalse(c.chatTab.soundResponse.enabled);
         for (Field f : booleans(TabCompleteCategory.class)) assertFalse(f.getBoolean(c.chatTab.tabComplete), "Tab Complete: " + f.getName());
-        assertEquals(11, booleans(TabCompleteCategory.class).size(), "elf Schalter");
+        assertEquals(12, booleans(TabCompleteCategory.class).size(), "zwoelf Schalter (seit 2.6.8 mit VIP Visits)");
         assertFalse(c.chatTab.tabComplete.any());
         assertTrue(c.chatTab.tabComplete.knownFriends.isEmpty());
         assertTrue(c.chatTab.tabComplete.knownBestFriends.isEmpty());
@@ -146,7 +146,7 @@ class ModConfigChatTab3Test {
     void theKeysInTheFileAreTheOnesTheModWrites() {
         String json = ModConfig.GSON.toJson(new ModConfig());
         for (String key : new String[] {"\"peekChat\"", "\"copyChat\"", "\"currentChatDisplay\"", "\"currentChatHudX\"", "\"currentChatHudY\"", "\"currentChatHudScale\"",
-                "\"currentChatHudAlpha\"", "\"soundResponse\"", "\"tabComplete\"", "\"gfsSack\"", "\"viewRecipe\"", "\"showItem\"", "\"stashCommand\"",
+                "\"currentChatHudAlpha\"", "\"soundResponse\"", "\"tabComplete\"", "\"gfsSack\"", "\"viewRecipe\"", "\"showItem\"", "\"stashCommand\"", "\"vipVisits\"",
                 "\"onlyBestFriends\"", "\"knownFriends\"", "\"knownBestFriends\"", "\"knownGuildMembers\"", "\"catPurreow\"", "\"goat\""}) {
             assertTrue(json.contains(key), key);
         }
@@ -241,7 +241,7 @@ class ModConfigChatTab3Test {
         List<Consumer<ModConfig>> any = List.of(c -> c.chatTab.tabComplete.warps = true, c -> c.chatTab.tabComplete.islandPlayers = true,
                 c -> c.chatTab.tabComplete.friends = true, c -> c.chatTab.tabComplete.party = true, c -> c.chatTab.tabComplete.guild = true,
                 c -> c.chatTab.tabComplete.gfsSack = true, c -> c.chatTab.tabComplete.viewRecipe = true, c -> c.chatTab.tabComplete.showItem = true,
-                c -> c.chatTab.tabComplete.call = true, c -> c.chatTab.tabComplete.stashCommand = true);
+                c -> c.chatTab.tabComplete.call = true, c -> c.chatTab.tabComplete.stashCommand = true, c -> c.chatTab.tabComplete.vipVisits = true);
         for (int i = 0; i < any.size(); i++) {
             int index = i;
             withConfig(any.get(i), () -> {

@@ -246,13 +246,13 @@ class ModConfigSkyHanniReiterTest {
         assertEquals(15, optionsInFoldOut(soundCategory, 136), "fuenfzehn Tierlaute");
         assertTrue(optionNames(soundCategory).contains("Enabled"));
 
-        // Tab Complete: der Infotext und elf Schalter (Carry Customers und VIP Visits fehlen mit Absicht)
+        // Tab Complete: der Infotext und zwoelf Schalter (Carry Customers fehlt mit Absicht, es braucht SkyHannis Carry Tracker)
         ProcessedCategory tabCategory = nach(e, "ChatTabCategory.tabComplete");
         assertNotNull(tabCategory);
         assertEquals(chat.getIdentifier(), tabCategory.getParentCategoryId(), "Tab Complete haengt unter Chat");
-        assertEquals(12, tabCategory.getOptions().size(), "Info und elf Schalter: " + optionNames(tabCategory));
-        assertEquals(List.of("Tab Complete", "Warps", "Island Players", "Friends", "Only Best Friends", "Party", "Guild", "/gfs Sack", "View Recipe", "Show Item", "Call",
-                "Tab Complete Stash Command"), optionNames(tabCategory), "in der Reihenfolge von SkyHanni");
+        assertEquals(13, tabCategory.getOptions().size(), "Info und zwoelf Schalter: " + optionNames(tabCategory));
+        assertEquals(List.of("Tab Complete", "Warps", "Island Players", "Friends", "Only Best Friends", "Party", "Guild", "VIP Visits", "/gfs Sack", "View Recipe", "Show Item",
+                "Call", "Tab Complete Stash Command"), optionNames(tabCategory), "in der Reihenfolge von SkyHanni");
     }
 
     // ---- Chat (Teil 4): Player Messages und Translator, und die ganze Reihenfolge von SkyHannis ChatConfig ----

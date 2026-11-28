@@ -29,6 +29,7 @@ class TabCompleteRulesTest {
         List<String> recipes = List.of();
         List<String> items = List.of();
         List<String> sacks = List.of();
+        List<String> vip = List.of();
 
         @Override public List<String> islandPlayers() { return island; }
         @Override public String self() { return self; }
@@ -41,15 +42,21 @@ class TabCompleteRulesTest {
         @Override public List<String> craftableIds() { return recipes; }
         @Override public List<String> itemIds() { return items; }
         @Override public List<String> sackNames() { return sacks; }
+        @Override public List<String> vipVisits() { return vip; }
     }
 
     private static Switches none() {
-        return new Switches(false, false, false, false, false, false, false, false, false, false, false);
+        return new Switches(false, false, false, false, false, false, false, false, false, false, false, false);
     }
 
     private static Switches only(boolean warps, boolean island, boolean friends, boolean onlyBest, boolean party, boolean guild, boolean gfs, boolean recipe,
                                  boolean show, boolean call, boolean stash) {
-        return new Switches(warps, island, friends, onlyBest, party, guild, gfs, recipe, show, call, stash);
+        return new Switches(warps, island, friends, onlyBest, party, guild, gfs, recipe, show, call, stash, false);
+    }
+
+    /** Nur "VIP Visits" an, dazu (wenn verlangt) die Spieler-Quellen */
+    private static Switches vipOnly(boolean island, boolean friends, boolean party, boolean guild) {
+        return new Switches(false, island, friends, false, party, guild, false, false, false, false, false, true);
     }
 
     private static Switches players(boolean island, boolean friends, boolean party, boolean guild) {
@@ -78,10 +85,61 @@ class TabCompleteRulesTest {
     @Test
     void aSecondWordGetsNothingForTheSingleWordCommands() {
         Switches s = only(true, false, false, false, false, false, true, true, true, true, true);
-        Result r = TabCompleteRules.suggest("call", "elizabeth x", s, new Fake());
-        assertEquals(10, r.wordStart(), "das zweite Wort beginnt hinter 'elizabeth '");
-        assertTrue(r.candidates().isEmpty());
-        assertTrue(candidates(TabCompleteRules.suggest("warp", "hub x", s, new Fake())).isEmpty());
+        // Bei /call zaehlt seit 2.6.8 der ganze Text ("elizabeth x" ist kein Name, auch kein Anfang eines Namens)
+        assertTrue(candidates(TabCompleteRules.suggest("call", "elizabeth x", s, new Fake())).isEmpty());
+        Result warp = TabCompleteRules.suggest("warp", "hub x", s, new Fake());
+        assertEquals(4, warp.wordStart(), "das zweite Wort beginnt hinter 'hub '");
+        assertTrue(warp.candidates().isEmpty());
+    }
+
+    @Test
+    void callTakesTheWholeTextSoNamesWithSpacesAreFound() {
+        Switches s = only(false, false, false, false, false, false, false, false, false, true, false);
+        Result r = TabCompleteRules.suggest("call", "clerk s", s, new Fake());
+        assertEquals(0, r.wordStart(), "ersetzt den ganzen Text hinter dem Befehl, nicht nur das letzte Wort");
+        assertEquals(List.of("clerk seraphine"), r.candidates());
+        assertEquals(List.of("clerk", "clerk seraphine", "clerk_seraphine"), candidates(TabCompleteRules.suggest("call", "cl", s, new Fake())));
+        assertEquals(List.of("mad redstone engineer"), candidates(TabCompleteRules.suggest("call", "mad r", s, new Fake())));
+        assertEquals(List.of("spider tamer"), candidates(TabCompleteRules.suggest("call", "spider t", s, new Fake())));
+        assertEquals(List.of("professor wind", "professor wynd"), candidates(TabCompleteRules.suggest("call", "professor w", s, new Fake())));
+        assertEquals(List.of("alixer"), candidates(TabCompleteRules.suggest("call", "alix", s, new Fake())), "ein Name, den bis 2.6.7 nur SkyHanni kannte");
+    }
+
+    // ---- VIP Visits
+
+    @Test
+    void visitOffersTheVipNamesWhenTheirSwitchIsOn() {
+        Fake f = new Fake();
+        f.vip = List.of("prtlhub", "PortalHub", "Minikloon");
+        f.island = List.of("Pearl");
+        // Nur VIP Visits an: /visit nennt die VIP-Namen, auch ohne eine Spieler-Quelle
+        Switches vip = vipOnly(false, false, false, false);
+        assertEquals(List.of("prtlhub", "PortalHub"), candidates(TabCompleteRules.suggest("visit", "p", vip, f)));
+        assertEquals(List.of("Minikloon"), candidates(TabCompleteRules.suggest("visit", "mini", vip, f)), "Gross und Klein egal");
+        // Mit einer Spieler-Quelle dazu: beide
+        Switches both = vipOnly(true, false, false, false);
+        assertEquals(List.of("Pearl", "prtlhub", "PortalHub"), candidates(TabCompleteRules.suggest("visit", "p", both, f)));
+    }
+
+    @Test
+    void visitHasNoVipNamesWithTheSwitchOff() {
+        Fake f = new Fake();
+        f.vip = List.of("prtlhub");
+        f.island = List.of("Pearl");
+        Switches players = players(true, false, false, false);
+        assertEquals(List.of("Pearl"), candidates(TabCompleteRules.suggest("visit", "p", players, f)));
+        assertTrue(candidates(TabCompleteRules.suggest("visit", "prt", players, f)).isEmpty());
+    }
+
+    @Test
+    void theVipSwitchAloneTurnsOnVisitAndNothingElse() {
+        Switches vip = vipOnly(false, false, false, false);
+        assertTrue(TabCompleteRules.handles("visit", vip));
+        assertFalse(TabCompleteRules.handles("p", vip));
+        assertFalse(TabCompleteRules.handles("call", vip));
+        assertFalse(TabCompleteRules.handles("invite", vip));
+        assertTrue(vip.any());
+        assertFalse(vip.anyPlayerSource());
     }
 
     @Test

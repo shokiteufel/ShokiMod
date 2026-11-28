@@ -50,14 +50,14 @@ public final class TabCompleteCommands {
     }
 
     /** Alle Schalter aus: so sieht die Funktion aus, solange der 26.3-Schalter aus ist */
-    private static final TabCompleteRules.Switches NONE = new TabCompleteRules.Switches(false, false, false, false, false, false, false, false, false, false, false);
+    private static final TabCompleteRules.Switches NONE = new TabCompleteRules.Switches(false, false, false, false, false, false, false, false, false, false, false, false);
 
     /** Die Schalter, wie sie jetzt stehen - mit dem 26.3-Schalter aus alle aus (die Einstellungen selbst bleiben, wie sie sind) */
     static TabCompleteRules.Switches switches() {
         if (!FeatureGate.update263()) return NONE;
         ModConfig.TabCompleteCategory c = ModConfig.INSTANCE.chatTab.tabComplete;
         return new TabCompleteRules.Switches(c.warps, c.islandPlayers, c.friends, c.onlyBestFriends, c.party, c.guild, c.gfsSack, c.viewRecipe, c.showItem,
-                c.call, c.stashCommand);
+                c.call, c.stashCommand, c.vipVisits);
     }
 
     /** Fuehrt die Mod bei diesem Befehl Vorschlaege? Nur in SkyBlock und nur, wenn ein Schalter dazu an ist */
@@ -174,6 +174,11 @@ public final class TabCompleteCommands {
         @Override
         public List<String> sackNames() {
             return SackItems.suggestionNames();
+        }
+
+        @Override
+        public List<String> vipVisits() {
+            return VipVisits.names();
         }
     }
 }
