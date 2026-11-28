@@ -25,12 +25,29 @@ class ModConfigInventoryTest {
         assertFalse(b.bestSellMethod);
         assertFalse(b.cancelledBuyOrderClipboard);
         assertFalse(b.orderPrices);
+        assertFalse(b.orderIcons);
         ModConfig saved = ModConfig.INSTANCE;
         try {
             ModConfig c = new ModConfig();
             c.inventory.bazaar.orderPrices = true;
             ModConfig.INSTANCE = c;
             assertTrue(FeatureGate.bazaarHelpers(), "auch die Preiszeilen allein brauchen den Ort");
+        } finally {
+            ModConfig.INSTANCE = saved;
+        }
+    }
+
+    @Test
+    void theOrderIconsAloneTurnTheBazaarWindowReadingOn() {
+        ModConfig saved = ModConfig.INSTANCE;
+        try {
+            ModConfig c = new ModConfig();
+            ModConfig.INSTANCE = c;
+            assertFalse(FeatureGate.bazaarHelpers());
+            c.inventory.bazaar.orderIcons = true;
+            assertTrue(FeatureGate.bazaarHelpers(), "Order icons allein lesen das Fenster");
+            c.update263.enabled = false;
+            assertFalse(FeatureGate.bazaarHelpers(), "mit dem 26.3-Schalter aus nicht");
         } finally {
             ModConfig.INSTANCE = saved;
         }

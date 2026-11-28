@@ -39,5 +39,7 @@ public abstract class SlotBackgroundMixin {
     @Inject(method = "extractSlot(Lnet/minecraft/client/gui/GuiGraphicsExtractor;Lnet/minecraft/world/inventory/Slot;II)V", at = @At("RETURN"))
     private void shokimod$afterSlot(GuiGraphicsExtractor graphics, Slot slot, int x, int y, CallbackInfo ci) {
         VisitorWindow.onSlotDrawn(graphics, slot);
+        // Inventory > Bazaar > Order icons: das kleine Zeichen oben links im Platz, ueber dem Stueck
+        WindowHighlights.onSlotDrawn(graphics, slot);
     }
 }

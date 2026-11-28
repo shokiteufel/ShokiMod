@@ -5700,9 +5700,14 @@ public class ModConfig extends Config {
         public boolean purchaseHelper = false;
 
         @Expose
-        @ConfigOption(name = "Order helper", desc = "In Your Bazaar Orders (and the co-op list) marks every order that is ready to pick up with a green square, and every order that is outbid with a gold one: a buy order below the best buy order, a sell offer above the cheapest sell offer. The prices come from the bazaar prices the mod already fetches.")
+        @ConfigOption(name = "Order helper", desc = "In Your Bazaar Orders (and the co-op list) fills the slot of every order that is ready to pick up with green, and of every order that is outbid with gold, evenly and without a frame, like SkyHanni: a buy order below the best buy order, a sell offer above the cheapest sell offer. The prices come from the bazaar prices the mod already fetches.")
         @ConfigEditorBoolean
         public boolean orderHelper = false;
+
+        @Expose
+        @ConfigOption(name = "Order icons", desc = "In Your Bazaar Orders (and the co-op list) writes a small symbol into the top left corner of an order, like Skyblocker: a yellow % when part of it was bought and waits to be picked up, a green check mark when it is filled completely and waits to be picked up, a yellow alarm clock when it is about to expire and a red one when it has expired. Works with or without Order helper. Off until you turn it on.")
+        @ConfigEditorBoolean
+        public boolean orderIcons = false;
 
         @Expose
         @ConfigOption(name = "Best sell method", desc = "In the window of a bazaar product, shows how much you lose by selling what you carry instantly instead of through a sell offer: (cheapest offer - best buy order) x the amount in your inventory. Nothing shows if you carry none. Move and resize it in /shoki hud (search \"Best sell method\").")

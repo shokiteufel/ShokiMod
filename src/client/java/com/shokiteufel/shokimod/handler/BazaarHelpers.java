@@ -43,7 +43,11 @@ import java.util.regex.Pattern;
  * geht aus, sobald man es gekauft hat oder einen Auftrag dafuer stellt ("[Bazaar] Bought ...", "Buy Order Setup! ...").</li>
  * <li><b>Order helper:</b> In "Your Bazaar Orders" (und der Liste mit der Gruppe) heisst jeder Auftrag "BUY Name" oder "SELL Name"; die Beschreibung nennt
  * Menge, "Filled: x/y (z%)", "You have n items to claim!" und "Price per unit: p coins". Ein Auftrag mit "100%!" ist fertig (gruen); ein Kaufauftrag unter
- * dem besten Kaufauftrag oder ein Verkaufsangebot ueber dem billigsten Angebot ist ueberboten (gold).</li>
+ * dem besten Kaufauftrag oder ein Verkaufsangebot ueber dem billigsten Angebot ist ueberboten (gold). Die Felder sind seit 2.6.10 gleichmaessig und deckend gefuellt, wie
+ * bei SkyHanni ({@code Slot.highlight}), nicht mehr durchscheinend mit hartem Rand.</li>
+ * <li><b>Order icons</b> (Idee von Skyblocker, LGPL-3.0-or-later, {@code BazaarHelper}): ein kleines Zeichen oben links im Feld eines Auftrags - gelbes Prozentzeichen,
+ * wenn schon etwas gekauft ist und zum Abholen bereitliegt, gruenes Haeckchen bei hundert Prozent, gelber Wecker bei "Expires in ...", roter bei "Expired!"
+ * ({@link #iconFor}).</li>
  * <li><b>Best sell method:</b> Im Fenster eines Produkts (Platz 10 "Buy Instantly", Platz 13 das Stueck) steht, wie viel man durch Sofortverkauf gegenueber einem
  * eigenen Angebot verliert: (billigstes Angebot - bester Kaufauftrag) mal die Menge im Inventar.</li>
  * <li><b>Cancelled buy order clipboard:</b> In "Order options" nennt der Platz 11 ("Cancel Order") die fehlenden Stuecke ("... from 50x missing items."). Nach
@@ -61,6 +65,10 @@ public final class BazaarHelpers {
     private static final Pattern ORDER_AMOUNT = Pattern.compile("^(?:Order|Offer) amount: ([\\d,]+)x$");
     private static final Pattern FILLED = Pattern.compile("^Filled: ([\\d,.kKmMbB]+)/[\\d,.kKmMbB]+ (\\S+)$");
     private static final Pattern CLAIMABLE = Pattern.compile("^You have ([\\d,]+) items? to claim!$");
+    /** Die Prozent aus der Zeile "Filled:" - mit und ohne Klammern und Ausrufezeichen ("12/64 18%", "1,200/2,000 (62%)", "64/64 100%!"), wie bei Skyblocker */
+    private static final Pattern FILLED_PERCENT = Pattern.compile("^Filled: \\S+ \\(?([\\d.]+)%\\)?!?$");
+    /** Die letzte Zeile eines Auftrags, bei dem etwas zum Abholen bereitliegt */
+    private static final String CLAIM_LINE = "Click to claim!";
     private static final Pattern PRICE_PER_UNIT = Pattern.compile("^Price per unit: ([\\d,.]+) coins$");
     /**
      * Die Zahl vor "x missing items." am Ende einer Zeile, gleich was davor steht: Die Beschreibung bricht je nach Breite verschieden um
@@ -164,6 +172,50 @@ public final class BazaarHelpers {
         }
         if (amount < 0 || price < 0) return null;
         return new Order(n.group(1).equals("BUY"), n.group(2), amount, full, claimable, price);
+    }
+
+    /** Die letzte Zeile, die etwas sagt (die Beschreibung kann leere Zeilen am Ende haben), oder null */
+    private static String lastLine(List<String> lore) {
+        for (int i = lore.size() - 1; i >= 0; i--) {
+            String line = lore.get(i) == null ? "" : lore.get(i).trim();
+            if (!line.isEmpty()) return line;
+        }
+        return null;
+    }
+
+    /**
+     * Welches kleine Symbol ein Auftrag bekommt (Order icons) - die Regeln von Skyblockers {@code BazaarHelper}: Liegt etwas zum Abholen bereit (die letzte Zeile ist
+     * "Click to claim!") und steht "Filled: ... n%" da, ist es ein Prozentzeichen bei unter hundert Prozent und ein Haeckchen bei hundert. Sonst: "Expired!" ist ein
+     * roter Wecker, "Expires in ..." ein gelber. Alles ohne Farbcodes.
+     *
+     * @return {@link WindowHighlights#ICON_PART}, {@link WindowHighlights#ICON_FULL}, {@link WindowHighlights#ICON_EXPIRING}, {@link WindowHighlights#ICON_EXPIRED}
+     *         oder 0
+     */
+    static int iconFor(List<String> lore) {
+        if (lore == null || lore.isEmpty()) return 0;
+        if (CLAIM_LINE.equals(lastLine(lore))) {
+            for (String raw : lore) {
+                Matcher m = FILLED_PERCENT.matcher(raw == null ? "" : raw.trim());
+                if (!m.matches()) continue;
+                try {
+                    return Double.parseDouble(m.group(1)) < 100 ? WindowHighlights.ICON_PART : WindowHighlights.ICON_FULL;
+                } catch (NumberFormatException e) {
+                    break;
+                }
+            }
+        }
+        for (String raw : lore) {
+            if (raw != null && raw.trim().equals("Expired!")) return WindowHighlights.ICON_EXPIRED;
+        }
+        for (String raw : lore) {
+            if (raw != null && raw.trim().startsWith("Expires in")) return WindowHighlights.ICON_EXPIRING;
+        }
+        return 0;
+    }
+
+    /** Heisst dieser Platz so ("BUY Name", "SELL Name"), dass er ein Auftrag ist? Die Glasscheiben und Knoepfe im Fenster sind es nicht */
+    static boolean isOrderName(String name) {
+        return name != null && ORDER_NAME.matcher(name.trim()).matches();
     }
 
     /** Wie ein Auftrag markiert wird: fertig gruen, ueberboten gold, sonst gar nicht (0) */
@@ -329,7 +381,7 @@ public final class BazaarHelpers {
     }
 
     private static void leaveWindow() {
-        if (lastTitle != null || WindowHighlights.count() > 0 || sellDifference != null) {
+        if (lastTitle != null || WindowHighlights.count() > 0 || WindowHighlights.iconCount() > 0 || sellDifference != null) {
             lastTitle = null;
             WindowHighlights.clear();
             sellDifference = null;
@@ -361,16 +413,26 @@ public final class BazaarHelpers {
             }
         }
         // Solange eine Auftragsliste offen ist, wird der Basar frisch geholt - sonst standen hier Preise von vor bis zu zehn Minuten
-        if ((c.orderHelper || c.orderPrices) && isOrdersTitle(title)) BazaarLive.wanted();
-        if (c.orderHelper && isOrdersTitle(title)) {
+        boolean orders = isOrdersTitle(title);
+        if ((c.orderHelper || c.orderPrices) && orders) BazaarLive.wanted();
+        if ((c.orderHelper || c.orderIcons) && orders) {
             for (Slot slot : slots) {
                 if (slot.container instanceof Inventory) continue;
                 ItemStack stack = slot.getItem();
                 if (stack.isEmpty()) continue;
-                Order order = parseOrder(clean(stack.getHoverName().getString()), SkyBlockItems.loreOf(stack));
-                if (order == null) continue;
-                int colour = colourFor(order, priceOf(stack, order.product()));
-                if (colour != 0) WindowHighlights.mark(slot.index, colour);
+                String name = clean(stack.getHoverName().getString());
+                List<String> lore = SkyBlockItems.loreOf(stack);
+                if (c.orderHelper) {
+                    Order order = parseOrder(name, lore);
+                    if (order != null) {
+                        int colour = colourFor(order, priceOf(stack, order.product()));
+                        if (colour != 0) WindowHighlights.mark(slot.index, colour);
+                    }
+                }
+                if (c.orderIcons && isOrderName(name)) {
+                    int icon = iconFor(lore);
+                    if (icon != 0) WindowHighlights.markIcon(slot.index, icon);
+                }
             }
         }
         if (c.bestSellMethod) readProduct(client, slots);
