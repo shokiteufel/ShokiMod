@@ -3,6 +3,7 @@ package com.shokiteufel.shokimod.handler;
 import java.text.DecimalFormatSymbols;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -180,6 +181,37 @@ public final class SlayerKillStats {
         };
     }
 
+    /** Der Vampire-Slayer (Rift): Von ihm zeigt {@code /shoki topslayer} Stufe IV und V, von allen anderen nur die hoechste Stufe */
+    static final String VAMPIRE = "Riftstalker Bloodfiend";
+    /** Ab dieser Stufe zeigt die Liste den Vampire-Slayer mit jeder Stufe (IV und V) */
+    static final int VAMPIRE_FIRST_TIER = 4;
+
+    /**
+     * Der Slayer ohne Stufe: "Sven Packmaster V" ist "Sven Packmaster". Ein Schluessel ohne Stufe ("Atoned Horror") ist sein eigener Slayer und bleibt, wie er ist -
+     * die Mod kann nicht wissen, zu welchem anderen er gehoert.
+     */
+    static String slayerOf(String key) {
+        if (key == null) {
+            return "";
+        }
+        String name = key.trim();
+        if (tierOf(name) == 0) {
+            return name;
+        }
+        int space = name.lastIndexOf(' ');
+        return space > 0 ? name.substring(0, space).trim() : name;
+    }
+
+    /** Steht dieser Boss in der Liste, wenn die hoechste Stufe seines Slayers {@code highest} ist? */
+    private static boolean shown(String key, int highest) {
+        int tier = tierOf(key);
+        if (VAMPIRE.equals(slayerOf(key))) {
+            // IV und V; hat der Vampire-Slayer noch keine Stufe IV, steht seine hoechste da
+            return tier >= Math.min(VAMPIRE_FIRST_TIER, highest);
+        }
+        return tier == highest;
+    }
+
     private static int slayerIndex(String key) {
         for (int i = 0; i < SLAYER_ORDER.size(); i++) {
             if (key.startsWith(SLAYER_ORDER.get(i))) {
@@ -190,9 +222,11 @@ public final class SlayerKillStats {
     }
 
     /**
-     * Die {@code count} schnellsten Zeiten je Boss und Stufe, sortiert: die Slayer in der Reihenfolge des Spiels (Revenant, Tarantula, Sven, Voidgloom, Inferno,
-     * Riftstalker), dann nach Stufe aufsteigend. Die Zeiten verschiedener Stufen werden nicht vermischt - eine Stufe 3 und eine Stufe 5 lassen sich nicht vergleichen.
-     * Ein Boss ohne Zeiten steht nicht darin.
+     * Die {@code count} schnellsten Zeiten je Slayer, und zwar nur von der hoechsten Stufe, zu der es Zeiten gibt (seit 2.6.9; vorher stand jede Stufe da): Hat man
+     * bei Sven Packmaster Stufe V geschafft, steht dort nur V, nicht mehr IV; gibt es erst IV, steht IV. Ausnahme der Vampire-Slayer (Riftstalker Bloodfiend, Rift):
+     * Von ihm stehen Stufe IV und V. Sortiert: die Slayer in der Reihenfolge des Spiels (Revenant, Tarantula, Sven, Voidgloom, Inferno, Riftstalker), dann nach
+     * Stufe aufsteigend. Die Zeiten verschiedener Stufen werden nicht vermischt - eine Stufe 3 und eine Stufe 5 lassen sich nicht vergleichen; die niedrigeren
+     * bleiben gespeichert und stehen wieder da, wenn die hoehere Stufe zurueckgesetzt wird. Ein Boss ohne Zeiten steht nicht darin.
      *
      * @param records die gespeicherten Zeiten je Boss (aufsteigend); null ist erlaubt
      */
@@ -217,6 +251,12 @@ public final class SlayerKillStats {
             java.util.Collections.sort(sorted);
             out.add(new Top(entry.getKey(), List.copyOf(sorted.subList(0, Math.min(count, sorted.size())))));
         }
+        // Je Slayer nur die hoechste Stufe (beim Vampire IV und V): die Zeiten der niedrigeren bleiben gespeichert, stehen nur nicht in der Liste
+        Map<String, Integer> highest = new HashMap<>();
+        for (Top top : out) {
+            highest.merge(slayerOf(top.key()), tierOf(top.key()), Math::max);
+        }
+        out.removeIf(top -> !shown(top.key(), highest.get(slayerOf(top.key()))));
         out.sort(Comparator.comparingInt((Top t) -> slayerIndex(t.key())).thenComparingInt(t -> tierOf(t.key())).thenComparing(Top::key));
         return out;
     }

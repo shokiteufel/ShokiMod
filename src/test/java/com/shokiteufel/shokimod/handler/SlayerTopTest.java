@@ -41,19 +41,120 @@ class SlayerTopTest {
     }
 
     @Test
-    void theSlayersComeInTheOrderOfTheGameThenByTier() {
+    void theSlayersComeInTheOrderOfTheGame() {
         Map<String, List<Long>> records = new HashMap<>();
         records.put("Voidgloom Seraph IV", times(5L));
         records.put("Revenant Horror V", times(5L));
         records.put("Tarantula Broodfather V", times(5L));
-        records.put("Revenant Horror IV", times(5L));
         records.put("Sven Packmaster III", times(5L));
         records.put("Inferno Demonlord II", times(5L));
         records.put("Riftstalker Bloodfiend IV", times(5L));
-        records.put("Revenant Horror III", times(5L));
         List<String> keys = SlayerKillStats.top(records, 3).stream().map(SlayerKillStats.Top::key).toList();
-        assertEquals(List.of("Revenant Horror III", "Revenant Horror IV", "Revenant Horror V", "Tarantula Broodfather V", "Sven Packmaster III",
+        assertEquals(List.of("Revenant Horror V", "Tarantula Broodfather V", "Sven Packmaster III",
                 "Voidgloom Seraph IV", "Inferno Demonlord II", "Riftstalker Bloodfiend IV"), keys);
+    }
+
+    private static List<String> keys(Map<String, List<Long>> records) {
+        return SlayerKillStats.top(records, 3).stream().map(SlayerKillStats.Top::key).toList();
+    }
+
+    // ---- seit 2.6.9: je Slayer nur die hoechste Stufe (Meldung des Users 28.11.)
+
+    @Test
+    void onlyTheHighestTierOfASlayerIsShownOnceItIsDone() {
+        // Der Fall aus dem Bild: Sven Packmaster IV und V standen beide da; mit V soll nur V stehen
+        Map<String, List<Long>> records = new LinkedHashMap<>();
+        records.put("Revenant Horror V", times(600L, 610L, 720L));
+        records.put("Sven Packmaster IV", times(910L, 1_199L, 1_200L));
+        records.put("Sven Packmaster V", times(11_160L, 11_660L, 11_905L));
+        List<SlayerKillStats.Top> top = SlayerKillStats.top(records, 3);
+        assertEquals(List.of("Revenant Horror V", "Sven Packmaster V"), top.stream().map(SlayerKillStats.Top::key).toList());
+        assertEquals(List.of(11_160L, 11_660L, 11_905L), top.get(1).best(), "die Zeiten der Stufe V, nicht vermischt");
+    }
+
+    @Test
+    void aSlayerWithoutTheHighestTierYetShowsItsHighestOne() {
+        Map<String, List<Long>> records = new LinkedHashMap<>();
+        records.put("Sven Packmaster III", times(5_000L));
+        records.put("Sven Packmaster IV", times(9_000L));
+        assertEquals(List.of("Sven Packmaster IV"), keys(records), "noch kein V: dann steht IV da, nicht nichts");
+    }
+
+    @Test
+    void everySlayerKeepsItsOwnHighestTier() {
+        Map<String, List<Long>> records = new HashMap<>();
+        records.put("Revenant Horror III", times(5L));
+        records.put("Revenant Horror V", times(5L));
+        records.put("Tarantula Broodfather IV", times(5L));
+        records.put("Tarantula Broodfather II", times(5L));
+        records.put("Voidgloom Seraph I", times(5L));
+        assertEquals(List.of("Revenant Horror V", "Tarantula Broodfather IV", "Voidgloom Seraph I"), keys(records));
+    }
+
+    @Test
+    void theVampireSlayerShowsTierFourAndFive() {
+        Map<String, List<Long>> records = new LinkedHashMap<>();
+        records.put("Riftstalker Bloodfiend V", times(30_000L));
+        records.put("Riftstalker Bloodfiend IV", times(20_000L));
+        records.put("Riftstalker Bloodfiend III", times(10_000L));
+        records.put("Sven Packmaster IV", times(5L));
+        records.put("Sven Packmaster V", times(5L));
+        assertEquals(List.of("Sven Packmaster V", "Riftstalker Bloodfiend IV", "Riftstalker Bloodfiend V"), keys(records),
+                "der Vampire mit IV und V (aufsteigend), Stufe III nicht; Sven nur V");
+    }
+
+    @Test
+    void theVampireSlayerWithOnlyTierFourShowsFour() {
+        Map<String, List<Long>> records = new LinkedHashMap<>();
+        records.put("Riftstalker Bloodfiend IV", times(20_000L));
+        records.put("Riftstalker Bloodfiend II", times(10_000L));
+        assertEquals(List.of("Riftstalker Bloodfiend IV"), keys(records));
+    }
+
+    @Test
+    void theVampireSlayerWithOnlyLowTiersShowsItsHighestSoNothingDisappears() {
+        Map<String, List<Long>> records = new LinkedHashMap<>();
+        records.put("Riftstalker Bloodfiend III", times(10_000L));
+        records.put("Riftstalker Bloodfiend I", times(8_000L));
+        assertEquals(List.of("Riftstalker Bloodfiend III"), keys(records));
+    }
+
+    @Test
+    void theVampireSlayerWithOnlyTierFiveShowsFive() {
+        Map<String, List<Long>> records = new LinkedHashMap<>();
+        records.put("Riftstalker Bloodfiend V", times(30_000L));
+        assertEquals(List.of("Riftstalker Bloodfiend V"), keys(records));
+    }
+
+    @Test
+    void aKeyWithoutATierIsItsOwnSlayerAndStays() {
+        // "Atoned Horror" steht ohne Stufe in den Daten; die Mod kann nicht wissen, zu welchem Slayer er gehoert - er bleibt, wie er ist
+        Map<String, List<Long>> records = new LinkedHashMap<>();
+        records.put("Revenant Horror V", times(600L));
+        records.put("Atoned Horror", times(500L));
+        assertEquals(List.of("Revenant Horror V", "Atoned Horror"), keys(records));
+    }
+
+    @Test
+    void theSlayerIsTheNameWithoutTheTier() {
+        assertEquals("Sven Packmaster", SlayerKillStats.slayerOf("Sven Packmaster V"));
+        assertEquals("Riftstalker Bloodfiend", SlayerKillStats.slayerOf("Riftstalker Bloodfiend IV"));
+        assertEquals("Atoned Horror", SlayerKillStats.slayerOf("Atoned Horror"));
+        assertEquals("V", SlayerKillStats.slayerOf("V"));
+        assertEquals("", SlayerKillStats.slayerOf(null));
+        assertEquals("Revenant Horror", SlayerKillStats.slayerOf("  Revenant Horror III  "));
+    }
+
+    @Test
+    void theLowerTiersStayStoredAndComeBackWhenTheHigherOnesAreGone() {
+        Map<String, List<Long>> records = new LinkedHashMap<>();
+        records.put("Sven Packmaster IV", times(900L));
+        records.put("Sven Packmaster V", times(11_000L));
+        assertEquals(List.of("Sven Packmaster V"), keys(records));
+        // Die Zeiten selbst werden nicht angefasst: nach dem Loeschen von V steht IV wieder da
+        records.remove("Sven Packmaster V");
+        assertEquals(List.of("Sven Packmaster IV"), keys(records));
+        assertEquals(List.of(900L), SlayerKillStats.top(records, 3).get(0).best());
     }
 
     @Test
@@ -63,10 +164,10 @@ class SlayerTopTest {
         records.put("Revenant Horror IV", times(9_000L));
         records.put("Revenant Horror V", times(1_000L));
         List<SlayerKillStats.Top> top = SlayerKillStats.top(records, 3);
-        assertEquals("Revenant Horror IV", top.get(0).key());
-        assertEquals(List.of(9_000L), top.get(0).best(), "Stufe 4 bleibt bei ihren eigenen Zeiten");
-        assertEquals("Revenant Horror V", top.get(1).key());
-        assertEquals("Zorg The New One V", top.get(2).key());
+        assertEquals(2, top.size(), "Stufe IV faellt weg, sobald es Stufe V gibt");
+        assertEquals("Revenant Horror V", top.get(0).key());
+        assertEquals(List.of(1_000L), top.get(0).best(), "Stufe 5 bleibt bei ihren eigenen Zeiten, nicht mit denen der Stufe 4 vermischt");
+        assertEquals("Zorg The New One V", top.get(1).key(), "ein unbekannter Boss kommt zuletzt");
     }
 
     @Test

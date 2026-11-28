@@ -175,7 +175,7 @@ public final class SlayerKillTime {
     }
 
     /**
-     * {@code /shoki topslayer}: die drei schnellsten Boss-Zeiten je Slayer (und Stufe) im Chat. Gelesen werden die gespeicherten Zeiten der Funktion "Boss Kill time" - der
+     * {@code /shoki topslayer}: die drei schnellsten Boss-Zeiten je Slayer im Chat, nur von der hoechsten Stufe (beim Vampire IV und V). Gelesen werden die gespeicherten Zeiten der Funktion "Boss Kill time" - der
      * Befehl geht auch, wenn ihr Schalter inzwischen aus ist; ohne gespeicherte Zeit sagt er, woher sie kommen.
      */
     public static void showTop() {

@@ -391,7 +391,7 @@ public class ShokiMod implements ClientModInitializer {
                             com.shokiteufel.shokimod.handler.ShortcutHandler.requestOpen();
                             return 1;
                         }))
-                        // /shoki topslayer -> die drei schnellsten Boss-Zeiten je Slayer (und Stufe) im Chat
+                        // /shoki topslayer -> die drei schnellsten Boss-Zeiten je Slayer im Chat, nur von der hoechsten Stufe (beim Vampire IV und V)
                         .then(ClientCommands.literal("topslayer").executes(context -> {
                             com.shokiteufel.shokimod.handler.SlayerKillTime.showTop();
                             return 1;
