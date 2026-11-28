@@ -21,20 +21,22 @@ public final class ShopValue {
 
     /** Die Waehrungen der Haendler, fuer die es eine Liste gibt */
     public enum Currency {
-        COPPER("Copper", "copper", "§c"),
-        PESTS("Pest", "pest", "§2"),
-        GREEN_CANDY("Green Candy", "green candy", "§a"),
-        PURPLE_CANDY("Purple Candy", "purple candy", "§5"),
-        AGATHA_COUPON("Agatha's Coupon", "agathas coupon", "§e"),
-        MIRIA_COUPON("Miria's Coupon", "mirias coupon", "§e");
+        COPPER("Copper", "§c", "copper"),
+        PESTS("Pest", "§2", "pest"),
+        GREEN_CANDY("Green Candy", "§a", "green candy"),
+        PURPLE_CANDY("Purple Candy", "§5", "purple candy"),
+        AGATHA_COUPON("Agatha's Coupon", "§e", "agathas coupon"),
+        MIRIA_COUPON("Miria's Coupon", "§e", "mirias coupon"),
+        // "Bits" hat vier Buchstaben und behaelt sein s (normal() kuerzt erst ab fuenf): die Mehrzahl steht daher als eigener Schluessel, die Einzahl auch
+        BITS("Bit", "§b", "bits", "bit");
 
         private final String label;
-        private final String key;
+        private final List<String> keys;
         private final String colour;
 
-        Currency(String label, String key, String colour) {
+        Currency(String label, String colour, String... keys) {
             this.label = label;
-            this.key = key;
+            this.keys = List.of(keys);
             this.colour = colour;
         }
 
@@ -50,7 +52,7 @@ public final class ShopValue {
 
         /** Ist das der Name dieser Waehrung, wie er in einer Kostenzeile steht? Mit und ohne Mehrzahl-s, ohne Hochkomma, gleich wie gross geschrieben */
         public boolean matches(String costName) {
-            return key.equals(normal(costName));
+            return keys.contains(normal(costName));
         }
     }
 
@@ -121,7 +123,10 @@ public final class ShopValue {
     public static Shop shopOf(String title) {
         String name = stripPage(title).replace('’', '\'');
         if (name.startsWith("SkyMart")) return new Shop("SkyMart", List.of(Currency.COPPER));
+        // Der Bits Shop (Elizabeth): die erste Seite heisst "Community Shop", die Unterseiten "Bits Shop - Sacks", "Bits Shop - Stacking Enchants" und so weiter
+        if (name.startsWith("Bits Shop")) return new Shop("Bits Shop", List.of(Currency.BITS));
         return switch (name) {
+            case "Community Shop" -> new Shop("Bits Shop", List.of(Currency.BITS));
             case "Pesthunter's Wares" -> new Shop(name, List.of(Currency.PESTS));
             case "Fear Mongerer" -> new Shop(name, List.of(Currency.GREEN_CANDY, Currency.PURPLE_CANDY));
             case "Agatha's Shop" -> new Shop(name, List.of(Currency.AGATHA_COUPON));

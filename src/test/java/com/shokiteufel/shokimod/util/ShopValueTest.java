@@ -67,6 +67,40 @@ class ShopValueTest {
     }
 
     @Test
+    void theBitsShopAndEverySubPageAreRecognised() {
+        // erste Seite und Unterseiten (Bilder des Users, 28.11.)
+        assertEquals(List.of(Currency.BITS), ShopValue.shopOf("Community Shop").currencies());
+        assertEquals(List.of(Currency.BITS), ShopValue.shopOf("Bits Shop - Sacks").currencies());
+        assertEquals(List.of(Currency.BITS), ShopValue.shopOf("Bits Shop - Stacking Enchants").currencies());
+        assertEquals(List.of(Currency.BITS), ShopValue.shopOf("Bits Shop - Consumables").currencies());
+        assertEquals(List.of(Currency.BITS), ShopValue.shopOf("(1/2) Bits Shop - Sacks").currencies());
+        assertEquals("Bits Shop", ShopValue.shopOf("Bits Shop - Sacks").name());
+    }
+
+    @Test
+    void bitsMatchInPluralAndSingular() {
+        assertTrue(Currency.BITS.matches("Bits"));
+        assertTrue(Currency.BITS.matches("Bit"));
+        assertTrue(Currency.BITS.matches("§bBits"));
+        assertFalse(Currency.BITS.matches("Bitsy"));
+        assertFalse(Currency.PESTS.matches("Bits"));
+        assertFalse(Currency.BITS.matches("Pests"));
+        assertEquals("§eCoins per Bit§f:", ShopValue.heading(Currency.BITS));
+    }
+
+    @Test
+    void aBitsCostLineIsRatedLikeAnyOther() {
+        // Booster Cookie fuer 4.800 Bits, im Basar 1 Mio: gut 208 Coins je Bit
+        Prices cookie = new Table(Map.of("BOOSTER_COOKIE", 1_000_000.0), Map.of());
+        List<Cost> costs = ShopValue.readCosts(List.of("Cost", "4,800 Bits", "", "Click to trade!"));
+        assertEquals(List.of(new Cost("Bits", 4_800)), costs);
+        Offer o = new Offer("Booster Cookie", "§6", 1, List.of("BOOSTER_COOKIE"), costs);
+        List<Row> rows = ShopValue.rank(Currency.BITS, List.of(o), cookie, true, 10);
+        assertEquals(1, rows.size());
+        assertEquals(1_000_000.0 / 4_800, rows.get(0).ratio(), 1e-9);
+    }
+
+    @Test
     void aCurlyApostropheInTheTitleDoesNotMatter() {
         assertNotNull(ShopValue.shopOf("Agatha’s Shop"));
         assertNotNull(ShopValue.shopOf("Pesthunter’s Wares"));

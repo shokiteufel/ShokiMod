@@ -5635,7 +5635,7 @@ public class ModConfig extends Config {
 
         // Eigene Funktion, keine der 26.3-Umstellung: steht nicht in Update263Scope und ruht nie mit dem 26.3-Schalter
         @Expose
-        @Category(name = "NPC Shop Values", desc = "In the shops of SkyMart, Pesthunter, Fear Mongerer, Agatha and Miria: a list next to the window with the best items, in coins per Copper, Pest, Candy or Coupon.")
+        @Category(name = "NPC Shop Values", desc = "In the shops of SkyMart, Pesthunter, Fear Mongerer, Agatha, Miria and the Bits Shop: a list next to the window with the best items, in coins per Copper, Pest, Candy, Coupon or Bit.")
         public ShopValueCategory shopValue = new ShopValueCategory();
     }
 
@@ -5680,7 +5680,7 @@ public class ModConfig extends Config {
      */
     public static class ShopValueCategory {
 
-        @ConfigOption(name = "NPC Shop Values", desc = "Opens next to the window of a shop that sells for something other than coins: SkyMart (Copper), Pesthunter's Wares (Pests), Fear Mongerer (Green Candy and Purple Candy), Agatha's Shop (Agatha's Coupon) and Miria's Shop (Miria's Coupon). It lists the items on the page you are looking at, the best first, with what one Copper, Pest, Candy or Coupon is worth in coins: the value of the item (Bazaar, or the lowest BIN) minus any other materials it costs, divided by the amount of the currency. Each line shows the whole value of the item and, in brackets, what one Copper, Pest, Candy or Coupon brings; the list is ordered by that number. Point at a line and the item lights up in the shop window. Items without a Bazaar or auction price are left out. The costs are read from the item descriptions, so a price change of the shop needs no update. Off until you turn it on. This is a function of its own: the 26.3 switch does not touch it.")
+        @ConfigOption(name = "NPC Shop Values", desc = "Opens next to the window of a shop that sells for something other than coins: SkyMart (Copper), Pesthunter's Wares (Pests), Fear Mongerer (Green Candy and Purple Candy), Agatha's Shop (Agatha's Coupon), Miria's Shop (Miria's Coupon) and the Bits Shop (Bits; its first page is called Community Shop, and every sub page such as Sacks or Stacking Enchants gets its own list). It lists the items on the page you are looking at, the best first, with what one Copper, Pest, Candy or Coupon is worth in coins: the value of the item (Bazaar, or the lowest BIN) minus any other materials it costs, divided by the amount of the currency. Each line shows the whole value of the item and, in brackets, what one Copper, Pest, Candy or Coupon brings; the list is ordered by that number. Point at a line and the item lights up in the shop window. Items without a Bazaar or auction price are left out. The costs are read from the item descriptions, so a price change of the shop needs no update. Off until you turn it on. This is a function of its own: the 26.3 switch does not touch it.")
         @ConfigEditorInfoText
         public transient String about = "";
 
